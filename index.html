@@ -2351,11 +2351,16 @@
       <div class="invites-section">
         <div class="sidebar-section-label" style="margin-bottom:0.25rem;padding-left:0;"><span>Invites</span><span class="invite-pill">${pending.length}</span></div>
         ${pending.map(m => {
+          // Prefer denormalized fields stored at invite time. Fall back to
+          // local lookups for legacy/older rows that don't have them.
           const biz = data.businesses.find(b => b.id === m.businessId);
           const owner = accounts.find(a => a.id === biz?.ownerId);
+          const bizName = m.businessName || biz?.name || '(unknown business)';
+          const inviterName = m.invitedByName || owner?.name || '';
+          const metaLine = inviterName ? `${escapeHtml(inviterName)} · ${escapeHtml(m.role)}` : `role: ${escapeHtml(m.role)}`;
           return `<div class="invite-card">
-            <div class="invite-card-name">${escapeHtml(biz?.name || '(unknown)')}</div>
-            <div class="invite-card-meta">${owner ? escapeHtml(owner.name) + ' · ' + m.role : 'role: ' + m.role}</div>
+            <div class="invite-card-name">${escapeHtml(bizName)}</div>
+            <div class="invite-card-meta">${metaLine}</div>
             <div class="invite-actions">
               <button class="invite-btn accept" onclick="respondInvite('${m.id}', 'accepted')">Accept</button>
               <button class="invite-btn decline" onclick="respondInvite('${m.id}', 'declined')">Decline</button>
@@ -5191,13 +5196,31 @@
     const existing = data.members.find(m => m.businessId === session.activeBizId && m.userLogin === login);
     if (existing) {
       if (existing.status === 'declined') {
+        // Re-invite: refresh display fields too in case names changed.
+        const biz = data.businesses.find(b => b.id === session.activeBizId);
         existing.status = 'pending'; existing.role = role; existing.addedAt = today();
+        existing.invitedByName = u.name || u.login;
+        existing.businessName = biz?.name || '';
         delete existing.respondedAt;
         saveData(); refreshStaffSurface(); toast('Re-invited.'); return;
       }
       toast('Already invited.'); return;
     }
-    data.members.push({ id: uid(), businessId: session.activeBizId, userLogin: login, role, status: 'pending', addedAt: today() });
+    // Denormalize the inviter's name and the business's name onto the member
+    // row. The invitee will see these in their pending-invites sidebar before
+    // they accept (at that point they don't yet have the parent business row
+    // locally, and they can't look up the inviter in their accounts list).
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    data.members.push({
+      id: uid(),
+      businessId: session.activeBizId,
+      userLogin: login,
+      role,
+      status: 'pending',
+      addedAt: today(),
+      invitedByName: u.name || u.login,
+      businessName: biz?.name || '',
+    });
     saveData(); refreshStaffSurface(); toast("Invite sent.");
   }
   function removeStaff(id) {
@@ -7602,6 +7625,10 @@
         role: r.role,
         status: r.status,
         responded_at: r.respondedAt ? (typeof r.respondedAt === 'string' ? r.respondedAt : new Date(r.respondedAt).toISOString()) : null,
+        // Denormalized display fields so the invitee can render the invite
+        // card before they have a local copy of the business/inviter.
+        invited_by_name: r.invitedByName || null,
+        business_name: r.businessName || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -7611,6 +7638,8 @@
         userLogin: normalize(r.user_login),
         role: r.role, status: r.status,
         respondedAt: r.responded_at || undefined,
+        invitedByName: r.invited_by_name || undefined,
+        businessName: r.business_name || undefined,
       }),
     },
   };
