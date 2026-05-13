@@ -1098,6 +1098,19 @@
           </div>
         </div>
       </div>
+
+      <!-- Management section: owner-only sidebar group for org admin tasks.
+           Currently houses Staff. Hidden entirely when there's no active
+           business or the current user isn't its owner. -->
+      <div id="sidebarManagementGroup" style="display:none;">
+        <div class="sidebar-section-label"><span>Management</span></div>
+        <div class="sidebar-nav">
+          <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            Staff
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="sidebar-footer">
@@ -1132,9 +1145,6 @@
         </div>
       </div>
       <div class="topbar-actions">
-        <button class="topbar-icon-btn" id="mobileStaffBtn" onclick="openModal('staff')" aria-label="Staff" hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-        </button>
         <button class="topbar-icon-btn" id="mobileExportBtn" onclick="openModal('exportSheet')" aria-label="Export">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
@@ -2255,8 +2265,6 @@
   function renderPermissions() {
     const role = session.activeBizId ? roleFor(session.activeBizId) : null;
     document.getElementById('userRole').textContent = role ? role[0].toUpperCase() + role.slice(1) : '—';
-    const mStaff = document.getElementById('mobileStaffBtn');
-    if (role === 'owner') mStaff.removeAttribute('hidden'); else mStaff.setAttribute('hidden', '');
     const mExport = document.getElementById('mobileExportBtn');
     if (session.activeBizId && canSeeTotals(session.activeBizId)) mExport.removeAttribute('hidden');
     else mExport.setAttribute('hidden', '');
@@ -2322,6 +2330,15 @@
       navExpenses.style.display = isOwner ? 'flex' : 'none';
       navExpenses.classList.toggle('active', session.view === 'expenses');
     }
+    // Management group: visible only when current user is owner of the active
+    // business. Hosts Staff (and any future org-admin tabs).
+    const mgmt = document.getElementById('sidebarManagementGroup');
+    if (mgmt) {
+      const isOwner = !!(session.activeBizId && canSeeAudit(session.activeBizId));
+      mgmt.style.display = isOwner ? 'block' : 'none';
+      const navStaff = document.getElementById('navStaff');
+      if (navStaff) navStaff.classList.toggle('active', session.view === 'staff');
+    }
   }
 
   function renderTopbar() {
@@ -2343,6 +2360,8 @@
       document.getElementById('mobileBookTitle').textContent = 'Audit';
     } else if (session.view === 'expenses') {
       document.getElementById('mobileBookTitle').textContent = 'Expenses';
+    } else if (session.view === 'staff') {
+      document.getElementById('mobileBookTitle').textContent = 'Staff';
     } else {
       document.getElementById('mobileBookTitle').textContent = book ? book.name : 'No book';
     }
@@ -2379,6 +2398,7 @@
     if (session.view === 'account-detail') { renderAccountDetailView(root); return; }
     if (session.view === 'audit') { renderAuditView(root); return; }
     if (session.view === 'expenses') { renderExpensesView(root); return; }
+    if (session.view === 'staff') { renderStaffView(root); return; }
     renderEntriesView(root);
   }
 
@@ -2393,7 +2413,6 @@
           <h1 class="page-title">${book ? `${escapeHtml(book.name)}` : 'No book selected'}</h1>
         </div>
         <div class="page-actions">
-          ${role === 'owner' ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'staff\')">Staff</button>' : ''}
           ${canSeeTotals(session.activeBizId) ? '<button class="btn btn-sm btn-ghost" onclick="exportPDF()">PDF</button>' : ''}
           ${canSeeTotals(session.activeBizId) ? '<button class="btn btn-sm btn-ghost" onclick="exportExcel()">Excel</button>' : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
@@ -5071,17 +5090,96 @@
       if (existing.status === 'declined') {
         existing.status = 'pending'; existing.role = role; existing.addedAt = today();
         delete existing.respondedAt;
-        saveData(); openModal('staff'); toast('Re-invited.'); return;
+        saveData(); refreshStaffSurface(); toast('Re-invited.'); return;
       }
       toast('Already invited.'); return;
     }
     data.members.push({ id: uid(), businessId: session.activeBizId, userLogin: login, role, status: 'pending', addedAt: today() });
-    saveData(); openModal('staff'); toast("Invite sent.");
+    saveData(); refreshStaffSurface(); toast("Invite sent.");
   }
   function removeStaff(id) {
     if (!confirm('Remove this staff member?')) return;
     data.members = data.members.filter(m => m.id !== id);
-    saveData(); openModal('staff'); toast('Removed.');
+    saveData(); refreshStaffSurface(); toast('Removed.');
+  }
+  // Re-render whichever surface is showing the staff list — full-page view
+  // (session.view === 'staff') or the legacy modal. The modal is still kept
+  // around for fallbacks (e.g. when a non-owner triggers the legacy code path),
+  // but the canonical entry point is now switchView('staff').
+  function refreshStaffSurface() {
+    if (session.view === 'staff') { renderMain(); return; }
+    if (document.getElementById('mStaffLogin')) { openModal('staff'); return; }
+    renderAll();
+  }
+
+  // Full-page Staff view. Same logic as staffModal but rendered into the main
+  // content area, with the page-header styling used by other tabs.
+  function renderStaffView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
+    // Defense-in-depth: this view is owner-only; if a non-owner reaches it
+    // (e.g. via a stale session.view value), redirect to Entries.
+    if (!canSeeAudit(biz.id)) { session.view = 'entries'; saveSession(); renderAll(); return; }
+    const u = me();
+    const staff = data.members.filter(m => m.businessId === session.activeBizId);
+    const ownerInitial = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · management</div>
+          <h1 class="page-title">Staff &amp; access</h1>
+        </div>
+      </div>
+      <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;max-width:42rem;">People who can work in <strong>${escapeHtml(biz.name)}</strong>. Add a phone or email; the person signs up with the same one and accepts your invite — they only join after accepting.</p>
+      <div class="staff-grid" style="margin-bottom:1.5rem;">
+        <div class="staff-row">
+          <div class="staff-info">
+            <div class="user-avatar" style="background:var(--ink);">${escapeHtml(ownerInitial)}</div>
+            <div>
+              <div style="font-weight:500;">${escapeHtml(u.name)} <span style="color:var(--ink-mute);font-size:.8rem;">· you</span></div>
+              <div class="staff-meta">${escapeHtml(u.login)}</div>
+            </div>
+          </div>
+          <span class="role-badge">Owner</span>
+        </div>
+        ${staff.map(m => {
+          const linked = accounts.find(a => a.login === m.userLogin);
+          const displayName = linked?.name || m.userLogin;
+          let statusBadge = '';
+          if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
+          else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
+          return `<div class="staff-row">
+            <div class="staff-info">
+              <div class="user-avatar" style="background:var(--accent-soft);opacity:${m.status === 'accepted' ? 1 : 0.5};">${escapeHtml(displayName[0].toUpperCase())}</div>
+              <div>
+                <div style="font-weight:500;">${escapeHtml(displayName)}</div>
+                <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined ' + (m.respondedAt || '') : 'joined ' + (m.respondedAt || m.addedAt)}</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
+              ${statusBadge}<span class="role-badge ${m.role}">${m.role}</span>
+              <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${jsAttr(m.id)}')" aria-label="Remove">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+      <h3 class="settings-heading" style="margin-top:0;">Invite someone</h3>
+      <div class="form-grid" style="max-width:42rem;">
+        <div class="input-wrap"><label>Phone or email</label><input type="text" id="mStaffLogin" placeholder="98xxxxxxxx or them@example.com"></div>
+        <div class="input-wrap"><label>Role</label>
+          <select id="mStaffRole">
+            <option value="manager">Manager — edit everything, no staff control</option>
+            <option value="staff" selected>Staff — add &amp; edit own entries</option>
+            <option value="viewer">Viewer — read only</option>
+          </select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button class="btn btn-accent" onclick="addStaff()">Send invite</button>
+        </div>
+      </div>
+    `;
   }
 
   // PERIOD PICKER
@@ -5695,19 +5793,15 @@
       ${isCloud ? `
       <div class="settings-section">
         <h3 class="settings-heading">Cloud sync</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Push your books to the cloud, then pull them on any other device you sign in to. Each push updates the cloud with your latest local changes; each pull replaces local with what is in the cloud.</p>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button class="btn btn-sm btn-accent" onclick="cloudPushAll()">Push to cloud</button>
-          <button class="btn btn-sm btn-ghost" onclick="cloudPullAll()">Pull from cloud</button>
-          <button class="btn btn-sm btn-ghost" onclick="cloudDiagnostic()" title="Test connection to Supabase">Test connection</button>
-        </div>
-        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.5rem;">Signed in as <strong>${escapeHtml(u.login)}</strong></p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.5rem;">Your books sync to the cloud automatically. The status pill in the corner shows current sync state — green when everything's synced, orange while pushing, grey when offline.</p>
+        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0;">Signed in as <strong>${escapeHtml(u.login)}</strong></p>
         <details style="margin-top:0.85rem;">
-          <summary style="font-size:0.75rem;color:var(--ink-mute);cursor:pointer;">Legacy single-blob backup</summary>
-          <p style="font-size:0.75rem;color:var(--ink-mute);margin:0.5rem 0;">Older single-blob cloud backup. Kept for compatibility; the per-record Push/Pull above is preferred for multi-device use.</p>
+          <summary style="font-size:0.75rem;color:var(--ink-mute);cursor:pointer;">Troubleshooting</summary>
+          <p style="font-size:0.75rem;color:var(--ink-mute);margin:0.5rem 0 0.6rem;">If sync ever looks stuck, the diagnostic below tests every part of the cloud connection and tells you exactly what's failing. The force-sync buttons are emergency overrides — auto-sync should handle every normal case without them.</p>
           <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-            <button class="btn btn-sm btn-ghost" onclick="cloudBackup()">Backup blob</button>
-            <button class="btn btn-sm btn-ghost" onclick="cloudRestore()">Restore blob</button>
+            <button class="btn btn-sm btn-ghost" onclick="cloudDiagnostic()" title="Test connection to Supabase">Test connection</button>
+            <button class="btn btn-sm btn-ghost" onclick="cloudPushAll()" title="Force push everything to cloud">Force push</button>
+            <button class="btn btn-sm btn-ghost" onclick="cloudPullAll()" title="Discard local and pull from cloud">Force pull</button>
           </div>
         </details>
       </div>` : ''}
@@ -6478,12 +6572,78 @@
       cloud: true,
       joined: today(),
     };
+    // OWNERSHIP MIGRATION: businesses (and entries) created on this device
+    // before cloud auth was added carry a local random `uid()` as ownerId /
+    // createdBy. Those values won't match auth.uid() in Supabase, so RLS
+    // policies (`with check (owner_id = auth.uid())`) reject every push.
+    // Detect that situation (any business with a non-matching ownerId AND
+    // no member rows pointing elsewhere — i.e. it really is "mine") and
+    // rewrite the local data to use the cloud user's id.
+    const previousLocalIds = new Set((accounts || []).map(a => a.id));
+    previousLocalIds.delete(sbUser.id); // cloud id is fine, ignore
+    let migratedAnything = false;
+    if (previousLocalIds.size > 0 && Array.isArray(data.businesses)) {
+      for (const b of data.businesses) {
+        if (b.ownerId && previousLocalIds.has(b.ownerId)) {
+          b.ownerId = sbUser.id;
+          migratedAnything = true;
+        }
+      }
+      for (const e of data.entries || []) {
+        if (e.createdBy && previousLocalIds.has(e.createdBy)) {
+          e.createdBy = sbUser.id;
+          migratedAnything = true;
+        }
+        if (e.editedBy && previousLocalIds.has(e.editedBy)) {
+          e.editedBy = sbUser.id;
+          migratedAnything = true;
+        }
+      }
+    }
     accounts = [localAcct];
     saveAccounts();
     session.userId = localAcct.id;
     if (!session.period) session.period = { mode: 'current' };
     if (!session.view) session.view = 'entries';
     saveSession();
+    if (migratedAnything) {
+      saveData();
+      // The old snapshot was based on stale ownerIds. Throw it out so the
+      // diff treats every record as new and re-emits clean ops with the
+      // corrected ownership. Also clear any poison ops left from earlier
+      // failed pushes — they had the wrong ownerId and were rejected by RLS.
+      try {
+        localStorage.removeItem(SYNC_QUEUE_KEY);
+        localStorage.removeItem(SYNC_SNAPSHOT_KEY);
+      } catch (_) {}
+      __syncQueue = [];
+      __syncSnapshot = null;
+      console.log('Ownership migration: rewrote pre-cloud ownerIds to Supabase user. Sync queue/snapshot reset.');
+    }
+    // Recovery path: catches the case where the first cloud sign-in completed
+    // (accounts is already [cloudUser]) but data records still carry the
+    // pre-migration ownerId. This happened in real deployments — every push
+    // was rejected by RLS until the records' ownerId was rewritten.
+    // We treat any non-matching ownerId/createdBy as "mine, fix it" because
+    // on a single-user device that's always the right call.
+    let recoveryFixed = 0;
+    for (const b of data.businesses || []) {
+      if (b.ownerId !== sbUser.id) { b.ownerId = sbUser.id; recoveryFixed++; }
+    }
+    for (const e of data.entries || []) {
+      if (e.createdBy && e.createdBy !== sbUser.id) { e.createdBy = sbUser.id; recoveryFixed++; }
+      if (e.editedBy && e.editedBy !== sbUser.id)   { e.editedBy   = sbUser.id; recoveryFixed++; }
+    }
+    if (recoveryFixed) {
+      saveData();
+      try {
+        localStorage.removeItem(SYNC_QUEUE_KEY);
+        localStorage.removeItem(SYNC_SNAPSHOT_KEY);
+      } catch (_) {}
+      __syncQueue = [];
+      __syncSnapshot = null;
+      console.log('Recovery: fixed', recoveryFixed, 'stale-owner records, reset sync state.');
+    }
     // First successful cloud sign-in completes the migration. From now on
     // this device is in cloud-only mode and we skip the migration screen.
     if (localStorage.getItem(CLOUD_MIGRATED_KEY) !== '1') {
