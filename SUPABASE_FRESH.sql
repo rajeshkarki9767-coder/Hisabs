@@ -1,74 +1,17 @@
 -- ============================================================
--- HISABS — single-file Supabase setup
+-- HISABS — single-file Supabase setup (v2 — correct ordering)
 -- ============================================================
 -- Run this ONCE on a fresh Supabase project. Creates all 10 app_* tables,
 -- their RLS policies, the helper functions, and the realtime publication.
 -- Idempotent: safe to re-run (uses drop-if-exists + create or replace).
 --
--- After this runs, the database is ready for Hisabs to connect to.
--- No further SQL needed.
+-- Ordering matters: tables are created BEFORE the helper functions
+-- (which reference them in their bodies), so Postgres can validate.
 -- ============================================================
-
--- ----------------------------------------------------------------
--- 0. Helper functions
--- ----------------------------------------------------------------
--- We need these defined BEFORE the tables (the table policies reference them).
--- security definer + search_path include both `public` and `auth` so the
--- functions can both query our tables AND call auth.uid().
-
-create or replace function public.can_read_business(bid text)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, auth
-as $$
-  select exists (
-    select 1 from public.app_businesses b
-    where b.id = bid
-      and (
-        b.owner_id = auth.uid()
-        or exists (
-          select 1 from public.app_members m
-          where m.business_id = b.id
-            and m.user_id = auth.uid()
-            and m.status = 'accepted'
-            and m.deleted_at is null
-        )
-      )
-  );
-$$;
-
-create or replace function public.can_write_business(bid text)
-returns boolean
-language sql
-stable
-security definer
-set search_path = public, auth
-as $$
-  select exists (
-    select 1 from public.app_businesses b
-    where b.id = bid and b.owner_id = auth.uid()
-  ) or exists (
-    select 1 from public.app_members m
-    where m.business_id = bid
-      and m.user_id = auth.uid()
-      and m.status = 'accepted'
-      and m.deleted_at is null
-      and coalesce(m.role, '') in ('manager', 'staff')
-  );
-$$;
-
-grant execute on function public.can_read_business(text) to anon, authenticated;
-grant execute on function public.can_write_business(text) to anon, authenticated;
 
 -- ----------------------------------------------------------------
 -- 1. Tables
 -- ----------------------------------------------------------------
--- Each app_* table has a text PK (Hisabs generates uids client-side),
--- a deleted_at column for soft deletes (so realtime UPDATE events
--- propagate deletes to other devices), and an updated_at for change
--- tracking. Children reference business_id directly for fast RLS.
 
 create table if not exists public.app_accounts (
   id uuid primary key,
@@ -208,7 +151,59 @@ create table if not exists public.app_audit_expenses (
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
 
 -- ----------------------------------------------------------------
--- 2. Enable RLS on every table
+-- 2. Helper functions (defined AFTER tables they reference)
+-- ----------------------------------------------------------------
+-- security definer + explicit search_path so functions can both
+-- read our tables AND call auth.uid().
+
+create or replace function public.can_read_business(bid text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select exists (
+    select 1 from public.app_businesses b
+    where b.id = bid
+      and (
+        b.owner_id = auth.uid()
+        or exists (
+          select 1 from public.app_members m
+          where m.business_id = b.id
+            and m.user_id = auth.uid()
+            and m.status = 'accepted'
+            and m.deleted_at is null
+        )
+      )
+  );
+$$;
+
+create or replace function public.can_write_business(bid text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select exists (
+    select 1 from public.app_businesses b
+    where b.id = bid and b.owner_id = auth.uid()
+  ) or exists (
+    select 1 from public.app_members m
+    where m.business_id = bid
+      and m.user_id = auth.uid()
+      and m.status = 'accepted'
+      and m.deleted_at is null
+      and coalesce(m.role, '') in ('manager', 'staff')
+  );
+$$;
+
+grant execute on function public.can_read_business(text) to anon, authenticated;
+grant execute on function public.can_write_business(text) to anon, authenticated;
+
+-- ----------------------------------------------------------------
+-- 3. Enable RLS on every table
 -- ----------------------------------------------------------------
 alter table public.app_accounts        enable row level security;
 alter table public.app_businesses      enable row level security;
@@ -222,8 +217,9 @@ alter table public.app_entries         enable row level security;
 alter table public.app_audit_expenses  enable row level security;
 
 -- ----------------------------------------------------------------
--- 3. Policies
+-- 4. Policies
 -- ----------------------------------------------------------------
+
 -- app_accounts: self only
 drop policy if exists app_accounts_select on public.app_accounts;
 create policy app_accounts_select on public.app_accounts
@@ -235,7 +231,7 @@ drop policy if exists app_accounts_update on public.app_accounts;
 create policy app_accounts_update on public.app_accounts
   for update using (id = auth.uid()) with check (id = auth.uid());
 
--- app_businesses: owner = auth.uid()
+-- app_businesses: owner = auth.uid() (with pending-invitee read access)
 drop policy if exists app_businesses_select on public.app_businesses;
 create policy app_businesses_select on public.app_businesses
   for select using (
@@ -245,9 +241,8 @@ create policy app_businesses_select on public.app_businesses
       where m.business_id = app_businesses.id
         and m.deleted_at is null
         and (
-          (m.user_id = auth.uid() and m.status = 'accepted')
-          or (m.user_id = auth.uid())
-          or (lower(m.user_login) = lower(coalesce((auth.jwt() ->> 'email'), '')))
+          m.user_id = auth.uid()
+          or lower(m.user_login) = lower(coalesce((auth.jwt() ->> 'email'), ''))
         )
     )
   );
@@ -294,8 +289,7 @@ begin
   end loop;
 end $$;
 
--- app_members has special rules: invitee can see their own pending row,
--- owner of the business can see/manage all rows for that business.
+-- app_members: invitee can see/respond to their own row, owner manages
 drop policy if exists app_members_select on public.app_members;
 create policy app_members_select on public.app_members
   for select using (
@@ -334,19 +328,15 @@ create policy app_members_delete on public.app_members
   );
 
 -- ----------------------------------------------------------------
--- 4. Grants — required for PostgREST to even attempt these operations
+-- 5. Grants — required for PostgREST to even attempt operations
 -- ----------------------------------------------------------------
--- Without these grants, PostgREST returns 401/403 before RLS even runs.
--- Grant on schema first, then per-table.
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
 grant select, insert, update on all tables in schema public to anon;
 
 -- ----------------------------------------------------------------
--- 5. Realtime publication
+-- 6. Realtime publication
 -- ----------------------------------------------------------------
--- Adds every app_* table to the supabase_realtime publication so
--- postgres_changes subscriptions deliver events.
 
 do $$
 declare
@@ -367,9 +357,7 @@ begin
 end $$;
 
 -- ============================================================
--- DONE.
--- ============================================================
--- Verify by running:
+-- DONE. Verify with:
 --   select c.relname, count(*) from pg_policy p
 --   join pg_class c on c.oid = p.polrelid
 --   join pg_namespace n on n.oid = c.relnamespace
