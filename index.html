@@ -251,7 +251,6 @@
     transition: background 0.18s, border-color 0.18s, color 0.18s;
     letter-spacing: -0.005em;
   }
-  .sync-strip { display: flex; justify-content: flex-end; padding: 0.85rem 1.25rem 0; }
   .sync-badge-dot {
     width: 9px; height: 9px; border-radius: 50%;
     background: var(--ink-mute);
@@ -396,9 +395,12 @@
   .fab { display: none; }
 
   /* Date / day strip — shows current weekday + date above every page, on both desktop and mobile. */
-  .date-strip { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; padding-bottom: 0.65rem; margin-bottom: 0.85rem; border-bottom: 1px solid var(--line); font-size: 0.72rem; color: var(--ink-mute); letter-spacing: 0.01em; }
-  .date-strip-day { font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; }
-  .date-strip-date { color: var(--ink-mute); }
+  .date-strip { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding-bottom: 0.65rem; margin-bottom: 0.85rem; border-bottom: 1px solid var(--line); font-size: 0.72rem; color: var(--ink-mute); letter-spacing: 0.01em; }
+  .date-strip-day { font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; flex: 1; text-align: left; }
+  /* Center cell holds the sync badge on desktop. Flex centering aligns
+     the badge horizontally on the page (between day-name and full-date). */
+  .date-strip-sync { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; }
+  .date-strip-date { color: var(--ink-mute); flex: 1; text-align: right; }
 
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
   .page-title-wrap { flex: 1; min-width: 200px; }
@@ -907,9 +909,9 @@
     .topbar-eyebrow { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .topbar-title { font-family: var(--font-sans); font-size: 1.05rem; font-weight: 500;  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
     .topbar-actions { display: flex; gap: 0.2rem; flex-shrink: 0; align-items: center; }
-    /* On mobile the desktop sync-strip is hidden — the dot lives in the
-       topbar instead (no label, just the colored dot). */
-    .sync-strip { display: none; }
+    /* On mobile, the desktop sync badge (inside date-strip) is hidden —
+       the compact dot in the topbar handles status display instead. */
+    .date-strip-sync { display: none; }
     /* Sync dot sits a bit to the left of the export icon — the larger
        right margin gives it visual breathing room separate from the
        action icon group. */
@@ -1232,17 +1234,8 @@
       </div>
     </header>
 
-    <!-- Desktop sync indicator strip: small right-aligned bar above the
-         main content. Anchored to the top of the scrollable area so it
-         scrolls with the page (not fixed-floating). -->
-    <div class="sync-strip" id="syncStrip">
-      <div class="sync-badge sync-badge-strip" id="syncBadge" data-state="synced" title="Synced" hidden>
-        <span class="sync-badge-dot"></span>
-        <span class="sync-badge-label">Synced</span>
-        <span class="sync-badge-count" style="display:none;"></span>
-      </div>
-    </div>
-
+    <!-- The desktop sync badge is rendered inside the date strip (between
+         day and date). The mobile sync dot lives in the topbar. -->
     <div class="date-strip" id="dateStrip"></div>
     <div id="mainContent"></div>
   </main>
@@ -2315,7 +2308,32 @@
     const now = new Date();
     const day = now.toLocaleDateString(undefined, { weekday: 'long' });
     const date = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
-    el.innerHTML = `<span class="date-strip-day">${escapeHtml(day)}</span><span class="date-strip-date">${escapeHtml(date)}</span>`;
+    // Desktop: day · [sync badge centered] · date
+    // The sync badge gets the id `syncBadge` so updateSyncBadge keeps
+    // finding it. It's hidden on first render (until cloud sign-in
+    // calls startSyncSystem to show it).
+    el.innerHTML = `
+      <span class="date-strip-day">${escapeHtml(day)}</span>
+      <div class="date-strip-sync">
+        <div class="sync-badge sync-badge-strip" id="syncBadge" data-state="synced" title="Synced" hidden>
+          <span class="sync-badge-dot"></span>
+          <span class="sync-badge-label">Synced</span>
+          <span class="sync-badge-count" style="display:none;"></span>
+        </div>
+      </div>
+      <span class="date-strip-date">${escapeHtml(date)}</span>
+    `;
+    // After re-rendering the strip, refresh the badge so it shows the
+    // current sync state (the freshly-recreated DOM element starts
+    // from the static `data-state="synced"` default).
+    try { updateSyncBadge(); } catch (_) {}
+    // If sync is currently enabled (cloud signed in), make the badge
+    // visible — it was rendered hidden because the strip can be
+    // re-rendered any time and we don't want a flash.
+    if (typeof __syncEnabled === 'function' && __syncEnabled()) {
+      const b = document.getElementById('syncBadge');
+      if (b) b.hidden = false;
+    }
     if (!__dateStripTimer) {
       // Re-check every minute. Cheap, keeps the strip correct around midnight.
       __dateStripTimer = setInterval(updateDateStrip, 60 * 1000);
