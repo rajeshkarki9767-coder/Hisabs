@@ -7392,7 +7392,11 @@
         // invitee has signed in and accepted). Until then it stays null
         // and the RLS uses the user_login fallback to find the row.
         user_id: r.userId || null,
-        user_login: r.userLogin,
+        // Normalize email on the way out so the invitee's lookup (which
+        // normalizes their own email too) matches reliably. Without this,
+        // "Zeus@Gmail.com" typed by the inviter wouldn't match
+        // "zeus@gmail.com" used by the invitee.
+        user_login: normalize(r.userLogin),
         role: r.role,
         status: r.status,
         responded_at: r.respondedAt ? (typeof r.respondedAt === 'string' ? r.respondedAt : new Date(r.respondedAt).toISOString()) : null,
@@ -7400,7 +7404,10 @@
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
         userId: r.user_id || undefined,
-        userLogin: r.user_login, role: r.role, status: r.status,
+        // Same normalization on the way in — defends against legacy rows
+        // written before the toDb normalization was added.
+        userLogin: normalize(r.user_login),
+        role: r.role, status: r.status,
         respondedAt: r.responded_at || undefined,
       }),
     },
