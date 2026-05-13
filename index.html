@@ -148,6 +148,17 @@
   .btn-accent { background: var(--accent); border-color: var(--accent); color: #f5f1e8; }
   .btn-accent:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-soft); color: #f5f1e8; }
   .btn-sm { padding: 0.42rem 0.85rem; font-size: 0.72rem; border-radius: var(--r-sm); }
+  /* Icon-only ghost button used by the per-view export trigger and any
+     future single-icon page-header actions. Keeps the same border/hover
+     treatment as `.btn-sm.btn-ghost` but with square padding. */
+  .btn-icon-ghost {
+    background: transparent; color: var(--ink); border: 1px solid var(--line);
+    padding: 0; width: 32px; height: 32px; cursor: pointer; border-radius: var(--r-sm);
+    display: inline-grid; place-items: center; transition: border-color 0.12s, background 0.12s, color 0.12s;
+    font-family: var(--font-sans);
+  }
+  .btn-icon-ghost:hover { border-color: var(--ink-soft); background: var(--paper-deep); }
+  .btn-icon-ghost:active { background: var(--line-soft); }
   .btn-gain { background: var(--gain); border-color: var(--gain); color: #f5f1e8; }
   .btn-loss { background: var(--loss); border-color: var(--loss); color: #f5f1e8; }
   .btn-danger-outline { background: transparent; color: var(--loss); border-color: var(--loss); }
@@ -162,7 +173,57 @@
     z-index: 1;
   }
   .input-wrap label .req { color: var(--loss); margin-left: 0.15rem; font-weight: 700; }
+
+  /* COMBOBOX (Party / Account / Category in entry modal). Replaces a
+     plain <select> with a typeahead input + dropdown. */
+  .combo { position: relative; }
+  .combo input.combo-input {
+    width: 100%;
+    padding: 0.75rem 2.2rem 0.75rem 0.85rem;
+    background: var(--input-bg-focus); border: 1px solid var(--line);
+    border-radius: var(--r-sm); color: var(--ink);
+    font-family: var(--font-sans); font-size: 0.92rem;
+    transition: border-color 0.12s;
+  }
+  .combo input.combo-input:focus { outline: none; border-color: var(--accent); }
+  .combo input.combo-input::placeholder { color: var(--ink-mute); }
+  .combo .combo-chevron {
+    position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+    background: transparent; border: none; padding: 0.3rem; cursor: pointer;
+    color: var(--ink-mute); display: grid; place-items: center;
+  }
+  .combo .combo-chevron:hover { color: var(--ink); }
+  .combo-options {
+    position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+    max-height: 240px; overflow-y: auto; z-index: 30;
+  }
+  .combo-group-head {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.13em;
+    color: var(--ink-mute); padding: 0.45rem 0.85rem 0.25rem;
+    background: var(--paper-deep); font-weight: 600; position: sticky; top: 0;
+  }
+  .combo-option {
+    padding: 0.55rem 0.85rem; font-size: 0.88rem; color: var(--ink);
+    cursor: pointer; border-bottom: 1px dashed var(--line-soft);
+  }
+  .combo-option:last-child { border-bottom: none; }
+  .combo-option:hover, .combo-option.kbd-focus { background: var(--paper-deep); }
+  .combo-option-none { color: var(--ink-mute); font-style: italic; }
+  .combo-empty { padding: 0.85rem; text-align: center; color: var(--ink-mute); font-size: 0.82rem; }
+  /* Error state mirrors the existing .input-wrap.input-error pattern */
+  .combo.input-error input.combo-input { border-color: var(--loss); box-shadow: 0 0 0 3px rgba(168,53,31,0.12); }
+  /* Relative-date hint next to the Date label in the entry modal:
+     "today" / "yesterday" / "in 3 days" / "5 days ago". Lowercase to
+     match natural reading rhythm, accent-colored so the eye finds it
+     after the user touches the date picker. */
+  .date-relative-hint {
+    color: var(--accent); font-weight: 600; letter-spacing: 0.03em;
+    text-transform: none; margin-left: 0.45rem; font-size: 0.6rem;
+  }
   .input-wrap.input-error input, .input-wrap.input-error select, .input-wrap.input-error textarea,
+  .input-wrap.input-error .combo input.combo-input,
   .combo.input-error input { border-color: var(--loss) !important; box-shadow: 0 0 0 3px rgba(168,53,31,0.12); }
   .input-wrap.input-error label { color: var(--loss); }
   /* Password field with an eye toggle on the right. The button is a
@@ -640,7 +701,7 @@
      read them. Cream-on-cream with an accent left border keeps the rest of
      the page visually quiet. */
   .announcements-wrap { margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
-  .announcement { background: var(--surface-1); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--r); padding: 0.85rem 1rem; position: relative; display: flex; gap: 0.75rem; align-items: flex-start; }
+  .announcement { background: var(--surface-1); border: 2px solid var(--accent); border-radius: var(--r); padding: 0.85rem 1rem; position: relative; display: flex; gap: 0.75rem; align-items: flex-start; }
   .announcement-icon { color: var(--accent); flex-shrink: 0; margin-top: 0.05rem; }
   .announcement-body { flex: 1; min-width: 0; }
   .announcement-meta { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
@@ -961,6 +1022,23 @@
   .modal.modal-full { max-width: 1000px; width: calc(100% - 4rem); max-height: calc(100vh - 3rem); padding: 2rem 2.5rem 1.75rem; }
   .modal.modal-full .modal-title { font-size: 1.5rem; margin-bottom: 0.5rem; }
   .modal.modal-full .settings-tab-body { padding-top: 0.5rem; }
+  /* Top-right × close. Injected by openModal when the modal goes full-
+     screen. The button sits above all content (z-index) so it stays
+     reachable even if the body scrolls. */
+  .modal.modal-full .modal-full-close {
+    position: absolute; top: 0.75rem; right: 0.85rem;
+    width: 38px; height: 38px;
+    background: transparent; border: 1px solid var(--line);
+    border-radius: var(--r-sm); cursor: pointer; color: var(--ink-mute);
+    display: grid; place-items: center; z-index: 5;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+  .modal.modal-full .modal-full-close:hover { color: var(--ink); border-color: var(--ink-soft); background: var(--paper-deep); }
+  .modal.modal-full .modal-full-close:active { background: var(--line-soft); }
+  /* Make sure the title doesn't get hidden behind the close button on
+     narrow widths — give the top of the modal some right padding so the
+     title has room. */
+  .modal.modal-full .modal-title { padding-right: 3rem; }
   @media (max-width: 880px) {
     .modal.modal-full { max-width: 100%; width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; padding: 1rem 1rem calc(1rem + var(--safe-bottom)); }
     .modal.modal-full .modal-title { font-size: 1.25rem; }
@@ -1490,9 +1568,6 @@
         </div>
         <button class="topbar-search-btn" onclick="openSearchOverlay()" aria-label="Search">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-        </button>
-        <button class="topbar-icon-btn" id="mobileExportBtn" onclick="openModal('exportSheet')" aria-label="Export">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
       </div>
     </header>
@@ -2126,6 +2201,34 @@
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
+
+  // Human-friendly relative-date label for a YYYY-MM-DD string. Used next
+  // to the date input in the entry modal so users instantly see what day
+  // they picked. Returns 'today', 'yesterday', 'tomorrow', or 'N days
+  // ago' / 'in N days' — clamped at 365 (anything more shows '—'). Empty
+  // string for blank/invalid input.
+  function relativeDateLabel(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') return '';
+    // Use local midnight to avoid off-by-one near DST or timezone bumps.
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return '';
+    const picked = new Date(y, m - 1, d);
+    const now = new Date();
+    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffMs = picked.getTime() - todayLocal.getTime();
+    const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+    if (diffDays === 0) return 'today';
+    if (diffDays === -1) return 'yesterday';
+    if (diffDays === 1) return 'tomorrow';
+    if (Math.abs(diffDays) > 365) return '';
+    return diffDays < 0 ? `${Math.abs(diffDays)} days ago` : `in ${diffDays} days`;
+  }
+  function updateDateRelativeHint() {
+    const inp = document.getElementById('mDate');
+    const out = document.getElementById('mDateRelative');
+    if (!inp || !out) return;
+    out.textContent = relativeDateLabel(inp.value);
+  }
   // Currencies that use the Indian lakh/crore grouping (e.g. 10,00,000). Other
   // currencies use the western thousand grouping (1,000,000). Defaults to the
   // active business currency; falls back to en-US.
@@ -2148,6 +2251,14 @@
   };
   const normalize = s => String(s || '').trim().toLowerCase();
   function escapeHtml(s) { return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  // Standard export icon — a download tray + arrow. Used by every per-
+  // view export button (Parties, Categories, Accounts, Snapshot, etc.).
+  // Returns a complete HTML button that opens the export chooser modal
+  // for the given target (see openExportChooser).
+  const EXPORT_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  function exportIconButton(target) {
+    return `<button class="btn-icon-ghost" onclick="openExportChooser('${target}')" title="Export" aria-label="Export">${EXPORT_ICON_SVG}</button>`;
+  }
   // Stable sort by sortOrder, then by createdAt (oldest first), then by name.
   // Records without sortOrder get pushed to the end (treated as Infinity).
   function bySortOrder(records) {
@@ -2653,10 +2764,6 @@
     __categoriesSearch = '';
     __accountsSearch = '';
     __showHiddenAccounts = false;
-    __auditMonth = null;
-    __auditRangeMode = 'month';
-    __auditQuarter = null;
-    __auditYear = null;
     __splitPct = 100;
     __splitCurrency = '';
     __splitRate = 0;
@@ -2854,9 +2961,6 @@
   function renderPermissions() {
     const role = session.activeBizId ? roleFor(session.activeBizId) : null;
     document.getElementById('userRole').textContent = role ? role[0].toUpperCase() + role.slice(1) : '—';
-    const mExport = document.getElementById('mobileExportBtn');
-    if (session.activeBizId && canSeeTotals(session.activeBizId)) mExport.removeAttribute('hidden');
-    else mExport.setAttribute('hidden', '');
     document.getElementById('addBookBtn').disabled = !(role === 'owner' || role === 'manager');
     document.getElementById('fabIn').disabled = !canAddEntry();
     document.getElementById('fabOut').disabled = !canAddEntry();
@@ -3019,8 +3123,7 @@
           <h1 class="page-title">${book ? `${escapeHtml(book.name)}` : 'No book selected'}</h1>
         </div>
         <div class="page-actions">
-          ${canSeeTotals(session.activeBizId) ? '<button class="btn btn-sm btn-ghost" onclick="exportPDF()">PDF</button>' : ''}
-          ${canSeeTotals(session.activeBizId) ? '<button class="btn btn-sm btn-ghost" onclick="exportExcel()">Excel</button>' : ''}
+          ${canSeeTotals(session.activeBizId) ? exportIconButton('entries') : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
         </div>
       </div>`;
@@ -3588,8 +3691,7 @@
           <h1 class="page-title">Parties</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) && totalParties >= 1 ? `<button class="btn btn-sm btn-ghost" onclick="exportPartiesDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportPartiesDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) && totalParties >= 1 ? exportIconButton('parties') : ''}
           ${canAdd && totalParties >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderParties')">Reorder</button>` : ''}
           ${canAdd ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'party\')">+ New Party</button>' : ''}
         </div>
@@ -3654,8 +3756,7 @@
           <h1 class="page-title">${escapeHtml(party.name)}</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportPartyDetail('${party.id}', 'pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportPartyDetail('${party.id}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) ? exportIconButton('party:' + party.id) : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="renameParty('${party.id}')">Rename</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-danger-outline" onclick="deletePartyAction('${party.id}')">Delete</button>` : ''}
         </div>
@@ -3831,8 +3932,7 @@
           <h1 class="page-title">Categories</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportCategoriesDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportCategoriesDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) ? exportIconButton('categories') : ''}
           ${canManage && data.categories.filter(c => c.businessId === biz.id).length >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderCategories')">Reorder</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-accent" onclick="openModal('category')">+ New Category</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="openBizSettings('${biz.id}')">Manage</button>` : ''}
@@ -3903,8 +4003,7 @@
           <h1 class="page-title">${escapeHtml(displayName)}${!isUncat && !isDefined ? ' <span class="cat-orphan-tag" style="font-size:0.55em;vertical-align:middle;">unlisted</span>' : ''}</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) && !isUncat ? `<button class="btn btn-sm btn-ghost" onclick="exportCategoryDetail('${jsAttr(catName)}', 'pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportCategoryDetail('${jsAttr(catName)}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) && !isUncat ? exportIconButton('category:' + jsAttr(catName)) : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="renameCategoryFlow('${jsAttr(catName)}')">Rename</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteCategoryFromDetail('${jsAttr(catName)}')">Remove</button>` : ''}
         </div>
@@ -4192,8 +4291,7 @@
           <h1 class="page-title">Accounts</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportAccountsDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportAccountsDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) ? exportIconButton('accounts') : ''}
           ${canManage && (data.accountGroups.filter(g => g.businessId === biz.id).length >= 2 || allAccs.length >= 2) ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'reorderAccounts\')">Reorder</button>' : ''}
           ${canManage ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'accountGroup\')">+ New Category</button>' : ''}
           ${canManage ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'account\')">+ New Account</button>' : ''}
@@ -4238,9 +4336,6 @@
   // ================================================================
   // AUDIT — owner-only financial summary
   // ================================================================
-  // Selected month for the audit view (separate from the global period filter,
-  // because audit expenses are stored per calendar month, not per arbitrary range).
-  let __auditMonth = null;
   // Scratchpad state for the profit-split calculator at the bottom of Audit.
   // In-memory only; resets when the page reloads — that's the intent (it's a
   // calculator, not a setting).
@@ -4337,169 +4432,118 @@
       </div>
     `;
   }
+  // Used by addAuditExpense — returns the month string (YYYY-MM) the new
+  // expense should be tagged with. We use the start month of the period:
+  // for "current" / "month" / sub-month range that's the only month;
+  // for "all" or multi-month range it falls back to today's month, since
+  // adding an expense in those modes is gated by periodIsSingleMonth().
   function getAuditMonth() {
-    if (__auditMonth) return __auditMonth;
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  }
-  function setAuditMonth(key) { __auditMonth = key; renderMain(); }
-  function shiftAuditMonth(delta) {
-    const cur = getAuditMonth();
-    const [y, m] = cur.split('-').map(Number);
-    const d = new Date(y, m - 1 + delta, 1);
-    setAuditMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    const p = session.period || { mode: 'current' };
+    if (p.mode === 'month') return p.monthKey;
+    if (p.mode === 'range') return p.from.slice(0, 7);
+    return today().slice(0, 7);
   }
   function auditMonthLabel(key) {
     const [y, m] = key.split('-').map(Number);
     return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
 
-  // Audit range mode lets the user pick whether they're looking at a
-  // month, a quarter, or a year. Default is the current month so behavior
-  // for existing users is unchanged. State is module-level; it resets on
-  // sign-out and on switching businesses.
+  // Audit and Expenses share the same period selector as the entries view
+  // (This Month / All Time / Custom range). This means the audit summary
+  // (cash in / cash out / profit) supports any date range natively.
   //
-  // Internal keys:
-  //   month   → "2026-05"
-  //   quarter → "2026-Q2"
-  //   year    → "2026"
-  let __auditRangeMode = 'month';     // 'month' | 'quarter' | 'year'
-  let __auditQuarter = null;          // "2026-Q2" or null = current
-  let __auditYear = null;             // "2026" or null = current
+  // EXPENSE STORAGE NOTE: each audit expense is stored with a `month` field
+  // like "2026-05" — not a full date. That means a custom range narrower
+  // than a month (e.g. May 5 → May 20) can't filter expenses by day. In
+  // that case the audit view includes ALL expenses whose month overlaps
+  // the range, and explains that to the user. This is a known limitation
+  // until expenses gain full-date storage.
 
-  function getCurrentQuarter() {
-    const d = new Date();
-    return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
-  }
-  function getCurrentYear() {
-    return String(new Date().getFullYear());
-  }
-  function getAuditQuarter() { return __auditQuarter || getCurrentQuarter(); }
-  function getAuditYear() { return __auditYear || getCurrentYear(); }
-
-  function setAuditRangeMode(mode) {
-    __auditRangeMode = mode;
-    // Reset the per-mode key to "current" when switching modes so users
-    // don't get stuck looking at last year's Q3 after switching from
-    // year-view back to quarter-view.
-    if (mode === 'quarter') __auditQuarter = null;
-    else if (mode === 'year') __auditYear = null;
-    else if (mode === 'month') __auditMonth = null;
-    renderMain();
-  }
-  function shiftAuditQuarter(delta) {
-    const cur = getAuditQuarter();
-    const [y, q] = cur.split('-Q').map(Number);
-    let newQ = q + delta, newY = y;
-    while (newQ < 1) { newQ += 4; newY -= 1; }
-    while (newQ > 4) { newQ -= 4; newY += 1; }
-    __auditQuarter = `${newY}-Q${newQ}`;
-    renderMain();
-  }
-  function shiftAuditYear(delta) {
-    const cur = getAuditYear();
-    __auditYear = String(Number(cur) + delta);
-    renderMain();
-  }
-  function jumpAuditQuarter(key) { __auditQuarter = key; renderMain(); }
-  function jumpAuditYear(year) { __auditYear = String(year); renderMain(); }
+  // Audit-view entry predicate — same as periodPredicate(), kept as a
+  // wrapper in case audit ever needs different scoping in the future.
+  function auditEntryPredicate() { return periodPredicate(); }
 
   // Return the list of "YYYY-MM" month strings covered by the current
-  // range. The audit calculation iterates these months to compute its
-  // totals. For "month" mode this is just one month; for "quarter" it's
-  // three; for "year" it's twelve.
+  // period. Used to filter expenses (stored monthly).
   function getAuditRangeMonths() {
-    if (__auditRangeMode === 'year') {
-      const y = Number(getAuditYear());
-      const out = [];
-      for (let m = 1; m <= 12; m++) out.push(`${y}-${String(m).padStart(2, '0')}`);
-      return out;
+    const p = session.period || { mode: 'current' };
+    if (p.mode === 'current') {
+      return [today().slice(0, 7)];
     }
-    if (__auditRangeMode === 'quarter') {
-      const [y, q] = getAuditQuarter().split('-Q').map(Number);
-      const start = (q - 1) * 3 + 1; // Q1→1, Q2→4, Q3→7, Q4→10
+    if (p.mode === 'month') {
+      return [p.monthKey];
+    }
+    if (p.mode === 'all') {
+      // For "All Time", include every month that has any data — entries
+      // OR expenses — for the active business.
+      const biz = data.businesses.find(b => b.id === session.activeBizId);
+      if (!biz) return [];
+      const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+      const months = new Set();
+      for (const e of data.entries) {
+        if (!bookIds.has(e.bookId)) continue;
+        if (typeof e.date === 'string' && e.date.length >= 7) months.add(e.date.slice(0, 7));
+      }
+      for (const x of data.auditExpenses) {
+        if (x.businessId === biz.id && x.month) months.add(x.month);
+      }
+      return [...months].sort();
+    }
+    if (p.mode === 'range') {
+      // Enumerate every month touched by [p.from, p.to]. Inclusive on both ends.
+      const fm = p.from.slice(0, 7);
+      const tm = p.to.slice(0, 7);
+      const [fy, fmo] = fm.split('-').map(Number);
+      const [ty, tmo] = tm.split('-').map(Number);
       const out = [];
-      for (let i = 0; i < 3; i++) {
-        const m = start + i;
+      let y = fy, m = fmo;
+      while (y < ty || (y === ty && m <= tmo)) {
         out.push(`${y}-${String(m).padStart(2, '0')}`);
+        m++; if (m > 12) { m = 1; y++; }
       }
       return out;
     }
-    // 'month' (default)
-    return [getAuditMonth()];
+    return [today().slice(0, 7)];
   }
 
+  // Human-readable label for the current period, used in section copy.
   function getAuditRangeLabel() {
-    if (__auditRangeMode === 'year') return `Year ${getAuditYear()}`;
-    if (__auditRangeMode === 'quarter') {
-      const [y, q] = getAuditQuarter().split('-Q');
-      return `Q${q} ${y}`;
+    return currentPeriodLabel();
+  }
+
+  // Are we looking at the current month? Used by the Expenses view to
+  // decide whether to allow adding new expenses (which are tagged with
+  // the current month and only make sense when viewing it).
+  function periodIsSingleMonth() {
+    const p = session.period || { mode: 'current' };
+    if (p.mode === 'current' || p.mode === 'month') return true;
+    if (p.mode === 'all') return false;
+    if (p.mode === 'range') {
+      // Same year AND same month on both ends
+      return p.from.slice(0, 7) === p.to.slice(0, 7);
     }
-    return auditMonthLabel(getAuditMonth());
+    return false;
   }
 
-  // True if the currently-selected range is "current" (this month / this
-  // quarter / this year). Used to decide whether to show a "Jump to now"
-  // button.
-  function auditRangeIsCurrent() {
-    if (__auditRangeMode === 'year') return getAuditYear() === getCurrentYear();
-    if (__auditRangeMode === 'quarter') return getAuditQuarter() === getCurrentQuarter();
-    const thisM = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-    return getAuditMonth() === thisM;
-  }
-  function jumpAuditToCurrent() {
-    if (__auditRangeMode === 'year') __auditYear = null;
-    else if (__auditRangeMode === 'quarter') __auditQuarter = null;
-    else __auditMonth = null;
-    renderMain();
+  // When viewing a sub-month range (e.g. May 5 → May 20), expenses can't
+  // be filtered by day — they only have a month-of-year tag. Returns true
+  // if the period is narrower than the full month it falls within.
+  function periodIsSubMonth() {
+    const p = session.period || { mode: 'current' };
+    if (p.mode !== 'range') return false;
+    if (p.from.slice(0, 7) !== p.to.slice(0, 7)) return false;
+    // Same month. Check whether from→to actually covers the whole month.
+    const [y, mo] = p.from.slice(0, 7).split('-').map(Number);
+    const lastDay = new Date(y, mo, 0).getDate();
+    const firstStr = `${p.from.slice(0,7)}-01`;
+    const lastStr = `${p.from.slice(0,7)}-${String(lastDay).padStart(2,'0')}`;
+    return !(p.from === firstStr && p.to === lastStr);
   }
 
-  // Render the audit / expenses range picker. A row of tabs (Month / Quarter
-  // / Year) plus inline navigation appropriate to the active mode: month
-  // mode shows prev/next month arrows, quarter mode shows quarter buttons,
-  // year mode shows prev/next year arrows. Used by both the Audit view and
-  // the Expenses view so they stay in sync.
+  // Render the audit / expenses range picker. Reuses the entries-style
+  // period bar so the UX is consistent across the app.
   function renderAuditRangeBar() {
-    const mode = __auditRangeMode;
-    const isCurrent = auditRangeIsCurrent();
-    const label = getAuditRangeLabel();
-    let nav = '';
-    if (mode === 'month') {
-      nav = `
-        <button class="audit-month-nav" onclick="shiftAuditMonth(-1)" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div class="audit-month-current">${escapeHtml(label)}</div>
-        <button class="audit-month-nav" onclick="shiftAuditMonth(1)" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-      `;
-    } else if (mode === 'year') {
-      nav = `
-        <button class="audit-month-nav" onclick="shiftAuditYear(-1)" aria-label="Previous year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div class="audit-month-current">${escapeHtml(label)}</div>
-        <button class="audit-month-nav" onclick="shiftAuditYear(1)" aria-label="Next year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-      `;
-    } else {
-      // quarter
-      const [year, q] = getAuditQuarter().split('-Q');
-      const qBtn = (n) => `<button class="audit-q-btn ${String(n) === q ? 'active' : ''}" onclick="jumpAuditQuarter('${year}-Q${n}')">Q${n}</button>`;
-      nav = `
-        <button class="audit-month-nav" onclick="shiftAuditYear(-1)" aria-label="Previous year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div class="audit-q-group">
-          <span class="audit-q-year">${escapeHtml(year)}</span>
-          ${qBtn(1)}${qBtn(2)}${qBtn(3)}${qBtn(4)}
-        </div>
-        <button class="audit-month-nav" onclick="shiftAuditYear(1)" aria-label="Next year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-      `;
-    }
-    return `
-      <div class="audit-range-tabs">
-        <button class="audit-range-tab ${mode === 'month' ? 'active' : ''}" onclick="setAuditRangeMode('month')">Month</button>
-        <button class="audit-range-tab ${mode === 'quarter' ? 'active' : ''}" onclick="setAuditRangeMode('quarter')">Quarter</button>
-        <button class="audit-range-tab ${mode === 'year' ? 'active' : ''}" onclick="setAuditRangeMode('year')">Year</button>
-        ${!isCurrent ? `<button class="btn btn-sm btn-ghost" onclick="jumpAuditToCurrent()" style="margin-left:auto;">Jump to ${mode === 'year' ? 'this year' : mode === 'quarter' ? 'this quarter' : 'this month'}</button>` : ''}
-      </div>
-      <div class="audit-month-bar">
-        ${nav}
-      </div>
-    `;
+    return renderPeriodBar();
   }
 
   // Compute the current balance of one account: sum of every Cash In minus
@@ -4596,16 +4640,17 @@
     const rangeMonths = getAuditRangeMonths();
     const rangeMonthsSet = new Set(rangeMonths);
     const rangeLabel = getAuditRangeLabel();
-    const isCurrent = auditRangeIsCurrent();
+    // isCurrent is referenced later by the now-removed "Jump to this month"
+    // button but kept here as a `false` fallback in case any leftover
+    // template uses it. The period bar handles "back to current" itself.
+    const isCurrent = (session.period?.mode === 'current');
 
-    // All audit numbers below are scoped to the picked range. Match any
-    // entry whose date prefix is one of the months in the range.
+    // Filter entries by the active period predicate. This supports daily
+    // granularity for custom ranges (e.g. May 5 → May 20), unlike the old
+    // month-based filter.
     const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
-    const rangeEntries = data.entries.filter(e => {
-      if (!bookIds.has(e.bookId)) return false;
-      if (typeof e.date !== 'string' || e.date.length < 7) return false;
-      return rangeMonthsSet.has(e.date.slice(0, 7));
-    });
+    const entryPred = auditEntryPredicate();
+    const rangeEntries = data.entries.filter(e => bookIds.has(e.bookId) && entryPred(e));
 
     const accs = bySortOrder(data.cashAccounts.filter(a => a.businessId === biz.id));
     const groups = data.accountGroups.filter(g => g.businessId === biz.id).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
@@ -4778,8 +4823,7 @@
           <h1 class="page-title">Audit</h1>
         </div>
         <div class="page-actions">
-          <button class="btn btn-sm btn-ghost" onclick="exportAuditDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportAuditDashboard('csv')" title="Download as Excel CSV">Excel</button>
+          ${exportIconButton('audit')}
         </div>
       </div>
 
@@ -4815,7 +4859,11 @@
     const rangeMonths = getAuditRangeMonths();
     const rangeMonthsSet = new Set(rangeMonths);
     const rangeLabel = getAuditRangeLabel();
-    const isMonthMode = __auditRangeMode === 'month';
+    // Adding a new expense only makes sense when viewing a single month —
+    // each expense is tied to one calendar month in storage. "All Time"
+    // and multi-month custom ranges hide the Add row.
+    const isMonthMode = periodIsSingleMonth();
+    const isSubMonth = periodIsSubMonth();
     const expenses = data.auditExpenses
       .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -4859,8 +4907,9 @@
         }).join('');
     }
 
-    // Add row is only meaningful in Month mode (one specific month to add to).
-    // In Quarter / Year modes, hide the add row and point the user back.
+    // Adding a new expense requires a single-month period — each expense
+    // is stored with a month tag, so adding from "All Time" or a multi-
+    // month custom range doesn't have a sensible target month.
     const addRow = isMonthMode
       ? `<div class="audit-exp-add">
           <input type="text" id="mAuditDesc" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
@@ -4868,8 +4917,11 @@
           <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
         </div>`
       : `<div style="background:var(--paper-deep);border:1px dashed var(--line);border-radius:var(--r-sm);padding:0.75rem 0.85rem;font-size:0.82rem;color:var(--ink-mute);">
-          Switch to <strong>Month</strong> view to add a new expense — each expense is tied to one specific month.
+          Switch to <strong>This Month</strong> or a custom range covering a single month to add a new expense — each expense is tied to one calendar month.
         </div>`;
+    const subMonthNote = isSubMonth ? `<div style="background:var(--paper-deep);border:1px dashed var(--line);border-radius:var(--r-sm);padding:0.55rem 0.75rem;font-size:0.78rem;color:var(--ink-mute);margin-bottom:0.6rem;">
+      <strong>Note:</strong> custom ranges narrower than a month still show every expense for that month — expenses don't have day-level dates yet.
+    </div>` : '';
 
     root.innerHTML = `
       <div class="page-header">
@@ -4878,8 +4930,7 @@
           <h1 class="page-title">Expenses</h1>
         </div>
         <div class="page-actions">
-          <button class="btn btn-sm btn-ghost" onclick="exportExpensesDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportExpensesDashboard('csv')" title="Download as Excel CSV">Excel</button>
+          ${exportIconButton('expenses')}
         </div>
       </div>
 
@@ -4896,6 +4947,7 @@
       <div class="audit-section">
         <h2 class="audit-section-title">Expenses for ${escapeHtml(rangeLabel)}</h2>
         <p class="audit-section-sub">Type any expense you want to track. These don't affect your cash book — they're a separate ledger, useful for tracking what's leaving your business outside of regular cash flow.</p>
+        ${subMonthNote}
         ${addRow}
         <div class="audit-exp-list">${expenseList}</div>
       </div>
@@ -4949,8 +5001,7 @@
           <h1 class="page-title">${escapeHtml(acc.name)}</h1>
         </div>
         <div class="page-actions">
-          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportAccountDetail('${acc.id}', 'pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportAccountDetail('${acc.id}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canExport(biz.id) ? exportIconButton('account:' + acc.id) : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="renameAccountFlow('${acc.id}')">Rename</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="moveAccountToGroup('${acc.id}')">Move</button>` : ''}
           ${canManage && accountCount > 1 ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteAccountAction('${acc.id}')">Delete</button>` : ''}
@@ -5209,6 +5260,8 @@
         const t = payload?.type || presetType || 'in';
         setEntryType(t);
         document.getElementById('mAmount')?.focus();
+        // Initial relative-date hint ("today", "yesterday", etc).
+        try { updateDateRelativeHint(); } catch (_) {}
       }, 50);
     } else if (kind === 'biz') { modal.innerHTML = bizModal(); setTimeout(() => document.getElementById('mBizName')?.focus(), 50); }
     else if (kind === 'book') {
@@ -5217,8 +5270,8 @@
     } else if (kind === 'staff') {
       if (!canManageBusiness(session.activeBizId)) { toast('Only the owner can manage the team.'); return; }
       modal.innerHTML = staffModal();
-    } else if (kind === 'exportSheet') { modal.innerHTML = exportSheetModal(); }
-    else if (kind === 'period') { modal.innerHTML = periodModal(); }
+    } else if (kind === 'period') { modal.innerHTML = periodModal(); }
+    else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
     else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
     else if (kind === 'party') {
       if (!canAddParty(session.activeBizId)) { toast('You don\'t have permission to add parties.'); return; }
@@ -5311,8 +5364,26 @@
     const fullScreenKinds = new Set(['settings', 'bizSettings', 'staff']);
     const modalEl = document.getElementById('modalContent');
     if (modalEl) {
-      if (fullScreenKinds.has(kind)) modalEl.classList.add('modal-full');
-      else modalEl.classList.remove('modal-full');
+      // Remove any existing top-right close button left over from a previous
+      // open (the modal element is re-used between opens).
+      const oldClose = modalEl.querySelector('.modal-full-close');
+      if (oldClose) oldClose.remove();
+      if (fullScreenKinds.has(kind)) {
+        modalEl.classList.add('modal-full');
+        // Inject a × close button pinned to the top-right corner. Users
+        // shouldn't have to scroll to the bottom of a long settings page
+        // to find the close action — having the × where users instinctively
+        // look (top-right) matches every native iOS/Android app convention.
+        const btn = document.createElement('button');
+        btn.className = 'modal-full-close';
+        btn.setAttribute('aria-label', 'Close');
+        btn.setAttribute('type', 'button');
+        btn.onclick = closeModal;
+        btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+        modalEl.appendChild(btn);
+      } else {
+        modalEl.classList.remove('modal-full');
+      }
     }
     document.getElementById('modalBackdrop').classList.add('active');
   }
@@ -5333,7 +5404,6 @@
         </div>`;
     }
     const cats = bySortOrder(data.categories.filter(c => c.businessId === biz.id));
-    const catOptions = cats.map(c => `<option value="${escapeHtml(c.name)}" ${existing?.category === c.name ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
     // Hide closed (hidden) accounts from the picker for NEW entries — but
     // if we're EDITING an entry that already points at a hidden account, keep
     // it so the user can save without losing the link.
@@ -5347,30 +5417,21 @@
       const m = parties.find(p => p.name.toLowerCase() === existing.party.toLowerCase());
       if (m) defaultPartyId = m.id;
     }
-    const partyOptions = parties.map(p =>
-      `<option value="${p.id}" ${p.id === defaultPartyId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
-    ).join('');
-    // For NEW entries: no default account — user must pick deliberately.
-    // For EDIT: keep the existing accountId.
+    // Build combobox options. Each entry: { value, label, group? }.
+    const partyOptionsCombo = parties.map(p => ({ value: p.id, label: p.name }));
     const defaultAccountId = existing?.accountId || '';
-    // Build grouped options: <optgroup label="Cash"><option>Purse</option>...</optgroup>
-    let accOptions = '';
+    // Build account combobox options with group labels so the dropdown
+    // still shows "Cash" / "Bank" headers.
+    const acctOptionsCombo = [];
     groups.forEach(g => {
       const inGroup = accs.filter(a => a.groupId === g.id);
-      if (!inGroup.length) return;
-      accOptions += `<optgroup label="${escapeHtml(g.name)}">`;
-      inGroup.forEach(a => {
-        accOptions += `<option value="${a.id}" ${a.id === defaultAccountId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`;
-      });
-      accOptions += '</optgroup>';
+      inGroup.forEach(a => acctOptionsCombo.push({ value: a.id, label: a.name, group: g.name }));
     });
-    // Accounts without a group (shouldn't happen after migration, but defensive)
     const orphans = accs.filter(a => !a.groupId || !groups.some(g => g.id === a.groupId));
-    if (orphans.length) {
-      accOptions += '<optgroup label="Other">';
-      orphans.forEach(a => { accOptions += `<option value="${a.id}" ${a.id === defaultAccountId ? 'selected' : ''}>${escapeHtml(a.name)}</option>`; });
-      accOptions += '</optgroup>';
-    }
+    orphans.forEach(a => acctOptionsCombo.push({ value: a.id, label: a.name, group: 'Other' }));
+    // Category options (value === name; category is stored as text on entries)
+    const catOptionsCombo = cats.map(c => ({ value: c.name, label: c.name }));
+    const defaultCategoryName = existing?.category || '';
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">${isEdit ? 'Edit' : 'New'} entry</h2>
@@ -5388,31 +5449,22 @@
         </div>
         <div class="input-wrap">
           <label id="partyLabel">${t === 'in' ? 'Received from' : 'Paid to'} <span class="req">*</span></label>
-          <select id="mParty">
-            <option value="" ${defaultPartyId ? '' : 'selected'} disabled>— Pick a party —</option>
-            ${partyOptions}
-          </select>
+          ${comboboxHTML('mParty', partyOptionsCombo, defaultPartyId, 'Type to search or pick a party…', false)}
           ${parties.length === 0 ? `<p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.3rem;">No parties yet. <a onclick="closeModal();switchView('parties');openModal('party');" style="cursor:pointer;text-decoration:underline;">Add one →</a></p>` : ''}
         </div>
         <div class="form-row">
           <div class="input-wrap">
             <label id="accountLabel">${t === 'in' ? 'Cash into' : 'Cash from'} <span class="req">*</span></label>
-            <select id="mAccount">
-              <option value="" ${defaultAccountId ? '' : 'selected'} disabled>— Pick an account —</option>
-              ${accOptions}
-            </select>
+            ${comboboxHTML('mAccount', acctOptionsCombo, defaultAccountId, 'Type to search or pick an account…', false)}
           </div>
           <div class="input-wrap">
-            <label>Date <span class="req">*</span></label>
-            <input type="date" id="mDate" value="${existing?.date || today()}">
+            <label>Date <span class="req">*</span> <span id="mDateRelative" class="date-relative-hint"></span></label>
+            <input type="date" id="mDate" value="${existing?.date || today()}" oninput="updateDateRelativeHint()" onchange="updateDateRelativeHint()">
           </div>
         </div>
         <div class="input-wrap">
           <label>Category <span class="req">*</span></label>
-          <select id="mCategory" required>
-            <option value="" disabled ${existing?.category ? '' : 'selected'}>— Pick a category —</option>
-            ${catOptions}
-          </select>
+          ${comboboxHTML('mCategory', catOptionsCombo, defaultCategoryName, 'Type to search or pick a category…', false)}
           ${cats.length === 0 && (roleFor(biz.id) === 'owner' || roleFor(biz.id) === 'manager') ? `<p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.3rem;">No categories yet. <a onclick="closeModal();openBizSettings('${biz.id}')" style="cursor:pointer;text-decoration:underline;">Add some →</a></p>` : ''}
         </div>
         <div class="input-wrap">
@@ -5450,6 +5502,227 @@
       saveBtn.classList.toggle('btn-loss', t === 'out');
     }
   }
+
+  // ================================================================
+  // SEARCHABLE COMBOBOX  (Party / Account / Category in entry modal)
+  // ================================================================
+  // Each combobox renders a visible text input + chevron button. Clicking
+  // the chevron or typing reveals a dropdown of filtered options. Clicking
+  // an option fills the input and stores the value (id or name) in a
+  // hidden input that bears the SAME id the legacy <select> had. This
+  // means saveEntry() reads `.value` from the same field id and doesn't
+  // need to change.
+  //
+  // State is held in the DOM: the hidden input stores the value, and the
+  // visible input shows the display label. The dropdown is built on
+  // demand from `data-options` (a JSON-encoded array of {value, label}).
+
+  // Render the markup for one combobox. Caller passes:
+  //   id        — id for the hidden input (legacy field name, e.g. 'mParty')
+  //   options   — array of { value, label, group? }
+  //   selected  — value to preselect (matches options[i].value)
+  //   placeholder — placeholder text when empty
+  //   allowEmpty — if true, the chooser includes a "— None —" row
+  function comboboxHTML(id, options, selected, placeholder, allowEmpty) {
+    const selectedOpt = options.find(o => o.value === selected);
+    const visibleValue = selectedOpt ? selectedOpt.label : '';
+    // Stash options as a JSON blob on a data attribute so renderComboList
+    // can re-build the dropdown without re-passing them on every call.
+    const optsJson = JSON.stringify({ options, allowEmpty: !!allowEmpty });
+    return `
+      <div class="combo" data-combo-id="${id}">
+        <input type="hidden" id="${id}" value="${escapeHtml(selected || '')}">
+        <input
+          type="text"
+          class="combo-input"
+          id="${id}_search"
+          placeholder="${escapeHtml(placeholder || 'Type to search or pick…')}"
+          value="${escapeHtml(visibleValue)}"
+          autocomplete="off"
+          oninput="onComboInput('${id}', this.value)"
+          onfocus="openCombo('${id}')"
+          onkeydown="onComboKeydown(event, '${id}')"
+        >
+        <button type="button" class="combo-chevron" aria-label="Open list" tabindex="-1"
+                onclick="toggleCombo('${id}')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="combo-options" id="${id}_list" hidden data-opts='${escapeHtml(optsJson)}'></div>
+      </div>
+    `;
+  }
+
+  // Keyboard-focus index per combobox (last opened); resets when dropdown
+  // closes. Only one combobox can be active at a time so a single var is
+  // enough.
+  let __comboKbdIdx = -1;
+  let __comboActiveId = null;
+
+  function getComboOpts(id) {
+    const list = document.getElementById(id + '_list');
+    if (!list) return { options: [], allowEmpty: false };
+    try {
+      const raw = list.getAttribute('data-opts') || '{}';
+      const decoded = raw
+        .replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+      return JSON.parse(decoded);
+    } catch (e) {
+      return { options: [], allowEmpty: false };
+    }
+  }
+
+  function renderComboList(id, filter) {
+    const { options, allowEmpty } = getComboOpts(id);
+    const q = (filter || '').trim().toLowerCase();
+    const filtered = q
+      ? options.filter(o => (o.label || '').toLowerCase().includes(q))
+      : options;
+    const list = document.getElementById(id + '_list');
+    if (!list) return;
+    if (!filtered.length && !allowEmpty) {
+      list.innerHTML = `<div class="combo-empty">${q ? 'No matches' : 'No options yet'}</div>`;
+      return;
+    }
+    const rows = [];
+    if (allowEmpty) {
+      rows.push(`<div class="combo-option combo-option-none" data-value="" data-label="">— None —</div>`);
+    }
+    // Group rows by `group` if any option has one; otherwise flat list.
+    const groupsMap = new Map();
+    let hasGroups = false;
+    for (const o of filtered) {
+      const g = o.group || '';
+      if (g) hasGroups = true;
+      if (!groupsMap.has(g)) groupsMap.set(g, []);
+      groupsMap.get(g).push(o);
+    }
+    if (hasGroups) {
+      for (const [g, items] of groupsMap) {
+        if (g) rows.push(`<div class="combo-group-head">${escapeHtml(g)}</div>`);
+        for (const o of items) {
+          // Click is handled via delegation on the list element — see
+          // openCombo, which (idempotently) wires it up. No inline
+          // onclick, so any value/label can pass through without HTML/JS
+          // escaping risk.
+          rows.push(`<div class="combo-option" data-value="${escapeHtml(o.value)}" data-label="${escapeHtml(o.label)}">${escapeHtml(o.label)}</div>`);
+        }
+      }
+    } else {
+      for (const o of filtered) {
+        rows.push(`<div class="combo-option" data-value="${escapeHtml(o.value)}" data-label="${escapeHtml(o.label)}">${escapeHtml(o.label)}</div>`);
+      }
+    }
+    list.innerHTML = rows.join('');
+  }
+
+  function openCombo(id) {
+    const list = document.getElementById(id + '_list');
+    if (!list) return;
+    __comboActiveId = id;
+    __comboKbdIdx = -1;
+    renderComboList(id, '');
+    list.removeAttribute('hidden');
+    // Wire delegated click handler if not already wired (idempotent —
+    // we use a property on the element to track).
+    if (!list.__clickWired) {
+      list.addEventListener('click', (ev) => {
+        const opt = ev.target.closest('.combo-option');
+        if (!opt) return;
+        pickCombo(id, opt.getAttribute('data-value') || '', opt.getAttribute('data-label') || '');
+      });
+      list.__clickWired = true;
+    }
+  }
+  function closeCombo(id) {
+    const list = document.getElementById(id + '_list');
+    if (!list) return;
+    list.setAttribute('hidden', '');
+    if (__comboActiveId === id) {
+      __comboActiveId = null;
+      __comboKbdIdx = -1;
+    }
+  }
+  function toggleCombo(id) {
+    const list = document.getElementById(id + '_list');
+    if (!list) return;
+    if (list.hasAttribute('hidden')) {
+      openCombo(id);
+      document.getElementById(id + '_search')?.focus();
+    } else {
+      closeCombo(id);
+    }
+  }
+  function onComboInput(id, value) {
+    // Reset the hidden value while the user is typing — they haven't
+    // picked yet. saveEntry checks the hidden input, so typing without
+    // picking should fail validation rather than silently keep the old id.
+    const hidden = document.getElementById(id);
+    if (hidden && hidden.value) {
+      // Only clear if the typed text no longer matches the selected label.
+      const opts = getComboOpts(id).options;
+      const sel = opts.find(o => o.value === hidden.value);
+      if (sel && sel.label !== value) hidden.value = '';
+    }
+    openCombo(id);
+    renderComboList(id, value);
+    __comboKbdIdx = -1;
+  }
+  function pickCombo(id, value, label) {
+    const hidden = document.getElementById(id);
+    const search = document.getElementById(id + '_search');
+    if (hidden) hidden.value = value;
+    if (search) search.value = label;
+    closeCombo(id);
+    // If this is a known field that affects other UI (e.g. mDate isn't
+    // a combobox but pattern is the same), trigger a change so anything
+    // listening can react. For combos we just clear errors.
+    const wrap = hidden?.closest('.input-wrap');
+    if (wrap) wrap.classList.remove('input-error');
+  }
+  function onComboKeydown(ev, id) {
+    const list = document.getElementById(id + '_list');
+    if (!list) return;
+    const items = list.querySelectorAll('.combo-option');
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      if (list.hasAttribute('hidden')) openCombo(id);
+      __comboKbdIdx = Math.min(__comboKbdIdx + 1, items.length - 1);
+      updateComboKbdFocus(items);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      __comboKbdIdx = Math.max(__comboKbdIdx - 1, -1);
+      updateComboKbdFocus(items);
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (__comboKbdIdx >= 0 && items[__comboKbdIdx]) {
+        items[__comboKbdIdx].click();
+      } else if (items.length === 1) {
+        // If there's exactly one match, pick it on Enter (Gmail-style).
+        items[0].click();
+      }
+    } else if (ev.key === 'Escape') {
+      closeCombo(id);
+    } else if (ev.key === 'Tab') {
+      // Allow tab to move on; close the dropdown so it doesn't linger.
+      closeCombo(id);
+    }
+  }
+  function updateComboKbdFocus(items) {
+    items.forEach((el, i) => el.classList.toggle('kbd-focus', i === __comboKbdIdx));
+    if (__comboKbdIdx >= 0 && items[__comboKbdIdx]) {
+      items[__comboKbdIdx].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Click anywhere outside the active combobox → close it. Registered
+  // once at module-load time.
+  document.addEventListener('click', (ev) => {
+    if (!__comboActiveId) return;
+    const wrap = document.querySelector(`.combo[data-combo-id="${__comboActiveId}"]`);
+    if (wrap && !wrap.contains(ev.target)) closeCombo(__comboActiveId);
+  });
   function saveEntry() {
     // Clear previous error states
     ['mAmount', 'mParty', 'mCategory', 'mDate', 'mAccount'].forEach(id => {
@@ -6007,8 +6280,7 @@
           <h1 class="page-title">Snapshot</h1>
         </div>
         <div class="page-actions">
-          ${all.length && canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportQuickLookDashboard('pdf')" title="Download as PDF">PDF</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportQuickLookDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${all.length && canExport(biz.id) ? exportIconButton('snapshot') : ''}
           ${canManage ? `<button class="btn btn-accent btn-sm" onclick="openQuickLookAddModal()">+ Add entry</button>` : ''}
         </div>
       </div>
@@ -7162,6 +7434,16 @@
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
     modal.classList.add('modal-full');
+    // Same top-right × close as the centralized openModal flow.
+    const oldClose = modal.querySelector('.modal-full-close');
+    if (oldClose) oldClose.remove();
+    const fcBtn = document.createElement('button');
+    fcBtn.className = 'modal-full-close';
+    fcBtn.setAttribute('aria-label', 'Close');
+    fcBtn.setAttribute('type', 'button');
+    fcBtn.onclick = closeModal;
+    fcBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    modal.appendChild(fcBtn);
     document.getElementById('modalBackdrop').classList.add('active');
     // Wire drag-to-reorder for categories and per-group accounts. Each list has
     // a unique id so multiple lists can coexist without colliding.
@@ -7994,11 +8276,10 @@
       session.view = 'entries';
       saveSession(); renderAll();
     } else if (action === 'expense') {
-      // Jump to expenses page in month mode for that month
+      // Jump to the expenses view scoped to the expense's month.
       const x = data.auditExpenses.find(e => e.id === id);
-      if (x) {
-        __auditRangeMode = 'month';
-        __auditMonth = x.month;
+      if (x && x.month) {
+        setPeriod({ mode: 'month', monthKey: x.month });
       }
       session.view = 'expenses';
       saveSession(); renderAll();
@@ -8806,21 +9087,85 @@
     // gap and resolve in a future iteration.
   }
 
-  function exportSheetModal() {
+  // ================================================================
+  // EXPORTS
+  // ================================================================
+
+  // Inline `[PDF] [EXCEL]` buttons in every view header are routed
+  // through a single chooser modal so the user gets one icon per page
+  // instead of two. The chooser knows which view it was opened from
+  // (the `target` arg) and calls the right per-view exporter when the
+  // user picks a format.
+  //
+  // Targets:
+  //   entries         → exportPDF() / exportExcel()
+  //   parties         → exportPartiesDashboard()
+  //   party:<id>      → exportPartyDetail(id)
+  //   categories      → exportCategoriesDashboard()
+  //   category:<name> → exportCategoryDetail(name)
+  //   accounts        → exportAccountsDashboard()
+  //   account:<id>    → exportAccountDetail(id)
+  //   audit           → exportAuditDashboard()
+  //   expenses        → exportExpensesDashboard()
+  //   snapshot        → exportQuickLookDashboard()
+  //
+  // `__exportTarget` is module-level state used by the modal's buttons.
+  // It's set when the chooser opens and read by `runExport()`.
+  let __exportTarget = null;
+
+  function openExportChooser(target) {
+    __exportTarget = target;
+    openModal('exportChooser');
+  }
+
+  function runExport(format) {
+    const target = __exportTarget;
+    closeModal();
+    if (!target) return;
+    // Route to the right exporter based on target.
+    if (target === 'entries') {
+      if (format === 'pdf') exportPDF(); else exportExcel();
+    } else if (target === 'parties') {
+      exportPartiesDashboard(format);
+    } else if (target.startsWith('party:')) {
+      exportPartyDetail(target.slice('party:'.length), format);
+    } else if (target === 'categories') {
+      exportCategoriesDashboard(format);
+    } else if (target.startsWith('category:')) {
+      exportCategoryDetail(target.slice('category:'.length), format);
+    } else if (target === 'accounts') {
+      exportAccountsDashboard(format);
+    } else if (target.startsWith('account:')) {
+      exportAccountDetail(target.slice('account:'.length), format);
+    } else if (target === 'audit') {
+      exportAuditDashboard(format);
+    } else if (target === 'expenses') {
+      exportExpensesDashboard(format);
+    } else if (target === 'snapshot') {
+      exportQuickLookDashboard(format);
+    } else {
+      toast('Unknown export target.');
+    }
+  }
+
+  function exportChooserModal() {
     return `
       <div class="modal-handle"></div>
-      <h2 class="modal-title">Export this view</h2>
-      <p class="modal-sub">Download what you currently see, for ${escapeHtml(currentPeriodLabel())}.</p>
+      <h2 class="modal-title">Download this view</h2>
+      <p class="modal-sub">Choose a format. The file will save to your device's downloads.</p>
       <div class="form-grid">
-        <button class="btn btn-ghost" onclick="closeModal();exportPDF();">Download PDF</button>
-        <button class="btn btn-ghost" onclick="closeModal();exportExcel();">Download CSV / Excel</button>
+        <button class="btn btn-ghost" onclick="runExport('pdf')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          Download as PDF
+        </button>
+        <button class="btn btn-ghost" onclick="runExport('csv')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
+          Download as Excel / CSV
+        </button>
         <button class="btn" onclick="closeModal()">Cancel</button>
       </div>`;
   }
 
-  // ================================================================
-  // EXPORTS
-  // ================================================================
   function exportPDF() {
     if (!session.activeBookId) { toast('No book selected.'); return; }
     if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
