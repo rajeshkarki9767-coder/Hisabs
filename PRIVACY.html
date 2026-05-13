@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy · Hisabs</title>
+  <meta name="description" content="How Hisabs handles your data — plainly and honestly.">
+  <meta name="theme-color" content="#f5f1e8">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --ink-mute: #6a6a68;
+      --bg: #f5f1e8;
+      --surface: #fdfaf3;
+      --line: #e2dccd;
+      --accent: #b8482a;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #ecebe5;
+        --ink-mute: #918d83;
+        --bg: #1c1b18;
+        --surface: #232220;
+        --line: #34322d;
+        --accent: #d96c4a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding: 2rem 1rem 5rem;
+    }
+    .wrap {
+      max-width: 720px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 2.5rem 2rem;
+    }
+    @media (max-width: 600px) {
+      body { padding: 0.5rem 0 3rem; }
+      .wrap { border-radius: 0; padding: 1.5rem 1.2rem; border-left: 0; border-right: 0; }
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 1.85rem;
+      font-weight: 600;
+      margin: 0 0 0.4rem;
+      letter-spacing: -0.01em;
+    }
+    .meta {
+      font-size: 0.78rem;
+      color: var(--ink-mute);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .lead {
+      font-size: 1.02rem;
+      color: var(--ink);
+      margin: 0 0 1.25rem;
+    }
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin: 2.2rem 0 0.6rem;
+      letter-spacing: -0.005em;
+    }
+    h2:first-of-type { margin-top: 1.5rem; }
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin: 1.4rem 0 0.4rem;
+      color: var(--ink);
+    }
+    p { margin: 0 0 0.85rem; font-size: 0.93rem; }
+    ul { margin: 0 0 1rem; padding-left: 1.4rem; }
+    li { margin-bottom: 0.4rem; font-size: 0.93rem; }
+    code {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.85em;
+      background: var(--bg);
+      padding: 0.1em 0.35em;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+    }
+    strong { font-weight: 600; }
+    a { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    a:hover { text-decoration: none; }
+    .back {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.5rem 0.95rem;
+      font-size: 0.85rem;
+      color: var(--ink);
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      text-decoration: none;
+    }
+    .back:hover { background: var(--line); }
+    .footer {
+      margin-top: 2.25rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.78rem;
+      color: var(--ink-mute);
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <h1>Privacy</h1>
+      <p class="meta">Effective May 13, 2026 · Last updated May 13, 2026</p>
+    </header>
+
+    <p class="lead">This is the privacy policy for <strong>Hisabs</strong>, a cloud-synced bookkeeping web app. It explains plainly what happens to your data.</p>
+
+    <h2>The short version</h2>
+    <p>Hisabs is a personal bookkeeping app. Your data lives in two places: your <strong>browser</strong> (for fast access while you work) and the <strong>Supabase</strong> database (for safe storage and cross-device sync). You can access it from any device by signing in. Nobody else can read it — not us, not the hosting providers, not other Hisabs users.</p>
+    <p>We don't show ads, sell data, run analytics, or track you in any way.</p>
+
+    <h2>What we store, and where</h2>
+
+    <h3>In the cloud (Supabase)</h3>
+    <p>When you use Hisabs, the following is stored in your Supabase project:</p>
+    <ul>
+      <li>Your sign-in email (for authentication)</li>
+      <li>Your password — stored only as a one-way cryptographic hash, never readable as plain text</li>
+      <li>Your display name and a user-profile row</li>
+      <li>Every business you own — name, currency, settings</li>
+      <li>Every book, entry, party, category, account, account group, audit expense in those businesses</li>
+      <li>Staff invitations you've sent or received, with display names for the inviter and business</li>
+      <li>Server-side timestamps (created, updated)</li>
+    </ul>
+    <p>This data is uploaded as you work. The sync indicator at the top of the screen shows the current state.</p>
+
+    <h3>In your browser only</h3>
+    <ul>
+      <li>Appearance preferences (theme, accent color, period filter)</li>
+      <li>Auto-backup snapshots (last 3, taken every 30 minutes, kept locally for recovery)</li>
+      <li>UI state (current view, scroll position, draft entry text)</li>
+      <li>A random device identifier used to deduplicate sync events (not linked to your identity)</li>
+      <li>A cached copy of your data for fast access while offline</li>
+    </ul>
+
+    <h2>Who can see your data</h2>
+    <p>Row-level security on the database means <strong>only you can read your business data</strong>. The owner of a business has full access; staff members you've invited can see businesses they've accepted into; nobody else can read any of it.</p>
+    <p>The Supabase project administrator (the person who set up the backend — that's likely you if you self-deployed) holds the keys to the database and could technically inspect it. If Hisabs is being run for you by someone else, you're trusting that operator.</p>
+    <p>The hosting provider (Vercel for the app, Supabase for the database) can see network metadata — your IP address, request timestamps — like any web service. They cannot see your business data unless they have the database credentials.</p>
+
+    <h2>What we don't do</h2>
+    <ul>
+      <li>No advertising</li>
+      <li>No analytics or telemetry — we don't track your usage</li>
+      <li>No selling, sharing, or transferring of your data</li>
+      <li>No third-party tracking pixels, cookies, or fingerprinting</li>
+      <li>No cross-site tracking — Hisabs runs only on its own domain</li>
+      <li>No third-party scripts run in the app (Supabase's JS library is the only external dependency, and it talks only to your Supabase project)</li>
+    </ul>
+
+    <h2>Storage details</h2>
+    <p>Hisabs uses your browser's <code>localStorage</code> to keep you signed in and cache data. Storage keys are prefixed:</p>
+    <ul>
+      <li><code>sb-*</code> — Supabase's session/auth library (your sign-in token)</li>
+      <li><code>ledger_*</code> and <code>hisabs_*</code> — Hisabs's own data and preferences</li>
+    </ul>
+    <p>These are functional storage, not tracking cookies. Clearing site data will sign you out and remove your local cache; your cloud data is unaffected and will reappear when you sign in again.</p>
+
+    <h2>Cross-device sync</h2>
+    <p>When you make a change on one device, it uploads to the cloud within a few seconds, and any other device signed into the same account receives the change shortly after via a realtime channel. This works while online; while offline, changes queue locally and sync once you reconnect.</p>
+    <p>The sync engine uses Supabase Realtime, which transmits row-level changes over an authenticated WebSocket. The connection is encrypted (wss://) end-to-end.</p>
+
+    <h2>Deletion</h2>
+    <p>When you delete a record — business, account, entry, anything — it is <strong>permanently removed</strong> from the cloud database within seconds. There is no soft-delete or trash bin. Deletion cascades: deleting a business removes all its books, entries, and associated data in one transaction.</p>
+    <p>To delete <strong>everything</strong>: <strong>Settings → Data → Danger zone → Delete all my data and sign out</strong>. This removes every business you own, your profile row, and signs you out everywhere. Your authentication account (email + hashed password) remains registered with Supabase — to remove that too, contact support.</p>
+    <p>Once data is deleted, it cannot be recovered from the cloud. If you may want to undo, download an auto-backup from <strong>Settings → Data → Auto-backups</strong> before deleting.</p>
+
+    <h2>Backups you control</h2>
+    <p>You can download your data anytime:</p>
+    <ul>
+      <li><strong>Settings → Data → Backup everything</strong> — JSON file of all your businesses</li>
+      <li><strong>Sidebar gear next to a business → Backup &amp; restore</strong> — one business at a time</li>
+      <li>Auto-backups are stored locally (browser only) — never uploaded — and you can download them from Settings → Data</li>
+    </ul>
+    <p>Backup files contain your business data but not your password.</p>
+
+    <h2>Staff invitations</h2>
+    <p>When you invite someone, their email goes onto an invitation row in <code>app_members</code>, visible to the business owner and to the invitee (matched on their authenticated email). The invitee sees the invite when they sign in. Currently invitations do not generate automatic email notifications — invitees discover them by signing in themselves.</p>
+    <p>The invitation card displays the inviter's name and the business name. These are stored on the invitation row so the invitee sees something meaningful before accepting.</p>
+
+    <h2>Hosting</h2>
+    <ul>
+      <li>App code is served from Vercel as static files (HTML, JS, CSS)</li>
+      <li>Database, auth, and realtime are provided by Supabase</li>
+      <li>Vercel sees standard request metadata (IP, timestamp, user agent) — cannot see your data</li>
+      <li>Supabase hosts the database in a region chosen at project setup time</li>
+    </ul>
+    <p>If you forked Hisabs and host your own copy, this section applies to your providers.</p>
+
+    <h2>Children</h2>
+    <p>Hisabs is bookkeeping software intended for adults running businesses. We don't knowingly collect data from anyone under 13. If you believe a minor has signed up, contact support so the account can be removed.</p>
+
+    <h2>Changes to this policy</h2>
+    <p>If Hisabs's data handling changes meaningfully, this policy will be updated. The "Last updated" date at the top reflects the most recent revision. Significant changes will be noted in release notes.</p>
+
+    <h2>Contact</h2>
+    <p>Hisabs is a personal-use bookkeeping tool. The owner of your deployment is the only contact. If you self-host, that's you.</p>
+
+    <h2>In one sentence</h2>
+    <p>Your data is yours, encrypted in transit, locked down by row-level security, and deleted permanently when you say so.</p>
+
+    <p><a class="back" href="./">← Back to Hisabs</a></p>
+
+    <div class="footer">
+      Hisabs · A quiet, careful place to keep your books.
+    </div>
+  </main>
+</body>
+</html>

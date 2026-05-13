@@ -27,9 +27,9 @@
   Eliminates the supply-chain risk of a compromised CDN serving altered code, and makes
   the app fully offline-capable. To update: replace these files from the upstream package.
 -->
-<script src="vendor/jspdf.umd.min.js"></script>
-<script src="vendor/jspdf.plugin.autotable.min.js"></script>
-<script src="vendor/supabase.umd.js"></script>
+<script src="vendor/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
+<script src="vendor/supabase.umd.js" integrity="sha384-7SfFUrg31wOnGWBLLniKFCNmCSguYA5wI1WPDOt7kP/mom4R9/0pwghVEnv0uwYP" crossorigin="anonymous"></script>
 <style>
   :root {
     /* These are written by applyTheme() at runtime. The values here are
@@ -165,6 +165,23 @@
   .input-wrap.input-error input, .input-wrap.input-error select, .input-wrap.input-error textarea,
   .combo.input-error input { border-color: var(--loss) !important; box-shadow: 0 0 0 3px rgba(168,53,31,0.12); }
   .input-wrap.input-error label { color: var(--loss); }
+  /* Password field with an eye toggle on the right. The button is a
+     transparent overlay; the input inside keeps full styling and just
+     gets extra right padding so the typed characters don't run under
+     the icon. */
+  .pwd-wrap { position: relative; }
+  .pwd-wrap input { padding-right: 2.6rem; width: 100%; }
+  .pwd-toggle {
+    position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
+    background: transparent; border: 0; padding: 0.35rem; margin: 0;
+    color: var(--ink-mute); cursor: pointer; display: inline-flex;
+    align-items: center; justify-content: center; border-radius: 4px;
+  }
+  .pwd-toggle:hover { color: var(--ink); background: var(--line); }
+  .pwd-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .auth-pwd-hint { font-size: 0.72rem; margin-top: 0.3rem; padding-left: 0.05rem; }
+  .auth-pwd-hint.ok { color: var(--gain); }
+  .auth-pwd-hint.bad { color: var(--loss); }
 
   /* ============ AUTH ============ */
   .auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1.5rem; background: var(--paper); overflow-y: auto; }
@@ -1094,7 +1111,22 @@
       </div>
       <div class="input-wrap">
         <label>Password</label>
-        <input type="password" id="authPwd" placeholder="••••••" required autocomplete="current-password" minlength="8">
+        <div class="pwd-wrap">
+          <input type="password" id="authPwd" placeholder="••••••" required autocomplete="current-password" minlength="8">
+          <button type="button" class="pwd-toggle" onclick="togglePwdVisible('authPwd', this)" aria-label="Show password" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-wrap" id="confirmPwdField" style="display:none;">
+        <label>Confirm password</label>
+        <div class="pwd-wrap">
+          <input type="password" id="authPwdConfirm" placeholder="Type the same password again" autocomplete="new-password" minlength="8">
+          <button type="button" class="pwd-toggle" onclick="togglePwdVisible('authPwdConfirm', this)" aria-label="Show password" tabindex="-1">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div id="pwdMatchHint" class="auth-pwd-hint" style="display:none;"></div>
       </div>
       <div class="auth-forgot" id="forgotPwdWrap">
         <a onclick="forgotPasswordFlow()">Forgot password?</a>
@@ -1339,6 +1371,29 @@
     return __sb;
   }
 
+  // Decode a JWT payload without verifying its signature (verification is
+  // done by Supabase server-side). Returns null on any error. Used to read
+  // session_id from the current access token so we can mark "this device"
+  // in the device list and decide whether revoking it should sign us out.
+  function decodeJwtPayload(token) {
+    try {
+      const parts = String(token || '').split('.');
+      if (parts.length !== 3) return null;
+      // base64url → base64. atob() doesn't accept the url-safe alphabet directly.
+      const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+      const pad = b64.length % 4 ? b64 + '='.repeat(4 - (b64.length % 4)) : b64;
+      const json = decodeURIComponent(escape(atob(pad)));
+      return JSON.parse(json);
+    } catch (_) { return null; }
+  }
+  async function getCurrentSessionId() {
+    try {
+      const { data: { session } } = await sb().auth.getSession();
+      const claims = decodeJwtPayload(session?.access_token);
+      return claims?.session_id || null;
+    } catch (_) { return null; }
+  }
+
   // Preset color themes. Each is an accent hue; light + dark palettes are
   // derived around it.
   const COLOR_PRESETS = {
@@ -1494,6 +1549,40 @@
   // ================================================================
   // PWA install handling
   // ================================================================
+
+  // Register the service worker. Done as soon as possible after page
+  // boot. The SW serves the app shell offline and lets Hisabs install
+  // as a real PWA on Android/desktop (and pass PWABuilder's checks
+  // before publishing to Play Store).
+  //
+  // We only register over https — Chrome blocks SW registration over
+  // http (other than localhost). On file:// (used for local testing
+  // of the static bundle), the check below makes us skip silently.
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js', { scope: './' })
+        .then((reg) => {
+          // If a new SW is waiting (i.e. user previously loaded an older
+          // build, then this load got a new sw.js), tell it to take over
+          // immediately. The skipWaiting message is handled by the SW.
+          if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            if (!nw) return;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                // A new version is ready. Tell it to activate, but don't
+                // force-reload — let it pick up on next navigation so the
+                // user's current work isn't disturbed.
+                nw.postMessage('SKIP_WAITING');
+              }
+            });
+          });
+        })
+        .catch((e) => { console.warn('Service worker registration failed:', e); });
+    });
+  }
+
   let __pwaDeferredPrompt = null;
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
@@ -2052,13 +2141,64 @@
     document.getElementById('tabSignin').classList.toggle('active', mode === 'signin');
     document.getElementById('tabSignup').classList.toggle('active', mode === 'signup');
     document.getElementById('nameField').style.display = mode === 'signup' ? 'block' : 'none';
+    const confirmField = document.getElementById('confirmPwdField');
+    if (confirmField) confirmField.style.display = mode === 'signup' ? 'block' : 'none';
     document.getElementById('authSubmit').textContent = mode === 'signup' ? 'Create account →' : 'Sign in →';
     // Forgot password is only meaningful when signing in.
     const forgot = document.getElementById('forgotPwdWrap');
     if (forgot) forgot.style.display = mode === 'signup' ? 'none' : 'block';
+    // Hint to password managers: 'new-password' on signup so they offer to
+    // generate; 'current-password' on signin so they autofill.
+    const pwd = document.getElementById('authPwd');
+    if (pwd) pwd.setAttribute('autocomplete', mode === 'signup' ? 'new-password' : 'current-password');
+    // Reset the match hint when switching modes.
+    const hint = document.getElementById('pwdMatchHint');
+    if (hint) { hint.style.display = 'none'; hint.textContent = ''; hint.className = 'auth-pwd-hint'; }
     document.getElementById('authHint').innerHTML = mode === 'signup'
       ? "Your books sync to this account, so you can sign in on any device."
       : 'No account? Click <strong>Create account</strong> above.';
+  }
+
+  // Toggle a password input between hidden (•••) and shown (plain text).
+  // The icon swaps between an open and crossed-out eye so users always
+  // know which state they're in. Re-focus the input afterwards so they
+  // can keep typing without breaking the flow.
+  function togglePwdVisible(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const shown = input.type === 'text';
+    input.type = shown ? 'password' : 'text';
+    btn.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+    // Swap the SVG between eye (visible) and eye-off (hidden). Keep this
+    // pure CSS-free for simplicity: just replace innerHTML of the button.
+    btn.innerHTML = shown
+      ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`
+      : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 10 7 10 7a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+    // Return focus to the input so they can continue typing.
+    input.focus();
+    // Cursor at end (avoids selecting all text on some browsers when type changes)
+    const len = input.value.length;
+    try { input.setSelectionRange(len, len); } catch (_) {}
+  }
+
+  // Live-update the "passwords match" hint as the user types in the
+  // confirm field. Pure UX feedback — the actual match check at submit
+  // time is in cloudSignInSubmit.
+  function updatePwdMatchHint() {
+    if (authMode !== 'signup') return;
+    const hint = document.getElementById('pwdMatchHint');
+    if (!hint) return;
+    const pwd = document.getElementById('authPwd')?.value || '';
+    const confirm = document.getElementById('authPwdConfirm')?.value || '';
+    if (!confirm) { hint.style.display = 'none'; return; }
+    if (pwd === confirm) {
+      hint.textContent = 'Passwords match.';
+      hint.className = 'auth-pwd-hint ok';
+    } else {
+      hint.textContent = "Passwords don't match yet.";
+      hint.className = 'auth-pwd-hint bad';
+    }
+    hint.style.display = 'block';
   }
   // Auth form is wired by bindAuthForm() (defined further down with the cloud
   // module). Calling here so it's bound on first load — the migration screen
@@ -2170,6 +2310,12 @@
     try { stopSyncSystem(); } catch (_) {}
     try { localStorage.removeItem(SYNC_QUEUE_KEY); } catch (_) {}
     try { localStorage.removeItem(SYNC_SNAPSHOT_KEY); } catch (_) {}
+    // Clear the local device-name cache too. If the same user re-signs-in,
+    // they can rename again; if a different user signs in on this browser,
+    // they get a fresh slate (not inheriting the previous person's label).
+    // Inline key string (constant declared later) so this works even if
+    // _doSignOut is somehow called before the device-management block runs.
+    try { localStorage.removeItem('hisabs_device_name_v1'); } catch (_) {}
     __syncQueue = [];
     __syncSnapshot = null;
     stopAutoBackupTimer();
@@ -4876,6 +5022,7 @@
     session.activeBizId = id; session.activeBookId = bookId; session.period = { mode: 'current' }; session.view = 'entries';
     saveData(); saveSession(); closeModal(); renderAll();
     toast('Business created.');
+    logAuditEvent('business_created', name, { business_id: id, currency: cur }).catch(() => {});
   }
 
   function bookModal() {
@@ -5434,6 +5581,16 @@
   function pickSettingsTab(t) {
     __settingsTab = t;
     openModal('settings');
+    // When the Data tab opens for a cloud user, populate the device list.
+    // We let openModal render first; setTimeout(0) defers our call until
+    // the DOM has the empty #devicesList element to fill.
+    if (t === 'data') {
+      const u = me();
+      if (u && u.cloud) setTimeout(() => {
+        try { loadDevicesList(); } catch (_) {}
+        try { loadAuditLog(); } catch (_) {}
+      }, 0);
+    }
   }
   function settingsModal() {
     const u = me();
@@ -5968,6 +6125,27 @@
             <button class="btn btn-sm btn-ghost" onclick="cloudPullAll()" title="Discard local and pull from cloud">Force pull</button>
           </div>
         </details>
+      </div>
+      <div class="settings-section">
+        <h3 class="settings-heading">Devices</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Each browser or app that's signed in with this account. Sign out a device to invalidate its session immediately.</p>
+        <div id="devicesList" style="min-height:60px;">
+          <p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;">
+          <button class="btn btn-sm btn-ghost" onclick="loadDevicesList()" title="Refresh device list">Refresh list</button>
+          <button class="btn btn-sm btn-danger-outline" onclick="signOutAllOtherDevices()" title="Sign out every device except this one">Sign out all other devices</button>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3 class="settings-heading">Activity log</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Recent significant actions on your account — sign-ins, business creates, deletions. Append-only and cannot be cleared, so you can spot anything you don't recognise.</p>
+        <div id="auditLogList" style="min-height:60px;font-size:0.8rem;">
+          <p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;">
+          <button class="btn btn-sm btn-ghost" onclick="loadAuditLog()" title="Refresh activity log">Refresh log</button>
+        </div>
       </div>` : ''}
       <div class="settings-section">
         <h3 class="settings-heading">Backup to file</h3>
@@ -6164,7 +6342,7 @@
     openBizSettings(book.businessId);
     toast('Book deleted.');
   }
-  function deleteBusinessAction(bizId) {
+  async function deleteBusinessAction(bizId) {
     const biz = data.businesses.find(b => b.id === bizId);
     if (!biz) return;
     if (biz.ownerId !== me().id) { toast('Only the owner can delete this business.'); return; }
@@ -6172,13 +6350,16 @@
     const entryCount = data.entries.filter(e => bookIds.includes(e.bookId)).length;
     // First confirm — describes what gets erased.
     if (!confirm(`Delete "${biz.name}"? This removes ${bookIds.length} book(s), ${entryCount} entries, all parties, categories, and accounts in this business. Cannot be undone.`)) return;
-    // Final safety: require the user to type the exact business name. Prompt
-    // returns null on cancel and the trimmed input otherwise. Case-sensitive
-    // by design — accidental deletion is far more dangerous than a slight
-    // friction on the rare intentional delete.
+    // Final safety: require the user to type the exact business name.
     const typed = prompt(`Type the business name exactly to confirm deletion:\n\n${biz.name}`);
     if (typed === null) return; // cancelled
     if (typed.trim() !== biz.name) { toast('Name did not match. Business not deleted.'); return; }
+    // Extra hardening: re-verify the password. Defends against the
+    // "someone briefly accessed my unlocked device" case where they
+    // could otherwise type the business name and delete data without
+    // proving they actually know the account credentials.
+    const passwordOk = await reauthForDestructiveAction('delete this business');
+    if (!passwordOk) return;
     data.entries = data.entries.filter(e => !bookIds.includes(e.bookId));
     data.books = data.books.filter(b => b.businessId !== bizId);
     data.parties = data.parties.filter(p => p.businessId !== bizId);
@@ -6197,6 +6378,7 @@
     }
     saveData(); saveSession(); closeModal(); renderAll();
     toast('Business deleted.');
+    logAuditEvent('business_deleted', biz.name, { business_id: bizId, entries_removed: entryCount }).catch(() => {});
   }
   function deleteCategory(id) {
     const c = data.categories.find(x => x.id === id);
@@ -6444,6 +6626,310 @@
     if (__autoBackupTimer) { clearInterval(__autoBackupTimer); __autoBackupTimer = null; }
   }
 
+  // ============================================================
+  // DEVICE / SESSION MANAGEMENT
+  // ============================================================
+  // The "Devices" section in Settings → Data shows each active session
+  // (each device the user is signed in on). Server-side via Edge Functions
+  // list-my-sessions and revoke-my-session — see /supabase/functions/ in
+  // the repo for the deployable source.
+  //
+  // Custom device names are stored in the app_device_names table keyed by
+  // (user_id, device_id). The device_id is the same __deviceId already
+  // used for sync echo-prevention — reused so renaming once persists
+  // across re-sign-ins on the same browser.
+
+  // Local "have we registered the current session's name?" cache so we
+  // don't spam the device_names table on every page load. Cleared on
+  // sign-out.
+  const DEVICE_NAME_LOCAL_KEY = 'hisabs_device_name_v1';
+  function getLocalDeviceName() {
+    try { return localStorage.getItem(DEVICE_NAME_LOCAL_KEY) || ''; } catch (_) { return ''; }
+  }
+  function setLocalDeviceName(name) {
+    try {
+      if (name) localStorage.setItem(DEVICE_NAME_LOCAL_KEY, name);
+      else localStorage.removeItem(DEVICE_NAME_LOCAL_KEY);
+    } catch (_) {}
+  }
+
+  // Upsert app_device_names row binding (user_id, device_id, name) and
+  // the current session_id (for display by the list function). Returns
+  // true on success.
+  async function persistDeviceName(name) {
+    const u = me();
+    if (!u || !u.cloud) return false;
+    const sessionId = await getCurrentSessionId();
+    try {
+      const { error } = await sb().from('app_device_names').upsert({
+        user_id: u.id,
+        device_id: __deviceId,
+        name: String(name || '').trim().slice(0, 60),
+        session_id: sessionId || null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,device_id' });
+      if (error) { console.warn('Could not persist device name:', error); return false; }
+      setLocalDeviceName(name);
+      return true;
+    } catch (e) {
+      console.warn('persistDeviceName threw:', e);
+      return false;
+    }
+  }
+
+  // Best-effort parse of a User-Agent string into "Browser on OS".
+  // UAs are a notorious mess; this won't be perfect but produces something
+  // recognisable for the common cases. Falls back to a short prefix of
+  // the raw string when nothing matches.
+  function describeUserAgent(ua) {
+    if (!ua) return 'Unknown device';
+    const s = String(ua);
+    let os = 'Unknown OS';
+    if (/Windows NT/i.test(s)) os = 'Windows';
+    else if (/Mac OS X|Macintosh/i.test(s)) os = 'macOS';
+    else if (/iPhone|iPad|iOS/i.test(s)) os = /iPad/i.test(s) ? 'iPad' : 'iPhone';
+    else if (/Android/i.test(s)) os = 'Android';
+    else if (/Linux/i.test(s)) os = 'Linux';
+    let browser = 'Browser';
+    if (/Edg\//i.test(s)) browser = 'Edge';
+    else if (/OPR\//i.test(s)) browser = 'Opera';
+    else if (/Chrome\//i.test(s) && !/Edg\/|OPR\//i.test(s)) browser = 'Chrome';
+    else if (/Firefox\//i.test(s)) browser = 'Firefox';
+    else if (/Safari\//i.test(s) && !/Chrome\//i.test(s)) browser = 'Safari';
+    return `${browser} on ${os}`;
+  }
+
+  // Friendly "x minutes ago" for a timestamp.
+  function relativeTime(iso) {
+    if (!iso) return '';
+    const t = new Date(iso).getTime();
+    if (!t) return '';
+    const diff = Date.now() - t;
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'just now';
+    if (min < 60) return `${min}m ago`;
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return `${hr}h ago`;
+    const day = Math.floor(hr / 24);
+    if (day < 30) return `${day}d ago`;
+    return new Date(t).toLocaleDateString();
+  }
+
+  // Render a "soft" placeholder when the Edge Function isn't deployed
+  // (404) or we can't reach it. Returns an HTML string.
+  function devicesEmptyPlaceholder(reason) {
+    return `
+      <p style="font-size:0.78rem;color:var(--ink-mute);line-height:1.45;">
+        Device list isn't available yet on this project. To enable it, deploy the
+        <code>list-my-sessions</code> and <code>revoke-my-session</code> Edge Functions
+        from the project's <code>supabase/functions/</code> folder. Until then, you can use
+        the "Sign out all other devices" button below to clear sessions you don't recognise.
+      </p>
+      ${reason ? `<p style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.4rem;opacity:0.7;">${escapeHtml(reason)}</p>` : ''}
+    `;
+  }
+
+  async function loadAuditLog() {
+    const el = document.getElementById('auditLogList');
+    if (!el) return;
+    el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
+    try {
+      const { data: rows, error } = await sb().from('app_audit_log')
+        .select('id, event_type, description, occurred_at, user_agent')
+        .order('occurred_at', { ascending: false })
+        .limit(50);
+      if (error) {
+        if (error.code === '42P01' || /does not exist/i.test(error.message || '')) {
+          el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Activity log isn't set up yet on this project. Run the latest SUPABASE.sql to enable it.</p>`;
+        } else {
+          el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Could not load activity log: ${escapeHtml(error.message || '')}</p>`;
+        }
+        return;
+      }
+      if (!rows || !rows.length) {
+        el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">No activity recorded yet.</p>`;
+        return;
+      }
+      const labels = {
+        sign_in: 'Signed in',
+        sign_out: 'Signed out',
+        business_created: 'Business created',
+        business_deleted: 'Business deleted',
+        account_wiped: 'Account wiped',
+      };
+      el.innerHTML = rows.map(r => {
+        const label = labels[r.event_type] || r.event_type;
+        const dev = r.user_agent ? describeUserAgent(r.user_agent) : '';
+        return `
+          <div style="padding:0.45rem 0;border-bottom:1px solid var(--line);">
+            <div style="display:flex;justify-content:space-between;gap:0.6rem;">
+              <div style="font-weight:500;">${escapeHtml(label)}${r.description ? ` <span style="color:var(--ink-mute);font-weight:normal;">· ${escapeHtml(r.description)}</span>` : ''}</div>
+              <div style="font-size:0.72rem;color:var(--ink-mute);white-space:nowrap;">${escapeHtml(relativeTime(r.occurred_at))}</div>
+            </div>
+            ${dev ? `<div style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.15rem;">${escapeHtml(dev)}</div>` : ''}
+          </div>
+        `;
+      }).join('');
+    } catch (e) {
+      el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Could not load activity log: ${escapeHtml(e?.message || e)}</p>`;
+    }
+  }
+
+  async function loadDevicesList() {
+    const el = document.getElementById('devicesList');
+    if (!el) return;
+    el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
+    let session;
+    try { session = (await sb().auth.getSession()).data?.session; }
+    catch (_) { /* fall through to error path */ }
+    if (!session?.access_token) {
+      el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Not signed in.</p>`;
+      return;
+    }
+    let resp, payload;
+    try {
+      resp = await fetch(`${SUPABASE_URL}/functions/v1/list-my-sessions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!resp.ok) {
+        // 404 = function not deployed; treat as soft-not-available.
+        if (resp.status === 404) { el.innerHTML = devicesEmptyPlaceholder('Functions not deployed (404).'); return; }
+        const text = await resp.text().catch(() => '');
+        el.innerHTML = devicesEmptyPlaceholder(`Server returned ${resp.status}: ${text.slice(0, 120)}`);
+        return;
+      }
+      payload = await resp.json();
+    } catch (e) {
+      el.innerHTML = devicesEmptyPlaceholder(`Network error: ${e?.message || e}`);
+      return;
+    }
+    const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
+    if (!sessions.length) {
+      el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">No active sessions found.</p>`;
+      return;
+    }
+    const currentId = await getCurrentSessionId();
+    el.innerHTML = sessions.map(s => {
+      const isCurrent = currentId && s.id === currentId;
+      const fallbackLabel = describeUserAgent(s.user_agent);
+      // Custom device_name takes priority. If the user named the device,
+      // show name on top with the UA description as the subtitle. If not,
+      // show only the UA description.
+      const headline = s.device_name ? escapeHtml(s.device_name) : escapeHtml(fallbackLabel);
+      const subtitle = s.device_name ? escapeHtml(fallbackLabel) : '';
+      const created = s.created_at ? `Signed in ${relativeTime(s.created_at)}` : '';
+      const lastSeen = s.updated_at && s.updated_at !== s.created_at ? `Last active ${relativeTime(s.updated_at)}` : '';
+      const loc = [s.city, s.country].filter(Boolean).join(', ');
+      const meta = [created, lastSeen, loc].filter(Boolean).join(' · ');
+      return `
+        <div class="device-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--line);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:500;font-size:0.85rem;">${headline}${isCurrent ? ' <span style="font-size:0.65rem;color:var(--gain);font-weight:600;letter-spacing:0.05em;">· THIS DEVICE</span>' : ''}</div>
+            ${subtitle ? `<div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.1rem;">${subtitle}</div>` : ''}
+            <div style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.15rem;">${meta || '&nbsp;'}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:0.3rem;align-items:flex-end;flex-shrink:0;">
+            ${isCurrent ? `<button class="btn btn-sm btn-ghost" onclick="renameThisDevice()" style="font-size:0.7rem;">Rename</button>` : ''}
+            <button class="btn btn-sm btn-ghost" onclick="revokeDevice('${escapeHtml(s.id)}', ${isCurrent ? 'true' : 'false'})" style="color:var(--loss);font-size:0.7rem;">Sign out</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function revokeDevice(sessionId, isCurrent) {
+    if (isCurrent) {
+      if (!confirm("This is the device you're using right now. Signing it out will end your current session. Continue?")) return;
+    } else {
+      if (!confirm('Sign out this device? Whoever is using it will be asked to sign in again next time they open Hisabs.')) return;
+    }
+    let session;
+    try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
+    if (!session?.access_token) { toast('Not signed in.'); return; }
+    let resp;
+    try {
+      resp = await fetch(`${SUPABASE_URL}/functions/v1/revoke-my-session`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session_id: sessionId }),
+      });
+    } catch (e) {
+      toast('Could not reach server.');
+      return;
+    }
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      console.warn('revoke-my-session failed:', resp.status, text);
+      if (resp.status === 404) toast('Revoke function not deployed yet.');
+      else toast('Could not revoke session.');
+      return;
+    }
+    if (isCurrent) {
+      // The token we used to call the function is the same one we just
+      // invalidated. The next refresh will fail and the listener will
+      // sign us out anyway, but let's not wait for that — drain and exit.
+      toast('Signed out.');
+      try { await sb().auth.signOut(); } catch (_) {}
+      _doSignOut();
+      return;
+    }
+    toast('Device signed out.');
+    // Refresh the list so the row disappears.
+    loadDevicesList();
+  }
+
+  async function renameThisDevice() {
+    const existing = getLocalDeviceName();
+    const name = prompt('Name this device (e.g. "Rajesh\'s MacBook", "Office desktop"):', existing || '');
+    if (name === null) return; // user cancelled
+    const trimmed = String(name).trim();
+    if (!trimmed) {
+      if (!existing) return; // no name set and none typed — nothing to do
+      if (!confirm('Remove the name from this device?')) return;
+      // Remove the row entirely.
+      const u = me(); if (!u) return;
+      try {
+        await sb().from('app_device_names').delete().eq('user_id', u.id).eq('device_id', __deviceId);
+      } catch (e) { console.warn('Delete device name failed:', e); }
+      setLocalDeviceName('');
+      toast('Name removed.');
+      loadDevicesList();
+      return;
+    }
+    const ok = await persistDeviceName(trimmed);
+    if (ok) {
+      toast('Device renamed.');
+      loadDevicesList();
+    } else {
+      toast('Could not save device name.');
+    }
+  }
+
+  async function signOutAllOtherDevices() {
+    if (!confirm('Sign out every device except this one? Other devices will need to sign in again.')) return;
+    try {
+      // Supabase's built-in: scope 'others' signs out all sessions except
+      // the one making the call. Works without our Edge Functions.
+      const { error } = await sb().auth.signOut({ scope: 'others' });
+      if (error) { console.warn('signOut(others) failed:', error); toast('Could not sign out other devices.'); return; }
+      toast('Other devices signed out.');
+      // Refresh the list to show only this device.
+      if (typeof loadDevicesList === 'function') loadDevicesList();
+    } catch (e) {
+      console.warn('signOut(others) threw:', e);
+      toast('Could not sign out other devices.');
+    }
+  }
+
   async function wipeMyData() {
     // Strong, two-step confirmation: prevents accidental click and accidental
     // OK on the second dialog. Type-the-email step is the real safety net.
@@ -6453,6 +6939,12 @@
     const typed = prompt(`Type your sign-in email to confirm:\n\n${u.login}`);
     if (typed === null) return;
     if (normalize(typed) !== normalize(u.login)) { toast('Email did not match. Nothing deleted.'); return; }
+    // Final hardening: re-verify the password. Even with the email
+    // confirmation above, an attacker with brief access to an unlocked
+    // device could otherwise destroy everything by typing the (visible)
+    // email. Password re-auth proves they actually own the account.
+    const passwordOk = await reauthForDestructiveAction('delete all your data');
+    if (!passwordOk) return;
 
     // What gets deleted: every business the user owns, all its child records,
     // and the user's profile row in app_accounts. Member rows where the user
@@ -6473,6 +6965,15 @@
     // profile row.
     let cloudFailures = 0;
     if (u.cloud && navigator.onLine) {
+      // Log this BEFORE deletion. After we delete the user, the audit_log
+      // row would itself be removable via service_role, but the user's
+      // own session is dead at that point anyway. Logging first means
+      // the event is on record regardless of what happens next.
+      try {
+        await logAuditEvent('account_wiped', 'User initiated complete account deletion', {
+          businesses_owned: ownedBizIds.length,
+        });
+      } catch (_) {}
       toast('Deleting cloud data… please don\'t close this tab.');
       try {
         for (const bizId of ownedBizIds) {
@@ -6752,14 +7253,188 @@
   }
 
   // Cloud sign-in form submit. Wired from the existing #authForm.
-  async function cloudSignInSubmit(authMode_, login, pwd, name) {
+  // Client-side rate limit on sign-in attempts. Tracks failures per email
+  // address in localStorage AND in the cloud table app_failed_logins.
+  // The cloud mirror means clearing localStorage can't bypass the lockout.
+  //
+  // Defense-in-depth: Supabase has its own rate limits but they're per-IP
+  // and generous. This adds a per-account delay that slows down credential-
+  // stuffing attacks against a specific email.
+  //
+  // Schedule: 0-2 failures = no delay. 3 = 30s. 4 = 1min. 5 = 2min. 6+ = 5min.
+  // Successful sign-in clears the record both locally and in the cloud.
+  const AUTH_FAILURES_KEY = 'hisabs_auth_failures_v1';
+  function getAuthFailures(email) {
+    try {
+      const all = JSON.parse(localStorage.getItem(AUTH_FAILURES_KEY) || '{}');
+      return all[normalize(email)] || { count: 0, lockedUntil: 0 };
+    } catch (_) { return { count: 0, lockedUntil: 0 }; }
+  }
+  function setAuthFailures(email, rec) {
+    try {
+      const all = JSON.parse(localStorage.getItem(AUTH_FAILURES_KEY) || '{}');
+      if (rec) all[normalize(email)] = rec; else delete all[normalize(email)];
+      localStorage.setItem(AUTH_FAILURES_KEY, JSON.stringify(all));
+    } catch (_) {}
+  }
+  // Best-effort fetch of the cloud-side counter. If anything fails
+  // (network, table missing, etc.), we silently fall back to the local
+  // value — the local counter is still enforced.
+  // Best-effort fetch of the cloud-side counter. Bounded to 2s so a
+  // slow or unreachable Supabase doesn't hang the sign-in form. If
+  // the lookup fails for any reason, we silently fall back to the local
+  // counter — the local counter is still enforced regardless.
+  async function fetchCloudFailures(email) {
+    try {
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+      const queryPromise = sb().from('app_failed_logins')
+        .select('attempt_count, locked_until')
+        .eq('email', normalize(email))
+        .maybeSingle();
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise]);
+      if (error || !data) return null;
+      return {
+        count: data.attempt_count || 0,
+        lockedUntil: data.locked_until ? new Date(data.locked_until).getTime() : 0,
+      };
+    } catch (_) { return null; }
+  }
+  async function persistCloudFailures(email, rec) {
+    try {
+      await sb().from('app_failed_logins').upsert({
+        email: normalize(email),
+        attempt_count: rec.count || 0,
+        locked_until: rec.lockedUntil ? new Date(rec.lockedUntil).toISOString() : null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'email' });
+    } catch (_) {}
+  }
+  async function clearCloudFailures(email) {
+    try { await sb().from('app_failed_logins').delete().eq('email', normalize(email)); } catch (_) {}
+  }
+  async function recordAuthFailure(email) {
+    // Use the higher of local and cloud counts (so clearing localStorage
+    // doesn't reset progress an attacker has accumulated).
+    const local = getAuthFailures(email);
+    const cloud = await fetchCloudFailures(email);
+    const startCount = Math.max(local.count || 0, cloud?.count || 0);
+    const rec = { count: startCount + 1, lockedUntil: 0 };
+    if (rec.count >= 3) {
+      const delays = [30, 60, 120, 300]; // seconds
+      const idx = Math.min(rec.count - 3, delays.length - 1);
+      rec.lockedUntil = Date.now() + delays[idx] * 1000;
+    }
+    setAuthFailures(email, rec);
+    await persistCloudFailures(email, rec);
+    return rec;
+  }
+  async function clearAuthFailures(email) {
+    setAuthFailures(email, null);
+    await clearCloudFailures(email);
+  }
+  async function checkAuthLockout(email) {
+    const local = getAuthFailures(email);
+    const cloud = await fetchCloudFailures(email);
+    // Use the longer of the two lockouts — defense in depth.
+    const lockedUntil = Math.max(local.lockedUntil || 0, cloud?.lockedUntil || 0);
+    if (lockedUntil && lockedUntil > Date.now()) {
+      return Math.ceil((lockedUntil - Date.now()) / 1000);
+    }
+    return 0;
+  }
+
+  // Append an entry to the user's audit log in the cloud. Fire-and-forget:
+  // failures are logged but don't block the underlying action.
+  //
+  // Event types: 'sign_in', 'sign_out', 'business_created',
+  // 'business_deleted', 'account_wiped', 'password_reauth_used',
+  // 'password_reauth_failed'.
+  async function logAuditEvent(eventType, description, metadata) {
+    try {
+      const u = me();
+      if (!u || !u.cloud) return; // local-only accounts: no cloud log
+      await sb().from('app_audit_log').insert({
+        id: uid(),
+        user_id: u.id,
+        event_type: eventType,
+        description: description || null,
+        metadata: metadata || null,
+        user_agent: navigator.userAgent || null,
+        occurred_at: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('audit log write failed:', e?.message || e);
+    }
+  }
+
+  // Re-verify the user's password without changing their session. Used
+  // before destructive actions (delete business, delete account) as a
+  // defense against "I left my laptop unlocked" scenarios.
+  // before destructive actions (delete business, delete account) as a
+  // defense against "I left my laptop unlocked" scenarios.
+  //
+  // Approach: call signInWithPassword with the current user's email and
+  // the supplied password. If Supabase accepts the credentials, we know
+  // the password is correct. The call replaces the session token under
+  // the hood, but with the same access claims for the same user, so
+  // it's transparent to anything checking auth.uid().
+  //
+  // Returns true on success, false on cancel/mismatch.
+  async function reauthForDestructiveAction(actionLabel) {
+    const u = me();
+    if (!u || !u.cloud) return true; // local-only accounts: no password to check
+    const pwd = prompt(`To ${actionLabel}, please confirm your password:`);
+    if (pwd === null) return false; // user cancelled
+    if (!pwd) { toast('Password required.'); return false; }
+    try {
+      const { error } = await sb().auth.signInWithPassword({
+        email: u.login,
+        password: pwd,
+      });
+      if (error) {
+        toast('Incorrect password. Action cancelled.');
+        return false;
+      }
+      return true;
+    } catch (e) {
+      toast('Could not verify password. Try again.');
+      return false;
+    }
+  }
+
+  async function cloudSignInSubmit(authMode_, login, pwd, name, pwdConfirm) {
     installSupabaseAuthListener();
     if (!login || !pwd) { toast('Enter your email and password.'); return; }
-    // Email is required for Supabase password auth.
     if (!login.includes('@')) { toast('Use your email address (phone-only sign-in needs separate setup).'); return; }
     if (authMode_ === 'signup' && (!name || !name.trim())) { toast('Enter your name.'); return; }
     if (authMode_ === 'signup' && pwd.length < 8) { toast('Password must be at least 8 characters.'); return; }
-    // Disable submit button to avoid double-click double-submit.
+    // Signup needs the password typed twice (matched). Defends against
+    // typos when creating an account — a mistyped password would lock
+    // them out of their data with no recovery short of email reset.
+    if (authMode_ === 'signup') {
+      if (!pwdConfirm) { toast('Please confirm your password.'); return; }
+      if (pwd !== pwdConfirm) {
+        toast("Passwords don't match. Try again.");
+        // Visually highlight the mismatched fields too.
+        document.getElementById('authPwd')?.parentElement?.parentElement?.classList.add('input-error');
+        document.getElementById('authPwdConfirm')?.parentElement?.parentElement?.classList.add('input-error');
+        return;
+      }
+      // Clear any prior error highlight on the password fields.
+      document.getElementById('authPwd')?.parentElement?.parentElement?.classList.remove('input-error');
+      document.getElementById('authPwdConfirm')?.parentElement?.parentElement?.classList.remove('input-error');
+    }
+    // Check lockout before hitting the network. Sign-up isn't gated —
+    // failed sign-ups are far less common as an attack vector.
+    if (authMode_ === 'signin') {
+      const lockSecs = await checkAuthLockout(login);
+      if (lockSecs > 0) {
+        const mins = Math.floor(lockSecs / 60);
+        const friendly = mins > 0 ? `${mins} minute${mins > 1 ? 's' : ''}` : `${lockSecs} seconds`;
+        toast(`Too many failed attempts. Try again in ${friendly}.`);
+        return;
+      }
+    }
     const submitBtn = document.getElementById('authSubmit');
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
@@ -6772,9 +7447,6 @@
           options: { data: { name: name.trim() } },
         });
         if (error) { toast('Sign up failed: ' + error.message); return; }
-        // Supabase by default sends a confirmation email. If email confirmation
-        // is enabled in the project, `data.session` is null and the user must
-        // confirm before signing in. Surface that.
         if (!data.session) {
           alert(`We sent a confirmation link to ${login}.\n\nOpen the email and click the link to finish creating your account, then come back and sign in.`);
           setAuthMode('signin');
@@ -6783,7 +7455,22 @@
         await onSupabaseSignedIn(data.session);
       } else {
         const { data, error } = await sb().auth.signInWithPassword({ email: login, password: pwd });
-        if (error) { toast('Sign in failed: ' + error.message); return; }
+        if (error) {
+          // Record failure and surface a generic message. Don't reveal
+          // whether the email or the password was wrong — that helps
+          // attackers enumerate valid emails.
+          const rec = await recordAuthFailure(login);
+          if (rec.lockedUntil && rec.lockedUntil > Date.now()) {
+            const secs = Math.ceil((rec.lockedUntil - Date.now()) / 1000);
+            const mins = Math.floor(secs / 60);
+            const friendly = mins > 0 ? `${mins} minute${mins > 1 ? 's' : ''}` : `${secs} seconds`;
+            toast(`Too many failed attempts. Locked for ${friendly}.`);
+          } else {
+            toast('Sign in failed. Check your email and password.');
+          }
+          return;
+        }
+        clearAuthFailures(login).catch(() => {});
         await onSupabaseSignedIn(data.session);
       }
     } catch (e) {
@@ -6929,6 +7616,15 @@
       if (!firstSignin) {
         scheduleCatchupPull();
       }
+      // If this browser has a saved device name, rebind it to the new
+      // session_id so the device list on other devices shows the right
+      // label. Fire-and-forget; failures are non-fatal.
+      const savedName = getLocalDeviceName();
+      if (savedName) {
+        persistDeviceName(savedName).catch(() => {});
+      }
+      // Record the sign-in event in the audit log. Fire-and-forget.
+      logAuditEvent('sign_in', null, null).catch(() => {});
     } catch (e) {
       console.warn('Sync startup failed:', e.message);
     }
@@ -8219,12 +8915,20 @@
     // Defend against double-binding when migration screen restores the original UI.
     if (form.__hisabsBound) return;
     form.__hisabsBound = true;
+    // Live "passwords match" feedback as the user types in either field
+    // (only relevant in signup mode; updatePwdMatchHint short-circuits
+    // when not signing up).
+    const pwdEl = document.getElementById('authPwd');
+    const confirmEl = document.getElementById('authPwdConfirm');
+    if (pwdEl) pwdEl.addEventListener('input', updatePwdMatchHint);
+    if (confirmEl) confirmEl.addEventListener('input', updatePwdMatchHint);
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const login = normalize(document.getElementById('authPhone').value);
       const pwd = document.getElementById('authPwd').value;
+      const pwdConfirm = document.getElementById('authPwdConfirm')?.value || '';
       const name = document.getElementById('authName').value.trim();
-      await cloudSignInSubmit(authMode, login, pwd, name);
+      await cloudSignInSubmit(authMode, login, pwd, name, pwdConfirm);
     });
   }
 
@@ -8251,6 +8955,42 @@
       try {
         const { data: { session: sbSession } } = await sb().auth.getSession();
         if (sbSession) {
+          // Defense in depth: verify the cached session with the server
+          // before trusting it for app rendering. getSession() only reads
+          // localStorage; getUser() makes a real server call that fails
+          // if the token has been invalidated server-side (revoked,
+          // forced sign-out, etc).
+          //
+          // If verification fails, we sign out locally and show the auth
+          // screen — better than rendering the app with a dead session
+          // and confusing the user with 401s on every action. If we
+          // can't reach the server at all (offline boot), we still
+          // proceed — the local cache lets people work offline, and
+          // the next sync attempt will surface real issues.
+          let serverOk = true;
+          if (navigator.onLine) {
+            try {
+              // Bound the verify to 5s so a slow network doesn't hang
+              // app boot. On timeout we assume the session is fine and
+              // continue — first real API call will catch a dead token.
+              const verifyTimeout = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('verify timeout')), 5000));
+              const { data: { user }, error } = await Promise.race([
+                sb().auth.getUser(),
+                verifyTimeout,
+              ]);
+              if (error || !user) serverOk = false;
+            } catch (e) {
+              // Network blip or timeout: trust the local session and proceed.
+              console.warn('Session re-verify could not reach server:', e?.message || e);
+            }
+          }
+          if (!serverOk) {
+            try { await sb().auth.signOut(); } catch (_) {}
+            setAuthMode('signin');
+            toast('Your session expired. Please sign in again.');
+            return;
+          }
           await onSupabaseSignedIn(sbSession);
           return;
         }

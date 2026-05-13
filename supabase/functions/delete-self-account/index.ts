@@ -33,32 +33,48 @@ const SUPABASE_URL          = Deno.env.get('SUPABASE_URL')          ?? '';
 const SUPABASE_ANON_KEY     = Deno.env.get('SUPABASE_ANON_KEY')     ?? '';
 const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
-// CORS: allow the Hisabs deployment origin to call this. The wildcard
-// is fine here because the function authenticates via JWT — origin alone
-// can't escalate.
-const CORS_HEADERS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+// CORS allowlist. Even though we authenticate via JWT (so origin alone
+// can't escalate), restricting Allow-Origin is defense-in-depth — it
+// stops a third-party site from being able to invoke this function from
+// a browser even with social-engineering. The function still works
+// server-to-server because CORS only applies to browser fetches.
+//
+// To support preview deploys, list each one here. Edit this list and
+// redeploy when adding new domains.
+const ALLOWED_ORIGINS = new Set([
+  'https://hisabs.vercel.app',
+  // Add additional Hisabs domains here if you have them, e.g.:
+  // 'https://hisabs-staging.vercel.app',
+]);
+function corsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') ?? '';
+  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : '';
+  return {
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
+  };
+}
 
 Deno.serve(async (req: Request): Promise<Response> => {
+  const CORS_HEADERS = corsHeaders(req);
   // Preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: CORS_HEADERS });
   }
   if (req.method !== 'POST') {
-    return json({ error: 'Method not allowed' }, 405);
+    return jsonResp(CORS_HEADERS, { error: 'Method not allowed' }, 405);
   }
 
   // 1. Extract the caller's JWT from the Authorization header.
   const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
-    return json({ error: 'Missing Authorization Bearer token' }, 401);
+    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
   }
   const accessToken = authHeader.slice('Bearer '.length).trim();
   if (!accessToken) {
-    return json({ error: 'Empty Authorization token' }, 401);
+    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
   }
 
   // 2. Verify the JWT. Use the ANON client (no admin powers); supabase-js
@@ -66,39 +82,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
   const verifyClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const { data: userData, error: userErr } = await verifyClient.auth.getUser(accessToken);
   if (userErr || !userData?.user?.id) {
-    return json({ error: 'Invalid or expired session', detail: userErr?.message ?? null }, 401);
+    // Don't leak whether token was missing/expired/forged.
+    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
   }
   const userId = userData.user.id;
   const userEmail = userData.user.email ?? null;
 
-  // 3. Delete the auth user using the service_role client. This call
-  //    bypasses RLS because service_role is the database superuser
-  //    role — it can do anything. We constrain to "the caller's own
-  //    user_id" so the bypass can't be abused.
+  // 3. Delete the auth user using the service_role client.
   if (!SUPABASE_SERVICE_ROLE) {
-    return json({ error: 'Server misconfigured: missing service role' }, 500);
+    console.error('Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY');
+    return jsonResp(CORS_HEADERS, { error: 'Server error' }, 500);
   }
   const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
-  // Before deleting the auth user, the Hisabs client should already have
-  // hard-deleted the user's app data via normal cascades. We don't repeat
-  // that work here — the RLS policies wouldn't let this function's caller
-  // see other users' data anyway, but we'd need to use the service_role
-  // for the cascade, which is more dangerous than we need.
-
   const { error: delErr } = await adminClient.auth.admin.deleteUser(userId);
   if (delErr) {
-    return json({ error: 'Failed to delete user', detail: delErr.message }, 500);
+    // Log details internally; return generic error to caller.
+    console.error('Failed to delete user', userId, delErr);
+    return jsonResp(CORS_HEADERS, { error: 'Delete failed' }, 500);
   }
 
-  return json({ ok: true, deleted_user_id: userId, deleted_email: userEmail });
+  return jsonResp(CORS_HEADERS, { ok: true, deleted_user_id: userId, deleted_email: userEmail });
 });
 
-function json(body: any, status = 200): Response {
+function jsonResp(corsHdrs: Record<string, string>, body: any, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    headers: { ...corsHdrs, 'Content-Type': 'application/json' },
   });
 }

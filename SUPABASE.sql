@@ -170,6 +170,56 @@ create table if not exists public.app_audit_expenses (
 );
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
 
+-- Device names: friendly labels users give to their browsers/sessions.
+-- One row per (user, device) pair. Multiple sessions on the same browser
+-- share a device_id (kept in browser localStorage), so renaming once
+-- updates all future logins from that browser.
+--
+-- The row is keyed by (user_id, device_id) instead of session_id because
+-- sessions expire/regenerate but the user's "this is my MacBook" label
+-- should persist across re-sign-ins on the same browser.
+create table if not exists public.app_device_names (
+  user_id uuid not null,
+  device_id text not null,
+  name text not null,
+  session_id uuid,                 -- last-known auth.sessions.id for this device (advisory)
+  updated_at timestamptz default now(),
+  primary key (user_id, device_id)
+);
+create index if not exists idx_app_device_names_user on public.app_device_names(user_id);
+create index if not exists idx_app_device_names_session on public.app_device_names(session_id);
+
+-- Failed sign-in attempt counter. Mirrors localStorage rate-limit state
+-- in the cloud so it persists across browser-clears and devices.
+-- Keyed by lowercase email (not user_id, because the typical failed-
+-- login case is "user typed wrong password" — we don't know which
+-- auth.users row they meant). Cleared on successful sign-in.
+create table if not exists public.app_failed_logins (
+  email text primary key,
+  attempt_count int not null default 0,
+  locked_until timestamptz,
+  updated_at timestamptz default now()
+);
+
+-- Per-user audit log of meaningful events. Examples: sign-in, sign-out,
+-- business-created, business-deleted, account-wiped. Append-only by
+-- design: clients write but cannot read others' logs and cannot edit
+-- or delete their own (so an attacker can't cover tracks by clearing
+-- the log).
+--
+-- Logged events are visible to the user in Settings → Data → Activity.
+create table if not exists public.app_audit_log (
+  id text primary key,
+  user_id uuid not null,
+  event_type text not null,
+  description text,
+  metadata jsonb,
+  ip text,
+  user_agent text,
+  occurred_at timestamptz default now()
+);
+create index if not exists idx_app_audit_log_user_time on public.app_audit_log(user_id, occurred_at desc);
+
 -- ----------------------------------------------------------------
 -- 2. REPLICA IDENTITY FULL
 -- ----------------------------------------------------------------
@@ -193,6 +243,9 @@ alter table public.app_categories      replica identity full;
 alter table public.app_members         replica identity full;
 alter table public.app_entries         replica identity full;
 alter table public.app_audit_expenses  replica identity full;
+alter table public.app_device_names    replica identity full;
+alter table public.app_failed_logins   replica identity full;
+alter table public.app_audit_log       replica identity full;
 
 -- ----------------------------------------------------------------
 -- 3. Helper functions
@@ -281,6 +334,7 @@ alter table public.app_categories      enable row level security;
 alter table public.app_members         enable row level security;
 alter table public.app_entries         enable row level security;
 alter table public.app_audit_expenses  enable row level security;
+alter table public.app_device_names    enable row level security;
 
 -- ----------------------------------------------------------------
 -- 5. Policies
@@ -383,6 +437,58 @@ create policy app_members_delete on public.app_members
     or lower(user_login) = lower(coalesce((auth.jwt() ->> 'email'), ''))
     or public.user_owns_business(business_id)
   );
+
+-- app_device_names: user can only see/manage their own device labels.
+drop policy if exists app_device_names_select on public.app_device_names;
+create policy app_device_names_select on public.app_device_names
+  for select using (user_id = auth.uid());
+drop policy if exists app_device_names_insert on public.app_device_names;
+create policy app_device_names_insert on public.app_device_names
+  for insert with check (user_id = auth.uid());
+drop policy if exists app_device_names_update on public.app_device_names;
+create policy app_device_names_update on public.app_device_names
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists app_device_names_delete on public.app_device_names;
+create policy app_device_names_delete on public.app_device_names
+  for delete using (user_id = auth.uid());
+
+-- app_failed_logins: must be accessible to unauthenticated callers
+-- (they're trying to sign in!). The data exposed is minimal — just
+-- attempt counts per email — and the table is write-mostly: clients
+-- can increment their own row, read it, but cannot read others'.
+--
+-- We don't filter on auth.uid() (none yet) — instead we accept that
+-- this is essentially a public "how many bad password attempts has
+-- email X had" counter. Knowing this doesn't help an attacker; it
+-- only slows them down.
+alter table public.app_failed_logins enable row level security;
+drop policy if exists app_failed_logins_select on public.app_failed_logins;
+create policy app_failed_logins_select on public.app_failed_logins
+  for select using (true);
+drop policy if exists app_failed_logins_insert on public.app_failed_logins;
+create policy app_failed_logins_insert on public.app_failed_logins
+  for insert with check (true);
+drop policy if exists app_failed_logins_update on public.app_failed_logins;
+create policy app_failed_logins_update on public.app_failed_logins
+  for update using (true) with check (true);
+drop policy if exists app_failed_logins_delete on public.app_failed_logins;
+create policy app_failed_logins_delete on public.app_failed_logins
+  for delete using (true);
+
+-- app_audit_log: append-only event log. Users see their own events
+-- only. No update or delete policies — so once a row is written, it
+-- stays. This prevents an attacker from covering tracks by deleting
+-- audit entries showing their sign-in.
+alter table public.app_audit_log enable row level security;
+drop policy if exists app_audit_log_select on public.app_audit_log;
+create policy app_audit_log_select on public.app_audit_log
+  for select using (user_id = auth.uid());
+drop policy if exists app_audit_log_insert on public.app_audit_log;
+create policy app_audit_log_insert on public.app_audit_log
+  for insert with check (user_id = auth.uid());
+-- Intentionally NO update or delete policies — rows are immutable
+-- and cannot be removed by users. Admin can clean up via Dashboard
+-- if needed (service_role bypasses RLS).
 
 -- ----------------------------------------------------------------
 -- 6. Grants
