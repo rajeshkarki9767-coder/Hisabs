@@ -232,18 +232,77 @@
   main { grid-area: main; }
   .drawer-scrim { display: none; }
 
-  /* Sync status indicator. A small pill with a colored dot + label.
-     States: synced (green), syncing (orange spinner-like pulse),
-     offline (grey), error (red). Anchored to a small strip at the top
-     of the main area (NOT floating). */
-  .sync-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.6rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: 999px; font-size: 0.7rem; color: var(--ink-soft); cursor: default; user-select: none; }
-  .sync-strip { display: flex; justify-content: flex-end; padding: 0.6rem 1.25rem 0; }
-  .sync-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); transition: background 0.2s; flex-shrink: 0; }
-  .sync-badge[data-state="synced"]  .sync-badge-dot { background: var(--gain); }
-  .sync-badge[data-state="syncing"] .sync-badge-dot { background: #d18b2a; animation: sync-pulse 1.4s ease-in-out infinite; }
+  /* Sync status indicator. Sits anchored to a small strip at the top of
+     the main area (NOT floating). States: synced (green), syncing (orange
+     pulsing), offline (grey), error (red). Each state has a faint tinted
+     background and a more pronounced dot for at-a-glance recognition. */
+  .sync-badge {
+    display: inline-flex; align-items: center; gap: 0.55rem;
+    padding: 0.42rem 0.85rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.74rem;
+    line-height: 1;
+    color: var(--ink);
+    cursor: default;
+    user-select: none;
+    font-variant-numeric: tabular-nums;
+    transition: background 0.18s, border-color 0.18s, color 0.18s;
+    letter-spacing: -0.005em;
+  }
+  .sync-strip { display: flex; justify-content: flex-end; padding: 0.85rem 1.25rem 0; }
+  .sync-badge-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--ink-mute);
+    transition: background 0.18s, box-shadow 0.18s;
+    flex-shrink: 0;
+  }
+  /* SYNCED — faint green tint, solid green dot with halo ring */
+  .sync-badge[data-state="synced"] {
+    background: color-mix(in srgb, var(--gain) 8%, var(--surface-1));
+    border-color: color-mix(in srgb, var(--gain) 25%, var(--line));
+    color: color-mix(in srgb, var(--gain) 65%, var(--ink));
+  }
+  .sync-badge[data-state="synced"] .sync-badge-dot {
+    background: var(--gain);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--gain) 18%, transparent);
+  }
+  /* SYNCING — warm tint, pulsing dot */
+  .sync-badge[data-state="syncing"] {
+    background: color-mix(in srgb, #d18b2a 10%, var(--surface-1));
+    border-color: color-mix(in srgb, #d18b2a 30%, var(--line));
+    color: color-mix(in srgb, #a06515 80%, var(--ink));
+  }
+  .sync-badge[data-state="syncing"] .sync-badge-dot {
+    background: #d18b2a;
+    box-shadow: 0 0 0 3px color-mix(in srgb, #d18b2a 22%, transparent);
+    animation: sync-pulse 1.4s ease-in-out infinite;
+  }
+  /* OFFLINE — neutral, slightly dimmer */
+  .sync-badge[data-state="offline"] {
+    background: var(--surface-1);
+    color: var(--ink-soft);
+  }
   .sync-badge[data-state="offline"] .sync-badge-dot { background: var(--ink-mute); }
-  .sync-badge[data-state="error"]   .sync-badge-dot { background: var(--loss); }
-  @keyframes sync-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.85); } }
+  /* ERROR — faint red tint */
+  .sync-badge[data-state="error"] {
+    background: color-mix(in srgb, var(--loss) 8%, var(--surface-1));
+    border-color: color-mix(in srgb, var(--loss) 30%, var(--line));
+    color: color-mix(in srgb, var(--loss) 70%, var(--ink));
+  }
+  .sync-badge[data-state="error"] .sync-badge-dot {
+    background: var(--loss);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--loss) 22%, transparent);
+  }
+  @keyframes sync-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: 0.55; transform: scale(0.82); }
+  }
+  /* The count portion (e.g. "12 pending") is rendered slightly more muted
+     than the state word so the eye reads STATE first, detail second. */
+  .sync-badge-count { color: inherit; opacity: 0.65; margin-left: 0.15rem; font-weight: 400; }
+  .sync-badge-label { font-weight: 500; }
 
   .sidebar {
     background: var(--sidebar-bg); color: var(--sidebar-text);
@@ -854,7 +913,18 @@
     /* Sync dot sits a bit to the left of the export icon — the larger
        right margin gives it visual breathing room separate from the
        action icon group. */
-    .sync-badge-mobile { padding: 0.35rem; border-radius: 50%; margin-right: 0.5rem; }
+    /* Mobile sync dot: a compact round indicator next to the export
+       icon. Just the colored dot — no tinted pill background, no text.
+       Strips the larger desktop styling but keeps the dot ring/halo. */
+    .sync-badge-mobile {
+      padding: 0.4rem;
+      border-radius: 50%;
+      margin-right: 0.45rem;
+      background: transparent !important;
+      border: none !important;
+      gap: 0;
+    }
+    .sync-badge-mobile .sync-badge-count { display: none !important; }
     .topbar-icon-btn { background: transparent; border: 1px solid var(--line); width: 36px; height: 36px; padding: 0; cursor: pointer; color: var(--ink); display: grid; place-items: center; }
     .topbar-icon-btn:active { background: var(--paper-deep); }
     .topbar-icon-btn[hidden] { display: none; }
@@ -1169,6 +1239,7 @@
       <div class="sync-badge sync-badge-strip" id="syncBadge" data-state="synced" title="Synced" hidden>
         <span class="sync-badge-dot"></span>
         <span class="sync-badge-label">Synced</span>
+        <span class="sync-badge-count" style="display:none;"></span>
       </div>
     </div>
 
@@ -6844,6 +6915,42 @@
     persistSnapshot();
   }
 
+  // Update the snapshot for a specific list of successfully-pushed ops.
+  // The snapshot represents last-confirmed-cloud-state — so when an op
+  // successfully reaches the cloud, the corresponding record in the
+  // snapshot must be updated (or removed, for deletes) to match.
+  // Called from drainQueueOnce after a successful upsert/delete batch.
+  function updateSnapshotForOps(ops) {
+    if (!__syncSnapshot) return;
+    let dirty = false;
+    for (const op of ops) {
+      const list = __syncSnapshot[op.localKey];
+      if (!Array.isArray(list)) continue;
+      if (op.kind === 'upsert') {
+        // Find the local record we're confirming as pushed. Use the current
+        // local data (NOT op.row, which is the DB-shape — the snapshot is in
+        // local-shape). If the local record was deleted between queuing and
+        // success, skip — a delete op will follow.
+        const localRec = (data[op.localKey] || []).find(r => r.id === op.recordId);
+        if (!localRec) continue;
+        const idx = list.findIndex(r => r.id === op.recordId);
+        if (idx === -1) list.push({ ...localRec });
+        else list[idx] = { ...localRec };
+        dirty = true;
+      } else if (op.kind === 'delete') {
+        const idx = list.findIndex(r => r.id === op.recordId);
+        if (idx !== -1) { list.splice(idx, 1); dirty = true; }
+      }
+    }
+    if (dirty) {
+      // Persist the updated snapshot. We do NOT rebuild from current data
+      // here — only the records confirmed to have pushed are reflected,
+      // so any local records still in-flight (queued but not yet pushed)
+      // remain marked as "unsynced" relative to the snapshot.
+      try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(__syncSnapshot)); } catch (_) {}
+    }
+  }
+
   // Equality check for two record objects. Handles three subtleties:
   //   1. After JSON.stringify roundtrip (the snapshot persistence path),
   //      `undefined` values disappear. So `{x: undefined}` and `{}` should
@@ -6962,7 +7069,9 @@
   function runSyncDiff() {
     if (!__syncEnabled()) return;
     if (!__syncSnapshot) {
-      // First diff ever — establish a baseline. Don't emit ops.
+      // First diff ever — establish a baseline. Don't emit ops. This is the
+      // ONLY place at diff time where we persist the snapshot, and it's just
+      // to set up the initial "I have nothing in the cloud" reference.
       persistSnapshot();
       return;
     }
@@ -6977,7 +7086,13 @@
     const coalesced = [...seen.values()];
     __syncQueue.push(...coalesced);
     persistQueue();
-    persistSnapshot();
+    // CRITICAL: do NOT persist the snapshot here. The snapshot represents
+    // last-known-cloud-state. Queueing an op doesn't make it cloud state —
+    // only a successful push does. If we persist now and the push later
+    // fails (RLS rejection, network drop), the snapshot would lie about
+    // what's in the cloud and the diff would never re-emit the op.
+    // The snapshot updates ONLY after a successful drain (in
+    // drainQueueOnce) and after a successful pull (in cloudPullAll).
     updateSyncBadge();
   }
 
@@ -7026,10 +7141,11 @@
         if (op.kind === 'upsert') slot.upserts.push(op.row);
         else slot.deletes.push(op.recordId);
       }
-      // Track ops that succeeded and ops that should be dropped (poison).
-      // Even if a later operation fails, the successful ones are removed
-      // from the queue so we don't re-push them on every retry.
-      let processedOps = [];
+      // Track ops that succeeded (need snapshot update) separately from
+      // poison drops (still removed from queue, but snapshot NOT updated —
+      // the record genuinely failed to reach the cloud).
+      let successfulOps = [];
+      let droppedOps = [];
       let earlyExit = false;
       for (const [table, slot] of byTable) {
         if (earlyExit) break;
@@ -7040,18 +7156,16 @@
               op.attempts = (op.attempts || 0) + 1;
               if (op.attempts >= 5) {
                 console.error('Dropping poison upsert op:', op, error);
-                processedOps.push(op);
+                droppedOps.push(op);
               }
             }
-            earlyExit = true; // back off, but still commit prior successes below
+            earlyExit = true;
             break;
           } else {
-            processedOps.push(...slot.ops.filter(o => o.kind === 'upsert'));
+            successfulOps.push(...slot.ops.filter(o => o.kind === 'upsert'));
           }
         }
         if (slot.deletes.length) {
-          // Soft delete: set deleted_at instead of DELETE, so other devices'
-          // realtime listeners see the change as an UPDATE event.
           const { error } = await sb().from(table)
             .update({ deleted_at: new Date().toISOString() })
             .in('id', slot.deletes);
@@ -7060,22 +7174,34 @@
               op.attempts = (op.attempts || 0) + 1;
               if (op.attempts >= 5) {
                 console.error('Dropping poison delete op:', op, error);
-                processedOps.push(op);
+                droppedOps.push(op);
               }
             }
             earlyExit = true;
             break;
           } else {
-            processedOps.push(...slot.ops.filter(o => o.kind === 'delete'));
+            successfulOps.push(...slot.ops.filter(o => o.kind === 'delete'));
           }
         }
       }
-      // Always commit the processed ops to the queue, whether we exited early
-      // or finished cleanly. This ensures successful work in a partial-failure
-      // batch isn't re-attempted on the next drain.
-      const processedIds = new Set(processedOps.map(o => o.id));
-      __syncQueue = __syncQueue.filter(o => !processedIds.has(o.id));
+      // Remove BOTH successful and dropped ops from the queue (they're done
+      // being attempted either way).
+      const removedIds = new Set([...successfulOps, ...droppedOps].map(o => o.id));
+      __syncQueue = __syncQueue.filter(o => !removedIds.has(o.id));
       persistQueue();
+      // CRITICAL: update the snapshot ONLY for successful ops. The snapshot
+      // is supposed to represent last-known-cloud-state. Dropped ops never
+      // reached the cloud — leaving the snapshot un-updated for those means
+      // the NEXT diff will see them as new again and re-queue them. Without
+      // this, dropped ops disappear forever (the worst kind of silent data
+      // loss).
+      if (successfulOps.length) updateSnapshotForOps(successfulOps);
+      // If any ops were dropped, the user lost data. Show a loud toast so
+      // they know — and so they can investigate via Test Connection.
+      if (droppedOps.length) {
+        const tables = Array.from(new Set(droppedOps.map(o => o.table))).join(', ');
+        toast(`Sync error: ${droppedOps.length} record${droppedOps.length === 1 ? '' : 's'} could not be saved (${tables}). Check Settings → Data → Troubleshooting.`);
+      }
       updateSyncBadge();
     } catch (e) {
       console.warn('Sync worker error:', e.message);
@@ -7243,27 +7369,37 @@
   //   • grey dot: offline
   //   • red dot: realtime listener failed
   function updateSyncBadge() {
-    let state, label;
+    let state, label, countDetail;
     if (!__online) {
       state = 'offline';
-      label = `Offline${__syncQueue.length ? ` · ${__syncQueue.length} queued` : ''}`;
+      label = 'Offline';
+      countDetail = __syncQueue.length ? `${__syncQueue.length} queued` : '';
     } else if (__syncQueue.length > 0) {
       state = 'syncing';
-      label = `Syncing · ${__syncQueue.length} pending`;
+      label = 'Syncing';
+      countDetail = `${__syncQueue.length} pending`;
     } else {
       state = 'synced';
       label = 'Synced';
+      countDetail = '';
     }
     // Desktop strip badge (main page top-right) and mobile topbar badge.
-    // Both reflect the same state — desktop shows the label, mobile shows
-    // only the colored dot.
+    // Both reflect the same state — desktop shows the label + count, mobile
+    // shows only the colored dot. The state word and count are styled
+    // separately so the eye reads STATE first, count second.
+    const tooltip = countDetail ? `${label} · ${countDetail}` : label;
     for (const id of ['syncBadge', 'syncBadgeMobile']) {
       const el = document.getElementById(id);
       if (!el) continue;
       el.dataset.state = state;
-      el.title = label;
+      el.title = tooltip;
       const labelEl = el.querySelector('.sync-badge-label');
       if (labelEl) labelEl.textContent = label;
+      const countEl = el.querySelector('.sync-badge-count');
+      if (countEl) {
+        countEl.textContent = countDetail;
+        countEl.style.display = countDetail ? '' : 'none';
+      }
     }
   }
 
