@@ -234,9 +234,10 @@
 
   /* Sync status indicator. A small pill with a colored dot + label.
      States: synced (green), syncing (orange spinner-like pulse),
-     offline (grey), error (red). Fixed-position so it's always visible. */
+     offline (grey), error (red). Anchored to a small strip at the top
+     of the main area (NOT floating). */
   .sync-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.6rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: 999px; font-size: 0.7rem; color: var(--ink-soft); cursor: default; user-select: none; }
-  .sync-badge-fixed { position: fixed; bottom: 1rem; left: 248px; z-index: 60; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .sync-strip { display: flex; justify-content: flex-end; padding: 0.6rem 1.25rem 0; }
   .sync-badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-mute); transition: background 0.2s; flex-shrink: 0; }
   .sync-badge[data-state="synced"]  .sync-badge-dot { background: var(--gain); }
   .sync-badge[data-state="syncing"] .sync-badge-dot { background: #d18b2a; animation: sync-pulse 1.4s ease-in-out infinite; }
@@ -847,9 +848,10 @@
     .topbar-eyebrow { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .topbar-title { font-family: var(--font-sans); font-size: 1.05rem; font-weight: 500;  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
     .topbar-actions { display: flex; gap: 0.2rem; flex-shrink: 0; align-items: center; }
-    /* Sync badge on mobile: top-right corner, compact (no label). */
-    .sync-badge-fixed { bottom: auto; left: auto; top: 0.55rem; right: 0.55rem; padding: 0.3rem 0.4rem; z-index: 60; }
-    .sync-badge-fixed .sync-badge-label { display: none; }
+    /* On mobile the desktop sync-strip is hidden — the dot lives in the
+       topbar instead (no label, just the colored dot). */
+    .sync-strip { display: none; }
+    .sync-badge-mobile { padding: 0.35rem; border-radius: 50%; }
     .topbar-icon-btn { background: transparent; border: 1px solid var(--line); width: 36px; height: 36px; padding: 0; cursor: pointer; color: var(--ink); display: grid; place-items: center; }
     .topbar-icon-btn:active { background: var(--paper-deep); }
     .topbar-icon-btn[hidden] { display: none; }
@@ -1145,22 +1147,31 @@
         </div>
       </div>
       <div class="topbar-actions">
+        <!-- Sync status indicator on mobile lives in the topbar (right side).
+             On desktop it lives in the main-content sync-strip below the
+             topbar (which is hidden on desktop). -->
+        <div class="sync-badge sync-badge-mobile" id="syncBadgeMobile" data-state="synced" title="Synced" hidden>
+          <span class="sync-badge-dot"></span>
+        </div>
         <button class="topbar-icon-btn" id="mobileExportBtn" onclick="openModal('exportSheet')" aria-label="Export">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
       </div>
     </header>
 
+    <!-- Desktop sync indicator strip: small right-aligned bar above the
+         main content. Anchored to the top of the scrollable area so it
+         scrolls with the page (not fixed-floating). -->
+    <div class="sync-strip" id="syncStrip">
+      <div class="sync-badge sync-badge-strip" id="syncBadge" data-state="synced" title="Synced" hidden>
+        <span class="sync-badge-dot"></span>
+        <span class="sync-badge-label">Synced</span>
+      </div>
+    </div>
+
     <div class="date-strip" id="dateStrip"></div>
     <div id="mainContent"></div>
   </main>
-
-  <!-- Sync status indicator: fixed position, only visible when signed in
-       to a cloud account. Shows synced/syncing/offline state. -->
-  <div class="sync-badge sync-badge-fixed" id="syncBadge" data-state="synced" title="Synced" hidden>
-    <span class="sync-badge-dot"></span>
-    <span class="sync-badge-label">Synced</span>
-  </div>
 
   <div class="fab" id="fab">
     <button class="fab-btn in" id="fabIn" onclick="openModal('entry', null, 'in')">
@@ -6703,6 +6714,33 @@
   // still sign out locally so the user isn't stuck.
   async function cloudSignOut() {
     if (!confirm('Sign out of Hisabs?')) return;
+    // CRITICAL: wait for the local queue to drain before signing out.
+    // If we sign out while ops are pending, they get wiped from
+    // localStorage by _doSignOut() and never reach the cloud — the
+    // user's data is lost. Wait up to 10 seconds; warn if we can't
+    // drain in that window (offline, server unreachable).
+    if (Array.isArray(__syncQueue) && __syncQueue.length > 0) {
+      const queueLen = __syncQueue.length;
+      toast(`Saving ${queueLen} change${queueLen === 1 ? '' : 's'} before sign-out…`);
+      const waitedTooLong = await new Promise((resolve) => {
+        const startTs = Date.now();
+        const tick = async () => {
+          if (__syncQueue.length === 0) return resolve(false);
+          if (Date.now() - startTs >= 10000) return resolve(true);
+          try { await drainQueueOnce(); } catch (_) {}
+          setTimeout(tick, 500);
+        };
+        tick();
+      });
+      if (waitedTooLong) {
+        const proceed = confirm(
+          `Could not push ${__syncQueue.length} pending change${__syncQueue.length === 1 ? '' : 's'} to the cloud before signing out. ` +
+          `If you sign out now, those changes will be LOST. ` +
+          `Cancel to retry later when your connection is better, or OK to sign out anyway.`
+        );
+        if (!proceed) return;
+      }
+    }
     try { await sb().auth.signOut(); } catch (e) { console.warn('Supabase signOut failed:', e.message); }
     _doSignOut();
   }
@@ -7202,8 +7240,6 @@
   //   • grey dot: offline
   //   • red dot: realtime listener failed
   function updateSyncBadge() {
-    const badge = document.getElementById('syncBadge');
-    if (!badge) return;
     let state, label;
     if (!__online) {
       state = 'offline';
@@ -7215,19 +7251,27 @@
       state = 'synced';
       label = 'Synced';
     }
-    badge.dataset.state = state;
-    badge.title = label;
-    const labelEl = badge.querySelector('.sync-badge-label');
-    if (labelEl) labelEl.textContent = label;
+    // Desktop strip badge (main page top-right) and mobile topbar badge.
+    // Both reflect the same state — desktop shows the label, mobile shows
+    // only the colored dot.
+    for (const id of ['syncBadge', 'syncBadgeMobile']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.dataset.state = state;
+      el.title = label;
+      const labelEl = el.querySelector('.sync-badge-label');
+      if (labelEl) labelEl.textContent = label;
+    }
   }
 
   // ----------- Lifecycle hooks -------------
   // Called once on successful cloud sign-in to wire up everything.
   function startSyncSystem() {
     if (!__syncEnabled()) return;
-    // Make the badge visible now that we're cloud-signed-in.
-    const badge = document.getElementById('syncBadge');
-    if (badge) badge.hidden = false;
+    // Make both badges visible now that we're cloud-signed-in.
+    for (const id of ['syncBadge', 'syncBadgeMobile']) {
+      const el = document.getElementById(id); if (el) el.hidden = false;
+    }
     // Establish baseline snapshot if missing (first run on this device).
     if (!__syncSnapshot) persistSnapshot();
     startSyncWorker();
@@ -7235,8 +7279,9 @@
     updateSyncBadge();
   }
   function stopSyncSystem() {
-    const badge = document.getElementById('syncBadge');
-    if (badge) badge.hidden = true;
+    for (const id of ['syncBadge', 'syncBadgeMobile']) {
+      const el = document.getElementById(id); if (el) el.hidden = true;
+    }
     stopSyncWorker();
     stopRealtimeListener();
   }
