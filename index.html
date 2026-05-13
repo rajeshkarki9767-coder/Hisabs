@@ -5986,9 +5986,9 @@
       <div class="settings-section">
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
         <p style="font-size:0.82rem;color:var(--ink-mute);margin-bottom:0.6rem;line-height:1.45;">
-          This permanently deletes every business you own and your sign-in account from the cloud, then signs you out. Cannot be undone.
+          Permanently deletes every business you own and all its data from the cloud, then signs you out. Your sign-in email will remain registered until support clears it — to fully remove your account, request deletion separately after this.
         </p>
-        <button class="btn btn-sm btn-danger-outline" onclick="wipeMyData()">Delete my account and all my data</button>
+        <button class="btn btn-sm btn-danger-outline" onclick="wipeMyData()">Delete all my data and sign out</button>
       </div>`;
   }
   function pickTheme(theme) {
@@ -7741,8 +7741,13 @@
           created_by: r.createdBy || null,
           created_by_name: r.createdByName || null,
           edited_by: r.editedBy || null,
-          edited_at: r.editedAt ? new Date(r.editedAt).toISOString() : null,
-          created_at_local: r.createdAt || null,
+          edited_by_name: r.editedByName || null,
+          // Column on the table is edited_at_local (not edited_at). Same
+          // pattern as created_at_local: the *_local columns carry the
+          // client's wall-clock timestamp, while created_at / updated_at
+          // are server-side default-now() audit fields.
+          edited_at_local: r.editedAt ? new Date(r.editedAt).toISOString() : null,
+          created_at_local: r.createdAt ? new Date(r.createdAt).toISOString() : null,
         };
       },
       fromDb: (r) => ({
@@ -7756,23 +7761,26 @@
         createdBy: r.created_by || undefined,
         createdByName: r.created_by_name || '',
         editedBy: r.edited_by || undefined,
-        editedAt: r.edited_at ? new Date(r.edited_at).getTime() : undefined,
-        createdAt: r.created_at_local || Date.now(),
+        editedByName: r.edited_by_name || '',
+        editedAt: r.edited_at_local ? new Date(r.edited_at_local).getTime() : undefined,
+        createdAt: r.created_at_local ? new Date(r.created_at_local).getTime() : Date.now(),
       }),
     },
     auditExpenses: {
       table: 'app_audit_expenses',
+      // Column on the table is `label` (not `description`). Map both
+      // ways so the local naming stays unchanged but the DB sees the
+      // right column.
       toDb: (r) => ({
         id: r.id, business_id: r.businessId, month: r.month,
-        description: r.description, amount: Number(r.amount) || 0,
-        created_at_local: r.createdAt || null,
-        edited_at_local: r.editedAt || null,
+        label: r.description || null,
+        amount: Number(r.amount) || 0,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id, month: r.month,
-        description: r.description, amount: Number(r.amount),
-        createdAt: r.created_at_local || Date.now(),
-        editedAt: r.edited_at_local || undefined,
+        description: r.label || '',
+        amount: Number(r.amount),
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       }),
     },
     // members are also synced but their toDb is special (user_id vs user_login)
