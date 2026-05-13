@@ -432,6 +432,57 @@
   .date-strip-sync { flex: 0 0 auto; display: flex; justify-content: center; align-items: center; }
   .date-strip-date { color: var(--ink-mute); flex: 1; text-align: right; }
 
+  /* ============ UNIVERSAL SEARCH ============ */
+  /* Desktop: search input inline in the date strip, between the day-of-week
+     and the sync badge / date. The input expands to fill available width.
+     Mobile: a search icon button in the topbar (built separately); when
+     tapped, opens a full-screen overlay (see below). */
+  .date-strip { position: relative; }
+  .date-strip-search { flex: 1; max-width: 480px; position: relative; }
+  .date-strip-search .search-input-wrap { position: relative; }
+  .date-strip-search input { width: 100%; padding: 0.4rem 0.65rem 0.4rem 1.85rem; font-size: 0.78rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink); font-family: var(--font-sans); }
+  .date-strip-search input:focus { outline: none; border-color: var(--accent); }
+  .date-strip-search input::placeholder { color: var(--ink-mute); }
+  .date-strip-search-icon { position: absolute; left: 0.55rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
+
+  /* Dropdown with grouped results, anchored to the search input on desktop */
+  .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 480px; overflow-y: auto; z-index: 1000; }
+  .search-dropdown-empty { padding: 1.5rem 1rem; text-align: center; color: var(--ink-mute); font-size: 0.82rem; }
+  .search-group { border-bottom: 1px solid var(--line-soft); }
+  .search-group:last-child { border-bottom: none; }
+  .search-group-head { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.13em; font-weight: 600; color: var(--ink-mute); padding: 0.55rem 0.85rem 0.3rem; background: var(--paper-deep); position: sticky; top: 0; z-index: 1; }
+  .search-result { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.85rem; cursor: pointer; transition: background 0.08s; border-bottom: 1px dashed var(--line-soft); }
+  .search-result:last-child { border-bottom: none; }
+  .search-result:hover, .search-result.kbd-focus { background: var(--paper-deep); }
+  .search-result-icon { flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; color: var(--ink-mute); }
+  .search-result-body { flex: 1; min-width: 0; }
+  .search-result-title { font-size: 0.86rem; color: var(--ink); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-result-sub { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .search-result-amount { font-family: var(--font-mono); font-size: 0.78rem; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+  .search-result-amount.pos { color: var(--gain); }
+  .search-result-amount.neg { color: var(--loss); }
+  .search-hit { background: rgba(184, 76, 36, 0.18); border-radius: 2px; padding: 0 1px; }
+
+  /* Mobile: search button in topbar + full-screen overlay */
+  .topbar-search-btn { display: none; background: transparent; border: none; cursor: pointer; padding: 0.4rem; color: var(--ink-mute); border-radius: var(--r-sm); }
+  .topbar-search-btn:hover { color: var(--ink); }
+  .search-overlay { display: none; position: fixed; inset: 0; background: var(--paper); z-index: 200; flex-direction: column; }
+  .search-overlay.active { display: flex; }
+  .search-overlay-head { padding: 0.75rem; border-bottom: 1px solid var(--line); display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
+  .search-overlay-input-wrap { flex: 1; position: relative; }
+  .search-overlay-input-wrap input { width: 100%; padding: 0.6rem 0.65rem 0.6rem 2rem; font-size: 1rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink); }
+  .search-overlay-input-wrap input:focus { outline: none; border-color: var(--accent); }
+  .search-overlay-icon { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
+  .search-overlay-close { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: 0.5rem 0.75rem; cursor: pointer; border-radius: var(--r-sm); font-size: 0.82rem; flex-shrink: 0; }
+  .search-overlay-body { flex: 1; overflow-y: auto; }
+  .search-overlay-empty { padding: 2rem 1rem; text-align: center; color: var(--ink-mute); font-size: 0.9rem; }
+
+  /* Hide search input on mobile (use the overlay instead) */
+  @media (max-width: 880px) {
+    .date-strip-search { display: none; }
+    .topbar-search-btn { display: inline-grid; place-items: center; }
+  }
+
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; gap: 1rem; flex-wrap: wrap; }
   .page-title-wrap { flex: 1; min-width: 200px; }
   .page-eyebrow { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-mute); margin-bottom: 0.25rem; font-weight: 500; }
@@ -661,6 +712,22 @@
 
   /* ============ AUDIT VIEW ============ */
   /* Month selector + summary cards + free-text expenses + balances. */
+  /* ============ AUDIT RANGE TABS ============ */
+  .audit-range-tabs { display: flex; align-items: center; gap: 0.3rem; padding: 0.35rem 0.5rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 0.45rem; flex-wrap: wrap; }
+  .audit-range-tab { background: transparent; border: none; padding: 0.4rem 0.85rem; font-size: 0.82rem; cursor: pointer; border-radius: var(--r-sm); color: var(--ink-mute); font-family: var(--font-sans); font-weight: 500; }
+  .audit-range-tab:hover { background: var(--paper-deep); color: var(--ink); }
+  .audit-range-tab.active { background: var(--ink); color: var(--paper); }
+  .audit-q-group { flex: 1; display: flex; gap: 0.3rem; align-items: center; justify-content: center; padding: 0 0.5rem; }
+  .audit-q-year { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); margin-right: 0.4rem; }
+  .audit-q-btn { background: transparent; border: 1px solid var(--line); padding: 0.3rem 0.7rem; font-size: 0.78rem; cursor: pointer; border-radius: var(--r-sm); color: var(--ink-mute); font-family: var(--font-sans); font-weight: 500; }
+  .audit-q-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .audit-q-btn.active { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  /* Month grouping in Expenses view when in quarter/year mode */
+  .audit-exp-month-group { margin-bottom: 1rem; }
+  .audit-exp-month-group:last-child { margin-bottom: 0; }
+  .audit-exp-month-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0.45rem 0.6rem; background: var(--paper-deep); border-radius: var(--r-sm); margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; }
+  .audit-exp-month-total { font-family: var(--font-mono); color: var(--loss); font-weight: 500; }
+
   .audit-month-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 0.85rem; }
   .audit-month-nav { background: transparent; border: 1px solid var(--line); width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--ink-soft); border-radius: var(--r-sm); }
   .audit-month-nav:hover { border-color: var(--accent); color: var(--accent); }
@@ -691,7 +758,7 @@
   .split-calc-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--ink); }
   .split-calc-sub { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; }
   .split-calc-pct-row { display: grid; grid-template-columns: 90px 1fr; gap: 0.85rem; align-items: start; }
-  .split-calc-pct-input label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; display: block; margin-bottom: 0.25rem; }
+  .split-calc-pct-input label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; display: block; margin-bottom: 0.25rem; text-align: center; }
   .split-calc-pct-input input { width: 100%; padding: 0.55rem 0.65rem; font-size: 1.05rem; font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
   .split-calc-pct-results { display: flex; flex-direction: column; gap: 0.35rem; }
   .split-calc-result { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; padding: 0.35rem 0.55rem; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); }
@@ -749,11 +816,12 @@
   /* Per-account row in the month-scoped Audit accounts list. Name on the left,
      three monospace stats (in / out / net) on the right with the same widths
      so they read as a column even on long lists. */
-  .audit-month-acct-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.4rem 0; border-bottom: 1px dashed var(--line-soft); }
+  .audit-month-acct-row { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.5rem 0; border-bottom: 1px dashed var(--line-soft); flex-wrap: wrap; }
   .audit-month-acct-row:last-child { border-bottom: none; }
-  .audit-month-acct-name { color: var(--ink); font-size: 0.86rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
-  .audit-month-acct-stats { display: inline-flex; gap: 0.7rem; flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.78rem; }
-  .audit-month-acct-stat { min-width: 64px; text-align: right; }
+  .audit-month-acct-name { color: var(--ink); font-size: 0.88rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 100px; }
+  .audit-month-acct-stats { display: inline-flex; gap: 0.85rem; flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.82rem; flex-wrap: wrap; }
+  .audit-month-acct-stat { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.05rem; min-width: 78px; text-align: right; }
+  .audit-month-acct-stat-label { font-family: var(--font-sans); font-size: 0.55rem; font-weight: 600; letter-spacing: 0.13em; color: var(--ink-mute); text-transform: uppercase; }
   .audit-month-acct-stat.in { color: var(--gain); }
   .audit-month-acct-stat.out { color: var(--loss); }
   .audit-month-acct-stat.net { font-weight: 600; }
@@ -1088,8 +1156,15 @@
     .audit-section { padding: 0.85rem; }
     .audit-month-bar { padding: 0.45rem 0.55rem; }
     .audit-month-current { font-size: 0.92rem; }
-    .audit-month-acct-stats { gap: 0.4rem; font-size: 0.7rem; }
-    .audit-month-acct-stat { min-width: 50px; }
+    .audit-month-acct-stats { gap: 0.6rem; font-size: 0.72rem; }
+    .audit-month-acct-stat { min-width: 62px; }
+    .audit-month-acct-stat-label { font-size: 0.5rem; letter-spacing: 0.1em; }
+    /* Account group head on narrow screens: drop the balance + actions
+       onto a second row so they don't fight for space with the group
+       title. The flex-wrap on the parent already handles wrapping; this
+       just makes the second-row block consume the full width. */
+    .account-group-actions { width: 100%; justify-content: space-between; padding-top: 0.35rem; border-top: 1px dashed var(--line-soft); margin-top: 0.2rem; gap: 0.35rem; }
+    .account-group-balance { flex: 0 1 auto; font-size: 0.82rem; padding: 0.18rem 0.45rem; }
     .audit-month-totals { gap: 0.4rem; }
     .audit-month-totals-card { padding: 0.55rem 0.6rem; }
     .audit-month-totals-label { font-size: 0.55rem; letter-spacing: 0.1em; }
@@ -1331,10 +1406,6 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h4"/><path d="M14 14h4"/></svg>
             Accounts
           </div>
-          <div class="sidebar-nav-item" id="navQuickLook" onclick="switchView('quickLook')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            Quick Look
-          </div>
           <div class="sidebar-nav-item" id="navExpenses" onclick="switchView('expenses')" style="display:none;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Expenses
@@ -1358,7 +1429,22 @@
           </div>
           <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            Staff
+            Team
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Look section: payment QR codes / account directory. Visible to
+           every role (owner, manager, staff, viewer) — not gated like Management.
+           Hosts a single item ("Snapshot") for now. The section exists as a
+           separator rather than a single sidebar item to match the requested
+           layout. -->
+      <div id="sidebarQuickLookGroup">
+        <div class="sidebar-section-label"><span>Quick Look</span></div>
+        <div class="sidebar-nav">
+          <div class="sidebar-nav-item" id="navQuickLook" onclick="switchView('quickLook')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Snapshot
           </div>
         </div>
       </div>
@@ -1402,11 +1488,32 @@
         <div class="sync-badge sync-badge-mobile" id="syncBadgeMobile" data-state="synced" title="Synced" hidden>
           <span class="sync-badge-dot"></span>
         </div>
+        <button class="topbar-search-btn" onclick="openSearchOverlay()" aria-label="Search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
         <button class="topbar-icon-btn" id="mobileExportBtn" onclick="openModal('exportSheet')" aria-label="Export">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         </button>
       </div>
     </header>
+
+    <!-- Mobile full-screen search overlay. Hidden by default. Opened from
+         the topbar search button. Closes on Esc, on tapping a result, or
+         on the Close button. -->
+    <div class="search-overlay" id="searchOverlay" role="dialog" aria-label="Search">
+      <div class="search-overlay-head">
+        <div class="search-overlay-input-wrap">
+          <span class="search-overlay-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input type="text" id="universalSearchInputMobile" placeholder="Search across everything…" autocomplete="off" oninput="onUniversalSearchInput(this.value, true)" onkeydown="onUniversalSearchKeydown(event, true)">
+        </div>
+        <button class="search-overlay-close" onclick="closeSearchOverlay()" aria-label="Close search">Cancel</button>
+      </div>
+      <div class="search-overlay-body" id="universalSearchOverlayBody">
+        <div class="search-overlay-empty">Start typing to search across everything in this business.</div>
+      </div>
+    </div>
 
     <!-- The desktop sync badge is rendered inside the date strip (between
          day and date). The mobile sync dot lives in the topbar. -->
@@ -2547,7 +2654,10 @@
     __accountsSearch = '';
     __showHiddenAccounts = false;
     __auditMonth = null;
-    __splitPct = 50;
+    __auditRangeMode = 'month';
+    __auditQuarter = null;
+    __auditYear = null;
+    __splitPct = 100;
     __splitCurrency = '';
     __splitRate = 0;
     __splitNetProfit = 0;
@@ -2676,6 +2786,15 @@
     // calls startSyncSystem to show it).
     el.innerHTML = `
       <span class="date-strip-day">${escapeHtml(day)}</span>
+      <div class="date-strip-search">
+        <div class="search-input-wrap">
+          <span class="date-strip-search-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </span>
+          <input type="text" id="universalSearchInput" placeholder="Search entries, parties, accounts, snapshots…" autocomplete="off" oninput="onUniversalSearchInput(this.value)" onfocus="onUniversalSearchFocus()" onkeydown="onUniversalSearchKeydown(event)">
+        </div>
+        <div id="universalSearchDropdown"></div>
+      </div>
       <div class="date-strip-sync">
         <div class="sync-badge sync-badge-strip" id="syncBadge" data-state="synced" title="Synced" hidden>
           <span class="sync-badge-dot"></span>
@@ -2769,12 +2888,8 @@
     const list = document.getElementById('bookList');
     const books = data.books.filter(b => b.businessId === session.activeBizId);
     if (!books.length) { list.innerHTML = '<div style="font-size:.8rem;color:rgba(245,241,232,.4);padding:.5rem 1.25rem;">No books yet.</div>'; return; }
-    const showBal = canSeeTotals(session.activeBizId);
     const canRenameBook = canManageOps(session.activeBizId);
     list.innerHTML = books.map(book => {
-      const balHTML = showBal
-        ? `<span class="book-bal">${fmt(data.entries.filter(e => e.bookId === book.id).reduce((a, e) => a + (e.type === 'in' ? e.amount : -e.amount), 0))}</span>`
-        : '';
       const gear = canRenameBook
         ? `<button class="biz-gear book-gear" onclick="event.stopPropagation();renameBookFlow('${book.id}')" title="Rename book" aria-label="Rename ${escapeHtml(book.name)}">
              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -2782,7 +2897,7 @@
         : '';
       return `<div class="book-item ${book.id === session.activeBookId ? 'active' : ''}" onclick="selectBook('${book.id}')">
         <span>${escapeHtml(book.name)}</span>
-        <span class="book-item-right">${balHTML}${gear}</span>
+        <span class="book-item-right">${gear}</span>
       </div>`;
     }).join('');
   }
@@ -2809,8 +2924,12 @@
     }
     const navQuickLook = document.getElementById('navQuickLook');
     if (navQuickLook) navQuickLook.classList.toggle('active', session.view === 'quickLook');
+    // Quick Look section: visible whenever a business is active (any role).
+    // Hidden on the no-businesses welcome state to avoid confusing empty UI.
+    const ql = document.getElementById('sidebarQuickLookGroup');
+    if (ql) ql.style.display = session.activeBizId ? 'block' : 'none';
     // Management group: visible only when current user is owner of the active
-    // business. Hosts Staff (and any future org-admin tabs).
+    // business. Hosts Announcements and Staff.
     const mgmt = document.getElementById('sidebarManagementGroup');
     if (mgmt) {
       const isOwner = !!(session.activeBizId && canSeeAudit(session.activeBizId));
@@ -2842,11 +2961,11 @@
     } else if (session.view === 'expenses') {
       document.getElementById('mobileBookTitle').textContent = 'Expenses';
     } else if (session.view === 'staff') {
-      document.getElementById('mobileBookTitle').textContent = 'Staff';
+      document.getElementById('mobileBookTitle').textContent = 'Team';
     } else if (session.view === 'announcements') {
       document.getElementById('mobileBookTitle').textContent = 'Announcements';
     } else if (session.view === 'quickLook') {
-      document.getElementById('mobileBookTitle').textContent = 'Quick Look';
+      document.getElementById('mobileBookTitle').textContent = 'Snapshot';
     } else {
       document.getElementById('mobileBookTitle').textContent = book ? book.name : 'No book';
     }
@@ -4125,7 +4244,7 @@
   // Scratchpad state for the profit-split calculator at the bottom of Audit.
   // In-memory only; resets when the page reloads — that's the intent (it's a
   // calculator, not a setting).
-  let __splitPct = 50;            // percent for party A (0–100). B gets the rest.
+  let __splitPct = 100;           // percent for party A (0–100). B gets the rest. Default 100/0.
   let __splitCurrency = '';       // free-text currency code/symbol
   let __splitRate = 0;            // picked currency ÷ business currency (1 USD = 133 NPR → 133)
   let __splitNetProfit = 0;       // re-computed by renderAuditView each render
@@ -4235,6 +4354,154 @@
     return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   }
 
+  // Audit range mode lets the user pick whether they're looking at a
+  // month, a quarter, or a year. Default is the current month so behavior
+  // for existing users is unchanged. State is module-level; it resets on
+  // sign-out and on switching businesses.
+  //
+  // Internal keys:
+  //   month   → "2026-05"
+  //   quarter → "2026-Q2"
+  //   year    → "2026"
+  let __auditRangeMode = 'month';     // 'month' | 'quarter' | 'year'
+  let __auditQuarter = null;          // "2026-Q2" or null = current
+  let __auditYear = null;             // "2026" or null = current
+
+  function getCurrentQuarter() {
+    const d = new Date();
+    return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`;
+  }
+  function getCurrentYear() {
+    return String(new Date().getFullYear());
+  }
+  function getAuditQuarter() { return __auditQuarter || getCurrentQuarter(); }
+  function getAuditYear() { return __auditYear || getCurrentYear(); }
+
+  function setAuditRangeMode(mode) {
+    __auditRangeMode = mode;
+    // Reset the per-mode key to "current" when switching modes so users
+    // don't get stuck looking at last year's Q3 after switching from
+    // year-view back to quarter-view.
+    if (mode === 'quarter') __auditQuarter = null;
+    else if (mode === 'year') __auditYear = null;
+    else if (mode === 'month') __auditMonth = null;
+    renderMain();
+  }
+  function shiftAuditQuarter(delta) {
+    const cur = getAuditQuarter();
+    const [y, q] = cur.split('-Q').map(Number);
+    let newQ = q + delta, newY = y;
+    while (newQ < 1) { newQ += 4; newY -= 1; }
+    while (newQ > 4) { newQ -= 4; newY += 1; }
+    __auditQuarter = `${newY}-Q${newQ}`;
+    renderMain();
+  }
+  function shiftAuditYear(delta) {
+    const cur = getAuditYear();
+    __auditYear = String(Number(cur) + delta);
+    renderMain();
+  }
+  function jumpAuditQuarter(key) { __auditQuarter = key; renderMain(); }
+  function jumpAuditYear(year) { __auditYear = String(year); renderMain(); }
+
+  // Return the list of "YYYY-MM" month strings covered by the current
+  // range. The audit calculation iterates these months to compute its
+  // totals. For "month" mode this is just one month; for "quarter" it's
+  // three; for "year" it's twelve.
+  function getAuditRangeMonths() {
+    if (__auditRangeMode === 'year') {
+      const y = Number(getAuditYear());
+      const out = [];
+      for (let m = 1; m <= 12; m++) out.push(`${y}-${String(m).padStart(2, '0')}`);
+      return out;
+    }
+    if (__auditRangeMode === 'quarter') {
+      const [y, q] = getAuditQuarter().split('-Q').map(Number);
+      const start = (q - 1) * 3 + 1; // Q1→1, Q2→4, Q3→7, Q4→10
+      const out = [];
+      for (let i = 0; i < 3; i++) {
+        const m = start + i;
+        out.push(`${y}-${String(m).padStart(2, '0')}`);
+      }
+      return out;
+    }
+    // 'month' (default)
+    return [getAuditMonth()];
+  }
+
+  function getAuditRangeLabel() {
+    if (__auditRangeMode === 'year') return `Year ${getAuditYear()}`;
+    if (__auditRangeMode === 'quarter') {
+      const [y, q] = getAuditQuarter().split('-Q');
+      return `Q${q} ${y}`;
+    }
+    return auditMonthLabel(getAuditMonth());
+  }
+
+  // True if the currently-selected range is "current" (this month / this
+  // quarter / this year). Used to decide whether to show a "Jump to now"
+  // button.
+  function auditRangeIsCurrent() {
+    if (__auditRangeMode === 'year') return getAuditYear() === getCurrentYear();
+    if (__auditRangeMode === 'quarter') return getAuditQuarter() === getCurrentQuarter();
+    const thisM = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+    return getAuditMonth() === thisM;
+  }
+  function jumpAuditToCurrent() {
+    if (__auditRangeMode === 'year') __auditYear = null;
+    else if (__auditRangeMode === 'quarter') __auditQuarter = null;
+    else __auditMonth = null;
+    renderMain();
+  }
+
+  // Render the audit / expenses range picker. A row of tabs (Month / Quarter
+  // / Year) plus inline navigation appropriate to the active mode: month
+  // mode shows prev/next month arrows, quarter mode shows quarter buttons,
+  // year mode shows prev/next year arrows. Used by both the Audit view and
+  // the Expenses view so they stay in sync.
+  function renderAuditRangeBar() {
+    const mode = __auditRangeMode;
+    const isCurrent = auditRangeIsCurrent();
+    const label = getAuditRangeLabel();
+    let nav = '';
+    if (mode === 'month') {
+      nav = `
+        <button class="audit-month-nav" onclick="shiftAuditMonth(-1)" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="audit-month-current">${escapeHtml(label)}</div>
+        <button class="audit-month-nav" onclick="shiftAuditMonth(1)" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+      `;
+    } else if (mode === 'year') {
+      nav = `
+        <button class="audit-month-nav" onclick="shiftAuditYear(-1)" aria-label="Previous year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="audit-month-current">${escapeHtml(label)}</div>
+        <button class="audit-month-nav" onclick="shiftAuditYear(1)" aria-label="Next year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+      `;
+    } else {
+      // quarter
+      const [year, q] = getAuditQuarter().split('-Q');
+      const qBtn = (n) => `<button class="audit-q-btn ${String(n) === q ? 'active' : ''}" onclick="jumpAuditQuarter('${year}-Q${n}')">Q${n}</button>`;
+      nav = `
+        <button class="audit-month-nav" onclick="shiftAuditYear(-1)" aria-label="Previous year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <div class="audit-q-group">
+          <span class="audit-q-year">${escapeHtml(year)}</span>
+          ${qBtn(1)}${qBtn(2)}${qBtn(3)}${qBtn(4)}
+        </div>
+        <button class="audit-month-nav" onclick="shiftAuditYear(1)" aria-label="Next year"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
+      `;
+    }
+    return `
+      <div class="audit-range-tabs">
+        <button class="audit-range-tab ${mode === 'month' ? 'active' : ''}" onclick="setAuditRangeMode('month')">Month</button>
+        <button class="audit-range-tab ${mode === 'quarter' ? 'active' : ''}" onclick="setAuditRangeMode('quarter')">Quarter</button>
+        <button class="audit-range-tab ${mode === 'year' ? 'active' : ''}" onclick="setAuditRangeMode('year')">Year</button>
+        ${!isCurrent ? `<button class="btn btn-sm btn-ghost" onclick="jumpAuditToCurrent()" style="margin-left:auto;">Jump to ${mode === 'year' ? 'this year' : mode === 'quarter' ? 'this quarter' : 'this month'}</button>` : ''}
+      </div>
+      <div class="audit-month-bar">
+        ${nav}
+      </div>
+    `;
+  }
+
   // Compute the current balance of one account: sum of every Cash In minus
   // every Cash Out tagged to that accountId across all books in the business.
   // Defensively coerces e.amount so a string ("100" from a hand-edited restore)
@@ -4326,41 +4593,44 @@
       session.view = 'entries'; saveSession(); renderAll(); return;
     }
     const cur = currencyDisplay(biz.currency);
-    const month = getAuditMonth();
-    const monthLabel = auditMonthLabel(month);
-    const thisMonthKey = `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-    const isThisMonth = month === thisMonthKey;
+    const rangeMonths = getAuditRangeMonths();
+    const rangeMonthsSet = new Set(rangeMonths);
+    const rangeLabel = getAuditRangeLabel();
+    const isCurrent = auditRangeIsCurrent();
 
-    // All audit numbers below are scoped to the picked month. Build a single
-    // pass over entries that filters by date prefix once, so we can compute
-    // per-account in/out and the grand totals together.
+    // All audit numbers below are scoped to the picked range. Match any
+    // entry whose date prefix is one of the months in the range.
     const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
-    const monthEntries = data.entries.filter(e => bookIds.has(e.bookId) && typeof e.date === 'string' && e.date.startsWith(month));
+    const rangeEntries = data.entries.filter(e => {
+      if (!bookIds.has(e.bookId)) return false;
+      if (typeof e.date !== 'string' || e.date.length < 7) return false;
+      return rangeMonthsSet.has(e.date.slice(0, 7));
+    });
 
     const accs = bySortOrder(data.cashAccounts.filter(a => a.businessId === biz.id));
     const groups = data.accountGroups.filter(g => g.businessId === biz.id).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
-    // Per-account in/out for the month.
+    // Per-account in/out for the range.
     const perAcct = {};
     accs.forEach(a => { perAcct[a.id] = { in: 0, out: 0 }; });
-    for (const e of monthEntries) {
+    for (const e of rangeEntries) {
       if (!perAcct[e.accountId]) continue; // entry pointed at a deleted account
       const amt = Number(e.amount);
       if (!Number.isFinite(amt)) continue;
       if (e.type === 'in') perAcct[e.accountId].in += amt;
       else perAcct[e.accountId].out += amt;
     }
-    const monthIn = Object.values(perAcct).reduce((s, v) => s + v.in, 0);
-    const monthOut = Object.values(perAcct).reduce((s, v) => s + v.out, 0);
-    const monthProfit = monthIn - monthOut;
+    const totalIn = Object.values(perAcct).reduce((s, v) => s + v.in, 0);
+    const totalOut = Object.values(perAcct).reduce((s, v) => s + v.out, 0);
+    const rangeProfit = totalIn - totalOut;
 
-    // Expenses for the picked month only.
-    const expensesForMonth = data.auditExpenses
-      .filter(x => x.businessId === biz.id && x.month === month)
+    // Expenses across all months in the range.
+    const expensesForRange = data.auditExpenses
+      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    const expenseTotal = expensesForMonth.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    const expenseTotal = expensesForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
-    const netProfit = monthProfit - expenseTotal;
+    const netProfit = rangeProfit - expenseTotal;
 
     // Render: expenses section
     // Read-only on Audit — the "Manage →" jump button is intentionally removed
@@ -4368,10 +4638,10 @@
     const expensesSection = `
       <div class="audit-section">
         <h2 class="audit-section-title">Expenses</h2>
-        <p class="audit-section-sub">Logged on the Expenses tab. ${expensesForMonth.length} entr${expensesForMonth.length === 1 ? 'y' : 'ies'} in ${escapeHtml(monthLabel)}.</p>
-        ${expensesForMonth.length ? `
+        <p class="audit-section-sub">Logged on the Expenses tab. ${expensesForRange.length} entr${expensesForRange.length === 1 ? 'y' : 'ies'} in ${escapeHtml(rangeLabel)}.</p>
+        ${expensesForRange.length ? `
           <div class="audit-balances">
-            ${expensesForMonth.map(x => `<div class="audit-acct-row">
+            ${expensesForRange.map(x => `<div class="audit-acct-row">
               <span class="audit-acct-name">${escapeHtml(x.description)}</span>
               <span class="audit-acct-bal neg">${cur} ${fmt(x.amount)}</span>
             </div>`).join('')}
@@ -4380,7 +4650,7 @@
             <span>Total expenses</span>
             <span class="neg">${cur} ${fmt(expenseTotal)}</span>
           </div>
-        ` : `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(monthLabel)}.</div>`}
+        ` : `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(rangeLabel)}.</div>`}
       </div>
     `;
 
@@ -4393,9 +4663,9 @@
       return `<div class="audit-month-acct-row">
         <div class="audit-month-acct-name">${escapeHtml(a.name)}</div>
         <div class="audit-month-acct-stats">
-          <span class="audit-month-acct-stat in" title="Cash in">+${fmt(t.in)}</span>
-          <span class="audit-month-acct-stat out" title="Cash out">−${fmt(t.out)}</span>
-          <span class="audit-month-acct-stat net ${net >= 0 ? 'pos' : 'neg'}" title="Net for month">${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}</span>
+          <span class="audit-month-acct-stat in" title="Cash in"><span class="audit-month-acct-stat-label">IN</span>+${fmt(t.in)}</span>
+          <span class="audit-month-acct-stat out" title="Cash out"><span class="audit-month-acct-stat-label">OUT</span>−${fmt(t.out)}</span>
+          <span class="audit-month-acct-stat net ${net >= 0 ? 'pos' : 'neg'}" title="Net for period"><span class="audit-month-acct-stat-label">NET</span>${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}</span>
         </div>
       </div>`;
     };
@@ -4420,11 +4690,11 @@
     const accountsSection = `
       <div class="audit-section">
         <h2 class="audit-section-title">Accounts</h2>
-        <p class="audit-section-sub">Each account's cash in, cash out, and net for ${escapeHtml(monthLabel)}.</p>
+        <p class="audit-section-sub">Each account's cash in, cash out, and net for ${escapeHtml(rangeLabel)}.</p>
         ${accs.length ? `<div class="audit-balances">${accountsSectionGroups}${orphanGroup}</div>
           <div class="audit-balances-total">
             <span>Total across all accounts</span>
-            <span class="${monthProfit >= 0 ? 'pos' : 'neg'}">${cur} ${monthProfit >= 0 ? '+' : '−'}${fmt(Math.abs(monthProfit))}</span>
+            <span class="${rangeProfit >= 0 ? 'pos' : 'neg'}">${cur} ${rangeProfit >= 0 ? '+' : '−'}${fmt(Math.abs(rangeProfit))}</span>
           </div>` : '<div class="audit-exp-empty">No accounts yet.</div>'}
       </div>
     `;
@@ -4437,15 +4707,15 @@
       <div class="audit-month-totals">
         <div class="audit-month-totals-card">
           <div class="audit-month-totals-label">Cash in</div>
-          <div class="audit-month-totals-value in">${cur} ${fmt(monthIn)}</div>
+          <div class="audit-month-totals-value in">${cur} ${fmt(totalIn)}</div>
         </div>
         <div class="audit-month-totals-card">
           <div class="audit-month-totals-label">Cash out</div>
-          <div class="audit-month-totals-value out">${cur} ${fmt(monthOut)}</div>
+          <div class="audit-month-totals-value out">${cur} ${fmt(totalOut)}</div>
         </div>
         <div class="audit-month-totals-card">
           <div class="audit-month-totals-label">Profit</div>
-          <div class="audit-month-totals-value ${monthProfit >= 0 ? 'in' : 'out'}">${cur} ${monthProfit >= 0 ? '+' : '−'}${fmt(Math.abs(monthProfit))}</div>
+          <div class="audit-month-totals-value ${rangeProfit >= 0 ? 'in' : 'out'}">${cur} ${rangeProfit >= 0 ? '+' : '−'}${fmt(Math.abs(rangeProfit))}</div>
         </div>
       </div>
       <div class="audit-expenses-total-row">
@@ -4459,7 +4729,7 @@
       <div class="audit-net ${netProfit >= 0 ? 'pos' : 'neg'}">
         <div class="audit-net-label">Net profit</div>
         <div class="audit-net-value ${netProfit >= 0 ? 'pos' : 'neg'}">${cur} ${netProfit >= 0 ? '+' : '−'}${fmt(Math.abs(netProfit))}</div>
-        <div class="audit-net-meta">Profit ${cur} ${monthProfit >= 0 ? '' : '−'}${fmt(Math.abs(monthProfit))} − Expenses ${cur} ${fmt(expenseTotal)}</div>
+        <div class="audit-net-meta">Profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))} − Expenses ${cur} ${fmt(expenseTotal)}</div>
       </div>
     `;
 
@@ -4513,12 +4783,7 @@
         </div>
       </div>
 
-      <div class="audit-month-bar">
-        <button class="audit-month-nav" onclick="shiftAuditMonth(-1)" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div class="audit-month-current">${escapeHtml(monthLabel)}</div>
-        <button class="audit-month-nav" onclick="shiftAuditMonth(1)" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-        ${!isThisMonth ? `<button class="btn btn-sm btn-ghost" onclick="setAuditMonth(null)" style="margin-left:auto;">Jump to this month</button>` : ''}
-      </div>
+      ${renderAuditRangeBar()}
 
       ${expensesSection}
       ${accountsSection}
@@ -4547,25 +4812,64 @@
       session.view = 'entries'; saveSession(); renderAll(); return;
     }
     const cur = currencyDisplay(biz.currency);
-    const month = getAuditMonth();
-    const monthLabel = auditMonthLabel(month);
+    const rangeMonths = getAuditRangeMonths();
+    const rangeMonthsSet = new Set(rangeMonths);
+    const rangeLabel = getAuditRangeLabel();
+    const isMonthMode = __auditRangeMode === 'month';
     const expenses = data.auditExpenses
-      .filter(x => x.businessId === biz.id && x.month === month)
+      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expenses.reduce((s, x) => s + entryAmount(x), 0);
 
-    const expenseList = expenses.length
-      ? expenses.map(x => `<div class="audit-exp-row">
-          <div class="audit-exp-desc">${escapeHtml(x.description)}</div>
-          <div class="audit-exp-amt">${cur} ${fmt(x.amount)}</div>
-          <div class="audit-exp-actions">
-            <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
-            <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
-          </div>
-        </div>`).join('')
-      : '<div class="audit-exp-empty">No expenses logged for this month yet.</div>';
+    // For multi-month views, group by month so the user can see breakdown.
+    const groupedByMonth = {};
+    for (const x of expenses) {
+      if (!groupedByMonth[x.month]) groupedByMonth[x.month] = [];
+      groupedByMonth[x.month].push(x);
+    }
+    function renderExpenseRow(x) {
+      return `<div class="audit-exp-row">
+        <div class="audit-exp-desc">${escapeHtml(x.description)}</div>
+        <div class="audit-exp-amt">${cur} ${fmt(x.amount)}</div>
+        <div class="audit-exp-actions">
+          <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
+        </div>
+      </div>`;
+    }
+    let expenseList;
+    if (!expenses.length) {
+      expenseList = `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(rangeLabel)} yet.</div>`;
+    } else if (isMonthMode) {
+      expenseList = expenses.map(renderExpenseRow).join('');
+    } else {
+      // Group by month for quarter/year views so totals are obvious.
+      expenseList = rangeMonths
+        .filter(m => groupedByMonth[m] && groupedByMonth[m].length)
+        .map(m => {
+          const items = groupedByMonth[m];
+          const monthTotal = items.reduce((s, x) => s + entryAmount(x), 0);
+          return `<div class="audit-exp-month-group">
+            <div class="audit-exp-month-head">
+              <span>${escapeHtml(auditMonthLabel(m))}</span>
+              <span class="audit-exp-month-total">${cur} ${fmt(monthTotal)}</span>
+            </div>
+            ${items.map(renderExpenseRow).join('')}
+          </div>`;
+        }).join('');
+    }
 
-    const isThisMonth = month === `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+    // Add row is only meaningful in Month mode (one specific month to add to).
+    // In Quarter / Year modes, hide the add row and point the user back.
+    const addRow = isMonthMode
+      ? `<div class="audit-exp-add">
+          <input type="text" id="mAuditDesc" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
+          <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
+          <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
+        </div>`
+      : `<div style="background:var(--paper-deep);border:1px dashed var(--line);border-radius:var(--r-sm);padding:0.75rem 0.85rem;font-size:0.82rem;color:var(--ink-mute);">
+          Switch to <strong>Month</strong> view to add a new expense — each expense is tied to one specific month.
+        </div>`;
 
     root.innerHTML = `
       <div class="page-header">
@@ -4579,29 +4883,20 @@
         </div>
       </div>
 
-      <div class="audit-month-bar">
-        <button class="audit-month-nav" onclick="shiftAuditMonth(-1)" aria-label="Previous month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button>
-        <div class="audit-month-current">${escapeHtml(monthLabel)}</div>
-        <button class="audit-month-nav" onclick="shiftAuditMonth(1)" aria-label="Next month"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></button>
-        ${!isThisMonth ? `<button class="btn btn-sm btn-ghost" onclick="setAuditMonth(null)" style="margin-left:auto;">Jump to this month</button>` : ''}
-      </div>
+      ${renderAuditRangeBar()}
 
       <div class="audit-summary">
         <div class="audit-summary-card expenses">
           <div class="audit-summary-label">Total expenses</div>
           <div class="audit-summary-value">${cur} ${fmt(expenseTotal)}</div>
-          <div class="audit-summary-meta">${expenses.length} ${expenses.length === 1 ? 'entry' : 'entries'} in ${monthLabel}</div>
+          <div class="audit-summary-meta">${expenses.length} ${expenses.length === 1 ? 'entry' : 'entries'} in ${escapeHtml(rangeLabel)}</div>
         </div>
       </div>
 
       <div class="audit-section">
-        <h2 class="audit-section-title">Expenses for ${escapeHtml(monthLabel)}</h2>
-        <p class="audit-section-sub">Type any expense you want to track for this month. These don't affect your cash book — they're a separate ledger, useful for tracking what's leaving your business outside of regular cash flow.</p>
-        <div class="audit-exp-add">
-          <input type="text" id="mAuditDesc" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
-          <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
-          <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
-        </div>
+        <h2 class="audit-section-title">Expenses for ${escapeHtml(rangeLabel)}</h2>
+        <p class="audit-section-sub">Type any expense you want to track. These don't affect your cash book — they're a separate ledger, useful for tracking what's leaving your business outside of regular cash flow.</p>
+        ${addRow}
         <div class="audit-exp-list">${expenseList}</div>
       </div>
     `;
@@ -4920,7 +5215,7 @@
       if (!canManageOps(session.activeBizId)) { toast('Only the owner or manager can add books.'); return; }
       modal.innerHTML = bookModal(); setTimeout(() => document.getElementById('mBookName')?.focus(), 50);
     } else if (kind === 'staff') {
-      if (!canManageBusiness(session.activeBizId)) { toast('Only the owner can manage staff.'); return; }
+      if (!canManageBusiness(session.activeBizId)) { toast('Only the owner can manage the team.'); return; }
       modal.innerHTML = staffModal();
     } else if (kind === 'exportSheet') { modal.innerHTML = exportSheetModal(); }
     else if (kind === 'period') { modal.innerHTML = periodModal(); }
@@ -5266,7 +5561,7 @@
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">New business</h2>
-      <p class="modal-sub">You'll be the owner. You can add staff after.</p>
+      <p class="modal-sub">You'll be the owner. You can add team members after.</p>
       <div class="form-grid">
         <div class="input-wrap"><label>Business name</label><input type="text" id="mBizName" placeholder="Himalaya Trading Co."></div>
         <div class="input-wrap"><label>Currency</label>
@@ -5549,7 +5844,7 @@
     const staff = data.members.filter(m => m.businessId === session.activeBizId);
     return `
       <div class="modal-handle"></div>
-      <h2 class="modal-title">Staff &amp; access</h2>
+      <h2 class="modal-title">Team &amp; access</h2>
       <p class="modal-sub">People who can work in <strong>${escapeHtml(biz.name)}</strong>.</p>
       <div class="info-box">
         <strong>How it works:</strong> Add a phone or email. The person signs up with the same one, then accepts your invite. They only join after accepting.
@@ -5594,7 +5889,7 @@
         <div class="input-wrap"><label>Role</label>
           <select id="mStaffRole">
             <option value="manager">Manager — edit everything, no staff control</option>
-            <option value="staff" selected>Staff — add &amp; edit own entries</option>
+            <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
           </select>
         </div>
@@ -5641,7 +5936,7 @@
     saveData(); refreshStaffSurface(); toast("Invite sent.");
   }
   function removeStaff(id) {
-    if (!confirm('Remove this staff member?')) return;
+    if (!confirm('Remove this team member?')) return;
     data.members = data.members.filter(m => m.id !== id);
     saveData(); refreshStaffSurface(); toast('Removed.');
   }
@@ -5709,7 +6004,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · directory</div>
-          <h1 class="page-title">Quick Look</h1>
+          <h1 class="page-title">Snapshot</h1>
         </div>
         <div class="page-actions">
           ${all.length && canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportQuickLookDashboard('pdf')" title="Download as PDF">PDF</button>
@@ -5869,7 +6164,7 @@
     if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can delete.'); return; }
     const row = (data.quickLook || []).find(r => r.id === id);
     if (!row) return;
-    if (!confirm(`Delete "${row.name}" from Quick Look? Cannot be undone.`)) return;
+    if (!confirm(`Delete "${row.name}" from Snapshot? Cannot be undone.`)) return;
     data.quickLook = (data.quickLook || []).filter(r => r.id !== id);
     saveData(); renderAll();
     toast('Deleted.');
@@ -5878,6 +6173,22 @@
   // --- Add / edit modal ---
   let __qlEditingId = null;
   let __qlPendingPhoto = null; // base64 data URI staged before save
+  // Pending name / tag / inUse captured from the form before any re-render
+  // (which happens when the user picks or removes a photo). Without this,
+  // a photo upload wipes the typed-but-unsaved name and tag because the
+  // re-render reads from the persisted record, not the live form.
+  let __qlPendingName = '';
+  let __qlPendingTag = '';
+  let __qlPendingInUse = true;
+
+  function captureQuickLookPending() {
+    const nameEl = document.getElementById('qlName');
+    const tagEl = document.getElementById('qlTag');
+    const toggleEl = document.getElementById('qlModalToggleTrack');
+    if (nameEl) __qlPendingName = nameEl.value;
+    if (tagEl)  __qlPendingTag  = tagEl.value;
+    if (toggleEl) __qlPendingInUse = toggleEl.classList.contains('on');
+  }
 
   function openQuickLookAddModal() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -5886,6 +6197,9 @@
     if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can add.'); return; }
     __qlEditingId = null;
     __qlPendingPhoto = null;
+    __qlPendingName = '';
+    __qlPendingTag = '';
+    __qlPendingInUse = true;
     openModal('quickLook');
   }
   function openQuickLookEditModal(id) {
@@ -5897,6 +6211,9 @@
     if (!row) return;
     __qlEditingId = id;
     __qlPendingPhoto = row.photoData || null;
+    __qlPendingName = row.name || '';
+    __qlPendingTag = row.tag || '';
+    __qlPendingInUse = row.inUse !== false;
     openModal('quickLook');
   }
 
@@ -5919,25 +6236,25 @@
          </div>`;
     return `
       <div class="modal-handle"></div>
-      <h2 class="modal-title">${editing ? 'Edit entry' : 'New Quick Look entry'}</h2>
-      <div class="input-wrap">
+      <h2 class="modal-title">${editing ? 'Edit entry' : 'Snapshot entry'}</h2>
+      <div class="input-wrap" style="margin-top:1rem;">
         <label>Name</label>
-        <input type="text" id="qlName" placeholder="e.g. eSewa main" value="${escapeHtml(editing?.name || '')}" autocomplete="off">
+        <input type="text" id="qlName" placeholder="e.g. eSewa main" value="${escapeHtml(__qlPendingName)}" autocomplete="off">
       </div>
-      <div class="input-wrap">
+      <div class="input-wrap" style="margin-top:1.1rem;">
         <label>Tag (copyable string)</label>
-        <input type="text" id="qlTag" placeholder="e.g. account number, eSewa ID, UPI handle" value="${escapeHtml(editing?.tag || '')}" autocomplete="off">
+        <input type="text" id="qlTag" placeholder="e.g. account number, eSewa ID, UPI handle" value="${escapeHtml(__qlPendingTag)}" autocomplete="off">
       </div>
-      <div class="input-wrap">
+      <div class="input-wrap" style="margin-top:1.1rem;">
         <label>Photo / QR code</label>
         <input type="file" id="qlPhotoInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="handleQuickLookPhotoUpload(event)">
         ${photoBlock}
         <p class="ql-modal-photo-hint">Stored inline with the entry. Keep images small — large photos slow down sync.</p>
       </div>
-      <div class="input-wrap" style="margin-top:0.4rem;">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;cursor:pointer;padding:0.65rem 0.85rem;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-sm);" onclick="toggleQuickLookModalInUse(this)">
+      <div class="input-wrap" style="margin-top:1.1rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;cursor:pointer;padding:0.65rem 0.85rem;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-sm);" onclick="toggleQuickLookModalInUseAndCapture(this)">
           <span style="font-size:0.85rem;color:var(--ink);">Show in <strong>In Use</strong> section</span>
-          <span class="ql-toggle-track ${(!editing || editing.inUse !== false) ? 'on' : ''}" id="qlModalToggleTrack" style="pointer-events:none;"><span class="ql-toggle-thumb"></span></span>
+          <span class="ql-toggle-track ${__qlPendingInUse ? 'on' : ''}" id="qlModalToggleTrack" style="pointer-events:none;"><span class="ql-toggle-thumb"></span></span>
         </div>
       </div>
       <div class="modal-actions">
@@ -5951,7 +6268,14 @@
     const track = el.querySelector('.ql-toggle-track') || document.getElementById('qlModalToggleTrack');
     if (track) track.classList.toggle('on');
   }
+  // Toggle + sync to pending so a later re-render preserves the state.
+  function toggleQuickLookModalInUseAndCapture(el) {
+    toggleQuickLookModalInUse(el);
+    const track = document.getElementById('qlModalToggleTrack');
+    if (track) __qlPendingInUse = track.classList.contains('on');
+  }
   function clearQuickLookPhoto() {
+    captureQuickLookPending(); // preserve typed name/tag before re-render
     __qlPendingPhoto = null;
     // Re-render just the modal so the preview reflects the change.
     const m = document.getElementById('modalContent');
@@ -5966,6 +6290,9 @@
       ev.target.value = '';
       return;
     }
+    // Save typed-but-unsaved values BEFORE the re-render that's about to
+    // happen — otherwise picking a photo wipes the name and tag.
+    captureQuickLookPending();
     const reader = new FileReader();
     reader.onload = (e) => {
       __qlPendingPhoto = e.target.result;
@@ -6006,6 +6333,7 @@
       });
     }
     __qlEditingId = null; __qlPendingPhoto = null;
+    __qlPendingName = ''; __qlPendingTag = ''; __qlPendingInUse = true;
     saveData(); closeModal(); renderAll();
     toast('Saved.');
   }
@@ -6203,7 +6531,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · management</div>
-          <h1 class="page-title">Staff &amp; access</h1>
+          <h1 class="page-title">Team &amp; access</h1>
         </div>
       </div>
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;max-width:42rem;">People who can work in <strong>${escapeHtml(biz.name)}</strong>. Add a phone or email; the person signs up with the same one and accepts your invite — they only join after accepting.</p>
@@ -6247,7 +6575,7 @@
         <div class="input-wrap"><label>Role</label>
           <select id="mStaffRole">
             <option value="manager">Manager — edit everything, no staff control</option>
-            <option value="staff" selected>Staff — add &amp; edit own entries</option>
+            <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
           </select>
         </div>
@@ -6435,7 +6763,7 @@
           <li>Your sign-in email (for authentication; password is never stored in plain text — Supabase hashes it)</li>
           <li>A user profile row in <code>app_accounts</code> with your display name</li>
           <li>Every business you own, plus its books, entries, parties, categories, accounts, account groups, and audit expenses</li>
-          <li>Staff invitations you send and receive — including the inviter's display name and the business name shown on the invite card</li>
+          <li>Team invitations you send and receive — including the inviter's display name and the business name shown on the invite card</li>
         </ul>
 
         <h3>What stays in your browser only</h3>
@@ -6447,7 +6775,7 @@
         </ul>
 
         <h3>Who can see your data</h3>
-        <p>In the cloud, row-level security means <strong>only you can read your business data</strong>. The owner of a business can see all its data; invited staff members can see the businesses they've accepted into; nobody else can read it — not even other Hisabs users on the same server.</p>
+        <p>In the cloud, row-level security means <strong>only you can read your business data</strong>. The owner of a business can see all its data; invited team members can see the businesses they've accepted into; nobody else can read it — not even other Hisabs users on the same server.</p>
         <p>Anthropic, Vercel, or anyone reading this code can't access your data unless they have the database credentials. The owner of the Supabase project (whoever set it up) <em>could</em> in principle inspect the database directly, since they hold administrative access. If that's you, you're trusting yourself.</p>
 
         <h3>What we don't do</h3>
@@ -6536,11 +6864,11 @@
         <h3>Roles and staff</h3>
         <ul>
           <li><strong>Owner</strong> — full control. The person who created the business.</li>
-          <li><strong>Manager</strong> — can add and edit anything, can't manage staff or delete the business.</li>
-          <li><strong>Staff</strong> — can add entries, edit their own. Can add parties but not categories or accounts.</li>
+          <li><strong>Manager</strong> — can add and edit anything, can't manage the team or delete the business.</li>
+          <li><strong>Team</strong> — can add entries, edit their own. Can add parties but not categories or accounts.</li>
           <li><strong>Viewer</strong> — read-only.</li>
         </ul>
-        <p>To invite someone: open <strong>Staff</strong> (under Management in the sidebar), enter their email and pick a role. When that person signs into Hisabs with the same email, they'll see a pending invite at the top of their sidebar. Accept → they're in. Decline → the invite is gone. Currently invitees discover the invite by signing in themselves; there's no automatic email notification.</p>
+        <p>To invite someone: open <strong>Team</strong> (under Management in the sidebar), enter their email and pick a role. When that person signs into Hisabs with the same email, they'll see a pending invite at the top of their sidebar. Accept → they're in. Decline → the invite is gone. Currently invitees discover the invite by signing in themselves; there's no automatic email notification.</p>
         <p>Owners control whether staff and viewers see the totals (Cash In / Cash Out / Net) on the entries view — toggle in the business settings. Totals on the Parties, Categories, and Accounts views are always hidden from staff and viewers.</p>
 
         <h3>Search and filter</h3>
@@ -6756,7 +7084,7 @@
           ${isOwner ? `
           <div class="toggle-row">
             <div class="toggle-row-text">
-              <div class="toggle-row-title">Staff can see totals on entries view</div>
+              <div class="toggle-row-title">Team can see totals on entries view</div>
               <div class="toggle-row-desc">Show Cash In, Cash Out, Net, and balances to staff & viewers on the entries view. Totals on Parties, Categories, and Accounts are always hidden from staff.</div>
             </div>
             <label class="toggle"><input type="checkbox" id="setStaffSeesTotals" ${biz.staffSeesTotals !== false ? 'checked' : ''}><span class="toggle-slider"></span></label>
@@ -7287,6 +7615,426 @@
     try { localStorage.setItem('hisabs_backup_reminder_dismissed_at', String(Date.now())); } catch (_) {}
     try { document.getElementById('backupReminderCard')?.remove(); } catch (_) {}
   }
+  // ================================================================
+  // UNIVERSAL SEARCH
+  // ================================================================
+  // Searches across every data type in the active business: entries,
+  // parties, categories, accounts, books, audit expenses, snapshot (quick
+  // look), and announcements. Results are grouped by type and clicking
+  // one navigates to that thing.
+  //
+  // Desktop: input is in the date strip, dropdown appears below it.
+  // Mobile: tapping the topbar search icon opens a full-screen overlay
+  // with the same logic. Both share onUniversalSearchInput so behavior is
+  // identical.
+  //
+  // The search is plain substring matching (case-insensitive). No fuzzy
+  // matching — that adds complexity and tends to surprise users. For
+  // numeric fields (amounts), the query is also matched against the
+  // formatted number.
+
+  let __searchKbdIndex = -1;     // keyboard-focused result index
+  let __searchFlatResults = [];  // flat list, parallel to DOM, for kbd nav
+
+  // Returns up to N results per type. Caller renders them grouped.
+  function runUniversalSearch(rawQuery) {
+    const q = (rawQuery || '').trim().toLowerCase();
+    if (!q || q.length < 1) return null;
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return null;
+    const bizId = biz.id;
+    const bookIds = new Set(data.books.filter(b => b.businessId === bizId).map(b => b.id));
+    const MAX_PER_GROUP = 8;
+    const out = { entries: [], parties: [], categories: [], accounts: [], books: [], expenses: [], snapshot: [], announcements: [] };
+
+    // Books — match name
+    for (const b of data.books) {
+      if (b.businessId !== bizId) continue;
+      if ((b.name || '').toLowerCase().includes(q)) out.books.push(b);
+      if (out.books.length >= MAX_PER_GROUP) break;
+    }
+
+    // Parties — match name
+    for (const p of data.parties) {
+      if (p.businessId !== bizId) continue;
+      if ((p.name || '').toLowerCase().includes(q)) out.parties.push(p);
+      if (out.parties.length >= MAX_PER_GROUP) break;
+    }
+
+    // Categories — match name
+    for (const c of data.categories) {
+      if (c.businessId !== bizId) continue;
+      if ((c.name || '').toLowerCase().includes(q)) out.categories.push(c);
+      if (out.categories.length >= MAX_PER_GROUP) break;
+    }
+
+    // Accounts — match name
+    for (const a of data.cashAccounts) {
+      if (a.businessId !== bizId) continue;
+      if ((a.name || '').toLowerCase().includes(q)) out.accounts.push(a);
+      if (out.accounts.length >= MAX_PER_GROUP) break;
+    }
+
+    // Entries — match note, party, category, amount
+    // Sort by most recent first so the freshest hits appear at the top.
+    const partyById = new Map(data.parties.map(p => [p.id, p]));
+    const accountById = new Map(data.cashAccounts.map(a => [a.id, a]));
+    const entriesSorted = data.entries
+      .filter(e => bookIds.has(e.bookId))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    for (const e of entriesSorted) {
+      const noteHit = (e.note || '').toLowerCase().includes(q);
+      const partyName = e.partyId ? (partyById.get(e.partyId)?.name || '') : '';
+      const partyHit = partyName.toLowerCase().includes(q);
+      const catHit = (e.category || '').toLowerCase().includes(q);
+      const amtHit = String(e.amount || '').includes(q) || fmt(e.amount).toLowerCase().includes(q);
+      const dateHit = (e.date || '').toLowerCase().includes(q);
+      if (noteHit || partyHit || catHit || amtHit || dateHit) {
+        out.entries.push({ entry: e, partyName, accountName: accountById.get(e.accountId)?.name || '' });
+      }
+      if (out.entries.length >= MAX_PER_GROUP) break;
+    }
+
+    // Audit expenses (called "Expenses" in nav) — match description, amount
+    for (const x of data.auditExpenses) {
+      if (x.businessId !== bizId) continue;
+      const descHit = (x.description || '').toLowerCase().includes(q);
+      const amtHit = String(x.amount || '').includes(q) || fmt(x.amount).toLowerCase().includes(q);
+      if (descHit || amtHit) out.expenses.push(x);
+      if (out.expenses.length >= MAX_PER_GROUP) break;
+    }
+
+    // Snapshot (was Quick Look) — match name, tag
+    for (const s of (data.quickLook || [])) {
+      if (s.businessId !== bizId) continue;
+      const nameHit = (s.name || '').toLowerCase().includes(q);
+      const tagHit = (s.tag || '').toLowerCase().includes(q);
+      if (nameHit || tagHit) out.snapshot.push(s);
+      if (out.snapshot.length >= MAX_PER_GROUP) break;
+    }
+
+    // Announcements — match body and author
+    for (const a of (data.announcements || [])) {
+      if (a.businessId !== bizId) continue;
+      const bodyHit = (a.body || '').toLowerCase().includes(q);
+      const authorHit = (a.authorName || '').toLowerCase().includes(q);
+      if (bodyHit || authorHit) out.announcements.push(a);
+      if (out.announcements.length >= MAX_PER_GROUP) break;
+    }
+
+    // Total hits across all groups — used to decide between "no results"
+    // empty state and rendering.
+    out.totalHits = out.entries.length + out.parties.length + out.categories.length +
+                    out.accounts.length + out.books.length + out.expenses.length +
+                    out.snapshot.length + out.announcements.length;
+    return out;
+  }
+
+  // Wrap the matched substring in a span so it can be highlighted in the
+  // dropdown. Returns escaped HTML.
+  function highlightMatch(text, query) {
+    if (!text) return '';
+    const t = String(text);
+    if (!query) return escapeHtml(t);
+    const lower = t.toLowerCase();
+    const q = query.toLowerCase();
+    const i = lower.indexOf(q);
+    if (i < 0) return escapeHtml(t);
+    return escapeHtml(t.slice(0, i)) + '<span class="search-hit">' + escapeHtml(t.slice(i, i + q.length)) + '</span>' + escapeHtml(t.slice(i + q.length));
+  }
+
+  // Render the dropdown (or overlay body) HTML from a results object.
+  // The same HTML is used for both desktop and mobile.
+  function renderUniversalSearchResults(results, query) {
+    if (!results) return '';
+    if (results.totalHits === 0) {
+      return `<div class="search-dropdown-empty">No matches for "${escapeHtml(query)}".</div>`;
+    }
+    __searchFlatResults = [];
+    const groups = [];
+
+    function pushGroup(name, items, renderItem) {
+      if (!items.length) return;
+      const rows = items.map((it, idx) => {
+        const flatIdx = __searchFlatResults.length;
+        __searchFlatResults.push(it);
+        return renderItem(it, flatIdx);
+      }).join('');
+      groups.push(`
+        <div class="search-group">
+          <div class="search-group-head">${escapeHtml(name)}${items.length >= 8 ? ' · top 8' : ''}</div>
+          ${rows}
+        </div>
+      `);
+    }
+
+    // Entries
+    pushGroup('Entries', results.entries, ({ entry, partyName, accountName }, flatIdx) => {
+      const sub = [
+        partyName ? highlightMatch(partyName, query) : '',
+        entry.category ? highlightMatch(entry.category, query) : '',
+        accountName ? escapeHtml(accountName) : '',
+        entry.date ? escapeHtml(entry.date) : '',
+      ].filter(Boolean).join(' · ');
+      const sign = entry.type === 'in' ? '+' : '−';
+      const cls = entry.type === 'in' ? 'pos' : 'neg';
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="entry" data-id="${jsAttr(entry.id)}" onclick="onUniversalSearchPick('entry', '${jsAttr(entry.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(entry.note || '(no note)', query)}</div>
+          <div class="search-result-sub">${sub}</div>
+        </div>
+        <div class="search-result-amount ${cls}">${sign}${fmt(entry.amount)}</div>
+      </div>`;
+    });
+
+    // Parties
+    pushGroup('Parties', results.parties, (p, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="party" data-id="${jsAttr(p.id)}" onclick="onUniversalSearchPick('party', '${jsAttr(p.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(p.name, query)}</div>
+          <div class="search-result-sub">${escapeHtml(p.kind || 'party')}</div>
+        </div>
+      </div>`;
+    });
+
+    // Categories
+    pushGroup('Categories', results.categories, (c, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="category" data-id="${jsAttr(c.name)}" onclick="onUniversalSearchPick('category', '${jsAttr(c.name)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(c.name, query)}</div>
+          <div class="search-result-sub">category</div>
+        </div>
+      </div>`;
+    });
+
+    // Accounts
+    pushGroup('Accounts', results.accounts, (a, flatIdx) => {
+      const bal = searchAccountBalance(a.id);
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="account" data-id="${jsAttr(a.id)}" onclick="onUniversalSearchPick('account', '${jsAttr(a.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(a.name, query)}</div>
+          <div class="search-result-sub">account</div>
+        </div>
+        <div class="search-result-amount ${bal >= 0 ? 'pos' : 'neg'}">${fmt(bal)}</div>
+      </div>`;
+    });
+
+    // Books
+    pushGroup('Books', results.books, (b, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="book" data-id="${jsAttr(b.id)}" onclick="onUniversalSearchPick('book', '${jsAttr(b.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(b.name, query)}</div>
+          <div class="search-result-sub">book</div>
+        </div>
+      </div>`;
+    });
+
+    // Audit expenses
+    pushGroup('Expenses', results.expenses, (x, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="expense" data-id="${jsAttr(x.id)}" onclick="onUniversalSearchPick('expense', '${jsAttr(x.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(x.description, query)}</div>
+          <div class="search-result-sub">${escapeHtml(x.month || '')}</div>
+        </div>
+        <div class="search-result-amount neg">−${fmt(x.amount)}</div>
+      </div>`;
+    });
+
+    // Snapshot
+    pushGroup('Snapshot', results.snapshot, (s, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="snapshot" data-id="${jsAttr(s.id)}" onclick="onUniversalSearchPick('snapshot', '${jsAttr(s.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(s.name, query)}</div>
+          <div class="search-result-sub">${s.tag ? highlightMatch(s.tag, query) : 'snapshot'}</div>
+        </div>
+      </div>`;
+    });
+
+    // Announcements
+    pushGroup('Announcements', results.announcements, (a, flatIdx) => {
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="announcement" data-id="${jsAttr(a.id)}" onclick="onUniversalSearchPick('announcement', '${jsAttr(a.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch((a.body || '').slice(0, 80), query)}</div>
+          <div class="search-result-sub">${escapeHtml(a.authorName || 'announcement')}</div>
+        </div>
+      </div>`;
+    });
+
+    return groups.join('');
+  }
+
+  // Handle text input from either the desktop input or the mobile overlay.
+  function onUniversalSearchInput(value, isMobile) {
+    __searchKbdIndex = -1;
+    const results = runUniversalSearch(value);
+    if (isMobile) {
+      const body = document.getElementById('universalSearchOverlayBody');
+      if (!body) return;
+      if (!value || !value.trim()) {
+        body.innerHTML = '<div class="search-overlay-empty">Start typing to search across everything in this business.</div>';
+        return;
+      }
+      body.innerHTML = renderUniversalSearchResults(results, value);
+    } else {
+      const dd = document.getElementById('universalSearchDropdown');
+      if (!dd) return;
+      if (!value || !value.trim()) {
+        dd.innerHTML = '';
+        return;
+      }
+      dd.innerHTML = `<div class="search-dropdown">${renderUniversalSearchResults(results, value)}</div>`;
+    }
+  }
+
+  function onUniversalSearchFocus() {
+    const inp = document.getElementById('universalSearchInput');
+    if (inp && inp.value && inp.value.trim()) onUniversalSearchInput(inp.value, false);
+  }
+
+  // Close the desktop dropdown when clicking anywhere else
+  document.addEventListener('click', (ev) => {
+    const dd = document.getElementById('universalSearchDropdown');
+    const inp = document.getElementById('universalSearchInput');
+    if (!dd || !inp) return;
+    if (!dd.contains(ev.target) && ev.target !== inp) {
+      dd.innerHTML = '';
+    }
+  });
+
+  function onUniversalSearchKeydown(ev, isMobile) {
+    if (ev.key === 'Escape') {
+      if (isMobile) closeSearchOverlay();
+      else {
+        document.getElementById('universalSearchDropdown').innerHTML = '';
+        ev.target.blur();
+      }
+      return;
+    }
+    const flat = __searchFlatResults || [];
+    if (!flat.length) return;
+    const items = isMobile
+      ? document.querySelectorAll('#universalSearchOverlayBody .search-result')
+      : document.querySelectorAll('#universalSearchDropdown .search-result');
+    if (ev.key === 'ArrowDown') {
+      ev.preventDefault();
+      __searchKbdIndex = Math.min(__searchKbdIndex + 1, items.length - 1);
+      updateKbdFocus(items);
+    } else if (ev.key === 'ArrowUp') {
+      ev.preventDefault();
+      __searchKbdIndex = Math.max(__searchKbdIndex - 1, -1);
+      updateKbdFocus(items);
+    } else if (ev.key === 'Enter') {
+      ev.preventDefault();
+      if (__searchKbdIndex >= 0 && items[__searchKbdIndex]) {
+        items[__searchKbdIndex].click();
+      } else if (items[0]) {
+        items[0].click();
+      }
+    }
+  }
+  function updateKbdFocus(items) {
+    items.forEach((el, i) => el.classList.toggle('kbd-focus', i === __searchKbdIndex));
+    if (__searchKbdIndex >= 0 && items[__searchKbdIndex]) {
+      items[__searchKbdIndex].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  // Click handler — navigate to the right view based on result type.
+  function onUniversalSearchPick(action, id) {
+    // Close UI
+    closeSearchOverlay();
+    const dd = document.getElementById('universalSearchDropdown');
+    if (dd) dd.innerHTML = '';
+    const inp = document.getElementById('universalSearchInput');
+    if (inp) inp.value = '';
+    const minp = document.getElementById('universalSearchInputMobile');
+    if (minp) minp.value = '';
+
+    if (action === 'entry') {
+      // Navigate to entries view; entries don't have a dedicated detail view,
+      // but we can switch to the right book and let the user scroll. Better:
+      // pre-fill the entries search box so the user sees the entry highlighted.
+      const e = data.entries.find(x => x.id === id);
+      if (!e) return;
+      const book = data.books.find(b => b.id === e.bookId);
+      if (book && book.id !== session.activeBookId) {
+        session.activeBookId = book.id;
+        saveSession();
+      }
+      session.view = 'entries';
+      saveSession();
+      renderAll();
+      // Put the entry's note into the entries search so it's filtered to find it
+      setTimeout(() => {
+        const sb = document.getElementById('searchInput');
+        if (sb && e.note) { sb.value = e.note; if (typeof renderEntriesList === 'function') renderEntriesList(); }
+      }, 100);
+    } else if (action === 'party') {
+      session.selectedPartyId = id;
+      session.view = 'party-detail';
+      saveSession(); renderAll();
+    } else if (action === 'category') {
+      session.selectedCategory = id; // it's the name, passed as id field
+      session.view = 'category-detail';
+      saveSession(); renderAll();
+    } else if (action === 'account') {
+      session.selectedAccountId = id;
+      session.view = 'account-detail';
+      saveSession(); renderAll();
+    } else if (action === 'book') {
+      session.activeBookId = id;
+      session.view = 'entries';
+      saveSession(); renderAll();
+    } else if (action === 'expense') {
+      // Jump to expenses page in month mode for that month
+      const x = data.auditExpenses.find(e => e.id === id);
+      if (x) {
+        __auditRangeMode = 'month';
+        __auditMonth = x.month;
+      }
+      session.view = 'expenses';
+      saveSession(); renderAll();
+    } else if (action === 'snapshot') {
+      session.view = 'quickLook';
+      saveSession(); renderAll();
+    } else if (action === 'announcement') {
+      // Jump to the management announcements page (owner) or entries banner (others)
+      const biz = data.businesses.find(b => b.id === session.activeBizId);
+      if (biz && roleFor(biz.id) === 'owner') {
+        session.view = 'announcements';
+      } else {
+        session.view = 'entries';
+      }
+      saveSession(); renderAll();
+    }
+  }
+
+  function openSearchOverlay() {
+    const ov = document.getElementById('searchOverlay');
+    if (!ov) return;
+    ov.classList.add('active');
+    setTimeout(() => document.getElementById('universalSearchInputMobile')?.focus(), 50);
+  }
+  function closeSearchOverlay() {
+    const ov = document.getElementById('searchOverlay');
+    if (ov) ov.classList.remove('active');
+    const body = document.getElementById('universalSearchOverlayBody');
+    if (body) body.innerHTML = '<div class="search-overlay-empty">Start typing to search across everything in this business.</div>';
+  }
+
+  // Helper used by account result rendering — calls the existing accountBalance(bizId, accountId)
+  function searchAccountBalance(accountId) {
+    return accountBalance(session.activeBizId, accountId);
+  }
+
   function renderBackupReminderCard() {
     if (!shouldShowBackupReminder()) return '';
     let last = 0;
@@ -8398,14 +9146,20 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canSeeAudit(biz.id)) { toast('Only the owner can export audit.'); return; }
-    const month = getAuditMonth();
-    // Snapshot: month-of-entries summary + audit expense line items.
+    const rangeMonths = getAuditRangeMonths();
+    const rangeMonthsSet = new Set(rangeMonths);
+    const rangeLabel = getAuditRangeLabel();
+    // Snapshot: range-of-entries summary + audit expense line items.
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const monthEntries = data.entries.filter(e => bookIds.includes(e.bookId) && typeof e.date === 'string' && e.date.startsWith(month));
-    const inSum = monthEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const outSum = monthEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const rangeEntries = data.entries.filter(e => {
+      if (!bookIds.includes(e.bookId)) return false;
+      if (typeof e.date !== 'string' || e.date.length < 7) return false;
+      return rangeMonthsSet.has(e.date.slice(0, 7));
+    });
+    const inSum = rangeEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = rangeEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const auditExp = data.auditExpenses
-      .filter(x => x.businessId === biz.id && x.month === month)
+      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
       .map(x => [x.description || '', Number(x.amount || 0).toFixed(2)]);
     const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
     const rows = [
@@ -8419,10 +9173,10 @@
     ];
     const opts = {
       title: `Audit summary — ${biz.name}`,
-      subtitle: `${month} · ${biz.currency} · Generated ${today()}`,
+      subtitle: `${rangeLabel} · ${biz.currency} · Generated ${today()}`,
       columns: ['Item', 'Amount'],
       rows,
-      filename: `audit_${biz.name}_${month}`,
+      filename: `audit_${biz.name}_${rangeLabel.replace(/\s+/g, '_')}`,
       columnAlign: { 1: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -8439,11 +9193,11 @@
       // CSV can't embed images. Just note presence.
       const rows = all.map(r => [r.name || '', r.tag || '', r.inUse !== false ? 'In use' : 'Unused', r.photoData ? 'Yes' : '—']);
       exportTableCSV({
-        title: `Quick Look — ${biz.name}`,
+        title: `Snapshot — ${biz.name}`,
         subtitle: `${all.length} entries · Generated ${today()}`,
         columns: ['Name', 'Tag', 'Status', 'Has photo'],
         rows,
-        filename: `quicklook_${biz.name}`,
+        filename: `snapshot_${biz.name}`,
       });
       return;
     }
@@ -8472,7 +9226,7 @@
     // Header rendered on every page
     function drawHeader(pageNum, totalPages) {
       doc.setFontSize(16); doc.setFont('helvetica', 'normal'); doc.setTextColor(26);
-      doc.text(`Quick Look — ${biz.name}`, margin, margin);
+      doc.text(`Snapshot — ${biz.name}`, margin, margin);
       doc.setFontSize(9); doc.setTextColor(120);
       doc.text(`${all.length} entries · Generated ${today()} · Page ${pageNum} of ${totalPages}`, margin, margin + 5);
       // Thin divider under header
@@ -8593,7 +9347,7 @@
       cardIdx += cardsPerPage;
     }
 
-    const filename = (`quicklook_${biz.name}`).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    const filename = (`snapshot_${biz.name}`).replace(/[^a-zA-Z0-9_-]+/g, '_');
     doc.save(`${filename}.pdf`);
     toast('PDF downloaded.');
   }
@@ -9499,8 +10253,23 @@
     if (__syncQueue.length === 0) return;
     __syncDraining = true;
     try {
+      // Backoff for stuck ops: if the first op in the queue has failed
+      // recently, don't hammer the server. Wait time grows with attempts:
+      // attempt 1 → no wait, 2 → 4s, 3 → 16s, 4 → 64s, 5+ → 5 min cap.
+      const now = Date.now();
+      const head = __syncQueue[0];
+      if (head && head.lastAttemptAt && head.attempts) {
+        const backoffMs = Math.min(5 * 60 * 1000, Math.pow(4, head.attempts) * 1000);
+        if (now - head.lastAttemptAt < backoffMs) {
+          __syncDraining = false;
+          return;
+        }
+      }
       // Take the first batch, grouped by table for efficient upserts.
       const batch = __syncQueue.slice(0, SYNC_BATCH_SIZE);
+      // Mark the attempt time on every op we're about to try, so a future
+      // tick can decide whether the backoff has elapsed.
+      for (const op of batch) op.lastAttemptAt = now;
       const byTable = new Map();
       for (const op of batch) {
         if (!byTable.has(op.table)) byTable.set(op.table, { upserts: [], deletes: [], ops: [] });
@@ -9509,23 +10278,26 @@
         if (op.kind === 'upsert') slot.upserts.push(op.row);
         else slot.deletes.push(op.recordId);
       }
-      // Track ops that succeeded (need snapshot update) separately from
-      // poison drops (still removed from queue, but snapshot NOT updated —
-      // the record genuinely failed to reach the cloud).
+      // Track ops that succeeded (need snapshot update). Failed ops stay
+      // in the queue with an incremented attempt counter and will be retried
+      // on the next drain. We do NOT drop ops after N attempts — that was
+      // the cause of silent data loss when push failures happened (e.g. RLS
+      // mismatch or transient server issue). Better to have a stuck queue
+      // the user can see than to lose their data without telling them.
       let successfulOps = [];
-      let droppedOps = [];
+      let stuckOps = []; // for surfacing in the UI, NOT for dropping
       let earlyExit = false;
       for (const [table, slot] of byTable) {
         if (earlyExit) break;
         if (slot.upserts.length) {
           const { error } = await sb().from(table).upsert(slot.upserts, { onConflict: 'id' });
           if (error) {
+            // Bump attempt counter so we can show "X retries" in the UI
+            // and apply exponential backoff. Keep the op in the queue.
             for (const op of slot.ops.filter(o => o.kind === 'upsert')) {
               op.attempts = (op.attempts || 0) + 1;
-              if (op.attempts >= 5) {
-                console.error('Dropping poison upsert op:', op, error);
-                droppedOps.push(op);
-              }
+              op.lastError = error.message || error.code || 'unknown';
+              if (op.attempts >= 3) stuckOps.push(op);
             }
             earlyExit = true;
             break;
@@ -9545,10 +10317,8 @@
           if (error) {
             for (const op of slot.ops.filter(o => o.kind === 'delete')) {
               op.attempts = (op.attempts || 0) + 1;
-              if (op.attempts >= 5) {
-                console.error('Dropping poison delete op:', op, error);
-                droppedOps.push(op);
-              }
+              op.lastError = error.message || error.code || 'unknown';
+              if (op.attempts >= 3) stuckOps.push(op);
             }
             earlyExit = true;
             break;
@@ -9557,23 +10327,24 @@
           }
         }
       }
-      // Remove BOTH successful and dropped ops from the queue (they're done
-      // being attempted either way).
-      const removedIds = new Set([...successfulOps, ...droppedOps].map(o => o.id));
+      // Remove ONLY successful ops from the queue. Failed ones stay and
+      // will be retried next drain. The queue is the source of truth for
+      // what hasn't reached the cloud yet — losing entries from it loses
+      // user data.
+      const removedIds = new Set(successfulOps.map(o => o.id));
       __syncQueue = __syncQueue.filter(o => !removedIds.has(o.id));
       persistQueue();
-      // CRITICAL: update the snapshot ONLY for successful ops. The snapshot
-      // is supposed to represent last-known-cloud-state. Dropped ops never
-      // reached the cloud — leaving the snapshot un-updated for those means
-      // the NEXT diff will see them as new again and re-queue them. Without
-      // this, dropped ops disappear forever (the worst kind of silent data
-      // loss).
+      // Update snapshot for successful ops so we don't re-emit them next
+      // diff. Failed ops keep their old snapshot state, so the diff will
+      // see them as still-pending and they stay in the queue.
       if (successfulOps.length) updateSnapshotForOps(successfulOps);
-      // If any ops were dropped, the user lost data. Show a loud toast so
-      // they know — and so they can investigate via Test Connection.
-      if (droppedOps.length) {
-        const tables = Array.from(new Set(droppedOps.map(o => o.table))).join(', ');
-        toast(`Sync error: ${droppedOps.length} record${droppedOps.length === 1 ? '' : 's'} could not be saved (${tables}). Check Settings → Data → Troubleshooting.`);
+      // If any ops are stuck (3+ failed attempts), surface that to the
+      // user with a non-alarming toast — they need to know something
+      // isn't getting through, but the data is safe locally.
+      if (stuckOps.length) {
+        const tables = Array.from(new Set(stuckOps.map(o => o.table))).join(', ');
+        const reason = stuckOps[0].lastError || 'server rejected the push';
+        toast(`Sync is retrying: ${stuckOps.length} record${stuckOps.length === 1 ? '' : 's'} in ${tables} couldn't sync yet (${reason.slice(0, 60)}). Your data is safe locally and will keep retrying.`);
       }
       updateSyncBadge();
     } catch (e) {
@@ -10150,18 +10921,51 @@
       }));
       const fetched = {};
       for (const { key, rows } of results) fetched[key] = rows;
-      // Replace the local in-memory state.
-      data.businesses    = fetched.businesses    || [];
-      data.books         = fetched.books         || [];
-      data.accountGroups = fetched.accountGroups || [];
-      data.cashAccounts  = fetched.cashAccounts  || [];
-      data.parties       = fetched.parties       || [];
-      data.categories    = fetched.categories    || [];
-      data.members       = fetched.members       || [];
-      data.entries       = fetched.entries       || [];
-      data.auditExpenses = fetched.auditExpenses || [];
-      data.quickLook     = fetched.quickLook     || [];
-      data.announcements = fetched.announcements || [];
+      // CRITICAL: don't overwrite local records that have pending sync ops.
+      // The bug we're avoiding: user makes an entry offline → op queued →
+      // network returns → push fails for some reason → pull runs and stomps
+      // over the local entry → user thinks their data was saved but it's
+      // silently gone on the next refresh.
+      //
+      // For each table, collect the IDs of records that have an unfinished
+      // upsert in the queue (they haven't been confirmed in the cloud yet).
+      // After pulling cloud rows, merge in the local version of any such
+      // record — the cloud's view doesn't include them yet, but they will
+      // be retried.
+      const pendingByTable = new Map(); // table -> Set<id>
+      for (const op of (__syncQueue || [])) {
+        if (op.kind !== 'upsert') continue;
+        if (!pendingByTable.has(op.table)) pendingByTable.set(op.table, new Set());
+        pendingByTable.get(op.table).add(op.recordId);
+      }
+      // Helper: for a given local key, return cloud rows merged with any
+      // local-only records (by id) that have a pending upsert.
+      function mergeWithPending(localKey, cloudRows, localRows) {
+        const map = cloudSchemaMap[localKey];
+        const pending = (map && pendingByTable.get(map.table)) || null;
+        if (!pending || pending.size === 0) return cloudRows || [];
+        const cloudIds = new Set((cloudRows || []).map(r => r.id));
+        const carryOver = (localRows || []).filter(r => pending.has(r.id) && !cloudIds.has(r.id));
+        if (!carryOver.length) return cloudRows || [];
+        // Cloud rows take priority for IDs that exist on both sides — if a
+        // pending op exists for a record that the cloud already knows about,
+        // we use the cloud's version (it's the authoritative one). carryOver
+        // is only for records the cloud genuinely doesn't have yet.
+        return [...(cloudRows || []), ...carryOver];
+      }
+
+      // Replace the local in-memory state, preserving local-only pending records.
+      data.businesses    = mergeWithPending('businesses',    fetched.businesses,    data.businesses);
+      data.books         = mergeWithPending('books',         fetched.books,         data.books);
+      data.accountGroups = mergeWithPending('accountGroups', fetched.accountGroups, data.accountGroups);
+      data.cashAccounts  = mergeWithPending('cashAccounts',  fetched.cashAccounts,  data.cashAccounts);
+      data.parties       = mergeWithPending('parties',       fetched.parties,       data.parties);
+      data.categories    = mergeWithPending('categories',    fetched.categories,    data.categories);
+      data.members       = mergeWithPending('members',       fetched.members,       data.members);
+      data.entries       = mergeWithPending('entries',       fetched.entries,       data.entries);
+      data.auditExpenses = mergeWithPending('auditExpenses', fetched.auditExpenses, data.auditExpenses);
+      data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
+      data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       saveData();
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.
