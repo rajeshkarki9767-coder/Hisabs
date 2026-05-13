@@ -5464,44 +5464,66 @@
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">Privacy</h2>
-      <p class="modal-sub">How Hisabs handles your data — short and honest.</p>
+      <p class="modal-sub">How Hisabs handles your data — plainly and honestly.</p>
       <div class="settings-tab-body doc-body">
-        <h3>Everything stays in your browser</h3>
-        <p>Hisabs has no server. Every business, book, entry, party, category, and account you create is stored only in this browser, in the area called <code>localStorage</code>. Nothing is uploaded anywhere. There is no account on a remote system, no analytics, no telemetry, no third-party tracker.</p>
+        <h3>What we store, and where</h3>
+        <p>Hisabs stores your data in two places: your <strong>browser</strong> (for fast local access while you work) and your <strong>Supabase project</strong> (so it's safe and syncs across your devices).</p>
+        <p>Every business, book, entry, party, category, account, and staff invite you create is kept in both places. When you make a change, it saves locally instantly and uploads to the cloud within a few seconds. The small status pill at the top of the page shows whether sync is up to date.</p>
 
-        <h3>What this means in practice</h3>
+        <h3>What's stored in the cloud</h3>
         <ul>
-          <li><strong>Different browser, different data.</strong> If you sign in from a different device or browser, you won't see the books you made elsewhere — there's nothing to sync from.</li>
-          <li><strong>Clearing browser data wipes Hisabs.</strong> "Clear site data," "clear cookies," "delete browsing history (including site data)" — any of these will erase everything. Back up regularly.</li>
-          <li><strong>Private/incognito mode is temporary.</strong> Anything you create in a private window disappears when the window closes.</li>
+          <li>Your sign-in email (for authentication; password is never stored in plain text — Supabase hashes it)</li>
+          <li>A user profile row in <code>app_accounts</code> with your display name</li>
+          <li>Every business you own, plus its books, entries, parties, categories, accounts, account groups, and audit expenses</li>
+          <li>Staff invitations you send and receive — including the inviter's display name and the business name shown on the invite card</li>
         </ul>
+
+        <h3>What stays in your browser only</h3>
+        <ul>
+          <li>Your appearance preferences (theme, accent color, period filter)</li>
+          <li>Local auto-backup snapshots (the last 3, taken every 30 minutes)</li>
+          <li>UI state like which view you were on, scroll position, draft entry text</li>
+          <li>A device identifier used to deduplicate sync events (random, not linked to you)</li>
+        </ul>
+
+        <h3>Who can see your data</h3>
+        <p>In the cloud, row-level security means <strong>only you can read your business data</strong>. The owner of a business can see all its data; invited staff members can see the businesses they've accepted into; nobody else can read it — not even other Hisabs users on the same server.</p>
+        <p>Anthropic, Vercel, or anyone reading this code can't access your data unless they have the database credentials. The owner of the Supabase project (whoever set it up) <em>could</em> in principle inspect the database directly, since they hold administrative access. If that's you, you're trusting yourself.</p>
 
         <h3>What we don't do</h3>
         <ul>
-          <li>We don't collect your name, phone, or email — those stay in your browser too.</li>
-          <li>We don't show ads, sell data, or share anything with anyone. There is no "anyone" — there's just this HTML file and your browser.</li>
-          <li>The "Continue with Google" button on the sign-in screen is a local simulation for this prototype. It doesn't contact Google.</li>
+          <li>No advertising</li>
+          <li>No analytics or telemetry — we don't track your usage</li>
+          <li>No selling, sharing, or transferring data to anyone</li>
+          <li>No third-party tracking pixels, cookies, or fingerprinting</li>
+          <li>No cross-site tracking — Hisabs runs only on its own domain</li>
         </ul>
 
-        <h3>Sharing data between devices</h3>
-        <p>The only way to move your data is to use the backup features yourself:</p>
-        <ul>
-          <li><strong>Settings → Data → Backup everything</strong> — downloads a JSON file with all your businesses.</li>
-          <li><strong>Sidebar gear next to a business → Backup & restore</strong> — downloads one business at a time.</li>
-          <li>To restore on another device: open Hisabs there, sign in, then use Restore.</li>
-        </ul>
+        <h3>Cookies and storage</h3>
+        <p>Hisabs uses your browser's <code>localStorage</code> (not cookies) to keep you signed in and to cache your data for fast access. Supabase's auth library uses storage keys prefixed <code>sb-*</code> to hold your session token. Hisabs itself uses keys prefixed <code>ledger_</code> and <code>hisabs_</code>. None of these are tracking cookies — they're functional storage that the app needs to work.</p>
 
-        <h3>Staff and invites</h3>
-        <p>When you invite a staff member, you store their phone or email in <em>your</em> browser. When they open Hisabs in their own browser and sign in with the matching login, they see the pending invite. No data is sent — they only see it because their browser independently has your invite stored. (Realistic shared access requires a backend, which this prototype doesn't have.)</p>
-
-        <h3>Auto-backup</h3>
-        <p>Hisabs takes a snapshot of your data every 30 minutes and keeps the last 3 in your browser. These don't leave your device. They sit in the same <code>localStorage</code> as everything else. Download them from <strong>Settings → Data → Auto-backups</strong>.</p>
+        <h3>Auto-backups</h3>
+        <p>Every 30 minutes, Hisabs takes a snapshot of your data and keeps the last 3 in your browser's local storage. These never leave your device — they're a local recovery aid, separate from cloud sync. Download them from <strong>Settings → Data → Auto-backups</strong>.</p>
 
         <h3>Deletion</h3>
-        <p>To erase everything: <strong>Settings → Data → Danger zone → Delete my account and all data I own</strong>. There's nothing to delete on any server, because nothing was ever stored on one.</p>
+        <p>When you delete a record (business, account, entry, etc.), it is <strong>permanently removed</strong> from the cloud database within a few seconds. There is no soft-delete or trash bin. Deletion cascades: deleting a business removes all its books, entries, and associated data in one transaction.</p>
+        <p>To delete <strong>everything</strong>: <strong>Settings → Data → Danger zone → Delete all my data and sign out</strong>. This removes every business you own from the cloud, removes your profile row, and signs you out. Your sign-in email remains registered with Supabase — to remove that, contact support.</p>
 
-        <h3>If something matters, back it up</h3>
-        <p>This is a single-file local web app. It's resilient — but it has the limits of "local-only." Treat regular backups as the safety net. The Data tab makes one click of work.</p>
+        <h3>Backups you control</h3>
+        <ul>
+          <li><strong>Settings → Data → Backup everything</strong> downloads a JSON file of all your businesses</li>
+          <li><strong>Sidebar gear next to a business → Backup &amp; restore</strong> downloads one business at a time</li>
+          <li>Backup files contain your data but not your password</li>
+        </ul>
+
+        <h3>Hosting</h3>
+        <p>The Hisabs app code is served from Vercel as a static web page. Vercel can see your IP and visit time (standard for any website) but cannot see the data inside Hisabs — that's only visible to the Supabase database under your account. The Supabase server is hosted in the region selected when the project was created.</p>
+
+        <h3>Children</h3>
+        <p>Hisabs is bookkeeping software for adults running businesses. We do not knowingly collect data from anyone under 13. If you believe a minor has signed up, contact support.</p>
+
+        <h3>Changes to this policy</h3>
+        <p>If Hisabs's data handling changes meaningfully, this policy will be updated. The app version shown in <strong>Settings → About</strong> corresponds to a snapshot of this policy at deployment time.</p>
       </div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
@@ -5511,10 +5533,22 @@
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">User guide</h2>
-      <p class="modal-sub">The short version. About 5 minutes to read.</p>
+      <p class="modal-sub">Everything you need to know. About 5 minutes to read.</p>
       <div class="settings-tab-body doc-body">
         <h3>The model in one sentence</h3>
         <p>A <strong>business</strong> contains <strong>books</strong>; books contain <strong>entries</strong>; entries are tagged with a <strong>party</strong>, a <strong>category</strong>, and an <strong>account</strong>.</p>
+
+        <h3>Sign in once, use anywhere</h3>
+        <p>Your account is in the cloud. Sign in with the same email on any device — phone, tablet, work laptop — and you'll see the same businesses, same entries, same balance. Changes you make on one device appear on others within a few seconds.</p>
+        <p>If your internet drops, Hisabs keeps working locally; changes queue up and sync the moment you're back online. The sync badge at the top of the page shows the current state.</p>
+
+        <h3>Reading the sync badge</h3>
+        <ul>
+          <li><strong>Synced</strong> (green) — everything you've done is saved to the cloud.</li>
+          <li><strong>Syncing · N pending</strong> (amber) — N changes are being uploaded right now. Usually clears within a few seconds.</li>
+          <li><strong>Offline</strong> (grey) — your connection is down. Your work is still being saved locally and will sync when you're back online.</li>
+        </ul>
+        <p>If a toast says "Sync error" with a table name, check <strong>Settings → Data → Troubleshooting</strong>. Some records couldn't reach the cloud.</p>
 
         <h3>Businesses</h3>
         <p>Each business is a separate set of books — for example, "Tea Shop" and "Side Repairs" are two businesses. Each has its own currency, its own list of categories and accounts, and its own staff. Switch between them in the left sidebar.</p>
@@ -5528,7 +5562,7 @@
         <p>Required fields are marked with a red star. Optional fields are optional.</p>
 
         <h3>Parties</h3>
-        <p>A party is anyone money moves to or from — a customer, vendor, employee, anyone. Add a party from the <strong>Parties</strong> sidebar view (+ New Party). When making an entry, the <strong>Received from / Paid to</strong> field is a dropdown of the parties you've already added — you can't type a new one inline. This keeps your party list clean and prevents typos creating duplicates.</p>
+        <p>A party is anyone money moves to or from — a customer, vendor, employee. Add a party from the <strong>Parties</strong> sidebar view (+ New Party). When making an entry, the <strong>Received from / Paid to</strong> field is a dropdown of the parties you've already added — you can't type a new one inline. This keeps your party list clean and prevents typos creating duplicates.</p>
 
         <h3>Categories</h3>
         <p>Categories are labels — Sales, Purchase, Rent, Salary, etc. Each business has its own list. Add, rename, remove, or reorder them from <strong>sidebar gear → Categories</strong>. The order you set here is the order shown in the entry form's Category dropdown.</p>
@@ -5539,17 +5573,15 @@
         <h3>Period filters</h3>
         <p>The top of every view has a period bar: <strong>This Month</strong> (default), <strong>All Time</strong>, or <strong>Custom</strong>. All totals on that view reflect the period you've picked.</p>
 
-        <h3>Roles</h3>
+        <h3>Roles and staff</h3>
         <ul>
           <li><strong>Owner</strong> — full control. The person who created the business.</li>
           <li><strong>Manager</strong> — can add and edit anything, can't manage staff or delete the business.</li>
           <li><strong>Staff</strong> — can add entries, edit their own. Can add parties but not categories or accounts.</li>
           <li><strong>Viewer</strong> — read-only.</li>
         </ul>
+        <p>To invite someone: open <strong>Staff</strong> (under Management in the sidebar), enter their email and pick a role. When that person signs into Hisabs with the same email, they'll see a pending invite at the top of their sidebar. Accept → they're in. Decline → the invite is gone. Currently invitees discover the invite by signing in themselves; there's no automatic email notification.</p>
         <p>Owners control whether staff and viewers see the totals (Cash In / Cash Out / Net) on the entries view — toggle in the business settings. Totals on the Parties, Categories, and Accounts views are always hidden from staff and viewers.</p>
-
-        <h3>Staff invites</h3>
-        <p>The owner clicks <strong>Staff</strong> at the top of the entries view, enters a phone or email, and picks a role. When that person signs into Hisabs (in their own browser) with the matching login, they'll see a pending invite in their sidebar. They Accept or Decline.</p>
 
         <h3>Search and filter</h3>
         <p>The entries view has a search bar and a Cash In/Out type filter. Click a category, party, or account chip on any entry to open a small menu — pick <strong>Filter entries by this</strong> to narrow the list. A terracotta banner appears at the top showing what's filtered, with a Clear button.</p>
@@ -5557,17 +5589,23 @@
         <h3>Export</h3>
         <p>The entries view has <strong>PDF</strong> and <strong>Excel</strong> buttons (owner and manager only). They produce a file of the entries in the currently selected period.</p>
 
-        <h3>Backup</h3>
-        <p>Two kinds: <strong>per business</strong> (sidebar gear → Backup & restore) and <strong>everything at once</strong> (Settings → Data → Backup everything). Both produce a JSON file you can save anywhere. Restore reads one back in.</p>
+        <h3>Backup &amp; restore</h3>
+        <p>Two kinds of backup: <strong>per business</strong> (sidebar gear → Backup &amp; restore) and <strong>everything at once</strong> (Settings → Data → Backup everything). Both produce a JSON file you can save anywhere. Restore reads one back in.</p>
+        <p>Cloud sync is your primary safety net — your data is in the cloud — but local backups are still useful for offline archives, sharing data with an accountant, or migrating businesses to a new account.</p>
+
+        <h3>Deletion</h3>
+        <p>Deletes are permanent. When you delete a business, account, entry, or anything else, it's removed from the cloud within a few seconds and gone for good — no trash bin. Deleting a business cascades: all its books, entries, parties, categories, accounts, and audit expenses go with it.</p>
+        <p>For accidental deletion recovery, your local auto-backups (the last 3 snapshots, every 30 minutes) are stored in Settings → Data → Auto-backups.</p>
 
         <h3>Themes</h3>
         <p><strong>Settings → Appearance</strong> for light/dark/auto mode and a choice of accent color. The whole app retints, including the brand mark.</p>
 
         <h3>Installing as an app</h3>
-        <p>Hisabs is a PWA (progressive web app). On Chrome/Edge desktop, look for an install icon in the address bar. On iOS Safari, <strong>Share → Add to Home Screen</strong>. On Android Chrome, <strong>menu → Install app</strong>. Once installed, it opens like a regular app, full screen, no browser chrome.</p>
+        <p>Hisabs is a PWA (progressive web app). On Chrome/Edge desktop, look for an install icon in the address bar. On iOS Safari, <strong>Share → Add to Home Screen</strong>. On Android Chrome, <strong>menu → Install app</strong>. Once installed, it opens like a regular app, full-screen, no browser chrome.</p>
 
         <h3>If something feels stuck</h3>
-        <p>Most issues resolve by closing all Hisabs tabs and reopening. If a button doesn't respond, refresh the page. Your data is safe — it's in <code>localStorage</code> and survives refreshes.</p>
+        <p>Most issues resolve by closing all Hisabs tabs and reopening. If a button doesn't respond, refresh the page — your data is safe (it's both in the cloud and in your local cache).</p>
+        <p>If the sync badge is stuck on "Syncing" for more than a minute, check Settings → Data → Troubleshooting → Test connection.</p>
       </div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
@@ -5947,7 +5985,10 @@
       </div>
       <div class="settings-section">
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
-        <button class="btn btn-sm btn-danger-outline" onclick="wipeMyData()">Delete my account and all data I own</button>
+        <p style="font-size:0.82rem;color:var(--ink-mute);margin-bottom:0.6rem;line-height:1.45;">
+          This permanently deletes every business you own and your sign-in account from the cloud, then signs you out. Cannot be undone.
+        </p>
+        <button class="btn btn-sm btn-danger-outline" onclick="wipeMyData()">Delete my account and all my data</button>
       </div>`;
   }
   function pickTheme(theme) {
@@ -6403,11 +6444,97 @@
     if (__autoBackupTimer) { clearInterval(__autoBackupTimer); __autoBackupTimer = null; }
   }
 
-  function wipeMyData() {
-    if (!confirm("Delete YOUR account and all businesses you own? Cannot be undone.")) return;
-    if (!confirm('Are you absolutely sure?')) return;
+  async function wipeMyData() {
+    // Strong, two-step confirmation: prevents accidental click and accidental
+    // OK on the second dialog. Type-the-email step is the real safety net.
+    if (!confirm('This will permanently delete all your business data from the cloud and sign you out everywhere. Continue?')) return;
     const u = me();
+    if (!u) { toast('Not signed in.'); return; }
+    const typed = prompt(`Type your sign-in email to confirm:\n\n${u.login}`);
+    if (typed === null) return;
+    if (normalize(typed) !== normalize(u.login)) { toast('Email did not match. Nothing deleted.'); return; }
+
+    // What gets deleted: every business the user owns, all its child records,
+    // and the user's profile row in app_accounts. Member rows where the user
+    // is the *invitee* (not owner) stay — those belong to other people's
+    // businesses; we just decline-status them so the inviter sees the user
+    // is gone.
     const ownedBizIds = data.businesses.filter(b => b.ownerId === u.id).map(b => b.id);
+
+    // Phase 1: cloud-side hard delete (only if signed in to cloud).
+    // We do this BEFORE clearing local state. Errors surface as a clear
+    // message — we won't silently fall through and wipe local while
+    // the cloud still has the data.
+    //
+    // With ON DELETE CASCADE foreign keys on every child table, deleting
+    // the parent business removes books → entries, account_groups →
+    // cash_accounts, categories, parties, members, audit_expenses in a
+    // single transaction. So we only need to delete businesses and the
+    // profile row.
+    let cloudFailures = 0;
+    if (u.cloud && navigator.onLine) {
+      toast('Deleting cloud data… please don\'t close this tab.');
+      try {
+        for (const bizId of ownedBizIds) {
+          try {
+            const { error } = await sb().from('app_businesses').delete().eq('id', bizId);
+            if (error) { console.error('Cloud delete failed: app_businesses', bizId, error); cloudFailures++; }
+          } catch (e) { console.error('Cloud delete threw: app_businesses', bizId, e); cloudFailures++; }
+        }
+        // Delete any member rows where this user is the invitee on someone
+        // else's business. Those rows reference businesses we don't own, so
+        // they aren't cascaded by the deletes above.
+        try {
+          const { error } = await sb().from('app_members').delete().eq('user_id', u.id);
+          if (error) console.warn('Could not delete invite rows:', error);
+        } catch (e) { console.warn('Invite delete threw:', e); }
+        // Delete the user's app_accounts profile row.
+        try {
+          const { error } = await sb().from('app_accounts').delete().eq('id', u.id);
+          if (error) console.warn('Could not delete profile row:', error);
+        } catch (e) { console.warn('Profile delete threw:', e); }
+        // Call the delete-self-account Edge Function to remove the
+        // auth.users entry (email + hashed password). Requires the
+        // function to be deployed on the project; if it isn't, this
+        // call fails silently and the auth user persists — the user
+        // can still sign up fresh with the same email later (just with
+        // an empty fresh account).
+        try {
+          const { data: { session } } = await sb().auth.getSession();
+          const token = session?.access_token;
+          if (token) {
+            const resp = await fetch(`${SUPABASE_URL}/functions/v1/delete-self-account`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'apikey': SUPABASE_ANON_KEY,
+                'Content-Type': 'application/json',
+              },
+            });
+            if (!resp.ok) {
+              const body = await resp.text().catch(() => '');
+              console.warn('delete-self-account function returned non-ok:', resp.status, body);
+              // We don't bump cloudFailures here — the data deletion is
+              // what matters. Failing to nuke the auth user is a softer
+              // failure (account becomes "empty" rather than "gone").
+            }
+          }
+        } catch (e) {
+          // Function not deployed, network error, etc. Log and continue.
+          console.warn('delete-self-account function call failed:', e?.message || e);
+        }
+      } catch (e) {
+        console.error('Cloud deletion error:', e);
+        cloudFailures++;
+      }
+      if (cloudFailures > 0) {
+        if (!confirm(`${cloudFailures} cloud-side delete(s) failed (check console). Continue with local wipe and sign-out anyway?\n\nYour data may remain in the cloud — contact support to complete deletion.`)) {
+          return;
+        }
+      }
+    }
+
+    // Phase 2: local wipe.
     const ownedBookIds = data.books.filter(b => ownedBizIds.includes(b.businessId)).map(b => b.id);
     data.businesses = data.businesses.filter(b => !ownedBizIds.includes(b.id));
     data.books = data.books.filter(b => !ownedBookIds.includes(b.id));
@@ -6420,8 +6547,16 @@
     data.auditExpenses = data.auditExpenses.filter(x => !ownedBizIds.includes(x.businessId));
     accounts = accounts.filter(a => a.id !== u.id);
     saveAccounts(); saveData();
+
+    // Phase 3: Supabase sign-out (invalidates the JWT server-side) then local cleanup.
+    try { if (u.cloud) await sb().auth.signOut(); } catch (e) { console.warn('signOut failed:', e); }
     _doSignOut();
-    toast('Account deleted.');
+    toast(cloudFailures > 0 ? 'Local data deleted. Cloud cleanup incomplete — see console.' : 'All data deleted. You are signed out.');
+    // NOTE: This does NOT delete the Supabase Auth user account itself. The
+    // user's email/password combination remains valid for sign-in. To fully
+    // remove an account requires a server-side call (Edge Function with
+    // service_role key) which isn't deployed yet. Document this as a known
+    // gap and resolve in a future iteration.
   }
 
   function exportSheetModal() {
@@ -7207,8 +7342,13 @@
           }
         }
         if (slot.deletes.length) {
+          // Hard delete: row is removed permanently. ON DELETE CASCADE
+          // foreign keys cascade child rows in the database. Realtime
+          // delivers DELETE events to other devices (table must have
+          // REPLICA IDENTITY FULL set so the event payload carries the
+          // row's data, not just the primary key).
           const { error } = await sb().from(table)
-            .update({ deleted_at: new Date().toISOString() })
+            .delete()
             .in('id', slot.deletes);
           if (error) {
             for (const op of slot.ops.filter(o => o.kind === 'delete')) {
@@ -7310,18 +7450,48 @@
   }
 
   // Debounced re-render after applying a flurry of incoming events.
+  // Accumulates affected (localKey, recordId, kind) over the debounce window
+  // so the snapshot can be updated for ONLY those records — not rebuilt from
+  // current data, which would mark any in-flight local-only records as if
+  // they were already in the cloud (silent data loss).
   let __remoteApplyTimer = null;
-  function scheduleRemoteRender() {
+  let __remoteApplied = []; // [{localKey, recordId, kind: 'upsert'|'delete'}]
+  function scheduleRemoteRender(localKey, recordId, kind) {
+    if (localKey && recordId && kind) {
+      __remoteApplied.push({ localKey, recordId, kind });
+    }
     if (__remoteApplyTimer) return;
     __remoteApplyTimer = setTimeout(() => {
       __remoteApplyTimer = null;
-      // Persist the snapshot so the next local diff doesn't echo remote
-      // changes back out as new ops.
-      persistSnapshot();
-      // saveData WITHOUT scheduleSyncDiff (it would no-op anyway since the
-      // snapshot was just updated, but skipping is cleaner).
+      const batch = __remoteApplied; __remoteApplied = [];
+      // Update the snapshot for the specific records affected. Critically,
+      // we do NOT rebuild the snapshot from current data — that would mark
+      // any local in-flight records (queued but not yet pushed) as if they
+      // were in the cloud, and the next diff would never re-emit them.
+      if (__syncSnapshot && batch.length) {
+        let dirty = false;
+        for (const ev of batch) {
+          const list = __syncSnapshot[ev.localKey];
+          if (!Array.isArray(list)) continue;
+          if (ev.kind === 'delete') {
+            const idx = list.findIndex(r => r.id === ev.recordId);
+            if (idx !== -1) { list.splice(idx, 1); dirty = true; }
+          } else {
+            // upsert: copy from current data (post-apply state)
+            const live = (data[ev.localKey] || []).find(r => r.id === ev.recordId);
+            if (live) {
+              const idx = list.findIndex(r => r.id === ev.recordId);
+              if (idx === -1) list.push({ ...live });
+              else list[idx] = { ...live };
+              dirty = true;
+            }
+          }
+        }
+        if (dirty) {
+          try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(__syncSnapshot)); } catch (_) {}
+        }
+      }
       storageWrite(DATA_KEY, JSON.stringify(data));
-      // Re-render whatever the user is looking at.
       try { renderAll(); } catch (_) {}
     }, 150);
   }
@@ -7333,7 +7503,6 @@
     const eventType = payload.eventType || payload.event;
     const newRow = payload.new;
     const oldRow = payload.old;
-    // Apply the change to local data
     const list = data[localKey];
     if (!Array.isArray(list)) return;
     if (eventType === 'INSERT' || eventType === 'UPDATE') {
@@ -7342,10 +7511,9 @@
       if (newRow.deleted_at) {
         const idx = list.findIndex(r => r.id === newRow.id);
         if (idx !== -1) {
-          // Check for conflict: was this record open in the entry modal?
           maybeWarnConflict(localKey, newRow.id, 'deleted');
           list.splice(idx, 1);
-          scheduleRemoteRender();
+          scheduleRemoteRender(localKey, newRow.id, 'delete');
         }
         return;
       }
@@ -7354,14 +7522,13 @@
       if (idx === -1) {
         list.push(restored);
       } else {
-        // Conflict check: if local has unsynced changes for this id, warn.
         const hasLocalUnsynced = __syncQueue.some(op => op.recordId === newRow.id);
         if (hasLocalUnsynced) {
           maybeWarnConflict(localKey, newRow.id, 'updated', { remote: restored, local: list[idx] });
         }
         list[idx] = restored;
       }
-      scheduleRemoteRender();
+      scheduleRemoteRender(localKey, newRow.id, 'upsert');
     } else if (eventType === 'DELETE') {
       const id = (oldRow && oldRow.id);
       if (!id) return;
@@ -7369,7 +7536,7 @@
       if (idx !== -1) {
         maybeWarnConflict(localKey, id, 'deleted');
         list.splice(idx, 1);
-        scheduleRemoteRender();
+        scheduleRemoteRender(localKey, id, 'delete');
       }
     }
   }
@@ -7728,9 +7895,9 @@
       const results = await Promise.all(cloudPushOrder.map(async (key) => {
         const map = cloudSchemaMap[key];
         if (!map) return { key, rows: [] };
-        const { data: rows, error } = await sb().from(map.table)
-          .select('*')
-          .is('deleted_at', null);
+        // With hard deletes, there are no deleted_at=now rows to filter out —
+        // deleted rows are physically removed from the database.
+        const { data: rows, error } = await sb().from(map.table).select('*');
         if (error) {
           const msg = 'Pull failed at ' + key + ': ' + (error.message || error.code);
           console.error(msg, error);

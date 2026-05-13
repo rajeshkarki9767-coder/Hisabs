@@ -1,129 +1,147 @@
 # Privacy Policy
 
-**Effective:** May 12, 2026
-**Last updated:** May 12, 2026
+**Effective:** May 13, 2026
+**Last updated:** May 13, 2026
 
-This is the privacy policy for **Hisabs**, a local-first bookkeeping web app. It explains, plainly and honestly, what happens to your data.
+This is the privacy policy for **Hisabs**, a cloud-synced bookkeeping web app. It explains plainly what happens to your data.
 
 ---
 
 ## The short version
 
-Hisabs has no server. Everything you create — businesses, books, entries, parties, categories, accounts, audit expenses, settings — is stored only in your own browser, in the area called `localStorage`. Nothing is uploaded anywhere. There is no account on a remote system. We don't collect data, we don't sell data, we don't track you, and we don't have analytics.
+Hisabs is a personal bookkeeping app. Your data lives in two places: your **browser** (for fast access while you work) and the **Supabase** database (for safe storage and cross-device sync). You can access it from any device by signing in. Nobody else can read it — not us, not the hosting providers, not other Hisabs users.
 
-If you stop trusting this policy, the simplest way to verify it is true: open your browser's developer tools, go to the **Network** tab, and use Hisabs for a while. You will see no outgoing requests to anyone.
+We don't show ads, sell data, run analytics, or track you in any way.
 
 ---
 
 ## What we store, and where
 
-When you use Hisabs, the following information is created and stored **in your browser only**:
+### In the cloud (Supabase)
 
-- Your account name and login (phone number or email)
-- Your password, in plaintext
-- Every business, book, entry, party, category, account, and account group you create
-- Audit expenses you log
-- Staff invites you've sent or received
-- Your appearance preferences (theme, accent color)
-- Auto-backup snapshots (up to 3, kept for the last 90 minutes of activity)
+When you use Hisabs, the following is stored in your Supabase project:
 
-This data lives in your browser under storage keys prefixed with `ledger_` and `hisabs_`. It does not leave your device unless **you** export it.
+- Your sign-in email (for authentication)
+- Your password — stored only as a one-way cryptographic hash, never readable as plain text
+- Your display name and a user-profile row
+- Every business you own — name, currency, settings
+- Every book, entry, party, category, account, account group, audit expense in those businesses
+- Staff invitations you've sent or received, with display names for the inviter and business
+- Server-side timestamps (created, updated)
+
+This data is uploaded as you work. The sync indicator at the top of the screen shows the current state.
+
+### In your browser only
+
+- Appearance preferences (theme, accent color, period filter)
+- Auto-backup snapshots (last 3, taken every 30 minutes, kept locally for recovery)
+- UI state (current view, scroll position, draft entry text)
+- A random device identifier used to deduplicate sync events (not linked to your identity)
+- A cached copy of your data for fast access while offline
 
 ---
 
-## Why your password is in plaintext
+## Who can see your data
 
-Hisabs is a single-device personal tool. There is no server to send a password to, and no other user's data to protect against you. The password exists only to prevent someone using your unlocked browser from casually opening the app — it is not a real security boundary.
+Row-level security on the database means **only you can read your business data**. The owner of a business has full access; staff members you've invited can see businesses they've accepted into; nobody else can read any of it.
 
-**Do not reuse a password you use anywhere else.** Treat the Hisabs password as throwaway.
+The Supabase project administrator (the person who set up the backend — that's likely you if you self-deployed) holds the keys to the database and could technically inspect it. If Hisabs is being run for you by someone else, you're trusting that operator.
 
-If anyone with access to your device's developer tools can read your `localStorage`, they can read your password. This is a limitation of any browser-only app and applies equally to Hisabs.
+The hosting provider (Vercel for the app, Supabase for the database) can see network metadata — your IP address, request timestamps — like any web service. They cannot see your business data unless they have the database credentials.
 
 ---
 
 ## What we don't do
 
-- We don't collect your name, phone, or email — those stay in your browser.
-- We don't show advertisements.
-- We don't sell or share any information with anyone. There is no "anyone" — there is just the HTML file and your browser.
-- We don't use cookies for tracking.
-- We don't use Google Analytics, Facebook Pixel, or any third-party telemetry.
-- We don't run code from a third-party CDN. (Some optional libraries like jsPDF are loaded only when you click Export to PDF, and they're loaded from a major CDN with no Hisabs identifier attached.)
-- The "Continue with Google" button on the sign-in screen is a **local simulation**. It does not contact Google. It just lets you create an account that's marked as "Google-style" for visual flair.
+- No advertising
+- No analytics or telemetry — we don't track your usage
+- No selling, sharing, or transferring of your data
+- No third-party tracking pixels, cookies, or fingerprinting
+- No cross-site tracking — Hisabs runs only on its own domain
+- No third-party scripts run in the app (Supabase's JS library is the only external dependency, and it talks only to your Supabase project)
 
 ---
 
-## What this means in practice
+## Storage details
 
-**Different browser, different data.** If you sign in from a different device or browser, you will not see the books you made elsewhere. There is nothing to sync from.
+Hisabs uses your browser's `localStorage` to keep you signed in and cache data. Storage keys are prefixed:
 
-**Clearing browser data wipes Hisabs.** "Clear site data," "clear cookies," "clear browsing history (including site data)," reinstalling your browser — any of these will erase everything. **Back up regularly.**
+- `sb-*` — Supabase's session/auth library (your sign-in token)
+- `ledger_*` and `hisabs_*` — Hisabs's own data and preferences
 
-**Private/incognito mode is temporary.** Anything you create in a private window disappears when the window closes.
-
-**Auto-backups are local too.** Every 30 minutes, Hisabs takes a snapshot of your data and keeps the last 3 in `localStorage`. These do not leave your device. They sit in the same browser storage as everything else. You can download them from **Settings → Data → Auto-backups**.
-
----
-
-## Moving data between devices
-
-The only way to move your data is to use the backup features yourself:
-
-- **Settings → Data → Backup everything** downloads a JSON file with all your businesses.
-- **Sidebar gear next to a business → Backup & restore** downloads one business at a time.
-- To restore on another device, open Hisabs there, sign in, and use **Restore**.
-
-Backup files **do not contain your password**. They contain your data and a minimal user identifier (name, login, account creation date). It is safe to email a backup to yourself or store it in cloud storage you control.
+These are functional storage, not tracking cookies. Clearing site data will sign you out and remove your local cache; your cloud data is unaffected and will reappear when you sign in again.
 
 ---
 
-## Staff invites
+## Cross-device sync
 
-When you invite a staff member, you store their phone or email in **your** browser, marked as a pending invite. When that person opens Hisabs in their own browser and signs in with the matching login, their copy of Hisabs (which has its own independent storage) will show the invite.
+When you make a change on one device, it uploads to the cloud within a few seconds, and any other device signed into the same account receives the change shortly after via a realtime channel. This works while online; while offline, changes queue locally and sync once you reconnect.
 
-**This means the staff invite system only works if the same browser's `localStorage` contains both pieces of state.** In practice, this is a limitation: cross-device staff collaboration is not really possible without a backend, which Hisabs does not have. Use this feature for awareness, not for production team workflows.
-
----
-
-## Hosting
-
-If you access Hisabs through a hosted URL (for example, a Vercel deployment), the **HTML file itself** is served from that host. The hosting provider can see your IP address and your visit timestamp, the same as any website. The hosting provider **cannot** see the data you create inside Hisabs, because that data never leaves your browser.
-
-If you self-host on a domain you control, even those access logs stay with you.
+The sync engine uses Supabase Realtime, which transmits row-level changes over an authenticated WebSocket. The connection is encrypted (wss://) end-to-end.
 
 ---
 
 ## Deletion
 
-To erase everything Hisabs has stored:
+When you delete a record — business, account, entry, anything — it is **permanently removed** from the cloud database within seconds. There is no soft-delete or trash bin. Deletion cascades: deleting a business removes all its books, entries, and associated data in one transaction.
 
-- **Settings → Data → Danger zone → Delete my account and all data I own** removes your account and every business you own from your browser.
-- Alternatively, clear browser data for the site (Settings → Privacy → Clear browsing data in most browsers, scoped to this site).
+To delete **everything**: **Settings → Data → Danger zone → Delete all my data and sign out**. This removes every business you own, your profile row, and signs you out everywhere. Your authentication account (email + hashed password) remains registered with Supabase — to remove that too, contact support.
 
-There is nothing to delete on any remote server, because nothing was ever stored on one.
+Once data is deleted, it cannot be recovered from the cloud. If you may want to undo, download an auto-backup from **Settings → Data → Auto-backups** before deleting.
+
+---
+
+## Backups you control
+
+You can download your data anytime:
+
+- **Settings → Data → Backup everything** — JSON file of all your businesses
+- **Sidebar gear next to a business → Backup & restore** — one business at a time
+- Auto-backups are stored locally (browser only) — never uploaded — and you can download them from Settings → Data
+
+Backup files contain your business data but not your password.
+
+---
+
+## Staff invitations
+
+When you invite someone, their email goes onto an invitation row in `app_members`, visible to the business owner and to the invitee (matched on their authenticated email). The invitee sees the invite when they sign in. Currently invitations do not generate automatic email notifications — invitees discover them by signing in themselves.
+
+The invitation card displays the inviter's name and the business name. These are stored on the invitation row so the invitee sees something meaningful before accepting.
+
+---
+
+## Hosting
+
+- App code is served from Vercel as static files (HTML, JS, CSS)
+- Database, auth, and realtime are provided by Supabase
+- Vercel sees standard request metadata (IP, timestamp, user agent) — cannot see your data
+- Supabase hosts the database in a region chosen at project setup time
+
+If you forked Hisabs and host your own copy, this section applies to your providers.
 
 ---
 
 ## Children
 
-Hisabs is general-purpose accounting software with no age-specific content. It is intended for individuals managing their own books or running their own small businesses. We do not knowingly collect data from anyone (because we do not collect data at all).
+Hisabs is bookkeeping software intended for adults running businesses. We don't knowingly collect data from anyone under 13. If you believe a minor has signed up, contact support so the account can be removed.
 
 ---
 
 ## Changes to this policy
 
-If the underlying behavior of Hisabs changes — for instance, if a future version adds a backend — this policy will change to match. The "Last updated" date at the top will reflect any revision. Major changes will be called out in the app's user guide.
+If Hisabs's data handling changes meaningfully, this policy will be updated. The "Last updated" date at the top reflects the most recent revision. Significant changes will be noted in release notes.
 
 ---
 
 ## Contact
 
-Hisabs is a personal-use bookkeeping tool. There is no support team, no email address that resolves to a person, and no help desk. If you're running your own copy or a hosted instance, the owner of that copy is the only contact.
+Hisabs is a personal-use bookkeeping tool. The owner of your deployment is the only contact. If you self-host, that's you.
 
-If you forked or are hosting Hisabs and want to take responsibility for a copy used by other people, replace this section with your own contact information.
+If you're hosting Hisabs for other people, replace this section with your own contact information.
 
 ---
 
 ## In one sentence
 
-If something matters, back it up. The Data tab makes one click of work.
+Your data is yours, encrypted in transit, locked down by row-level security, and deleted permanently when you say so.
