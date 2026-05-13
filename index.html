@@ -184,7 +184,16 @@
   .auth-pwd-hint.bad { color: var(--loss); }
 
   /* ============ AUTH ============ */
-  .auth-screen { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1.5rem; background: var(--paper); overflow-y: auto; }
+  .auth-screen { position: fixed; inset: 0; z-index: 100; display: none; place-items: center; padding: 1.5rem; background: var(--paper); overflow-y: auto; }
+  .auth-screen.is-active { display: grid; }
+  /* Boot splash. Covers everything until the boot code decides whether
+     to show the app or the auth screen. Prevents the "auth screen flash
+     on refresh" the user sees if we leave auth visible by default. */
+  .boot-splash { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--paper); transition: opacity 0.2s ease; }
+  .boot-splash.fading { opacity: 0; pointer-events: none; }
+  .boot-splash-mark { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--ink-mute); }
+  .boot-splash-mark svg { width: 40px; height: 40px; }
+  .boot-splash-text { font-family: var(--font-sans); font-size: 0.85rem; letter-spacing: 0.04em; opacity: 0.55; }
   .auth-card { width: 100%; max-width: 400px; position: relative; z-index: 2; }
   .auth-brand { text-align: center; margin-bottom: 1.75rem; }
   .auth-brand-mark { display: inline-flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
@@ -357,6 +366,10 @@
   .book-item > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
   .book-item .book-bal { font-family: var(--font-mono); font-size: 0.68rem; color: var(--sidebar-text-faint); flex-shrink: 0; }
   .book-item.active .book-bal { color: var(--sidebar-text-mute); }
+  .book-item-right { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
+  .book-item .book-gear { opacity: 0; }
+  .book-item:hover .book-gear, .book-item.active .book-gear { opacity: 0.6; }
+  @media (hover: none) { .book-item .book-gear { opacity: 0.5; } }
   .sidebar-add { width: 100%; padding: 0.45rem; background: transparent; border: 1px dashed var(--sidebar-divider); color: var(--sidebar-text-mute); font-size: 0.66rem; cursor: pointer; margin-top: 0.3rem; transition: all 0.12s; text-transform: uppercase; letter-spacing: 0.08em; border-radius: var(--r-sm); }
   .sidebar-add:hover:not(:disabled) { color: var(--sidebar-text); border-color: var(--sidebar-text); }
   .sidebar-add:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -493,6 +506,104 @@
   .entity-search-input:focus { outline: none; border-color: var(--accent); }
   .entity-search-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--ink-mute); padding: 0.35rem; display: inline-grid; place-items: center; }
   .entity-search-clear:hover { color: var(--ink); }
+
+  /* ============ QUICK LOOK ============ */
+  /* Shared per-business directory of payment accounts, QR codes, and
+     copyable tags. Two sections: "In Use" up top (toggled-on entries)
+     and "All" below (everything). Cards show name + copyable tag + QR. */
+  .ql-section-title { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 600; margin: 1.25rem 0 0.6rem; letter-spacing: -0.005em; color: var(--ink); display: flex; align-items: center; gap: 0.5rem; }
+  .ql-section-title .ql-count { font-family: var(--font-sans); font-size: 0.75rem; font-weight: 500; color: var(--ink-mute); letter-spacing: 0.04em; }
+  .ql-section-title:first-child { margin-top: 0; }
+  .ql-empty { padding: 1.5rem; background: var(--surface-1); border: 1px dashed var(--line); border-radius: var(--r); color: var(--ink-mute); font-size: 0.85rem; text-align: center; }
+  .ql-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0.85rem; }
+  .ql-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); padding: 0.95rem; position: relative; transition: border-color 0.12s, box-shadow 0.12s; display: flex; flex-direction: column; gap: 0.65rem; }
+  .ql-card:hover { border-color: var(--ink-soft); }
+  .ql-card.unused { background: var(--paper-deep); opacity: 0.78; border-style: dashed; }
+  .ql-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; padding-right: 2rem; }
+  .ql-card-name { font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--ink); word-break: break-word; line-height: 1.3; }
+  .ql-toggle { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; cursor: pointer; user-select: none; font-size: 0.7rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink-mute); }
+  .ql-toggle.readonly { cursor: default; }
+  .ql-toggle-track { width: 28px; height: 16px; background: var(--line); border-radius: 999px; position: relative; transition: background 0.15s; }
+  .ql-toggle-track.on { background: var(--gain); }
+  .ql-toggle-thumb { width: 12px; height: 12px; background: white; border-radius: 50%; position: absolute; top: 2px; left: 2px; transition: left 0.15s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .ql-toggle-track.on .ql-toggle-thumb { left: 14px; }
+  .ql-tag-row { display: flex; gap: 0.4rem; align-items: center; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem 0.55rem; min-height: 36px; }
+  .ql-tag-text { flex: 1; font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; font-size: 0.82rem; color: var(--ink); word-break: break-all; line-height: 1.3; }
+  .ql-tag-empty { font-family: var(--font-sans); font-style: italic; color: var(--ink-mute); font-size: 0.78rem; }
+  .ql-copy-btn { background: transparent; border: none; cursor: pointer; color: var(--ink-mute); padding: 0.25rem; display: inline-grid; place-items: center; border-radius: var(--r-sm); flex-shrink: 0; transition: background 0.12s, color 0.12s; }
+  .ql-copy-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .ql-copy-btn.copied { color: var(--gain); }
+  .ql-photo-wrap { background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0.5rem; display: flex; justify-content: center; align-items: center; min-height: 120px; position: relative; }
+  .ql-photo-wrap img { max-width: 100%; max-height: 200px; height: auto; display: block; border-radius: 4px; }
+  .ql-photo-empty { color: var(--ink-mute); font-size: 0.78rem; padding: 1.5rem 0; }
+  .ql-photo-actions { position: absolute; bottom: 0.4rem; right: 0.4rem; display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.12s; }
+  .ql-photo-wrap:hover .ql-photo-actions { opacity: 1; }
+  @media (hover: none) { .ql-photo-actions { opacity: 1; } }
+  .ql-photo-action-btn { background: var(--paper); border: 1px solid var(--line); cursor: pointer; color: var(--ink); padding: 0.3rem; display: inline-grid; place-items: center; border-radius: var(--r-sm); box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+  .ql-photo-action-btn:hover { background: var(--surface-2); }
+  .ql-bottom-actions { display: flex; gap: 0.5rem; margin-top: 1.5rem; }
+  /* Photo preview inside the add/edit modal */
+  .ql-modal-photo-preview { background: var(--paper-deep); border: 1px dashed var(--line); border-radius: var(--r-sm); padding: 0.75rem; display: flex; justify-content: center; align-items: center; min-height: 140px; margin-top: 0.5rem; position: relative; }
+  .ql-modal-photo-preview img { max-width: 100%; max-height: 220px; height: auto; }
+  .ql-modal-photo-clear { position: absolute; top: 0.4rem; right: 0.4rem; background: var(--paper); border: 1px solid var(--line); cursor: pointer; padding: 0.3rem 0.55rem; font-size: 0.72rem; color: var(--loss); border-radius: var(--r-sm); }
+  .ql-modal-photo-hint { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.4rem; }
+  @media (max-width: 700px) {
+    .ql-grid { grid-template-columns: 1fr; }
+  }
+
+  /* ============ ONBOARDING ============ */
+  .onboarding-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); padding: 1.1rem 1.2rem; margin-bottom: 1.25rem; position: relative; }
+  .onboarding-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.9rem; padding-bottom: 0.65rem; border-bottom: 1px solid var(--line-soft); }
+  .onboarding-title { font-family: var(--font-serif); font-size: 1.05rem; font-weight: 600; color: var(--ink); }
+  .onboarding-progress { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.05em; text-transform: uppercase; font-weight: 500; margin-top: 0.15rem; }
+  .onboarding-close { position: absolute; top: 0.7rem; right: 0.7rem; background: transparent; border: none; cursor: pointer; padding: 0.35rem; color: var(--ink-mute); border-radius: var(--r-sm); }
+  .onboarding-close:hover { background: var(--surface-2); color: var(--ink); }
+  .onboarding-step { display: flex; align-items: center; gap: 0.85rem; padding: 0.55rem 0; }
+  .onboarding-step + .onboarding-step { border-top: 1px dashed var(--line-soft); }
+  .onboarding-step-num { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 0.82rem; font-weight: 600; background: var(--paper-deep); color: var(--ink-mute); flex-shrink: 0; font-family: var(--font-sans); }
+  .onboarding-step.done .onboarding-step-num { background: var(--gain); color: white; }
+  .onboarding-step-body { flex: 1; min-width: 0; }
+  .onboarding-step-title { font-size: 0.92rem; color: var(--ink); font-weight: 500; }
+  .onboarding-step.done .onboarding-step-title { color: var(--ink-mute); text-decoration: line-through; }
+  .onboarding-step-sub { font-size: 0.78rem; color: var(--ink-mute); margin-top: 0.1rem; line-height: 1.4; }
+
+  /* ============ INSTALL CARD ============ */
+  /* Friendly dismissible prompt when Chrome decides Hisabs is installable.
+     Lives above the entries banner. Cream background with a left accent —
+     visible but unobtrusive. */
+  .install-card { display: flex; align-items: flex-start; gap: 0.85rem; background: var(--surface-1); border: 1px solid var(--line); border-left: 4px solid var(--accent-soft); border-radius: var(--r); padding: 0.85rem 1rem; margin-bottom: 1rem; }
+  .install-card-icon { color: var(--accent-soft); flex-shrink: 0; margin-top: 0.15rem; }
+  .install-card-body { flex: 1; min-width: 0; }
+  .install-card-title { font-family: var(--font-sans); font-size: 0.92rem; font-weight: 600; color: var(--ink); margin-bottom: 0.2rem; }
+  .install-card-text { font-size: 0.82rem; color: var(--ink-mute); line-height: 1.45; }
+  .install-card-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+  @media (max-width: 700px) {
+    .install-card { flex-direction: column; }
+    .install-card-actions { width: 100%; }
+    .install-card-actions .btn { flex: 1; }
+  }
+
+  /* ============ ANNOUNCEMENTS ============ */
+  /* Owner-posted messages that appear at the top of the entries view. They
+     deserve to look distinct — not just another card — so people actually
+     read them. Cream-on-cream with an accent left border keeps the rest of
+     the page visually quiet. */
+  .announcements-wrap { margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
+  .announcement { background: var(--surface-1); border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--r); padding: 0.85rem 1rem; position: relative; display: flex; gap: 0.75rem; align-items: flex-start; }
+  .announcement-icon { color: var(--accent); flex-shrink: 0; margin-top: 0.05rem; }
+  .announcement-body { flex: 1; min-width: 0; }
+  .announcement-meta { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+  .announcement-author { color: var(--accent); }
+  .announcement-time { color: var(--ink-mute); }
+  .announcement-text { font-size: 0.92rem; line-height: 1.5; color: var(--ink); white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
+  .announcement-actions { display: flex; gap: 0.2rem; flex-shrink: 0; opacity: 0; transition: opacity 0.12s; }
+  .announcement:hover .announcement-actions { opacity: 1; }
+  @media (hover: none) { .announcement-actions { opacity: 1; } }
+  .announcement-action-btn { background: transparent; border: none; cursor: pointer; padding: 0.3rem; border-radius: var(--r-sm); color: var(--ink-mute); display: inline-grid; place-items: center; }
+  .announcement-action-btn:hover { background: var(--surface-2); color: var(--ink); }
+  .announcement-action-btn.danger:hover { color: var(--loss); }
+  .announcement-post-btn { background: transparent; border: 1px dashed var(--line); color: var(--ink-mute); padding: 0.65rem 0.85rem; border-radius: var(--r); cursor: pointer; font-size: 0.85rem; text-align: left; transition: border-color 0.12s, color 0.12s; display: flex; align-items: center; gap: 0.5rem; width: 100%; }
+  .announcement-post-btn:hover { border-color: var(--accent); color: var(--accent); }
 
   /* Chip menu popover (tap a chip on an entry) */
   .chip-menu { background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow-lg); z-index: 250; min-width: 240px; padding: 0.35rem; animation: fade 0.12s; }
@@ -777,6 +888,15 @@
   @keyframes rise { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
   .modal { background: var(--paper); padding: 1.5rem 1.5rem 1.35rem; max-width: 500px; width: 100%; box-shadow: var(--shadow-lg); animation: rise 0.25s ease-out; position: relative; max-height: 90vh; overflow-y: auto; margin: auto; border-radius: var(--r-lg); }
+  /* Full-screen modal variant — for big surfaces like Settings and Business
+     management where the cramped 500px feels claustrophobic on desktop. */
+  .modal.modal-full { max-width: 1000px; width: calc(100% - 4rem); max-height: calc(100vh - 3rem); padding: 2rem 2.5rem 1.75rem; }
+  .modal.modal-full .modal-title { font-size: 1.5rem; margin-bottom: 0.5rem; }
+  .modal.modal-full .settings-tab-body { padding-top: 0.5rem; }
+  @media (max-width: 880px) {
+    .modal.modal-full { max-width: 100%; width: 100%; max-height: 100vh; height: 100vh; border-radius: 0; padding: 1rem 1rem calc(1rem + var(--safe-bottom)); }
+    .modal.modal-full .modal-title { font-size: 1.25rem; }
+  }
   .modal-title { font-family: var(--font-serif); font-size: 1.15rem; font-weight: 600; letter-spacing: -0.005em; margin-bottom: 0.25rem; color: var(--ink); }
 
   .modal-sub { color: var(--ink-mute); margin-bottom: 1.1rem; font-size: 0.8rem; }
@@ -1063,6 +1183,20 @@
 </head>
 <body>
 
+<!-- Boot splash: shown until JS decides whether to render the auth screen or
+     the app. Without this, refreshing while signed in flashes the auth screen
+     for a few hundred milliseconds before the app appears. -->
+<div class="boot-splash" id="bootSplash">
+  <div class="boot-splash-mark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="4" width="18" height="16" rx="2"/>
+      <line x1="3" y1="9" x2="21" y2="9"/>
+      <line x1="9" y1="4" x2="9" y2="20"/>
+    </svg>
+    <div class="boot-splash-text">Hisabs</div>
+  </div>
+</div>
+
 <!-- Inline SVG sprite for hot-path icons (one definition shared by all entry rows) -->
 <svg width="0" height="0" style="position:absolute;" aria-hidden="true">
   <defs>
@@ -1167,15 +1301,15 @@
       <div id="invitesWrap" style="display:none;"></div>
 
       <div>
-        <div class="sidebar-section-label"><span>Businesses</span></div>
-        <div class="business-switcher" id="bizList"></div>
-        <button class="sidebar-add" id="addBizBtn" onclick="openModal('biz')">+ New business</button>
-      </div>
-
-      <div>
         <div class="sidebar-section-label"><span>Books</span></div>
         <div class="book-list" id="bookList"></div>
         <button class="sidebar-add" id="addBookBtn" onclick="openModal('book')">+ New book</button>
+      </div>
+
+      <div>
+        <div class="sidebar-section-label"><span>Businesses</span></div>
+        <div class="business-switcher" id="bizList"></div>
+        <button class="sidebar-add" id="addBizBtn" onclick="openModal('biz')">+ New business</button>
       </div>
 
       <div>
@@ -1197,6 +1331,10 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h4"/><path d="M14 14h4"/></svg>
             Accounts
           </div>
+          <div class="sidebar-nav-item" id="navQuickLook" onclick="switchView('quickLook')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Quick Look
+          </div>
           <div class="sidebar-nav-item" id="navExpenses" onclick="switchView('expenses')" style="display:none;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Expenses
@@ -1209,11 +1347,15 @@
       </div>
 
       <!-- Management section: owner-only sidebar group for org admin tasks.
-           Currently houses Staff. Hidden entirely when there's no active
+           Currently houses Announcements and Staff. Hidden entirely when there's no active
            business or the current user isn't its owner. -->
       <div id="sidebarManagementGroup" style="display:none;">
         <div class="sidebar-section-label"><span>Management</span></div>
         <div class="sidebar-nav">
+          <div class="sidebar-nav-item" id="navAnnouncements" onclick="switchView('announcements')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+            Announcements
+          </div>
           <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Staff
@@ -1592,6 +1734,11 @@
         document.getElementById('themePicker')) {
       try { openModal('settings'); } catch(_) {}
     }
+    // If we're on the entries view, re-render so the install card appears.
+    // No-op if already showing.
+    try {
+      if (session?.view === 'entries' && typeof renderAll === 'function') renderAll();
+    } catch (_) {}
   });
   window.addEventListener('appinstalled', () => {
     __pwaDeferredPrompt = null;
@@ -1620,6 +1767,44 @@
     if (choice.outcome === 'accepted') {
       if (typeof toast === 'function') toast('Installing Hisabs…');
     }
+    // Stop showing the inline card once they've answered Chrome's prompt
+    // (either way — if they declined, don't pester them).
+    try { localStorage.setItem('hisabs_install_dismissed_at', String(Date.now())); } catch (_) {}
+    try { document.getElementById('installCard')?.remove(); } catch (_) {}
+  }
+
+  // Show the inline install card if:
+  //   - we have a deferred prompt (Chrome decided we're installable)
+  //   - the app isn't already running standalone
+  //   - the user hasn't dismissed it in the last 14 days
+  function shouldShowInstallCard() {
+    if (!__pwaDeferredPrompt) return false;
+    if (isPWAInstalled()) return false;
+    try {
+      const dismissedAt = Number(localStorage.getItem('hisabs_install_dismissed_at') || 0);
+      if (dismissedAt && Date.now() - dismissedAt < 14 * 24 * 60 * 60 * 1000) return false;
+    } catch (_) {}
+    return true;
+  }
+  function dismissInstallCard() {
+    try { localStorage.setItem('hisabs_install_dismissed_at', String(Date.now())); } catch (_) {}
+    try { document.getElementById('installCard')?.remove(); } catch (_) {}
+  }
+  function renderInstallCard() {
+    if (!shouldShowInstallCard()) return '';
+    return `
+      <div class="install-card" id="installCard">
+        <svg class="install-card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <div class="install-card-body">
+          <div class="install-card-title">Install Hisabs as an app</div>
+          <div class="install-card-text">Faster opening, works offline, no browser bar. Free, takes a second.</div>
+        </div>
+        <div class="install-card-actions">
+          <button class="btn btn-sm btn-accent" onclick="pwaInstall()">Install</button>
+          <button class="btn btn-sm btn-ghost" onclick="dismissInstallCard()">Not now</button>
+        </div>
+      </div>
+    `;
   }
 
   function migrateFromV4() {
@@ -1634,7 +1819,7 @@
   migrateFromV4();
 
   let accounts = [];
-  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [] };
+  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], quickLook: [], announcements: [] };
   // parties: [{ id, businessId, name, kind: 'customer'|'vendor'|'both', createdAt }]
   // categories: [{ id, businessId, name }]
   // accountGroups: [{ id, businessId, name, kind: 'cash'|'wallet'|'bank'|'card'|'other', sortOrder }]
@@ -1702,6 +1887,8 @@
           cashAccounts: Array.isArray(d.cashAccounts) ? d.cashAccounts : [],
           accountGroups: Array.isArray(d.accountGroups) ? d.accountGroups : [],
           auditExpenses: Array.isArray(d.auditExpenses) ? d.auditExpenses : [],
+          quickLook: Array.isArray(d.quickLook) ? d.quickLook : [],
+          announcements: Array.isArray(d.announcements) ? d.announcements : [],
         };
       }
     } catch(e) {}
@@ -2115,6 +2302,13 @@
     // staffSeesTotals defaults to true if undefined (backward compat for existing businesses)
     return biz?.staffSeesTotals !== false;
   }
+  // Exports (PDF + Excel) are available to owner, manager, and viewer.
+  // Staff is excluded — they're the front-of-house data entry role and
+  // shouldn't be able to walk away with the full ledger.
+  function canExport(businessId) {
+    const r = roleFor(businessId);
+    return r === 'owner' || r === 'manager' || r === 'viewer';
+  }
   // Who can add a party? Owner, manager, and staff. Viewer cannot.
   function canAddParty(businessId) {
     const role = roleFor(businessId);
@@ -2157,6 +2351,24 @@
     document.getElementById('authHint').innerHTML = mode === 'signup'
       ? "Your books sync to this account, so you can sign in on any device."
       : 'No account? Click <strong>Create account</strong> above.';
+    // Make the auth screen visible. Hidden by default to avoid a flash
+    // when refreshing while signed in. Also hide the app + boot splash.
+    document.getElementById('authScreen')?.classList.add('is-active');
+    const appEl = document.getElementById('app');
+    if (appEl) appEl.style.display = 'none';
+    hideBootSplash();
+  }
+
+  // Fade out and remove the boot splash. Called once boot has decided
+  // what to render (either the app, the auth screen, or the migration
+  // screen). Safe to call multiple times.
+  function hideBootSplash() {
+    const splash = document.getElementById('bootSplash');
+    if (!splash || splash.dataset.hidden === '1') return;
+    splash.dataset.hidden = '1';
+    splash.classList.add('fading');
+    // Remove from DOM after fade completes so it can't intercept clicks.
+    setTimeout(() => { try { splash.remove(); } catch (_) {} }, 250);
   }
 
   // Toggle a password input between hidden (•••) and shown (plain text).
@@ -2349,8 +2561,12 @@
     setAuthMode('signin');
   }
   function showApp() {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('app').classList.add('active');
+    const authEl = document.getElementById('authScreen');
+    if (authEl) { authEl.style.display = 'none'; authEl.classList.remove('is-active'); }
+    const appEl = document.getElementById('app');
+    appEl.style.display = '';  // clear any inline 'none' that setAuthMode set
+    appEl.classList.add('active');
+    hideBootSplash();
     const u = me();
     if (!u) { setAuthMode('signin'); return; }
     document.getElementById('userName').textContent = u.name || '—';
@@ -2554,12 +2770,19 @@
     const books = data.books.filter(b => b.businessId === session.activeBizId);
     if (!books.length) { list.innerHTML = '<div style="font-size:.8rem;color:rgba(245,241,232,.4);padding:.5rem 1.25rem;">No books yet.</div>'; return; }
     const showBal = canSeeTotals(session.activeBizId);
+    const canRenameBook = canManageOps(session.activeBizId);
     list.innerHTML = books.map(book => {
       const balHTML = showBal
         ? `<span class="book-bal">${fmt(data.entries.filter(e => e.bookId === book.id).reduce((a, e) => a + (e.type === 'in' ? e.amount : -e.amount), 0))}</span>`
         : '';
+      const gear = canRenameBook
+        ? `<button class="biz-gear book-gear" onclick="event.stopPropagation();renameBookFlow('${book.id}')" title="Rename book" aria-label="Rename ${escapeHtml(book.name)}">
+             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+           </button>`
+        : '';
       return `<div class="book-item ${book.id === session.activeBookId ? 'active' : ''}" onclick="selectBook('${book.id}')">
-        <span>${escapeHtml(book.name)}</span>${balHTML}
+        <span>${escapeHtml(book.name)}</span>
+        <span class="book-item-right">${balHTML}${gear}</span>
       </div>`;
     }).join('');
   }
@@ -2584,12 +2807,16 @@
       navExpenses.style.display = isOwner ? 'flex' : 'none';
       navExpenses.classList.toggle('active', session.view === 'expenses');
     }
+    const navQuickLook = document.getElementById('navQuickLook');
+    if (navQuickLook) navQuickLook.classList.toggle('active', session.view === 'quickLook');
     // Management group: visible only when current user is owner of the active
     // business. Hosts Staff (and any future org-admin tabs).
     const mgmt = document.getElementById('sidebarManagementGroup');
     if (mgmt) {
       const isOwner = !!(session.activeBizId && canSeeAudit(session.activeBizId));
       mgmt.style.display = isOwner ? 'block' : 'none';
+      const navAnnouncements = document.getElementById('navAnnouncements');
+      if (navAnnouncements) navAnnouncements.classList.toggle('active', session.view === 'announcements');
       const navStaff = document.getElementById('navStaff');
       if (navStaff) navStaff.classList.toggle('active', session.view === 'staff');
     }
@@ -2616,6 +2843,10 @@
       document.getElementById('mobileBookTitle').textContent = 'Expenses';
     } else if (session.view === 'staff') {
       document.getElementById('mobileBookTitle').textContent = 'Staff';
+    } else if (session.view === 'announcements') {
+      document.getElementById('mobileBookTitle').textContent = 'Announcements';
+    } else if (session.view === 'quickLook') {
+      document.getElementById('mobileBookTitle').textContent = 'Quick Look';
     } else {
       document.getElementById('mobileBookTitle').textContent = book ? book.name : 'No book';
     }
@@ -2653,6 +2884,8 @@
     if (session.view === 'audit') { renderAuditView(root); return; }
     if (session.view === 'expenses') { renderExpensesView(root); return; }
     if (session.view === 'staff') { renderStaffView(root); return; }
+    if (session.view === 'announcements') { renderAnnouncementsManageView(root); return; }
+    if (session.view === 'quickLook') { renderQuickLookView(root); return; }
     renderEntriesView(root);
   }
 
@@ -2698,7 +2931,7 @@
         </div>
         <div id="entriesList"></div>
       </div>`;
-    root.innerHTML = entriesPageHeader() + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
+    root.innerHTML = entriesPageHeader() + renderOnboardingCard() + renderBackupReminderCard() + renderInstallCard() + renderAnnouncementsBanner() + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
     renderEntriesList();
   }
 
@@ -3236,6 +3469,8 @@
           <h1 class="page-title">Parties</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) && totalParties >= 1 ? `<button class="btn btn-sm btn-ghost" onclick="exportPartiesDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportPartiesDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canAdd && totalParties >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderParties')">Reorder</button>` : ''}
           ${canAdd ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'party\')">+ New Party</button>' : ''}
         </div>
@@ -3300,6 +3535,8 @@
           <h1 class="page-title">${escapeHtml(party.name)}</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportPartyDetail('${party.id}', 'pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportPartyDetail('${party.id}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="renameParty('${party.id}')">Rename</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-danger-outline" onclick="deletePartyAction('${party.id}')">Delete</button>` : ''}
         </div>
@@ -3475,6 +3712,8 @@
           <h1 class="page-title">Categories</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportCategoriesDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportCategoriesDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canManage && data.categories.filter(c => c.businessId === biz.id).length >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderCategories')">Reorder</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-accent" onclick="openModal('category')">+ New Category</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="openBizSettings('${biz.id}')">Manage</button>` : ''}
@@ -3545,6 +3784,8 @@
           <h1 class="page-title">${escapeHtml(displayName)}${!isUncat && !isDefined ? ' <span class="cat-orphan-tag" style="font-size:0.55em;vertical-align:middle;">unlisted</span>' : ''}</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) && !isUncat ? `<button class="btn btn-sm btn-ghost" onclick="exportCategoryDetail('${jsAttr(catName)}', 'pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportCategoryDetail('${jsAttr(catName)}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="renameCategoryFlow('${jsAttr(catName)}')">Rename</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteCategoryFromDetail('${jsAttr(catName)}')">Remove</button>` : ''}
         </div>
@@ -3832,6 +4073,8 @@
           <h1 class="page-title">Accounts</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportAccountsDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportAccountsDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canManage && (data.accountGroups.filter(g => g.businessId === biz.id).length >= 2 || allAccs.length >= 2) ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'reorderAccounts\')">Reorder</button>' : ''}
           ${canManage ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'accountGroup\')">+ New Category</button>' : ''}
           ${canManage ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'account\')">+ New Account</button>' : ''}
@@ -4264,6 +4507,10 @@
           <div class="page-eyebrow">${escapeHtml(biz.name)} · summary</div>
           <h1 class="page-title">Audit</h1>
         </div>
+        <div class="page-actions">
+          <button class="btn btn-sm btn-ghost" onclick="exportAuditDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportAuditDashboard('csv')" title="Download as Excel CSV">Excel</button>
+        </div>
       </div>
 
       <div class="audit-month-bar">
@@ -4325,6 +4572,10 @@
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · view</div>
           <h1 class="page-title">Expenses</h1>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-sm btn-ghost" onclick="exportExpensesDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportExpensesDashboard('csv')" title="Download as Excel CSV">Excel</button>
         </div>
       </div>
 
@@ -4403,6 +4654,8 @@
           <h1 class="page-title">${escapeHtml(acc.name)}</h1>
         </div>
         <div class="page-actions">
+          ${canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportAccountDetail('${acc.id}', 'pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportAccountDetail('${acc.id}', 'csv')" title="Download as Excel CSV">Excel</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="renameAccountFlow('${acc.id}')">Rename</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="moveAccountToGroup('${acc.id}')">Move</button>` : ''}
           ${canManage && accountCount > 1 ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteAccountAction('${acc.id}')">Delete</button>` : ''}
@@ -4694,6 +4947,14 @@
     }
     else if (kind === 'privacy') { modal.innerHTML = privacyModal(); }
     else if (kind === 'userGuide') { modal.innerHTML = userGuideModal(); }
+    else if (kind === 'quickLook') {
+      modal.innerHTML = quickLookModalHTML();
+      setTimeout(() => document.getElementById('qlName')?.focus(), 50);
+    }
+    else if (kind === 'announcement') {
+      modal.innerHTML = announcementModalHTML();
+      setTimeout(() => document.getElementById('annBody')?.focus(), 50);
+    }
     else if (kind === 'reorderParties') {
       const biz = data.businesses.find(b => b.id === session.activeBizId);
       if (!biz) { handled = false; }
@@ -4749,6 +5010,15 @@
     }
     else { handled = false; }
     if (!handled) { console.warn('Unknown modal kind:', kind); return; }
+    // Apply full-screen layout for modals that benefit from more room.
+    // Settings has Profile/Appearance/Data tabs; the business management
+    // modal has Members/Settings tabs. Both feel cramped at 500px wide.
+    const fullScreenKinds = new Set(['settings', 'bizSettings', 'staff']);
+    const modalEl = document.getElementById('modalContent');
+    if (modalEl) {
+      if (fullScreenKinds.has(kind)) modalEl.classList.add('modal-full');
+      else modalEl.classList.remove('modal-full');
+    }
     document.getElementById('modalBackdrop').classList.add('active');
   }
   function closeModal() { document.getElementById('modalBackdrop').classList.remove('active'); }
@@ -5387,6 +5657,539 @@
 
   // Full-page Staff view. Same logic as staffModal but rendered into the main
   // content area, with the page-header styling used by other tabs.
+  // ================================================================
+  // QUICK LOOK VIEW
+  // ================================================================
+  // Per-business directory of payment accounts, QR codes, and copyable
+  // tags (account numbers, eSewa IDs, UPI handles, etc.). Visible to
+  // everyone in the business; owner+manager can add/edit/delete.
+  //
+  // Cards have an In Use toggle. Toggled-on entries surface in the
+  // "In Use" section at the top; the "All" section shows everything.
+
+  let __quickLookSearch = '';
+  function setQuickLookSearch(v) {
+    __quickLookSearch = String(v || '');
+    // Re-render only the lists, not the whole page, so the search input
+    // doesn't lose focus on every keystroke.
+    const inUseEl = document.getElementById('qlInUseList');
+    const allEl = document.getElementById('qlAllList');
+    if (!inUseEl || !allEl) { renderAll(); return; }
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    const canManage = role === 'owner' || role === 'manager';
+    const all = (data.quickLook || []).filter(r => r.businessId === biz.id);
+    const filtered = __quickLookSearch
+      ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
+      : all;
+    inUseEl.innerHTML = renderQuickLookGrid(filtered.filter(r => r.inUse !== false), canManage, false);
+    allEl.innerHTML = renderQuickLookGrid(filtered, canManage, true);
+    document.getElementById('qlInUseCount').textContent = `${filtered.filter(r => r.inUse !== false).length} of ${all.filter(r => r.inUse !== false).length}`;
+    document.getElementById('qlAllCount').textContent = `${filtered.length} of ${all.length}`;
+  }
+  function qlMatchesSearch(r, q) {
+    const needle = q.toLowerCase().trim();
+    if (!needle) return true;
+    return (r.name || '').toLowerCase().includes(needle)
+        || (r.tag || '').toLowerCase().includes(needle);
+  }
+
+  function renderQuickLookView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
+    const role = roleFor(biz.id);
+    const canManage = role === 'owner' || role === 'manager';
+    const all = (data.quickLook || []).filter(r => r.businessId === biz.id);
+    const filtered = __quickLookSearch
+      ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
+      : all;
+    const inUse = filtered.filter(r => r.inUse !== false);
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · directory</div>
+          <h1 class="page-title">Quick Look</h1>
+        </div>
+        <div class="page-actions">
+          ${all.length && canExport(biz.id) ? `<button class="btn btn-sm btn-ghost" onclick="exportQuickLookDashboard('pdf')" title="Download as PDF">PDF</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportQuickLookDashboard('csv')" title="Download as Excel CSV">Excel</button>` : ''}
+          ${canManage ? `<button class="btn btn-accent btn-sm" onclick="openQuickLookAddModal()">+ Add entry</button>` : ''}
+        </div>
+      </div>
+      <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1rem;">
+        ${canManage
+          ? 'Share payment accounts and QR codes with your team. Tap the copy icon to copy a tag; tap a photo to view full-size or download. The toggle on each card moves it between "In Use" and "All".'
+          : 'Payment accounts and QR codes for this business. Tap the copy icon to copy a tag; tap a photo to download.'}
+      </p>
+      ${all.length >= 4 ? `<div class="entity-search-wrap">
+        <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="quickLookSearch" class="entity-search-input" placeholder="Search ${all.length} entries by name or tag…" value="${escapeHtml(__quickLookSearch)}" oninput="setQuickLookSearch(this.value)">
+        ${__quickLookSearch ? `<button class="entity-search-clear" onclick="setQuickLookSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
+      </div>` : ''}
+      <h2 class="ql-section-title">In Use <span class="ql-count" id="qlInUseCount">${inUse.length}${__quickLookSearch ? ` of ${all.filter(r => r.inUse !== false).length}` : ''}</span></h2>
+      <div id="qlInUseList">${renderQuickLookGrid(inUse, canManage, false)}</div>
+      <h2 class="ql-section-title" style="margin-top:1.75rem;">All <span class="ql-count" id="qlAllCount">${filtered.length}${__quickLookSearch ? ` of ${all.length}` : ''}</span></h2>
+      <div id="qlAllList">${renderQuickLookGrid(filtered, canManage, true)}</div>
+    `;
+  }
+
+  // Render a grid of cards. `showAll` toggles whether the toggle's state
+  // is meaningful — in the All list we visually dim unused cards.
+  function renderQuickLookGrid(rows, canManage, showAll) {
+    if (!rows.length) {
+      const msg = canManage
+        ? (showAll ? 'No entries yet. Click "+ Add entry" above to add the first one.' : 'Nothing in use right now. Toggle entries from the All section below to surface them here.')
+        : (showAll ? 'No entries yet. Ask the owner or manager to add some.' : 'Nothing in use right now.');
+      return `<div class="ql-empty">${escapeHtml(msg)}</div>`;
+    }
+    const sorted = rows.slice().sort((a, b) => {
+      const so = (a.sortOrder || 0) - (b.sortOrder || 0);
+      if (so !== 0) return so;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+    return `<div class="ql-grid">${sorted.map(r => quickLookCardHTML(r, canManage, showAll)).join('')}</div>`;
+  }
+
+  function quickLookCardHTML(r, canManage, showAll) {
+    const unusedClass = (showAll && r.inUse === false) ? 'unused' : '';
+    const toggleHTML = canManage
+      ? `<div class="ql-toggle" onclick="event.stopPropagation(); toggleQuickLookInUse('${jsAttr(r.id)}')" title="Toggle in use">
+           <span>${r.inUse !== false ? 'In use' : 'Unused'}</span>
+           <span class="ql-toggle-track ${r.inUse !== false ? 'on' : ''}"><span class="ql-toggle-thumb"></span></span>
+         </div>`
+      : `<div class="ql-toggle readonly" title="Only owner/manager can change">
+           <span>${r.inUse !== false ? 'In use' : 'Unused'}</span>
+           <span class="ql-toggle-track ${r.inUse !== false ? 'on' : ''}"><span class="ql-toggle-thumb"></span></span>
+         </div>`;
+    // Build menu entries (owner/manager only). Edit + delete.
+    let menuTriggerHTML = '';
+    if (canManage) {
+      const menuId = registerCardMenu([
+        { label: 'Edit', icon: CARD_MENU_ICONS.edit, run: () => openQuickLookEditModal(r.id) },
+        { label: 'Delete', icon: CARD_MENU_ICONS.delete, dangerous: true, run: () => deleteQuickLookEntry(r.id) },
+      ]);
+      menuTriggerHTML = dotMenuTriggerHTML(menuId);
+    }
+    const tagBlock = r.tag
+      ? `<div class="ql-tag-row">
+           <span class="ql-tag-text" id="qlTag_${escapeHtml(r.id)}">${escapeHtml(r.tag)}</span>
+           <button class="ql-copy-btn" onclick="copyQuickLookTag('${jsAttr(r.id)}', this)" title="Copy">
+             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+           </button>
+         </div>`
+      : `<div class="ql-tag-row"><span class="ql-tag-empty">No tag</span></div>`;
+    const photoBlock = r.photoData
+      ? `<div class="ql-photo-wrap">
+           <img src="${escapeHtml(r.photoData)}" alt="${escapeHtml(r.name)}" loading="lazy">
+           <div class="ql-photo-actions">
+             <button class="ql-photo-action-btn" onclick="downloadQuickLookPhoto('${jsAttr(r.id)}')" title="Download">
+               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+             </button>
+           </div>
+         </div>`
+      : `<div class="ql-photo-wrap"><div class="ql-photo-empty">No photo</div></div>`;
+    return `
+      <div class="ql-card ${unusedClass}">
+        ${menuTriggerHTML}
+        <div class="ql-card-head">
+          <div class="ql-card-name">${escapeHtml(r.name)}</div>
+          ${toggleHTML}
+        </div>
+        ${tagBlock}
+        ${photoBlock}
+      </div>
+    `;
+  }
+
+  // --- Quick Look actions ---
+
+  async function copyQuickLookTag(id, btn) {
+    const row = (data.quickLook || []).find(r => r.id === id);
+    if (!row || !row.tag) return;
+    try {
+      await navigator.clipboard.writeText(row.tag);
+      // Visual confirmation: swap icon to checkmark briefly.
+      if (btn) {
+        btn.classList.add('copied');
+        const orig = btn.innerHTML;
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>`;
+        setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = orig; }, 1200);
+      }
+      toast('Copied.');
+    } catch (e) {
+      // Fallback: select-and-copy for browsers without clipboard API permission.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = row.tag; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast('Copied.');
+      } catch (_) {
+        toast('Could not copy. Long-press the tag to select it.');
+      }
+    }
+  }
+
+  function downloadQuickLookPhoto(id) {
+    const row = (data.quickLook || []).find(r => r.id === id);
+    if (!row || !row.photoData) { toast('No photo to download.'); return; }
+    try {
+      const a = document.createElement('a');
+      a.href = row.photoData;
+      // Use a sanitized filename derived from the entry name.
+      const safe = (row.name || 'photo').replace(/[^a-z0-9\-_]+/gi, '-').toLowerCase();
+      // Detect extension from data URI.
+      const m = String(row.photoData).match(/^data:image\/(png|jpe?g|webp|gif);/);
+      const ext = m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'png';
+      a.download = `${safe}.${ext}`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    } catch (e) {
+      toast('Could not download.');
+    }
+  }
+
+  function toggleQuickLookInUse(id) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can change this.'); return; }
+    const row = (data.quickLook || []).find(r => r.id === id);
+    if (!row) return;
+    row.inUse = !(row.inUse !== false); // flip
+    row.updatedAt = Date.now();
+    saveData(); renderAll();
+  }
+
+  function deleteQuickLookEntry(id) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can delete.'); return; }
+    const row = (data.quickLook || []).find(r => r.id === id);
+    if (!row) return;
+    if (!confirm(`Delete "${row.name}" from Quick Look? Cannot be undone.`)) return;
+    data.quickLook = (data.quickLook || []).filter(r => r.id !== id);
+    saveData(); renderAll();
+    toast('Deleted.');
+  }
+
+  // --- Add / edit modal ---
+  let __qlEditingId = null;
+  let __qlPendingPhoto = null; // base64 data URI staged before save
+
+  function openQuickLookAddModal() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can add.'); return; }
+    __qlEditingId = null;
+    __qlPendingPhoto = null;
+    openModal('quickLook');
+  }
+  function openQuickLookEditModal(id) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can edit.'); return; }
+    const row = (data.quickLook || []).find(r => r.id === id);
+    if (!row) return;
+    __qlEditingId = id;
+    __qlPendingPhoto = row.photoData || null;
+    openModal('quickLook');
+  }
+
+  function quickLookModalHTML() {
+    const editing = __qlEditingId
+      ? (data.quickLook || []).find(r => r.id === __qlEditingId)
+      : null;
+    const photo = __qlPendingPhoto;
+    const photoBlock = photo
+      ? `<div class="ql-modal-photo-preview">
+           <img src="${escapeHtml(photo)}" alt="Preview">
+           <button type="button" class="ql-modal-photo-clear" onclick="clearQuickLookPhoto()">Remove</button>
+         </div>`
+      : `<div class="ql-modal-photo-preview" onclick="document.getElementById('qlPhotoInput').click()" style="cursor:pointer;">
+           <div style="text-align:center;color:var(--ink-mute);font-size:0.85rem;">
+             <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:0.4rem;"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+             <div>Tap to upload QR or photo</div>
+             <div style="font-size:0.7rem;margin-top:0.3rem;">PNG, JPG, WebP · max 500 KB</div>
+           </div>
+         </div>`;
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">${editing ? 'Edit entry' : 'New Quick Look entry'}</h2>
+      <div class="input-wrap">
+        <label>Name</label>
+        <input type="text" id="qlName" placeholder="e.g. eSewa main" value="${escapeHtml(editing?.name || '')}" autocomplete="off">
+      </div>
+      <div class="input-wrap">
+        <label>Tag (copyable string)</label>
+        <input type="text" id="qlTag" placeholder="e.g. account number, eSewa ID, UPI handle" value="${escapeHtml(editing?.tag || '')}" autocomplete="off">
+      </div>
+      <div class="input-wrap">
+        <label>Photo / QR code</label>
+        <input type="file" id="qlPhotoInput" accept="image/png,image/jpeg,image/webp,image/gif" style="display:none;" onchange="handleQuickLookPhotoUpload(event)">
+        ${photoBlock}
+        <p class="ql-modal-photo-hint">Stored inline with the entry. Keep images small — large photos slow down sync.</p>
+      </div>
+      <div class="input-wrap" style="margin-top:0.4rem;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;cursor:pointer;padding:0.65rem 0.85rem;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-sm);" onclick="toggleQuickLookModalInUse(this)">
+          <span style="font-size:0.85rem;color:var(--ink);">Show in <strong>In Use</strong> section</span>
+          <span class="ql-toggle-track ${(!editing || editing.inUse !== false) ? 'on' : ''}" id="qlModalToggleTrack" style="pointer-events:none;"><span class="ql-toggle-thumb"></span></span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="saveQuickLookEntry()">${editing ? 'Save changes' : 'Add entry'}</button>
+      </div>
+    `;
+  }
+
+  function toggleQuickLookModalInUse(el) {
+    const track = el.querySelector('.ql-toggle-track') || document.getElementById('qlModalToggleTrack');
+    if (track) track.classList.toggle('on');
+  }
+  function clearQuickLookPhoto() {
+    __qlPendingPhoto = null;
+    // Re-render just the modal so the preview reflects the change.
+    const m = document.getElementById('modalContent');
+    if (m) m.innerHTML = quickLookModalHTML();
+  }
+  function handleQuickLookPhotoUpload(ev) {
+    const f = ev.target.files?.[0];
+    if (!f) return;
+    if (!/^image\//.test(f.type)) { toast('Please pick an image file.'); return; }
+    if (f.size > 500 * 1024) {
+      toast(`Photo is ${Math.round(f.size / 1024)} KB. Max is 500 KB — please pick a smaller image.`);
+      ev.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      __qlPendingPhoto = e.target.result;
+      // Re-render modal to show preview.
+      const m = document.getElementById('modalContent');
+      if (m) m.innerHTML = quickLookModalHTML();
+    };
+    reader.onerror = () => toast('Could not read the image.');
+    reader.readAsDataURL(f);
+  }
+
+  function saveQuickLookEntry() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can save.'); return; }
+    const name = (document.getElementById('qlName')?.value || '').trim();
+    const tag = (document.getElementById('qlTag')?.value || '').trim();
+    if (!name) { toast('Name is required.'); return; }
+    const inUse = document.getElementById('qlModalToggleTrack')?.classList.contains('on') !== false;
+    if (__qlEditingId) {
+      const row = (data.quickLook || []).find(r => r.id === __qlEditingId);
+      if (!row) { closeModal(); return; }
+      row.name = name; row.tag = tag; row.photoData = __qlPendingPhoto || null;
+      row.inUse = inUse; row.updatedAt = Date.now();
+    } else {
+      if (!data.quickLook) data.quickLook = [];
+      // Sort order: append to end of business's list.
+      const maxOrder = data.quickLook
+        .filter(r => r.businessId === biz.id)
+        .reduce((m, r) => Math.max(m, r.sortOrder || 0), 0);
+      data.quickLook.push({
+        id: uid(), businessId: biz.id,
+        name, tag,
+        photoData: __qlPendingPhoto || null,
+        inUse, sortOrder: maxOrder + 10,
+        createdAt: Date.now(), updatedAt: Date.now(),
+      });
+    }
+    __qlEditingId = null; __qlPendingPhoto = null;
+    saveData(); closeModal(); renderAll();
+    toast('Saved.');
+  }
+
+  // ================================================================
+  // ANNOUNCEMENTS
+  // ================================================================
+  // Owner-posted messages that appear at the top of the entries view for
+  // everyone in the business. Owner sees a "Post announcement" button.
+  // Owner can also edit/delete each announcement via the per-card menu.
+  //
+  // Storage: app_announcements table. RLS lets all members read, only
+  // owner write.
+
+  function renderAnnouncementsBanner() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return '';
+    const role = roleFor(biz.id);
+    const isOwner = role === 'owner';
+    const items = (data.announcements || [])
+      .filter(a => a.businessId === biz.id)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (!items.length && !isOwner) return ''; // staff/viewer see nothing if there are no announcements
+    if (!items.length && isOwner) {
+      // Owner with no announcements yet: still hide the banner. The Management
+      // → Announcements page is where they post; we don't want a dead-space
+      // "Post" prompt on the entries page when there's nothing there yet.
+      return '';
+    }
+    const cards = items.map(a => {
+      const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
+      const time = relativeTime(a.createdAt) || '';
+      return `
+        <div class="announcement">
+          <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <div class="announcement-body">
+            <div class="announcement-meta">
+              <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
+              <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
+            </div>
+            <div class="announcement-text">${escapeHtml(a.body)}</div>
+          </div>
+          ${isOwner ? `
+            <div class="announcement-actions">
+              <button class="announcement-action-btn" onclick="openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit" aria-label="Edit announcement">
+                <svg width="14" height="14"><use href="#ico-edit"/></svg>
+              </button>
+              <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete" aria-label="Delete announcement">
+                <svg width="14" height="14"><use href="#ico-trash"/></svg>
+              </button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+    return `<div class="announcements-wrap">${cards}</div>`;
+  }
+
+  // Modal state
+  let __announcementEditingId = null;
+  function openAnnouncementPostModal() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Only the owner can post announcements.'); return; }
+    __announcementEditingId = null;
+    openModal('announcement');
+  }
+  function openAnnouncementEditModal(id) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Only the owner can edit announcements.'); return; }
+    const row = (data.announcements || []).find(a => a.id === id);
+    if (!row) return;
+    __announcementEditingId = id;
+    openModal('announcement');
+  }
+  function announcementModalHTML() {
+    const editing = __announcementEditingId
+      ? (data.announcements || []).find(a => a.id === __announcementEditingId)
+      : null;
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">${editing ? 'Edit announcement' : 'Post an announcement'}</h2>
+      <p class="modal-sub">Everyone with access to this business will see this at the top of their entries view.</p>
+      <div class="input-wrap">
+        <label>Message</label>
+        <textarea id="annBody" rows="4" placeholder="e.g. Shop closed this Friday for maintenance. Please don't accept any payments on Friday." style="min-height:100px;resize:vertical;">${escapeHtml(editing?.body || '')}</textarea>
+        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.4rem;">Keep it short and clear. Line breaks are preserved.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="saveAnnouncement()">${editing ? 'Save changes' : 'Post'}</button>
+      </div>
+    `;
+  }
+  function saveAnnouncement() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Only the owner can post.'); return; }
+    const body = (document.getElementById('annBody')?.value || '').trim();
+    if (!body) { toast('Write something first.'); return; }
+    if (body.length > 1000) { toast('Keep announcements under 1000 characters.'); return; }
+    if (!data.announcements) data.announcements = [];
+    const u = me();
+    if (__announcementEditingId) {
+      const row = data.announcements.find(a => a.id === __announcementEditingId);
+      if (!row) { closeModal(); return; }
+      row.body = body;
+      row.updatedAt = Date.now();
+    } else {
+      data.announcements.push({
+        id: uid(), businessId: biz.id,
+        authorId: u?.id || null,
+        authorName: u?.name || '',
+        body,
+        createdAt: Date.now(), updatedAt: Date.now(),
+      });
+    }
+    __announcementEditingId = null;
+    saveData(); closeModal(); renderAll();
+    toast('Announcement posted.');
+  }
+  function deleteAnnouncement(id) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Only the owner can delete.'); return; }
+    if (!confirm('Delete this announcement? It will disappear for everyone in this business.')) return;
+    data.announcements = (data.announcements || []).filter(a => a.id !== id);
+    saveData(); renderAll();
+    toast('Announcement removed.');
+  }
+
+  // The Management → Announcements page. Owner-only; lists every
+  // announcement for this business with a "Post" button at top.
+  function renderAnnouncementsManageView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
+    if (roleFor(biz.id) !== 'owner') {
+      // Defense-in-depth: only owners reach this view.
+      session.view = 'entries'; saveSession(); renderAll(); return;
+    }
+    const items = (data.announcements || [])
+      .filter(a => a.businessId === biz.id)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const cards = items.length
+      ? items.map(a => {
+          const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
+          const time = relativeTime(a.createdAt) || '';
+          return `
+            <div class="announcement" style="border-left-color:var(--accent);">
+              <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+              <div class="announcement-body">
+                <div class="announcement-meta">
+                  <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
+                  <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
+                </div>
+                <div class="announcement-text">${escapeHtml(a.body)}</div>
+              </div>
+              <div class="announcement-actions" style="opacity:1;">
+                <button class="announcement-action-btn" onclick="openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit" aria-label="Edit announcement">
+                  <svg width="14" height="14"><use href="#ico-edit"/></svg>
+                </button>
+                <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete" aria-label="Delete announcement">
+                  <svg width="14" height="14"><use href="#ico-trash"/></svg>
+                </button>
+              </div>
+            </div>`;
+        }).join('')
+      : `<div class="ql-empty">No announcements yet. Post one to share something with your team.</div>`;
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · management</div>
+          <h1 class="page-title">Announcements</h1>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-accent btn-sm" onclick="openAnnouncementPostModal()">+ Post announcement</button>
+        </div>
+      </div>
+      <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">
+        Messages posted here appear at the top of the entries view for everyone in this business. Use them for important notes — closures, payment changes, instructions. Keep them short.
+      </p>
+      <div class="announcements-wrap" style="gap:0.75rem;">${cards}</div>
+    `;
+  }
+
   function renderStaffView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
@@ -6030,6 +6833,7 @@
       <div class="settings-tab-body">${bizSettingsBody(bizId)}</div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
+    modal.classList.add('modal-full');
     document.getElementById('modalBackdrop').classList.add('active');
     // Wire drag-to-reorder for categories and per-group accounts. Each list has
     // a unique id so multiple lists can coexist without colliding.
@@ -6228,6 +7032,11 @@
     toast('Business saved.');
     openModal('settings');
   }
+  // DEAD CODE — kept temporarily during refactor. These functions are not
+  // called from anywhere; the book-rename flow now lives in renameBookFlow
+  // (sidebar gear icon) and renameBookFromBizSettings (Business → Books
+  // tab). Delete in a future pass once we're sure nothing external still
+  // references them.
   function saveActiveBook() {
     const book = data.books.find(b => b.id === session.activeBookId);
     if (!book) return;
@@ -6327,6 +7136,25 @@
     openBizSettings(book.businessId);
     toast(`Renamed to "${trimmed}".`);
   }
+
+  // Sidebar-side rename. Same gates, but doesn't re-open business settings
+  // afterward — sidebar invocations should leave the user where they were.
+  function renameBookFlow(bookId) {
+    const book = data.books.find(b => b.id === bookId);
+    if (!book) return;
+    if (!canManageOps(book.businessId)) { toast('Only the owner or manager can rename this book.'); return; }
+    const newName = prompt('Rename book:', book.name);
+    if (newName == null) return;
+    const trimmed = newName.trim();
+    if (!trimmed) { toast('Book name cannot be blank.'); return; }
+    if (trimmed === book.name) return;
+    if (data.books.find(b => b.businessId === book.businessId && b.id !== book.id && b.name.toLowerCase() === trimmed.toLowerCase())) {
+      toast('A book with that name already exists.'); return;
+    }
+    book.name = trimmed;
+    saveData(); renderAll();
+    toast(`Renamed to "${trimmed}".`);
+  }
   function deleteBookFromBizSettings(bookId) {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;
@@ -6368,6 +7196,8 @@
     data.accountGroups = data.accountGroups.filter(g => g.businessId !== bizId);
     data.members = data.members.filter(m => m.businessId !== bizId);
     data.auditExpenses = data.auditExpenses.filter(x => x.businessId !== bizId);
+    data.quickLook = (data.quickLook || []).filter(x => x.businessId !== bizId);
+    data.announcements = (data.announcements || []).filter(x => x.businessId !== bizId);
     data.businesses = data.businesses.filter(b => b.id !== bizId);
     // Pick a new active biz if we just deleted the active one
     if (session.activeBizId === bizId) {
@@ -6415,7 +7245,158 @@
   function exportAllData() {
     const payload = { kind: 'hisabs.full', version: 1, exportedAt: new Date().toISOString(), user: safeUser(), data };
     downloadJson(payload, `hisabs_backup_all_${today()}.json`);
+    // Track this so we can stop nagging — and start nagging again after
+    // 30 days of no manual backup.
+    try { localStorage.setItem('hisabs_last_manual_backup', String(Date.now())); } catch (_) {}
+    try { document.getElementById('backupReminderCard')?.remove(); } catch (_) {}
     toast('Backup downloaded.');
+  }
+  // Backup reminder: shown on the entries view if the user has data and
+  // hasn't manually exported a backup in 30+ days. Auto-backups in
+  // localStorage still happen quietly, but those don't survive a
+  // browser-data wipe, lost device, or sync going wrong — so we nudge
+  // for a real "save to disk" once a month.
+  //
+  // Dismissible. Once dismissed, hold off another 14 days before
+  // re-surfacing. Never shown to users who have no businesses (empty state
+  // already covers that).
+  function shouldShowBackupReminder() {
+    if (!visibleBusinesses().length) return false;
+    if (!userOwnsAnyBiz()) return false; // shared business, owner backs it up
+    let last = 0, dismissed = 0;
+    try {
+      last = Number(localStorage.getItem('hisabs_last_manual_backup') || 0);
+      dismissed = Number(localStorage.getItem('hisabs_backup_reminder_dismissed_at') || 0);
+    } catch (_) {}
+    const DAY = 24 * 60 * 60 * 1000;
+    // Brand-new user (no last backup ever): give them 1 day of grace
+    // so the reminder doesn't appear the moment they sign up.
+    if (!last) {
+      const u = me();
+      const joined = u?.joined ? new Date(u.joined).getTime() : Date.now();
+      if (Date.now() - joined < 1 * DAY) return false;
+    }
+    // Existing user: if last backup was less than 24 hours ago, no nudge.
+    if (last && Date.now() - last < 1 * DAY) return false;
+    // Dismissed in the last 24 hours? Hold off — without this, dismissing
+    // would do nothing useful since the threshold is also 24h.
+    if (dismissed && Date.now() - dismissed < 1 * DAY) return false;
+    return true;
+  }
+  function dismissBackupReminder() {
+    try { localStorage.setItem('hisabs_backup_reminder_dismissed_at', String(Date.now())); } catch (_) {}
+    try { document.getElementById('backupReminderCard')?.remove(); } catch (_) {}
+  }
+  function renderBackupReminderCard() {
+    if (!shouldShowBackupReminder()) return '';
+    let last = 0;
+    try { last = Number(localStorage.getItem('hisabs_last_manual_backup') || 0); } catch (_) {}
+    const hoursAgo = last ? Math.round((Date.now() - last) / (60 * 60 * 1000)) : null;
+    const text = last
+      ? (hoursAgo >= 48
+          ? `Your last download was ${Math.round(hoursAgo / 24)} days ago. Cloud sync is great but a real saved copy on your computer is the only thing that survives if you lose access to your account.`
+          : `Your last download was ${hoursAgo} hours ago. Daily backups protect you if you ever lose access to your account.`)
+      : `You haven't downloaded a backup yet. Cloud sync covers most cases, but a saved copy on your computer is the only thing that survives if you ever lose access to your account.`;
+    return `
+      <div class="install-card" id="backupReminderCard" style="border-left-color:var(--accent);">
+        <svg class="install-card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <div class="install-card-body">
+          <div class="install-card-title">Time for a backup</div>
+          <div class="install-card-text">${escapeHtml(text)}</div>
+        </div>
+        <div class="install-card-actions">
+          <button class="btn btn-sm btn-accent" onclick="exportAllData()">Download backup</button>
+          <button class="btn btn-sm btn-ghost" onclick="dismissBackupReminder()">Later</button>
+        </div>
+      </div>
+    `;
+  }
+
+  // ================================================================
+  // ONBOARDING
+  // ================================================================
+  // First-time user checklist. Shown on the entries view when the user
+  // has at least one business but is missing other essentials. Steps
+  // tick off as the user completes them; the whole card disappears when
+  // everything is done. Dismissible for users who don't want it.
+  //
+  // The three steps:
+  //   1. Create a business (always done if we reach here — the empty
+  //      state forced this — but kept for completeness in case future
+  //      logic skips it)
+  //   2. Add at least one account (cash or bank account to track money)
+  //   3. Make at least one entry (cash in or out)
+  //
+  // We don't track completion explicitly — we just look at the data.
+  // If the user adds an account then deletes it, the step un-ticks, and
+  // that's correct.
+  function onboardingState() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return null;
+    const accs = data.cashAccounts.filter(a => a.businessId === biz.id);
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const ents = data.entries.filter(e => bookIds.includes(e.bookId));
+    const hasBiz = true; // always true if we have an active biz
+    const hasAccount = accs.length > 0;
+    const hasEntry = ents.length > 0;
+    return { hasBiz, hasAccount, hasEntry, allDone: hasBiz && hasAccount && hasEntry };
+  }
+  function shouldShowOnboarding() {
+    // Manual dismissal flag
+    let dismissed = false;
+    try { dismissed = localStorage.getItem('hisabs_onboarding_dismissed') === '1'; } catch (_) {}
+    if (dismissed) return false;
+    const st = onboardingState();
+    if (!st) return false;
+    // Once all three steps are done, we hide the card. We don't re-show.
+    if (st.allDone) {
+      // Mark as dismissed permanently so future deletes don't re-show.
+      try { localStorage.setItem('hisabs_onboarding_dismissed', '1'); } catch (_) {}
+      return false;
+    }
+    // Only show to owner/manager — staff/viewer can't take these actions.
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return false;
+    const role = roleFor(biz.id);
+    if (role !== 'owner' && role !== 'manager') return false;
+    return true;
+  }
+  function dismissOnboarding() {
+    try { localStorage.setItem('hisabs_onboarding_dismissed', '1'); } catch (_) {}
+    try { document.getElementById('onboardingCard')?.remove(); } catch (_) {}
+    renderAll();
+  }
+  function renderOnboardingCard() {
+    if (!shouldShowOnboarding()) return '';
+    const st = onboardingState();
+    if (!st) return '';
+    const step = (done, num, title, sub, action) => `
+      <div class="onboarding-step ${done ? 'done' : ''}">
+        <div class="onboarding-step-num">${done ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : num}</div>
+        <div class="onboarding-step-body">
+          <div class="onboarding-step-title">${escapeHtml(title)}</div>
+          <div class="onboarding-step-sub">${escapeHtml(sub)}</div>
+        </div>
+        ${done ? '' : `<button class="btn btn-sm btn-accent" onclick="${action}">${escapeHtml(num === 3 ? 'Add' : 'Set up')}</button>`}
+      </div>
+    `;
+    const completed = [st.hasBiz, st.hasAccount, st.hasEntry].filter(Boolean).length;
+    return `
+      <div class="onboarding-card" id="onboardingCard">
+        <div class="onboarding-head">
+          <div>
+            <div class="onboarding-title">Getting started</div>
+            <div class="onboarding-progress">${completed} of 3 done</div>
+          </div>
+          <button class="onboarding-close" onclick="dismissOnboarding()" title="Hide" aria-label="Hide onboarding">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        ${step(st.hasBiz, 1, 'Create a business', 'A separate set of books — your shop or service.', "openModal('biz')")}
+        ${step(st.hasAccount, 2, 'Add an account', 'Cash, bank, or wallet — somewhere money lives.', "openModal('account')")}
+        ${step(st.hasEntry, 3, 'Add your first entry', 'A cash in or cash out — the actual bookkeeping.', "openModal('entry')")}
+      </div>
+    `;
   }
   function downloadJson(obj, filename) {
     const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
@@ -6446,6 +7427,8 @@
       // Audit expenses are scoped to the business — only owner sees them,
       // but include in full backups so they survive a round-trip.
       auditExpenses: includeEntries ? data.auditExpenses.filter(x => x.businessId === bizId) : [],
+      quickLook: (data.quickLook || []).filter(x => x.businessId === bizId),
+      announcements: (data.announcements || []).filter(x => x.businessId === bizId),
     };
   }
   function exportBusinessFull(bizId) {
@@ -6499,6 +7482,8 @@
         data.entries = data.entries.filter(e => !bookIdsToRemove.has(e.bookId)).concat(arr(snap.entries));
         // Audit expenses are also business-scoped: replace this business's slice.
         data.auditExpenses = data.auditExpenses.filter(x => x.businessId !== bizId).concat(arr(snap.auditExpenses));
+        data.quickLook = (data.quickLook || []).filter(x => x.businessId !== bizId).concat(arr(snap.quickLook));
+        data.announcements = (data.announcements || []).filter(x => x.businessId !== bizId).concat(arr(snap.announcements));
       }
       saveData(); renderAll();
       toast('Restore complete.');
@@ -6536,6 +7521,8 @@
         cashAccounts: arr(p.data.cashAccounts),
         accountGroups: arr(p.data.accountGroups),
         auditExpenses: arr(p.data.auditExpenses),
+        quickLook: arr(p.data.quickLook),
+        announcements: arr(p.data.announcements),
       };
       // I4: if the backup was created under a different user account (different id),
       // the restored businesses' ownerIds won't match this device's current user, so
@@ -6798,14 +7785,23 @@
       });
       if (!resp.ok) {
         // 404 = function not deployed; treat as soft-not-available.
-        if (resp.status === 404) { el.innerHTML = devicesEmptyPlaceholder('Functions not deployed (404).'); return; }
+        if (resp.status === 404) { el.innerHTML = devicesEmptyPlaceholder(''); return; }
         const text = await resp.text().catch(() => '');
         el.innerHTML = devicesEmptyPlaceholder(`Server returned ${resp.status}: ${text.slice(0, 120)}`);
         return;
       }
       payload = await resp.json();
     } catch (e) {
-      el.innerHTML = devicesEmptyPlaceholder(`Network error: ${e?.message || e}`);
+      // "TypeError: Failed to fetch" is what Chrome/Edge return when the
+      // function URL is unreachable — most often because it hasn't been
+      // deployed yet. Treat as soft-not-available with no scary error
+      // beneath the helpful explanation.
+      const msg = String(e?.message || e || '');
+      if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+        el.innerHTML = devicesEmptyPlaceholder('');
+      } else {
+        el.innerHTML = devicesEmptyPlaceholder(`Network error: ${msg}`);
+      }
       return;
     }
     const sessions = Array.isArray(payload?.sessions) ? payload.sessions : [];
@@ -7046,6 +8042,8 @@
     data.cashAccounts = data.cashAccounts.filter(a => !ownedBizIds.includes(a.businessId));
     data.accountGroups = data.accountGroups.filter(g => !ownedBizIds.includes(g.businessId));
     data.auditExpenses = data.auditExpenses.filter(x => !ownedBizIds.includes(x.businessId));
+    data.quickLook = (data.quickLook || []).filter(x => !ownedBizIds.includes(x.businessId));
+    data.announcements = (data.announcements || []).filter(x => !ownedBizIds.includes(x.businessId));
     accounts = accounts.filter(a => a.id !== u.id);
     saveAccounts(); saveData();
 
@@ -7198,6 +8196,502 @@
     // synchronously raced the download in some browsers and produced a broken file.
     setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
     toast('CSV downloaded.');
+  }
+
+  // ================================================================
+  // GENERIC DASHBOARD EXPORTS
+  // ================================================================
+  // Used by Parties, Categories, Accounts, Expenses, Audit, Quick Look,
+  // and individual party/category/account detail views. The entries page
+  // has its own bespoke exporter above because the entry-list layout
+  // is unique enough to deserve it (running balance + cash-in/out split).
+  //
+  // For everything else, this two-function helper handles it:
+  //   exportTablePDF(opts)   — PDF with header + table + optional totals
+  //   exportTableCSV(opts)   — Excel-compatible CSV with same structure
+  //
+  // opts:
+  //   title:    string shown big at the top of the PDF
+  //   subtitle: smaller line under the title (period, business name, etc)
+  //   columns:  array of column header strings
+  //   rows:     array of arrays — each row matches columns length
+  //   totals:   optional array of "row totals" (same shape as a row) shown
+  //             as footer
+  //   filename: download filename without extension
+  //   columnAlign: optional { N: 'right' | 'left' | 'center' } for PDF columns
+
+  function exportTablePDF(opts) {
+    if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load.'); return; }
+    if (!opts.rows || !opts.rows.length) { toast('Nothing to export.'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    doc.setFontSize(18); doc.setFont('helvetica', 'normal');
+    doc.text(String(opts.title || 'Hisabs export'), 14, 20);
+    if (opts.subtitle) {
+      doc.setFontSize(9); doc.setTextColor(120);
+      doc.text(String(opts.subtitle), 14, 27);
+    }
+    if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
+    const columnStyles = {};
+    if (opts.columnAlign) {
+      for (const [k, v] of Object.entries(opts.columnAlign)) {
+        columnStyles[Number(k)] = { halign: v };
+      }
+    }
+    doc.autoTable({
+      head: [opts.columns],
+      body: opts.rows,
+      startY: opts.subtitle ? 33 : 27,
+      headStyles: { fillColor: [26, 22, 18], textColor: 245 },
+      styles: { fontSize: 8, cellPadding: 2 },
+      columnStyles,
+      foot: opts.totals ? [opts.totals] : undefined,
+      footStyles: opts.totals ? { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' } : undefined,
+    });
+    const filename = (opts.filename || 'export').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    doc.save(`${filename}.pdf`);
+    toast('PDF downloaded.');
+  }
+
+  function exportTableCSV(opts) {
+    if (!opts.rows || !opts.rows.length) { toast('Nothing to export.'); return; }
+    function csvCell(v) {
+      let s = v == null ? '' : String(v);
+      const trimmed = s.replace(/^\s+/, '');
+      if (/^[=+\-@\t\r]/.test(trimmed)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    }
+    const lines = [];
+    if (opts.title)    lines.push(csvCell(opts.title));
+    if (opts.subtitle) lines.push(csvCell(opts.subtitle));
+    if (opts.title || opts.subtitle) lines.push('');
+    lines.push(opts.columns.map(csvCell).join(','));
+    for (const r of opts.rows) lines.push(r.map(csvCell).join(','));
+    if (opts.totals) {
+      lines.push('');
+      lines.push(opts.totals.map(csvCell).join(','));
+    }
+    // BOM so Excel recognises UTF-8 without prompting.
+    const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const filename = (opts.filename || 'export').replace(/[^a-zA-Z0-9_-]+/g, '_');
+    a.download = `${filename}.csv`;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
+    toast('CSV downloaded.');
+  }
+
+  // Helpers that build & call exports for each dashboard view.
+
+  function exportPartiesDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const partiesList = data.parties.filter(p => p.businessId === biz.id);
+    const rows = partiesList.map(p => {
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id && pred(e));
+      const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return [p.name, p.kind || '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+    });
+    const totalIn = rows.reduce((s, r) => s + Number(r[3]), 0);
+    const totalOut = rows.reduce((s, r) => s + Number(r[4]), 0);
+    const opts = {
+      title: `Parties — ${biz.name}`,
+      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Name', 'Kind', 'Entries', 'Received from', 'Paid to', 'Net'],
+      rows,
+      totals: ['', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      filename: `parties_${biz.name}_${currentPeriodLabel()}`,
+      columnAlign: { 2: 'right', 3: 'right', 4: 'right', 5: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportCategoriesDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const cats = data.categories.filter(c => c.businessId === biz.id);
+    const rows = cats.map(c => {
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === c.name && pred(e));
+      const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return [c.name, ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+    });
+    const totalIn = rows.reduce((s, r) => s + Number(r[2]), 0);
+    const totalOut = rows.reduce((s, r) => s + Number(r[3]), 0);
+    const opts = {
+      title: `Categories — ${biz.name}`,
+      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Category', 'Entries', 'Cash in', 'Cash out', 'Net'],
+      rows,
+      totals: ['', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      filename: `categories_${biz.name}_${currentPeriodLabel()}`,
+      columnAlign: { 1: 'right', 2: 'right', 3: 'right', 4: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportAccountsDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const accs = data.cashAccounts.filter(a => a.businessId === biz.id);
+    const rows = accs.map(a => {
+      const group = data.accountGroups.find(g => g.id === a.groupId);
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && pred(e));
+      const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return [a.name, group?.name || '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+    });
+    const totalIn = rows.reduce((s, r) => s + Number(r[3]), 0);
+    const totalOut = rows.reduce((s, r) => s + Number(r[4]), 0);
+    const opts = {
+      title: `Accounts — ${biz.name}`,
+      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Account', 'Group', 'Entries', 'Cash in', 'Cash out', 'Net'],
+      rows,
+      totals: ['', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      filename: `accounts_${biz.name}_${currentPeriodLabel()}`,
+      columnAlign: { 2: 'right', 3: 'right', 4: 'right', 5: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportExpensesDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canSeeAudit(biz.id)) { toast('Only the owner can export expenses.'); return; }
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    // Expenses view shows cash-out entries categorised by category.
+    const ents = data.entries
+      .filter(e => bookIds.includes(e.bookId) && e.type === 'out' && pred(e))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const rows = ents.map(e => {
+      const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+      return [e.date || '', e.note || '', e.party || '', e.category || '', acct?.name || '', Number(e.amount || 0).toFixed(2)];
+    });
+    const total = rows.reduce((s, r) => s + Number(r[5]), 0);
+    const opts = {
+      title: `Expenses — ${biz.name}`,
+      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Date', 'Note', 'Party', 'Category', 'Account', 'Amount'],
+      rows,
+      totals: ['', '', '', '', 'Total', total.toFixed(2)],
+      filename: `expenses_${biz.name}_${currentPeriodLabel()}`,
+      columnAlign: { 5: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportAuditDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canSeeAudit(biz.id)) { toast('Only the owner can export audit.'); return; }
+    const month = getAuditMonth();
+    // Snapshot: month-of-entries summary + audit expense line items.
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const monthEntries = data.entries.filter(e => bookIds.includes(e.bookId) && typeof e.date === 'string' && e.date.startsWith(month));
+    const inSum = monthEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = monthEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const auditExp = data.auditExpenses
+      .filter(x => x.businessId === biz.id && x.month === month)
+      .map(x => [x.description || '', Number(x.amount || 0).toFixed(2)]);
+    const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
+    const rows = [
+      ['Cash in (book entries)', inSum.toFixed(2)],
+      ['Cash out (book entries)', outSum.toFixed(2)],
+      ['Audit-only expenses', expSum.toFixed(2)],
+      ['Net profit', (inSum - outSum - expSum).toFixed(2)],
+      ['', ''], // blank separator
+      ['— Audit expense line items —', ''],
+      ...auditExp,
+    ];
+    const opts = {
+      title: `Audit summary — ${biz.name}`,
+      subtitle: `${month} · ${biz.currency} · Generated ${today()}`,
+      columns: ['Item', 'Amount'],
+      rows,
+      filename: `audit_${biz.name}_${month}`,
+      columnAlign: { 1: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportQuickLookDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const all = (data.quickLook || []).filter(r => r.businessId === biz.id);
+    if (!all.length) { toast('Nothing to export.'); return; }
+
+    if (kind === 'csv') {
+      // CSV can't embed images. Just note presence.
+      const rows = all.map(r => [r.name || '', r.tag || '', r.inUse !== false ? 'In use' : 'Unused', r.photoData ? 'Yes' : '—']);
+      exportTableCSV({
+        title: `Quick Look — ${biz.name}`,
+        subtitle: `${all.length} entries · Generated ${today()}`,
+        columns: ['Name', 'Tag', 'Status', 'Has photo'],
+        rows,
+        filename: `quicklook_${biz.name}`,
+      });
+      return;
+    }
+
+    // PDF: render each entry as a card with name, tag, in-use status, and
+    // the photo embedded inline (not full-page). Multiple entries per page,
+    // laid out in a grid. Photos are constrained to a reasonable size — big
+    // enough for a QR code to be scannable, small enough that 2-3 entries
+    // fit on a page.
+    if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load.'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+    const pageW = doc.internal.pageSize.getWidth();   // 210mm
+    const pageH = doc.internal.pageSize.getHeight();  // 297mm
+    const margin = 14;
+    const headerH = 18; // space at top of each page for the page header
+
+    // Card dimensions: two cards per row, sized so a QR photo stays scannable.
+    const cardGap = 6;
+    const cardW = (pageW - margin * 2 - cardGap) / 2; // ~88mm
+    const cardH = 95;  // ~95mm tall — fits 6 cards (3 rows of 2) per page
+    const photoMaxH = 60; // mm — the QR area inside a card
+    const photoMaxW = cardW - 8; // leave 4mm padding either side
+
+    // Header rendered on every page
+    function drawHeader(pageNum, totalPages) {
+      doc.setFontSize(16); doc.setFont('helvetica', 'normal'); doc.setTextColor(26);
+      doc.text(`Quick Look — ${biz.name}`, margin, margin);
+      doc.setFontSize(9); doc.setTextColor(120);
+      doc.text(`${all.length} entries · Generated ${today()} · Page ${pageNum} of ${totalPages}`, margin, margin + 5);
+      // Thin divider under header
+      doc.setDrawColor(220); doc.setLineWidth(0.2);
+      doc.line(margin, margin + 8, pageW - margin, margin + 8);
+    }
+
+    // How many cards fit per page?
+    const cardsPerPage = 2 /* per row */ * Math.floor((pageH - margin * 2 - headerH) / (cardH + cardGap));
+    const totalPages = Math.max(1, Math.ceil(all.length / cardsPerPage));
+
+    // Sort: in-use first (matches the view), then by name
+    const sorted = all.slice().sort((a, b) => {
+      const au = a.inUse !== false ? 0 : 1;
+      const bu = b.inUse !== false ? 0 : 1;
+      if (au !== bu) return au - bu;
+      return (a.name || '').localeCompare(b.name || '');
+    });
+
+    let cardIdx = 0;
+    for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+      if (pageNum > 1) doc.addPage();
+      drawHeader(pageNum, totalPages);
+      const onThisPage = sorted.slice(cardIdx, cardIdx + cardsPerPage);
+      for (let i = 0; i < onThisPage.length; i++) {
+        const r = onThisPage[i];
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        const x = margin + col * (cardW + cardGap);
+        const y = margin + headerH + row * (cardH + cardGap);
+
+        // Card frame
+        doc.setDrawColor(200); doc.setLineWidth(0.3);
+        doc.setFillColor(252, 250, 246); // surface-1-ish
+        doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
+
+        // In-use chip (top-right corner of card)
+        const inUse = r.inUse !== false;
+        const chipText = inUse ? 'IN USE' : 'UNUSED';
+        doc.setFontSize(6); doc.setFont('helvetica', 'bold');
+        const chipW = doc.getTextWidth(chipText) + 4;
+        if (inUse) { doc.setFillColor(54, 110, 79); doc.setTextColor(255); }
+        else       { doc.setFillColor(200, 200, 200); doc.setTextColor(80); }
+        doc.roundedRect(x + cardW - chipW - 3, y + 3, chipW, 4.5, 1, 1, 'F');
+        doc.text(chipText, x + cardW - chipW - 1, y + 6.2);
+
+        // Name (truncated if too long for the card width)
+        doc.setTextColor(26); doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+        const nameStr = String(r.name || '');
+        const nameMaxW = cardW - chipW - 10;
+        let displayName = nameStr;
+        // Truncate by trial — jsPDF's textWidth is reliable for ASCII.
+        while (doc.getTextWidth(displayName) > nameMaxW && displayName.length > 0) {
+          displayName = displayName.slice(0, -1);
+        }
+        if (displayName !== nameStr) displayName = displayName.slice(0, -1) + '…';
+        doc.text(displayName, x + 4, y + 8);
+
+        // Tag (monospace-ish, faint background)
+        if (r.tag) {
+          doc.setFillColor(243, 239, 230); // paper-deep
+          doc.roundedRect(x + 4, y + 11, cardW - 8, 7, 1, 1, 'F');
+          doc.setFontSize(8); doc.setFont('courier', 'normal'); doc.setTextColor(26);
+          // Truncate tag to fit
+          let tagStr = String(r.tag);
+          const tagMaxW = cardW - 12;
+          while (doc.getTextWidth(tagStr) > tagMaxW && tagStr.length > 0) {
+            tagStr = tagStr.slice(0, -1);
+          }
+          if (tagStr !== r.tag) tagStr = tagStr.slice(0, -1) + '…';
+          doc.text(tagStr, x + 6, y + 15.8);
+        }
+
+        // Photo
+        const photoTop = y + 22;
+        if (r.photoData && typeof r.photoData === 'string' && r.photoData.startsWith('data:image/')) {
+          // Detect type from data URI
+          const m = r.photoData.match(/^data:image\/(png|jpe?g|webp|gif);/i);
+          let fmt = 'PNG';
+          if (m) {
+            const t = m[1].toLowerCase();
+            if (t === 'jpg' || t === 'jpeg') fmt = 'JPEG';
+            else if (t === 'png') fmt = 'PNG';
+            else if (t === 'webp') fmt = 'WEBP';
+            // GIF: jsPDF doesn't support directly. Try PNG; will likely fail
+            // gracefully wrapped in try/catch.
+            else fmt = 'PNG';
+          }
+          try {
+            // Try to detect the image's intrinsic aspect ratio so we don't
+            // distort. We have to draw eagerly here — jsPDF doesn't make this
+            // easy without async. Use a synchronous probe via Image() that
+            // was preloaded? We can't preload sync. Use a conservative square
+            // bounding box scaled to fit the photo area; jsPDF preserves the
+            // user-specified dimensions, so a square QR will look fine and
+            // non-square photos will be letterboxed by our choice of bbox.
+            // Default to a square fitting inside photoMaxW × photoMaxH.
+            const dim = Math.min(photoMaxW, photoMaxH);
+            const px = x + (cardW - dim) / 2;
+            const py = photoTop;
+            doc.addImage(r.photoData, fmt, px, py, dim, dim);
+          } catch (e) {
+            // Photo couldn't be embedded (unsupported format, corrupt data).
+            // Render a placeholder so the card still looks right.
+            doc.setFontSize(8); doc.setTextColor(150);
+            doc.text('(photo could not be embedded)', x + 4, photoTop + 8);
+          }
+        } else {
+          // No photo: subtle "No photo" label in the photo area
+          doc.setDrawColor(225); doc.setLineWidth(0.2);
+          doc.setLineDashPattern([1, 1], 0);
+          doc.roundedRect(x + 4, photoTop, cardW - 8, photoMaxH, 2, 2, 'D');
+          doc.setLineDashPattern([], 0);
+          doc.setFontSize(8); doc.setTextColor(150); doc.setFont('helvetica', 'italic');
+          doc.text('No photo', x + cardW / 2, photoTop + photoMaxH / 2, { align: 'center', baseline: 'middle' });
+        }
+      }
+      cardIdx += cardsPerPage;
+    }
+
+    const filename = (`quicklook_${biz.name}`).replace(/[^a-zA-Z0-9_-]+/g, '_');
+    doc.save(`${filename}.pdf`);
+    toast('PDF downloaded.');
+  }
+
+  // Individual party / category / account exports
+  function exportPartyDetail(partyId, kind) {
+    const p = data.parties.find(x => x.id === partyId);
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!p || !biz) return;
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const ents = data.entries
+      .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id && pred(e))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const rows = ents.map(e => {
+      const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+      return [
+        e.date || '', e.note || '', e.category || '', acct?.name || '',
+        e.type === 'in' ? Number(e.amount || 0).toFixed(2) : '',
+        e.type === 'out' ? Number(e.amount || 0).toFixed(2) : '',
+      ];
+    });
+    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const opts = {
+      title: `${p.name} — Party ledger`,
+      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Date', 'Note', 'Category', 'Account', 'Received', 'Paid'],
+      rows,
+      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
+      filename: `party_${p.name}_${currentPeriodLabel()}`,
+      columnAlign: { 4: 'right', 5: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportCategoryDetail(catName, kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const ents = data.entries
+      .filter(e => bookIds.includes(e.bookId) && e.category === catName && pred(e))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const rows = ents.map(e => {
+      const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+      return [
+        e.date || '', e.note || '', e.party || '', acct?.name || '',
+        e.type === 'in' ? Number(e.amount || 0).toFixed(2) : '',
+        e.type === 'out' ? Number(e.amount || 0).toFixed(2) : '',
+      ];
+    });
+    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const opts = {
+      title: `${catName} — Category ledger`,
+      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Date', 'Note', 'Party', 'Account', 'Cash in', 'Cash out'],
+      rows,
+      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
+      filename: `category_${catName}_${currentPeriodLabel()}`,
+      columnAlign: { 4: 'right', 5: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  function exportAccountDetail(accountId, kind) {
+    const a = data.cashAccounts.find(x => x.id === accountId);
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!a || !biz) return;
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    const pred = periodPredicate();
+    const ents = data.entries
+      .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && pred(e))
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    let bal = 0;
+    const rows = ents.map(e => {
+      const amt = Number(e.amount || 0);
+      bal += e.type === 'in' ? amt : -amt;
+      return [
+        e.date || '', e.note || '', e.party || '', e.category || '',
+        e.type === 'in' ? amt.toFixed(2) : '',
+        e.type === 'out' ? amt.toFixed(2) : '',
+        bal.toFixed(2),
+      ];
+    });
+    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const opts = {
+      title: `${a.name} — Account ledger`,
+      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      columns: ['Date', 'Note', 'Party', 'Category', 'In', 'Out', 'Balance'],
+      rows,
+      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)],
+      filename: `account_${a.name}_${currentPeriodLabel()}`,
+      columnAlign: { 4: 'right', 5: 'right', 6: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
 
   // ================================================================
@@ -7773,6 +9267,8 @@
         members: data.members.map(cloneShallow),
         entries: data.entries.map(cloneShallow),
         auditExpenses: data.auditExpenses.map(cloneShallow),
+        quickLook: (data.quickLook || []).map(cloneShallow),
+        announcements: (data.announcements || []).map(cloneShallow),
       };
       localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(snap));
       __syncSnapshot = snap;
@@ -8123,6 +9619,12 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_audit_expenses' },
           (payload) => onRealtimeEvent('auditExpenses', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_quick_look' },
+          (payload) => onRealtimeEvent('quickLook', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_announcements' },
+          (payload) => onRealtimeEvent('announcements', payload))
         .subscribe((status) => {
           console.log('Realtime status:', status);
           updateSyncBadge();
@@ -8479,6 +9981,43 @@
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       }),
     },
+    quickLook: {
+      table: 'app_quick_look',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        name: r.name || '',
+        tag: r.tag || null,
+        photo_data: r.photoData || null,
+        in_use: r.inUse !== false, // default true
+        sort_order: Number(r.sortOrder) || 0,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        name: r.name || '',
+        tag: r.tag || '',
+        photoData: r.photo_data || null,
+        inUse: r.in_use !== false,
+        sortOrder: Number(r.sort_order) || 0,
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      }),
+    },
+    announcements: {
+      table: 'app_announcements',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        author_id: r.authorId || null,
+        author_name: r.authorName || null,
+        body: r.body || '',
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        authorId: r.author_id || null,
+        authorName: r.author_name || '',
+        body: r.body || '',
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+        updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
+      }),
+    },
     // members are also synced but their toDb is special (user_id vs user_login)
     members: {
       table: 'app_members',
@@ -8518,7 +10057,7 @@
   // Push order matters because of foreign keys: parents before children.
   const cloudPushOrder = [
     'businesses', 'books', 'accountGroups', 'cashAccounts',
-    'parties', 'categories', 'members', 'entries', 'auditExpenses',
+    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'quickLook', 'announcements',
   ];
 
   async function cloudPushAll(opts) {
@@ -8621,6 +10160,8 @@
       data.members       = fetched.members       || [];
       data.entries       = fetched.entries       || [];
       data.auditExpenses = fetched.auditExpenses || [];
+      data.quickLook     = fetched.quickLook     || [];
+      data.announcements = fetched.announcements || [];
       saveData();
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.
@@ -8816,6 +10357,8 @@
         cashAccounts: arr(p.data.cashAccounts),
         accountGroups: arr(p.data.accountGroups),
         auditExpenses: arr(p.data.auditExpenses),
+        quickLook: arr(p.data.quickLook),
+        announcements: arr(p.data.announcements),
       };
       // Reassign business ownership to the current cloud user (in case the
       // backup was taken on another device with a different local id pre-migration).
@@ -8842,7 +10385,9 @@
     // proceeds to cloud sign-up after backing up.
     wrap.dataset.originalDisplay = wrap.style.display || '';
     wrap.style.display = 'grid';
+    wrap.classList.add('is-active');
     document.getElementById('app').classList.remove('active');
+    hideBootSplash();
     const card = wrap.querySelector('.auth-card');
     if (!card) return;
     card.__originalHTML = card.__originalHTML || card.innerHTML;

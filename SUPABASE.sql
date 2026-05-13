@@ -220,6 +220,52 @@ create table if not exists public.app_audit_log (
 );
 create index if not exists idx_app_audit_log_user_time on public.app_audit_log(user_id, occurred_at desc);
 
+-- Quick Look directory: shared per-business reference list of payment
+-- accounts, QR codes, etc. Anyone with access to the business can read
+-- and copy/download; owners and managers can add/edit/delete.
+--
+-- Fields:
+--   name        - human label ("eSewa main", "NIC Asia office account")
+--   tag         - the copyable string (phone number, account number, UPI ID)
+--   photo_data  - base64-encoded image data with data: URI prefix, or NULL.
+--                 Stored inline rather than in Supabase Storage so the row
+--                 syncs through the same realtime channel as everything else.
+--                 Expected to be small QR codes (under 200KB); enforced
+--                 softly on the client.
+--   in_use      - whether this entry should appear in the "In Use" section
+--                 at the top of the view.
+create table if not exists public.app_quick_look (
+  id text primary key,
+  business_id text not null references public.app_businesses(id) on delete cascade,
+  name text not null,
+  tag text,
+  photo_data text,
+  in_use boolean not null default true,
+  sort_order int default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_app_quick_look_business on public.app_quick_look(business_id, sort_order);
+
+-- Announcements: per-business messages posted by the owner that appear
+-- at the top of the entries dashboard for everyone. Use cases: "Shop
+-- closed Friday", "Bank holiday — no deposits", "Use the new eSewa
+-- number this week", etc.
+--
+-- Only the business owner can write; everyone with read access to the
+-- business can read. Soft policy keeps it simple — owner can edit/delete
+-- their own posts.
+create table if not exists public.app_announcements (
+  id text primary key,
+  business_id text not null references public.app_businesses(id) on delete cascade,
+  author_id uuid,
+  author_name text,
+  body text not null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_app_announcements_business on public.app_announcements(business_id, created_at desc);
+
 -- ----------------------------------------------------------------
 -- 2. REPLICA IDENTITY FULL
 -- ----------------------------------------------------------------
@@ -246,6 +292,8 @@ alter table public.app_audit_expenses  replica identity full;
 alter table public.app_device_names    replica identity full;
 alter table public.app_failed_logins   replica identity full;
 alter table public.app_audit_log       replica identity full;
+alter table public.app_quick_look      replica identity full;
+alter table public.app_announcements   replica identity full;
 
 -- ----------------------------------------------------------------
 -- 3. Helper functions
@@ -335,6 +383,8 @@ alter table public.app_members         enable row level security;
 alter table public.app_entries         enable row level security;
 alter table public.app_audit_expenses  enable row level security;
 alter table public.app_device_names    enable row level security;
+alter table public.app_quick_look      enable row level security;
+alter table public.app_announcements   enable row level security;
 
 -- ----------------------------------------------------------------
 -- 5. Policies
@@ -451,6 +501,80 @@ create policy app_device_names_update on public.app_device_names
 drop policy if exists app_device_names_delete on public.app_device_names;
 create policy app_device_names_delete on public.app_device_names
   for delete using (user_id = auth.uid());
+
+-- app_quick_look: anyone with access to the business can read. Only
+-- owner/manager can write. The role check is done client-side too, but
+-- enforced here so a hostile client can't bypass it.
+--
+-- can_read_business handles the read side; for writes we need the
+-- "owner or manager" subset. We inline a quick role check using
+-- app_members rather than a dedicated helper, since this is the only
+-- table with owner+manager-only writes.
+drop policy if exists app_quick_look_select on public.app_quick_look;
+create policy app_quick_look_select on public.app_quick_look
+  for select using (public.can_read_business(business_id));
+drop policy if exists app_quick_look_insert on public.app_quick_look;
+create policy app_quick_look_insert on public.app_quick_look
+  for insert with check (
+    public.user_owns_business(business_id)
+    or exists (
+      select 1 from public.app_members m
+      where m.business_id = app_quick_look.business_id
+        and m.user_id = auth.uid()
+        and m.role in ('manager')
+        and m.status = 'accepted'
+    )
+  );
+drop policy if exists app_quick_look_update on public.app_quick_look;
+create policy app_quick_look_update on public.app_quick_look
+  for update using (
+    public.user_owns_business(business_id)
+    or exists (
+      select 1 from public.app_members m
+      where m.business_id = app_quick_look.business_id
+        and m.user_id = auth.uid()
+        and m.role in ('manager')
+        and m.status = 'accepted'
+    )
+  ) with check (
+    public.user_owns_business(business_id)
+    or exists (
+      select 1 from public.app_members m
+      where m.business_id = app_quick_look.business_id
+        and m.user_id = auth.uid()
+        and m.role in ('manager')
+        and m.status = 'accepted'
+    )
+  );
+drop policy if exists app_quick_look_delete on public.app_quick_look;
+create policy app_quick_look_delete on public.app_quick_look
+  for delete using (
+    public.user_owns_business(business_id)
+    or exists (
+      select 1 from public.app_members m
+      where m.business_id = app_quick_look.business_id
+        and m.user_id = auth.uid()
+        and m.role in ('manager')
+        and m.status = 'accepted'
+    )
+  );
+
+-- app_announcements: anyone with read access to the business can read;
+-- only the business owner can write. Edit/delete uses the same gate so
+-- only the owner can manage what was posted.
+drop policy if exists app_announcements_select on public.app_announcements;
+create policy app_announcements_select on public.app_announcements
+  for select using (public.can_read_business(business_id));
+drop policy if exists app_announcements_insert on public.app_announcements;
+create policy app_announcements_insert on public.app_announcements
+  for insert with check (public.user_owns_business(business_id));
+drop policy if exists app_announcements_update on public.app_announcements;
+create policy app_announcements_update on public.app_announcements
+  for update using (public.user_owns_business(business_id))
+            with check (public.user_owns_business(business_id));
+drop policy if exists app_announcements_delete on public.app_announcements;
+create policy app_announcements_delete on public.app_announcements
+  for delete using (public.user_owns_business(business_id));
 
 -- app_failed_logins: must be accessible to unauthenticated callers
 -- (they're trying to sign in!). The data exposed is minimal — just
