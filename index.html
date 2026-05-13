@@ -851,7 +851,10 @@
     /* On mobile the desktop sync-strip is hidden — the dot lives in the
        topbar instead (no label, just the colored dot). */
     .sync-strip { display: none; }
-    .sync-badge-mobile { padding: 0.35rem; border-radius: 50%; }
+    /* Sync dot sits a bit to the left of the export icon — the larger
+       right margin gives it visual breathing room separate from the
+       action icon group. */
+    .sync-badge-mobile { padding: 0.35rem; border-radius: 50%; margin-right: 0.5rem; }
     .topbar-icon-btn { background: transparent; border: 1px solid var(--line); width: 36px; height: 36px; padding: 0; cursor: pointer; color: var(--ink); display: grid; place-items: center; }
     .topbar-icon-btn:active { background: var(--paper-deep); }
     .topbar-icon-btn[hidden] { display: none; }
