@@ -1,13 +1,25 @@
 {
   "name": "Hisabs",
   "short_name": "Hisabs",
-  "description": "A quiet, careful place to keep your books.",
-  "start_url": ".",
+  "id": "/?source=pwa",
+  "description": "A quiet, careful place to keep your books. Track cash flow across multiple businesses, share with staff, sync across devices.",
+  "start_url": "./?source=pwa",
   "scope": ".",
   "display": "standalone",
   "background_color": "#f5f1e8",
   "theme_color": "#f5f1e8",
   "orientation": "any",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "productivity", "business"],
+  "prefer_related_applications": false,
+  "related_applications": [
+    {
+      "platform": "play",
+      "url": "https://play.google.com/store/apps/details?id=np.com.karki.hisabs",
+      "id": "np.com.karki.hisabs"
+    }
+  ],
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -26,6 +38,36 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/01-entries-mobile.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Daily cash book with entries and running balance"
+    },
+    {
+      "src": "screenshots/02-parties-mobile.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Customers, suppliers, and other parties at a glance"
+    },
+    {
+      "src": "screenshots/03-accounts-mobile.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Money grouped by account — cash, bank, cards, wallets"
+    },
+    {
+      "src": "screenshots/04-entries-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Full bookkeeping interface on tablet or desktop"
     }
   ]
 }

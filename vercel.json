@@ -33,9 +33,23 @@
       ]
     },
     {
+      "source": "/screenshots/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
+    },
+    {
       "source": "/(index.html|manifest.webmanifest|sw.js|PRIVACY.html)",
       "headers": [
         { "key": "Cache-Control", "value": "no-cache, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/.well-known/assetlinks.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/json" },
+        { "key": "Cache-Control", "value": "no-cache, must-revalidate" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     }
   ]
