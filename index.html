@@ -207,6 +207,12 @@
     background: var(--paper); border: 1px solid var(--line);
     border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.18);
     max-height: 240px; overflow-y: auto; z-index: 30;
+    /* Stop scroll-chaining: when the user reaches the top/bottom of
+       this dropdown, do NOT continue scrolling the modal underneath.
+       Otherwise users see the modal sliding around while they hunt
+       for a category. */
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   .combo-group-head {
     font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.13em;
@@ -516,7 +522,7 @@
   .date-strip-search-icon { position: absolute; left: 0.55rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
 
   /* Dropdown with grouped results, anchored to the search input on desktop */
-  .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 480px; overflow-y: auto; z-index: 1000; }
+  .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 480px; overflow-y: auto; z-index: 1000; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
   .search-dropdown-empty { padding: 1.5rem 1rem; text-align: center; color: var(--ink-mute); font-size: 0.82rem; }
   .search-group { border-bottom: 1px solid var(--line-soft); }
   .search-group:last-child { border-bottom: none; }
@@ -3400,7 +3406,14 @@
       // Silent enforcement — no disclaimer, no message. Just nothing.
       return '';
     }
-    const entries = getPeriodEntries();
+    // Exclude entries that point at hidden accounts from the totals.
+    // A hidden account represents a closed/archived bucket; its
+    // movements shouldn't inflate the "what's happening this period"
+    // figures. Matches the behavior of the Audit view.
+    const hiddenAcctIds = biz ? new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    ) : new Set();
+    const entries = getPeriodEntries().filter(e => !hiddenAcctIds.has(e.accountId));
     const { inSum, outSum, inCount, outCount } = sumEntries(entries);
     const isAll = session.period.mode === 'all';
     const balLabel = isAll ? 'Balance' : 'Net for period';
@@ -3760,10 +3773,20 @@
     const q = __partiesSearch.trim().toLowerCase();
     if (q) parties = parties.filter(p => p.name.toLowerCase().includes(q));
 
-    // compute totals per party, filtered by the active period
+    // compute totals per party, filtered by the active period.
+    // Exclude entries pointing at hidden accounts so party stats match
+    // the "what's still live in this business" intent.
+    const hiddenAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    );
     const pred = periodPredicate();
     const totals = {};
-    data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId && pred(e)).forEach(e => {
+    data.entries.filter(e =>
+      bookIds.includes(e.bookId)
+      && e.partyId
+      && !hiddenAcctIds.has(e.accountId)
+      && pred(e)
+    ).forEach(e => {
       const t = totals[e.partyId] ||= { in: 0, out: 0, count: 0, lastDate: '' };
       if (e.type === 'in') t.in += e.amount; else t.out += e.amount;
       t.count++;
@@ -3957,8 +3980,15 @@
     const pred = periodPredicate();
 
     const definedNames = bySortOrder(data.categories.filter(c => c.businessId === biz.id)).map(c => c.name);
-    // Only count entries within the active period
-    const periodEntries = data.entries.filter(e => bookIds.includes(e.bookId) && pred(e));
+    // Only count entries within the active period. Exclude entries on
+    // hidden accounts so category stats don't include closed-account
+    // history.
+    const hiddenAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    );
+    const periodEntries = data.entries.filter(e =>
+      bookIds.includes(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e)
+    );
     const usedNames = new Set();
     periodEntries.forEach(e => { if (e.category) usedNames.add(e.category); });
     const hasUncat = periodEntries.some(e => !e.category);
@@ -5819,6 +5849,13 @@
   function openCombo(id) {
     const list = document.getElementById(id + '_list');
     if (!list) return;
+    // Fix: close any other open combo first. Otherwise tapping straight
+    // from one combobox chevron into another leaves the first open
+    // (the outside-click handler only fires on clicks OUTSIDE any combo,
+    // and tapping inside the next combo's wrap doesn't qualify).
+    if (__comboActiveId && __comboActiveId !== id) {
+      closeCombo(__comboActiveId);
+    }
     __comboActiveId = id;
     __comboKbdIdx = -1;
     renderComboList(id, '');
@@ -6973,13 +7010,13 @@
         <textarea id="annBody" rows="4" placeholder="e.g. Shop closed this Friday for maintenance. Please don't accept any payments on Friday." style="min-height:100px;resize:vertical;">${escapeHtml(editing?.body || '')}</textarea>
         <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.4rem;">Keep it short and clear. Line breaks are preserved.</p>
       </div>
-      <label class="toggle-row" style="margin-top:0.4rem;">
-        <input type="checkbox" id="annImportant" ${important}>
-        <span class="toggle-row-text">
-          <span class="toggle-row-title">Mark as important</span>
-          <span class="toggle-row-sub">Important announcements show on the entries page with a warning sign. Others stay in "View announcements" — handy for FYIs that don't need to interrupt everyone.</span>
-        </span>
-      </label>
+      <div class="toggle-row" style="margin-top:0.4rem;">
+        <div class="toggle-row-text">
+          <div class="toggle-row-title">Mark as important</div>
+          <div class="toggle-row-desc">Important announcements show on the entries page with a warning sign. Others stay in "View announcements" — handy for FYIs that don't need to interrupt everyone.</div>
+        </div>
+        <label class="toggle"><input type="checkbox" id="annImportant" ${important}><span class="toggle-slider"></span></label>
+      </div>
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
         <button class="btn btn-accent" onclick="saveAnnouncement()">${editing ? 'Save changes' : 'Post'}</button>
