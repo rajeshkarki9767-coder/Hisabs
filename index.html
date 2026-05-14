@@ -1865,7 +1865,7 @@
 </div>
 
 <div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this){if(__asyncModalResolver){_asyncModalClose(__asyncModalKind==='prompt'?null:false);}else{closeModal();}}">
-  <div class="modal" id="modalContent"></div>
+  <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-label="Dialog"></div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -2214,9 +2214,9 @@
       const isIOS = /iPhone|iPad|iPod/.test(ua);
       const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|FxiOS/.test(ua);
       if (isIOS || isSafari) {
-        alert('To install Hisabs:\n\n1. Tap the Share button (□↑)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"');
+        await uiAlert('To install Hisabs:\n\n1. Tap the Share button (□↑)\n2. Scroll down and tap "Add to Home Screen"\n3. Tap "Add"', { title: 'Install Hisabs' });
       } else {
-        alert("Install isn't available yet.\n\nTo install Hisabs as an app, the page needs to be opened from a hosted URL (https://) — not a local file.\n\nOn Chrome/Edge: look for the install icon in the address bar.");
+        await uiAlert("Install isn't available yet.\n\nTo install Hisabs as an app, the page needs to be opened from a hosted URL (https://) — not a local file.\n\nOn Chrome/Edge: look for the install icon in the address bar.", { title: 'Install Hisabs' });
       }
       return;
     }
@@ -2816,11 +2816,32 @@
       return true;
     });
   }
+  // Cache of last-known non-null role per business, keyed by
+  // (userId, businessId). The cache survives transient empty
+  // states in data.members during a cloudPullAll mid-flight or a
+  // realtime burst, so we don't briefly hide UI that the user is
+  // actually entitled to see. Only updated when we successfully
+  // compute a real role; only consulted when the live computation
+  // returns null. The cache is in-memory only — on a fresh page
+  // load it starts empty (so a real demotion/revocation surfaces
+  // immediately on next refresh).
+  const __roleCache = new Map(); // key: `${userId}|${bizId}` -> role string
+  function _roleCacheKey(uid, bid) { return `${uid}|${bid}`; }
+
   function roleFor(businessId) {
     const u = me(); if (!u) return null;
     const biz = data.businesses.find(b => b.id === businessId);
-    if (!biz) return null;
-    if (biz.ownerId === u.id) return 'owner';
+    if (!biz) {
+      // Business not in local data: if we have a cached role, the
+      // business is briefly missing (mid-pull) — return cached
+      // rather than null. The next render with full data will
+      // refresh the cache.
+      return __roleCache.get(_roleCacheKey(u.id, businessId)) || null;
+    }
+    if (biz.ownerId === u.id) {
+      __roleCache.set(_roleCacheKey(u.id, businessId), 'owner');
+      return 'owner';
+    }
     // Match on userId first (canonical after acceptance), fall back to
     // userLogin (only filled before the invitee signs in for the first
     // time). This avoids a "not a member" UX bug when, for example, the
@@ -2832,7 +2853,18 @@
       && m.status === 'accepted'
       && (m.userId === u.id || normalize(m.userLogin) === myLogin)
     );
-    return m ? m.role : null;
+    if (m) {
+      __roleCache.set(_roleCacheKey(u.id, businessId), m.role);
+      return m.role;
+    }
+    // No live match. Fall back to cached role if available. This
+    // prevents the "viewer data flashes off for a second after
+    // refresh" bug: cloudPullAll briefly leaves data.members empty
+    // between row arrivals and the first render with empty members
+    // would compute null role and hide all stats/entries. With
+    // sticky cache, the viewer continues to see what they're
+    // entitled to throughout the pull.
+    return __roleCache.get(_roleCacheKey(u.id, businessId)) || null;
   }
   function canEditEntry(entry) {
     const u = me(); if (!u || !entry) return false;
@@ -3042,7 +3074,7 @@
       <p class="auth-sim-note">Simulated for prototype — real Google OAuth requires a backend.</p>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
     `;
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
   }
   function googleLogin(userId) {
     const acct = accounts.find(a => a.id === userId);
@@ -3055,9 +3087,9 @@
     toast('Welcome back, ' + acct.name.split(' ')[0] + '.');
     showApp();
   }
-  function googleNewAccount() {
+  async function googleNewAccount() {
     closeModal();
-    const email = prompt('Google email address:');
+    const email = await uiPrompt('Google email address:', '', { title: 'Sign in with Google', submitLabel: 'Next', placeholder: 'you@gmail.com', inputType: 'email' });
     if (!email || !email.trim()) return;
     const cleanEmail = normalize(email);
     if (!cleanEmail.includes('@')) { toast('Enter a valid email.'); return; }
@@ -3073,7 +3105,7 @@
       showApp();
       return;
     }
-    const name = prompt('Your name (as on Google):');
+    const name = await uiPrompt('Your name (as on Google):', '', { title: 'Sign in with Google', submitLabel: 'Create account', placeholder: 'Full name' });
     if (!name || !name.trim()) return;
     const userId = uid();
     const gColors = ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#9C27B0', '#FF6F00'];
@@ -3126,6 +3158,9 @@
     try { localStorage.removeItem('hisabs_device_name_v1'); } catch (_) {}
     __syncQueue = [];
     __syncSnapshot = null;
+    // Clear the role cache so a different user signing in on this
+    // browser doesn't inherit privileges from the previous one.
+    try { __roleCache.clear(); } catch (_) {}
     stopAutoBackupTimer();
     if (__dateStripTimer) { clearInterval(__dateStripTimer); __dateStripTimer = null; }
     // Disconnect any pending entry-list observer to release the sentinel reference.
@@ -3196,8 +3231,37 @@
   // ================================================================
   // DRAWER
   // ================================================================
-  function openDrawer() { document.getElementById('sidebar').classList.add('open'); document.getElementById('drawerScrim').classList.add('open'); }
-  function closeDrawer() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('drawerScrim').classList.remove('open'); }
+  // Drawer is a mobile-only overlay — at >880px the sidebar is
+  // a static column, not a slide-in. Gate the scroll lock on the
+  // breakpoint so a desktop programmatic open (or a window resize
+  // while drawer is mid-animation) can't leave the body locked
+  // with no way to unlock.
+  function _isDrawerBreakpoint() {
+    try { return window.matchMedia('(max-width: 880px)').matches; } catch (_) { return false; }
+  }
+  function openDrawer() {
+    document.getElementById('sidebar').classList.add('open');
+    document.getElementById('drawerScrim').classList.add('open');
+    if (_isDrawerBreakpoint()) _lockBodyScroll();
+  }
+  function closeDrawer() {
+    const scrim = document.getElementById('drawerScrim');
+    const wasOpen = scrim && scrim.classList.contains('open');
+    document.getElementById('sidebar').classList.remove('open');
+    if (scrim) scrim.classList.remove('open');
+    // Only unlock if we previously locked. If a user opened the
+    // drawer on mobile and then resized to desktop before closing,
+    // we still need to unlock (the lock counter tracks the open
+    // state, so we just check `wasOpen` here).
+    if (wasOpen && _isDrawerBreakpoint()) _unlockBodyScroll();
+    else if (wasOpen && __scrollLockDepth > 0) {
+      // Recovery path: drawer was opened on mobile, window resized
+      // to desktop, now closing on desktop. The lock was applied
+      // (depth>0) but _isDrawerBreakpoint() is now false. Unlock
+      // anyway so we don't strand the body.
+      _unlockBodyScroll();
+    }
+  }
 
   // ================================================================
   // PERIOD
@@ -3269,7 +3333,16 @@
     // covers every code path that triggers renderAll — realtime
     // events, sync drain, catchup pull, user-initiated saves —
     // without each caller having to remember to preserve.
-    const preserve = !__renderResetScroll;
+    //
+    // Exception: if body scroll is locked (modal open), the page
+    // is `position:fixed; top: -Ypx` so window.scrollY reads 0
+    // regardless of the real scroll position. Re-applying that
+    // bogus 0 in the restore phase would lose the user's place
+    // when the modal closes. Skip capture+restore entirely while
+    // locked — _unlockBodyScroll() owns scroll restoration in
+    // that case.
+    const isLocked = __scrollLockDepth > 0;
+    const preserve = !__renderResetScroll && !isLocked;
     const scrollY = preserve ? (window.scrollY || document.documentElement.scrollTop || 0) : 0;
     const explicitReset = __renderResetScroll;
     __renderResetScroll = false; // single-shot
@@ -3281,11 +3354,7 @@
     renderMain();
     renderPermissions();
     updateDateStrip();
-    // After render: either restore the captured scrollY (default
-    // background-render path) or explicitly scroll to top (user
-    // navigated to a new view). The browser doesn't always reset
-    // scroll on innerHTML wipes when document height is similar,
-    // so we have to be explicit about resets.
+    if (isLocked) return; // skip scroll restoration entirely while locked
     if (explicitReset) {
       window.scrollTo({ top: 0, behavior: 'instant' });
     } else if (preserve && scrollY > 0) {
@@ -5165,17 +5234,17 @@
     renderMain();
     toast('Expense deleted.');
   }
-  function editAuditExpense(id) {
+  async function editAuditExpense(id) {
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
     if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can edit.'); return; }
-    const newDesc = prompt('Edit description:', x.description);
+    const newDesc = await uiPrompt('Edit description:', x.description, { title: 'Edit expense', submitLabel: 'Next' });
     if (newDesc == null) return;
     const trimmedDesc = String(newDesc).trim();
     if (!trimmedDesc) { toast('Description cannot be blank.'); return; }
     if (trimmedDesc.length > LIMITS.description) { toast(`Description too long (max ${LIMITS.description} characters).`); return; }
-    const newAmtRaw = prompt('Edit amount:', String(x.amount));
+    const newAmtRaw = await uiPrompt('Edit amount:', String(x.amount), { title: 'Edit expense', submitLabel: 'Next', inputType: 'text' });
     if (newAmtRaw == null) return;
     // M3: stricter parse — `Number()` rejects "1.2.3"/"abc" which
     // parseFloat would silently accept.
@@ -5183,7 +5252,7 @@
     if (!Number.isFinite(newAmt) || newAmt <= 0 || newAmt > LIMITS.amount) { toast('Invalid amount.'); return; }
     // Date is editable too — default to the existing date or fall back to
     // the legacy month.
-    const newDateRaw = prompt('Edit date (YYYY-MM-DD):', expenseDate(x));
+    const newDateRaw = await uiPrompt('Edit date (YYYY-MM-DD):', expenseDate(x), { title: 'Edit expense', submitLabel: 'Save', placeholder: 'YYYY-MM-DD' });
     if (newDateRaw == null) return;
     const newDate = newDateRaw.trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { toast('Invalid date.'); return; }
@@ -6026,9 +6095,105 @@
         modalEl.classList.remove('modal-full');
       }
     }
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
   }
-  function closeModal() { document.getElementById('modalBackdrop').classList.remove('active'); }
+  // Scroll-lock for modals. On mobile (especially iOS), the body
+  // would scroll behind an open modal if the user swiped on the
+  // backdrop area outside the modal card. The fix is to snapshot
+  // the current scrollY when a modal opens, lock the body via
+  // position:fixed/top:-Y (works on iOS where `overflow:hidden`
+  // alone doesn't), and on close restore the scroll position.
+  //
+  // We use a depth counter so nested opens (e.g. main modal that
+  // triggers a confirm) don't unlock prematurely. The counter is
+  // safe-guarded against drift in unusual cases (page-reload
+  // recovery, ESC during transition) by always clamping to >= 0.
+  let __scrollLockDepth = 0;
+  let __scrollLockY = 0;
+  function _lockBodyScroll() {
+    if (__scrollLockDepth === 0) {
+      __scrollLockY = window.scrollY || document.documentElement.scrollTop || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${__scrollLockY}px`;
+      document.body.style.width = '100%';
+      document.body.style.overflow = 'hidden';
+      // Compensate scrollbar gap on desktop so the layout doesn't
+      // shift when the body's vertical scrollbar disappears.
+      const sbw = window.innerWidth - document.documentElement.clientWidth;
+      if (sbw > 0) document.body.style.paddingRight = sbw + 'px';
+    }
+    __scrollLockDepth++;
+  }
+  function _unlockBodyScroll() {
+    __scrollLockDepth = Math.max(0, __scrollLockDepth - 1);
+    if (__scrollLockDepth === 0) {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
+      // Restore scroll position. Use 'instant' so it doesn't animate.
+      window.scrollTo({ top: __scrollLockY, behavior: 'instant' });
+    }
+  }
+  // Centralised open/close helpers used by every modal entry point.
+  // The raw `.classList.add('active')` calls scattered through the
+  // code now route through these so the lock can never be missed.
+  function _showModalBackdrop() {
+    const bd = document.getElementById('modalBackdrop');
+    if (!bd) return;
+    if (!bd.classList.contains('active')) {
+      _lockBodyScroll();
+    }
+    bd.classList.add('active');
+  }
+  function _hideModalBackdrop() {
+    const bd = document.getElementById('modalBackdrop');
+    if (!bd) return;
+    if (bd.classList.contains('active')) {
+      bd.classList.remove('active');
+      _unlockBodyScroll();
+    }
+  }
+  // Focus trap for the modal backdrop. While a modal is open,
+  // Tab/Shift+Tab cycle focus among focusable elements inside the
+  // modal — they don't escape to underlying page elements. Keyboard
+  // users can ESC to close (handled separately). Skipping this is
+  // a WCAG 2.4.3 violation (focus order) for screen-reader users.
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Tab') return;
+    const backdrop = document.getElementById('modalBackdrop');
+    if (!backdrop || !backdrop.classList.contains('active')) return;
+    const modalEl = document.getElementById('modalContent');
+    if (!modalEl) return;
+    // Get all focusable elements inside the modal. Standard set
+    // per WCAG; the :not([hidden]):not([disabled]) filter avoids
+    // tabbing onto inert items.
+    const focusableSel = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusables = Array.from(modalEl.querySelectorAll(focusableSel))
+      .filter(el => !el.hasAttribute('hidden') && el.offsetParent !== null);
+    if (focusables.length === 0) {
+      ev.preventDefault();
+      modalEl.focus();
+      return;
+    }
+    const first = focusables[0];
+    const last = focusables[focusables.length - 1];
+    if (ev.shiftKey && document.activeElement === first) {
+      ev.preventDefault();
+      last.focus();
+    } else if (!ev.shiftKey && document.activeElement === last) {
+      ev.preventDefault();
+      first.focus();
+    } else if (!modalEl.contains(document.activeElement)) {
+      // Focus is somewhere outside the modal (e.g. user clicked
+      // the address bar). Restore to first focusable.
+      ev.preventDefault();
+      first.focus();
+    }
+  });
+
+  function closeModal() { _hideModalBackdrop(); }
 
   // ================================================================
   // ASYNC CONFIRM / PROMPT — custom modal replacements for the
@@ -6065,6 +6230,37 @@
   // ESC). The `destructive` option styles the confirm button as a
   // danger button — important for delete actions. `confirmLabel`
   // and `cancelLabel` can be customized; both default sensibly.
+  // Async info dialog. Single OK button. Used to replace native
+  // alert() — same blocking-acknowledgment semantics but using our
+  // themed modal instead of the OS one. Returns a Promise<void>
+  // that resolves when the user dismisses.
+  function uiAlert(message, opts) {
+    opts = opts || {};
+    const title = opts.title || '';
+    const okLabel = opts.okLabel || 'OK';
+    return new Promise((resolve) => {
+      if (__asyncModalResolver) { try { __asyncModalResolver(null); } catch(_) {} __asyncModalResolver = null; }
+      __asyncModalResolver = () => resolve();
+      __asyncModalKind = 'confirm';
+      const modal = document.getElementById('modalContent');
+      if (!modal) { resolve(); return; }
+      modal.classList.remove('modal-full');
+      const oldFullClose = modal.querySelector('.modal-full-close');
+      if (oldFullClose) oldFullClose.remove();
+      modal.innerHTML = `
+        <div class="modal-handle"></div>
+        ${title ? `<h2 class="modal-title">${escapeHtml(title)}</h2>` : ''}
+        <p class="modal-sub" style="white-space:pre-wrap;line-height:1.5;color:var(--ink);">${escapeHtml(message)}</p>
+        <div class="modal-actions">
+          <button class="btn btn-accent" id="uiAlertOkBtn" style="flex:1;">${escapeHtml(okLabel)}</button>
+        </div>
+      `;
+      _showModalBackdrop();
+      document.getElementById('uiAlertOkBtn').addEventListener('click', () => _asyncModalClose());
+      setTimeout(() => document.getElementById('uiAlertOkBtn')?.focus(), 50);
+    });
+  }
+
   function uiConfirm(message, opts) {
     opts = opts || {};
     const destructive = !!opts.destructive;
@@ -6090,7 +6286,7 @@
           <button class="btn ${destructive ? 'btn-danger' : 'btn-accent'}" id="uiConfirmOkBtn">${escapeHtml(confirmLabel)}</button>
         </div>
       `;
-      document.getElementById('modalBackdrop').classList.add('active');
+      _showModalBackdrop();
       // Wire buttons and focus the cancel button by default (safer
       // for destructive actions — Enter doesn't auto-delete).
       document.getElementById('uiConfirmCancelBtn').addEventListener('click', () => _asyncModalClose(false));
@@ -6134,7 +6330,7 @@
           <button class="btn btn-accent" id="uiPromptOkBtn">${escapeHtml(submitLabel)}</button>
         </div>
       `;
-      document.getElementById('modalBackdrop').classList.add('active');
+      _showModalBackdrop();
       const inp = document.getElementById('uiPromptInput');
       inp.value = initial;
       const okBtn = document.getElementById('uiPromptOkBtn');
@@ -6874,11 +7070,11 @@
     if (!canManageOps(g.businessId)) { toast('Only the owner or manager can rename.'); return; }
     const modal = document.getElementById('modalContent');
     modal.innerHTML = accountGroupModal(g);
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
     setTimeout(() => document.getElementById('mGroupName')?.focus(), 50);
   }
 
-  function deleteGroup(groupId) {
+  async function deleteGroup(groupId) {
     const g = data.accountGroups.find(x => x.id === groupId);
     if (!g) return;
     if (!canManageOps(g.businessId)) { toast('Only the owner or manager can delete.'); return; }
@@ -6887,32 +7083,32 @@
     const accountsInGroup = data.cashAccounts.filter(a => a.groupId === groupId);
     if (accountsInGroup.length) {
       const otherList = otherGroups.map((og, i) => `${i + 1}. ${og.name}`).join('\n');
-      const choice = prompt(`Category "${g.name}" has ${accountsInGroup.length} account(s) inside.\n\nMove them to which category? Type the number:\n\n${otherList}`, '1');
+      const choice = await uiPrompt(`Category "${g.name}" has ${accountsInGroup.length} account(s) inside.\n\nMove them to which category? Type the number:\n\n${otherList}`, '1', { title: 'Move accounts', submitLabel: 'Next' });
       if (!choice) return;
       const idx = parseInt(choice) - 1;
       const target = otherGroups[idx];
       if (!target) { toast('Invalid choice.'); return; }
-      if (!confirm(`Move ${accountsInGroup.length} account(s) to "${target.name}" and delete the "${g.name}" category? This cannot be undone.`)) return;
+      if (!(await uiConfirm(`Move ${accountsInGroup.length} account(s) to "${target.name}" and delete the "${g.name}" category? This cannot be undone.`, { destructive: true, confirmLabel: 'Move & delete' }))) return;
       accountsInGroup.forEach(a => { a.groupId = target.id; });
       data.accountGroups = data.accountGroups.filter(x => x.id !== groupId);
       saveData(); renderAll();
       toast(`Category deleted. Accounts moved to "${target.name}".`);
     } else {
-      if (!confirm(`Delete category "${g.name}"? Cannot be undone.`)) return;
+      if (!(await uiConfirm(`Delete category "${g.name}"? Cannot be undone.`, { destructive: true, confirmLabel: 'Delete' }))) return;
       data.accountGroups = data.accountGroups.filter(x => x.id !== groupId);
       saveData(); renderAll();
       toast('Category deleted.');
     }
   }
 
-  function moveAccountToGroup(accId) {
+  async function moveAccountToGroup(accId) {
     const acc = data.cashAccounts.find(a => a.id === accId);
     if (!acc) return;
     if (!canManageOps(acc.businessId)) { toast('Only the owner or manager can move.'); return; }
     const groups = data.accountGroups.filter(g => g.businessId === acc.businessId && g.id !== acc.groupId);
     if (!groups.length) { toast('No other categories to move to.'); return; }
     const list = groups.map((g, i) => `${i + 1}. ${g.name}`).join('\n');
-    const choice = prompt(`Move "${acc.name}" to which category?\n\n${list}`, '1');
+    const choice = await uiPrompt(`Move "${acc.name}" to which category?\n\n${list}`, '1', { title: 'Move account', submitLabel: 'Move' });
     if (!choice) return;
     const idx = parseInt(choice) - 1;
     const target = groups[idx];
@@ -8381,7 +8577,7 @@
         <div class="toggle-row">
           <div class="toggle-row-text">
             <div class="toggle-row-title">Play sound for new announcements</div>
-            <div class="toggle-row-desc">A short chime when a teammate posts. Browsers block audio until you tap somewhere on the page, so the very first alert after page load may be silent.</div>
+            <div class="toggle-row-desc">A 4-second alert tone with vibration when a teammate posts. Browsers block audio until you tap somewhere on the page, so the very first alert after page load may be silent.</div>
           </div>
           <label class="toggle"><input type="checkbox" id="setChimeMuted" ${isChimeMuted() ? '' : 'checked'} onchange="setChimeMuted(!this.checked)"><span class="toggle-slider"></span></label>
         </div>
@@ -8584,7 +8780,7 @@
         <button class="btn btn-danger" id="leaveBizConfirmBtn" disabled onclick="leaveBusinessConfirmed()">Leave business</button>
       </div>
     `;
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
     setTimeout(() => document.getElementById('leaveBizConfirm')?.focus(), 30);
   }
   function updateLeaveBizButton() {
@@ -8664,7 +8860,7 @@
     fcBtn.onclick = closeModal;
     fcBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     modal.appendChild(fcBtn);
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
     // Wire drag-to-reorder for categories and per-group accounts. Each list has
     // a unique id so multiple lists can coexist without colliding.
     setTimeout(() => {
@@ -8946,12 +9142,12 @@
     toast('Book saved.');
     openModal('settings');
   }
-  function deleteActiveBook() {
+  async function deleteActiveBook() {
     const book = data.books.find(b => b.id === session.activeBookId);
     if (!book) return;
     if (!canManageOps(book.businessId)) { toast('Only the owner or manager can delete this.'); return; }
     const entryCount = data.entries.filter(e => e.bookId === book.id).length;
-    if (!confirm(`Delete "${book.name}" and its ${entryCount} entries? This cannot be undone.`)) return;
+    if (!(await uiConfirm(`Delete "${book.name}" and its ${entryCount} entries? This cannot be undone.`, { destructive: true, confirmLabel: 'Delete book' }))) return;
     data.entries = data.entries.filter(e => e.bookId !== book.id);
     data.books = data.books.filter(b => b.id !== book.id);
     const remaining = data.books.filter(b => b.businessId === session.activeBizId);
@@ -9016,11 +9212,11 @@
     openBizSettings(bizId);
     toast(`"${name}" added.`);
   }
-  function renameBookFromBizSettings(bookId) {
+  async function renameBookFromBizSettings(bookId) {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;
     if (!canManageOps(book.businessId)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = prompt('Rename book:', book.name);
+    const newName = await uiPrompt('Rename book:', book.name, { title: 'Rename book', submitLabel: 'Rename' });
     if (newName == null) return;
     const trimmed = newName.trim();
     if (!trimmed) { toast('Book name cannot be blank.'); return; }
@@ -9036,11 +9232,11 @@
 
   // Sidebar-side rename. Same gates, but doesn't re-open business settings
   // afterward — sidebar invocations should leave the user where they were.
-  function renameBookFlow(bookId) {
+  async function renameBookFlow(bookId) {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;
     if (!canManageOps(book.businessId)) { toast('Only the owner or manager can rename this book.'); return; }
-    const newName = prompt('Rename book:', book.name);
+    const newName = await uiPrompt('Rename book:', book.name, { title: 'Rename book', submitLabel: 'Rename' });
     if (newName == null) return;
     const trimmed = newName.trim();
     if (!trimmed) { toast('Book name cannot be blank.'); return; }
@@ -9052,14 +9248,14 @@
     saveData(); renderAll();
     toast(`Renamed to "${trimmed}".`);
   }
-  function deleteBookFromBizSettings(bookId) {
+  async function deleteBookFromBizSettings(bookId) {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;
     if (!canManageOps(book.businessId)) { toast('Only the owner or manager can delete.'); return; }
     const remaining = data.books.filter(b => b.businessId === book.businessId && b.id !== book.id);
     if (!remaining.length) { toast('You need at least one book in a business.'); return; }
     const entryCount = data.entries.filter(e => e.bookId === book.id).length;
-    if (!confirm(`Delete "${book.name}" and its ${entryCount} entries? Cannot be undone.`)) return;
+    if (!(await uiConfirm(`Delete "${book.name}" and its ${entryCount} entries? Cannot be undone.`, { destructive: true, confirmLabel: 'Delete book' }))) return;
     data.entries = data.entries.filter(e => e.bookId !== book.id);
     data.books = data.books.filter(b => b.id !== book.id);
     if (session.activeBookId === book.id) session.activeBookId = remaining[0].id;
@@ -9074,9 +9270,9 @@
     const bookIds = data.books.filter(b => b.businessId === bizId).map(b => b.id);
     const entryCount = data.entries.filter(e => bookIds.includes(e.bookId)).length;
     // First confirm — describes what gets erased.
-    if (!confirm(`Delete "${biz.name}"? This removes ${bookIds.length} book(s), ${entryCount} entries, all parties, categories, and accounts in this business. Cannot be undone.`)) return;
+    if (!(await uiConfirm(`Delete "${biz.name}"? This removes ${bookIds.length} book(s), ${entryCount} entries, all parties, categories, and accounts in this business. Cannot be undone.`, { destructive: true, confirmLabel: 'Continue' }))) return;
     // Final safety: require the user to type the exact business name.
-    const typed = prompt(`Type the business name exactly to confirm deletion:\n\n${biz.name}`);
+    const typed = await uiPrompt(`Type the business name exactly to confirm deletion:\n\n${biz.name}`, '', { title: 'Confirm business deletion', submitLabel: 'Delete', placeholder: biz.name });
     if (typed === null) return; // cancelled
     if (typed.trim() !== biz.name) { toast('Name did not match. Business not deleted.'); return; }
     // Extra hardening: re-verify the password. Defends against the
@@ -9588,12 +9784,16 @@
   function openSearchOverlay() {
     const ov = document.getElementById('searchOverlay');
     if (!ov) return;
+    if (!ov.classList.contains('active')) _lockBodyScroll();
     ov.classList.add('active');
     setTimeout(() => document.getElementById('universalSearchInputMobile')?.focus(), 50);
   }
   function closeSearchOverlay() {
     const ov = document.getElementById('searchOverlay');
-    if (ov) ov.classList.remove('active');
+    if (ov && ov.classList.contains('active')) {
+      ov.classList.remove('active');
+      _unlockBodyScroll();
+    }
     const body = document.getElementById('universalSearchOverlayBody');
     if (body) body.innerHTML = '<div class="search-overlay-empty">Start typing to search across everything in this business.</div>';
   }
@@ -9768,7 +9968,7 @@
     const file = ev.target.files && ev.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       let snap;
       try { snap = JSON.parse(reader.result); }
       catch (_) { toast('That file isn\'t valid JSON.'); return; }
@@ -9778,7 +9978,7 @@
       if (!snap.business || !snap.business.id) { toast('Backup is missing a business record.'); return; }
       const existing = data.businesses.find(b => b.id === snap.business.id);
       const targetName = existing?.name || snap.business.name || 'this business';
-      if (!confirm(`Restore "${snap.business.name || 'backup'}" into ${existing ? `your existing "${targetName}"` : 'a new business'}? This will overwrite ${snap.kind === 'hisabs.business.full' ? 'entries, books, parties, categories, accounts' : 'parties, categories, accounts'} for that business.`)) {
+      if (!(await uiConfirm(`Restore "${snap.business.name || 'backup'}" into ${existing ? `your existing "${targetName}"` : 'a new business'}? This will overwrite ${snap.kind === 'hisabs.business.full' ? 'entries, books, parties, categories, accounts' : 'parties, categories, accounts'} for that business.`, { destructive: true, confirmLabel: 'Restore' }))) {
         ev.target.value = ''; return;
       }
       // Apply (defensive: coerce arrays so a malformed file can't crash later .filter() calls)
@@ -9816,14 +10016,14 @@
     const file = ev.target.files && ev.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       let p;
       try { p = JSON.parse(reader.result); }
       catch (_) { toast('That file isn\'t valid JSON.'); return; }
       if (!p || p.kind !== 'hisabs.full' || !p.data || typeof p.data !== 'object') {
         toast('Not a Hisabs full backup file.'); return;
       }
-      if (!confirm('Replace ALL your local data with this backup? This cannot be undone.')) { ev.target.value = ''; return; }
+      if (!(await uiConfirm('Replace ALL your local data with this backup? This cannot be undone.', { destructive: true, confirmLabel: 'Replace all' }))) { ev.target.value = ''; return; }
       // Defensive coercion: malformed files must not corrupt the in-memory shape
       // (later .filter() calls on a non-array would crash every render).
       const arr = (v) => Array.isArray(v) ? v : [];
@@ -10108,7 +10308,7 @@
       const { data: rows, error } = await sb().from('app_audit_log')
         .select('id, event_type, description, occurred_at, user_agent')
         .order('occurred_at', { ascending: false })
-        .limit(50);
+        .limit(10);
       if (error) {
         if (error.code === '42P01' || /does not exist/i.test(error.message || '')) {
           el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Activity log isn't set up yet on this project. Run the latest SUPABASE.sql to enable it.</p>`;
@@ -10253,9 +10453,9 @@
 
   async function revokeDevice(sessionId, isCurrent) {
     if (isCurrent) {
-      if (!confirm("This is the device you're using right now. Signing it out will end your current session. Continue?")) return;
+      if (!(await uiConfirm("This is the device you're using right now. Signing it out will end your current session. Continue?", { destructive: true, confirmLabel: 'Sign out' }))) return;
     } else {
-      if (!confirm('Sign out this device? Whoever is using it will be asked to sign in again next time they open Hisabs.')) return;
+      if (!(await uiConfirm('Sign out this device? Whoever is using it will be asked to sign in again next time they open Hisabs.', { destructive: true, confirmLabel: 'Sign out device' }))) return;
     }
     let session;
     try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
@@ -10310,12 +10510,12 @@
 
   async function renameThisDevice() {
     const existing = getLocalDeviceName();
-    const name = prompt('Name this device (e.g. "Rajesh\'s MacBook", "Office desktop"):', existing || '');
+    const name = await uiPrompt('Name this device (e.g. "Rajesh\'s MacBook", "Office desktop"):', existing || '', { title: 'Name this device', submitLabel: 'Save', allowEmpty: true });
     if (name === null) return; // user cancelled
     const trimmed = String(name).trim();
     if (!trimmed) {
       if (!existing) return; // no name set and none typed — nothing to do
-      if (!confirm('Remove the name from this device?')) return;
+      if (!(await uiConfirm('Remove the name from this device?', { destructive: true, confirmLabel: 'Remove name' }))) return;
       // Remove the row entirely.
       const u = me(); if (!u) return;
       try {
@@ -10336,7 +10536,7 @@
   }
 
   async function signOutAllOtherDevices() {
-    if (!confirm('Sign out every device except this one? Other devices will need to sign in again.')) return;
+    if (!(await uiConfirm('Sign out every device except this one? Other devices will need to sign in again.', { destructive: true, confirmLabel: 'Sign out others' }))) return;
     try {
       // Supabase's built-in: scope 'others' signs out all sessions except
       // the one making the call. Works without our Edge Functions.
@@ -10354,10 +10554,10 @@
   async function wipeMyData() {
     // Strong, two-step confirmation: prevents accidental click and accidental
     // OK on the second dialog. Type-the-email step is the real safety net.
-    if (!confirm('This will permanently delete all your business data from the cloud and sign you out everywhere. Continue?')) return;
+    if (!(await uiConfirm('This will permanently delete all your business data from the cloud and sign you out everywhere. Continue?', { destructive: true, confirmLabel: 'Continue', title: 'Delete everything' }))) return;
     const u = me();
     if (!u) { toast('Not signed in.'); return; }
-    const typed = prompt(`Type your sign-in email to confirm:\n\n${u.login}`);
+    const typed = await uiPrompt(`Type your sign-in email to confirm:\n\n${u.login}`, '', { title: 'Confirm account deletion', submitLabel: 'Delete', placeholder: u.login });
     if (typed === null) return;
     if (normalize(typed) !== normalize(u.login)) { toast('Email did not match. Nothing deleted.'); return; }
     // Final hardening: re-verify the password. Even with the email
@@ -10450,7 +10650,7 @@
         cloudFailures++;
       }
       if (cloudFailures > 0) {
-        if (!confirm(`${cloudFailures} cloud-side delete(s) failed (check console). Continue with local wipe and sign-out anyway?\n\nYour data may remain in the cloud — contact support to complete deletion.`)) {
+        if (!(await uiConfirm(`${cloudFailures} cloud-side delete(s) failed (check console). Continue with local wipe and sign-out anyway?\n\nYour data may remain in the cloud — contact support to complete deletion.`, { destructive: true, confirmLabel: 'Wipe anyway' }))) {
           return;
         }
       }
@@ -11231,10 +11431,10 @@
   }
 
   async function handlePasswordRecovery() {
-    const pwd = prompt('Enter a new password:');
+    const pwd = await uiPrompt('Enter a new password:', '', { title: 'Reset password', submitLabel: 'Next', inputType: 'password', placeholder: 'New password' });
     if (pwd === null) return;
     if (!pwd || pwd.length < 8) { toast('Password must be at least 8 characters.'); return; }
-    const pwd2 = prompt('Type the new password again to confirm:');
+    const pwd2 = await uiPrompt('Type the new password again to confirm:', '', { title: 'Reset password', submitLabel: 'Set password', inputType: 'password', placeholder: 'Confirm password' });
     if (pwd2 === null) return;
     if (pwd !== pwd2) { toast('Passwords did not match. Nothing changed.'); return; }
     try {
@@ -11379,7 +11579,7 @@
   async function reauthForDestructiveAction(actionLabel) {
     const u = me();
     if (!u || !u.cloud) return true; // local-only accounts: no password to check
-    const pwd = prompt(`To ${actionLabel}, please confirm your password:`);
+    const pwd = await uiPrompt(`To ${actionLabel}, please confirm your password:`, '', { title: 'Confirm password', submitLabel: 'Confirm', inputType: 'password', placeholder: 'Your password' });
     if (pwd === null) return false; // user cancelled
     if (!pwd) { toast('Password required.'); return false; }
     try {
@@ -11444,7 +11644,7 @@
         });
         if (error) { toast('Sign up failed: ' + error.message); return; }
         if (!data.session) {
-          alert(`We sent a confirmation link to ${login}.\n\nOpen the email and click the link to finish creating your account, then come back and sign in.`);
+          await uiAlert(`We sent a confirmation link to ${login}.\n\nOpen the email and click the link to finish creating your account, then come back and sign in.`, { title: 'Check your inbox' });
           setAuthMode('signin');
           return;
         }
@@ -11479,7 +11679,9 @@
 
   async function cloudForgotPassword() {
     const prefilled = document.getElementById('authPhone')?.value || '';
-    const email = (prompt('Enter your email to receive a password reset link:', prefilled) || '').trim();
+    const raw = await uiPrompt('Enter your email to receive a password reset link:', prefilled, { title: 'Reset password', submitLabel: 'Send link', placeholder: 'you@example.com', inputType: 'email' });
+    if (raw === null) return;
+    const email = String(raw || '').trim();
     if (!email) return;
     if (!email.includes('@')) { toast('Please enter a valid email.'); return; }
     try {
@@ -11490,7 +11692,7 @@
         redirectTo: window.location.origin === 'null' ? undefined : window.location.origin,
       });
       if (error) { toast('Could not send reset email: ' + error.message); return; }
-      alert(`If an account exists for ${email}, a password reset link has been sent. Check your inbox and spam folder.`);
+      await uiAlert(`If an account exists for ${email}, a password reset link has been sent. Check your inbox and spam folder.`, { title: 'Reset link sent' });
     } catch (e) {
       toast('Network error: ' + e.message);
     }
@@ -11655,7 +11857,7 @@
   // (which clears session/state). If Supabase sign-out fails (offline) we
   // still sign out locally so the user isn't stuck.
   async function cloudSignOut() {
-    if (!confirm('Sign out of Hisabs?')) return;
+    if (!(await uiConfirm('Sign out of Hisabs?', { confirmLabel: 'Sign out' }))) return;
     // CRITICAL: wait for the local queue to drain before signing out.
     // If we sign out while ops are pending, they get wiped from
     // localStorage by _doSignOut() and never reach the cloud — the
@@ -11675,10 +11877,11 @@
         tick();
       });
       if (waitedTooLong) {
-        const proceed = confirm(
+        const proceed = await uiConfirm(
           `Could not push ${__syncQueue.length} pending change${__syncQueue.length === 1 ? '' : 's'} to the cloud before signing out. ` +
           `If you sign out now, those changes will be LOST. ` +
-          `Cancel to retry later when your connection is better, or OK to sign out anyway.`
+          `Cancel to retry later when your connection is better, or continue to sign out anyway.`,
+          { destructive: true, confirmLabel: 'Sign out anyway', title: 'Pending changes' }
         );
         if (!proceed) return;
       }
@@ -12286,46 +12489,87 @@
   // Synthesize a ~3s announcement chime: two short attack notes (bell
   // pattern) decaying into silence. Soft enough to not be alarming.
   // Returns a Promise that resolves when the sound has finished or fails.
+  // Single-shot alarm guard. Prevents stacked alarms when several
+  // announcements arrive in quick succession (each previously
+  // started its own 4-second alarm, overlapping into noise).
+  // While an alarm is playing, subsequent calls return quickly
+  // without starting another. The flag clears when the audio
+  // context closes at end of pattern.
+  let __alarmPlaying = false;
   function playAnnouncementChime() {
+    if (__alarmPlaying) return Promise.resolve();
+    __alarmPlaying = true;
+    // Vibrate on mobile if available — short triple-buzz to match
+    // the alarm sound's urgency. Browsers that don't support
+    // vibration silently ignore. Web Vibration API is gated to
+    // user-gesture contexts; if blocked, fail silently.
+    try {
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+    } catch (_) {}
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
-      if (!AC) return Promise.resolve();
+      if (!AC) { __alarmPlaying = false; return Promise.resolve(); }
       const ctx = new AC();
       // Resume in case the context is suspended (autoplay policy).
       if (ctx.state === 'suspended') {
         try { ctx.resume(); } catch (_) {}
       }
-      // Two-note chime: G5 then C6, the "bell ding" pattern.
-      const notes = [
-        { freq: 783.99, start: 0.0,  dur: 1.4 },  // G5
-        { freq: 1046.5, start: 0.15, dur: 1.5 },  // C6 (overlapping)
-        // A faint third note to give a 3s tail.
-        { freq: 1318.5, start: 0.40, dur: 2.5 },  // E6
-      ];
+      // Strong alarm pattern: alternating two-tone siren over 4
+      // seconds. Higher peak gain (0.30 vs old 0.15) and square-
+      // wave overtones for a harder, more attention-grabbing
+      // sound. The pattern is six beeps of ~600ms each (4 sec total),
+      // alternating 880Hz/660Hz like a smoke-detector "BEEP BEEP".
+      // Brief gaps between beeps make it feel urgent rather than
+      // continuous (continuous tones are easier to ignore).
       const now = ctx.currentTime;
-      for (const n of notes) {
-        const osc = ctx.createOscillator();
+      const beepDur = 0.55;
+      const gap = 0.12;
+      const pattern = [
+        { freq: 880, start: 0.00 },
+        { freq: 660, start: beepDur + gap },
+        { freq: 880, start: (beepDur + gap) * 2 },
+        { freq: 660, start: (beepDur + gap) * 3 },
+        { freq: 880, start: (beepDur + gap) * 4 },
+        { freq: 660, start: (beepDur + gap) * 5 },
+      ];
+      for (const n of pattern) {
+        // Layered oscillators for a richer alarm timbre: a square
+        // wave for the body (loud, attention-grabbing harmonics)
+        // plus a sine an octave higher for brightness.
+        const oscA = ctx.createOscillator();
+        const oscB = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = n.freq;
-        // Envelope: quick attack, exponential decay. Peak gain ~0.15 to
-        // stay polite. exponentialRampToValueAtTime needs strictly > 0,
-        // so we ramp down to a tiny value (not 0).
+        oscA.type = 'square';
+        oscA.frequency.value = n.freq;
+        oscB.type = 'sine';
+        oscB.frequency.value = n.freq * 2;
+        // Envelope with a sharp attack and a sustain plateau so the
+        // beep is loud throughout its full duration, then a quick
+        // release. Peak gain 0.30 (twice the polite chime) without
+        // clipping the speakers.
         gain.gain.setValueAtTime(0.0001, now + n.start);
-        gain.gain.exponentialRampToValueAtTime(0.15, now + n.start + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + n.dur);
-        osc.connect(gain).connect(ctx.destination);
-        osc.start(now + n.start);
-        osc.stop(now + n.start + n.dur + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.30, now + n.start + 0.02);
+        gain.gain.setValueAtTime(0.30, now + n.start + beepDur - 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + beepDur);
+        oscA.connect(gain);
+        oscB.connect(gain);
+        gain.connect(ctx.destination);
+        oscA.start(now + n.start);
+        oscB.start(now + n.start);
+        oscA.stop(now + n.start + beepDur + 0.02);
+        oscB.stop(now + n.start + beepDur + 0.02);
       }
-      // Close the context after the chime to free resources.
+      // Total runtime: 6 beeps × (0.55 + 0.12 gap) ≈ 4.02 sec.
+      // Close the context shortly after the last beep finishes.
+      const totalDur = (beepDur + gap) * 6;
       return new Promise((resolve) => {
         setTimeout(() => {
           try { ctx.close(); } catch (_) {}
+          __alarmPlaying = false;
           resolve();
-        }, 3100);
+        }, (totalDur + 0.1) * 1000);
       });
-    } catch (_) { return Promise.resolve(); }
+    } catch (_) { __alarmPlaying = false; return Promise.resolve(); }
   }
 
   // Show an OS-level notification if permission has been granted. This
@@ -12688,6 +12932,9 @@
         if (idx !== -1) {
           maybeWarnConflict(localKey, newRow.id, 'deleted');
           list.splice(idx, 1);
+          // If this was OUR member row being soft-deleted, invalidate
+          // role cache for that business so the demotion takes effect.
+          if (localKey === 'members') _invalidateRoleCacheIfMine(list[idx]);
           scheduleRemoteRender(localKey, newRow.id, 'delete');
         }
         return;
@@ -12704,6 +12951,14 @@
         }
         list[idx] = restored;
       }
+      // If a member row about US just changed status away from
+      // 'accepted', clear cached role so we don't keep showing
+      // privileged data. (Promotions/role changes are picked up
+      // naturally on next roleFor call since cache write happens
+      // whenever a real match is found.)
+      if (localKey === 'members' && restored.status !== 'accepted') {
+        _invalidateRoleCacheIfMine(restored);
+      }
       // Announcement alert: only on INSERT (new posts) and only for
       // announcements arriving from realtime, NOT our own catchup pulls.
       // The handler dedupes and suppresses self-author notifications.
@@ -12716,11 +12971,27 @@
       if (!id) return;
       const idx = list.findIndex(r => r.id === id);
       if (idx !== -1) {
+        const removed = list[idx];
         maybeWarnConflict(localKey, id, 'deleted');
         list.splice(idx, 1);
+        // Clear cached role if this DELETE was our own member row.
+        if (localKey === 'members') _invalidateRoleCacheIfMine(removed);
         scheduleRemoteRender(localKey, id, 'delete');
       }
     }
+  }
+
+  // Clear the cached role for (this user, member.businessId) when
+  // their member row is removed or its status changes. Called from
+  // the realtime DELETE/UPDATE handlers above. Safe to call with a
+  // null member.
+  function _invalidateRoleCacheIfMine(member) {
+    if (!member) return;
+    const u = me(); if (!u) return;
+    const isMine = (member.userId && member.userId === u.id)
+      || (member.userLogin && normalize(member.userLogin) === normalize(u.login));
+    if (!isMine) return;
+    __roleCache.delete(_roleCacheKey(u.id, member.businessId));
   }
 
   // Pull recent changes — used on reconnect to catch missed events.
@@ -13138,7 +13409,7 @@
     const u = me();
     if (!u || !u.cloud) { toast('Sign in with a cloud account first.'); return false; }
     if (!silent && !opts.skipConfirm) {
-      if (!confirm('Replace local data with what is in the cloud? Any local changes that have not been pushed will be lost.')) return false;
+      if (!(await uiConfirm('Replace local data with what is in the cloud? Any local changes that have not been pushed will be lost.', { destructive: true, confirmLabel: 'Replace local' }))) return false;
     }
     if (!silent) toast('Pulling from cloud…');
     try {
@@ -13312,7 +13583,7 @@
     // 1. SDK loaded?
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
       lines.push('✗ Supabase SDK did NOT load. Check vendor/supabase.umd.js.');
-      alert(lines.join('\n'));
+      await uiAlert(lines.join('\n'), { title: 'Cloud diagnostic' });
       return;
     }
     lines.push('✓ SDK loaded');
@@ -13369,13 +13640,13 @@
       stage1Bad.forEach(b => lines.push('  • ' + b));
       lines.push('  → run SUPABASE_STAGE1.sql in your Supabase SQL editor.');
     }
-    alert(lines.join('\n'));
+    await uiAlert(lines.join('\n'), { title: 'Cloud diagnostic' });
   }
 
   async function cloudRestore() {
     const u = me();
     if (!u || !u.cloud) { toast('Sign in with a cloud account first.'); return; }
-    if (!confirm('Replace ALL local data with your latest cloud backup? This cannot be undone.')) return;
+    if (!(await uiConfirm('Replace ALL local data with your latest cloud backup? This cannot be undone.', { destructive: true, confirmLabel: 'Replace all' }))) return;
     try {
       // Try to read the 'latest' row first. If the `label` column doesn't
       // exist (older schema), the query errors with 42703 and we fall back
@@ -13501,9 +13772,9 @@
       cont.classList.remove('btn-ghost');
       cont.classList.add('btn-accent');
     });
-    document.getElementById('migContinueBtn').addEventListener('click', () => {
+    document.getElementById('migContinueBtn').addEventListener('click', async () => {
       if (!backedUp) {
-        if (!confirm('You have not downloaded a backup yet. Continue anyway? Your local books will stay on this device, but if you clear browser data without a backup file they will be lost.')) return;
+        if (!(await uiConfirm('You have not downloaded a backup yet. Continue anyway? Your local books will stay on this device, but if you clear browser data without a backup file they will be lost.', { destructive: true, confirmLabel: 'Continue without backup' }))) return;
       }
       // Restore the original auth UI and show signup mode by default.
       card.innerHTML = card.__originalHTML;

@@ -293,6 +293,35 @@ create table if not exists public.app_audit_log (
 );
 create index if not exists idx_app_audit_log_user_time on public.app_audit_log(user_id, occurred_at desc);
 
+-- Keep the audit log compact. After every insert, prune rows so each
+-- user has at most 10 entries (the 10 most recent by occurred_at).
+-- Storage in Supabase is metered, and the activity log is for at-a-
+-- glance review, not forensics — older entries are noise. Trigger
+-- runs per-row after insert; deletes excess rows belonging to the
+-- same user whose new row just landed.
+create or replace function public.prune_audit_log_for_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, auth
+as $$
+begin
+  delete from public.app_audit_log
+  where id in (
+    select id from public.app_audit_log
+    where user_id = new.user_id
+    order by occurred_at desc
+    offset 10
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_prune_audit_log on public.app_audit_log;
+create trigger trg_prune_audit_log
+  after insert on public.app_audit_log
+  for each row execute function public.prune_audit_log_for_user();
+
 -- Quick Look directory: shared per-business reference list of payment
 -- accounts, QR codes, etc. Anyone with access to the business can read
 -- and copy/download; owners and managers can add/edit/delete.
