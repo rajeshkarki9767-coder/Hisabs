@@ -97,6 +97,31 @@ Deno.serve(async (req: Request): Promise<Response> => {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 
+  // Clean up rows that don't FK-cascade from auth.users:
+  //   - app_members rows where user_id matches OR user_login matches the
+  //     deleted account's email. Both because a member row can be in the
+  //     pre-acceptance state (user_id null, user_login set) or
+  //     post-acceptance (user_id set). If we leave these around, a fresh
+  //     account with the same email later inherits the previous account's
+  //     business memberships (ghost businesses).
+  //   - app_push_subscriptions rows for this user_id.
+  //   - app_device_names rows for this user_id.
+  // We do this BEFORE deleting the auth user so a partial failure doesn't
+  // leak orphan rows.
+  try {
+    if (userEmail) {
+      await adminClient.from('app_members')
+        .delete()
+        .or(`user_id.eq.${userId},user_login.ilike.${userEmail.toLowerCase()}`);
+    } else {
+      await adminClient.from('app_members').delete().eq('user_id', userId);
+    }
+    await adminClient.from('app_push_subscriptions').delete().eq('user_id', userId);
+    await adminClient.from('app_device_names').delete().eq('user_id', userId);
+  } catch (e) {
+    console.warn('Cleanup before auth-delete failed (non-fatal):', e);
+  }
+
   const { error: delErr } = await adminClient.auth.admin.deleteUser(userId);
   if (delErr) {
     // Log details internally; return generic error to caller.

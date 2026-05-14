@@ -97,10 +97,19 @@ create table if not exists public.app_parties (
   kind text,
   sort_order int,
   created_at_local text,
+  -- created_by: tracks which user created this party. Used so staff can
+  -- rename their own parties (but not others'). NULL for legacy parties
+  -- created before this column was added — those are treated as
+  -- "anyone with party-add permission can rename" so existing data
+  -- doesn't become uneditable.
+  created_by uuid,
+  created_by_name text,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   deleted_at timestamptz
 );
+alter table public.app_parties add column if not exists created_by uuid;
+alter table public.app_parties add column if not exists created_by_name text;
 create index if not exists idx_app_parties_business_id on public.app_parties(business_id);
 
 create table if not exists public.app_categories (
@@ -355,6 +364,68 @@ alter table public.app_failed_logins   replica identity full;
 alter table public.app_audit_log       replica identity full;
 alter table public.app_quick_look      replica identity full;
 alter table public.app_announcements   replica identity full;
+
+-- ----------------------------------------------------------------
+-- 2.5. Supabase Realtime publication membership
+-- ----------------------------------------------------------------
+-- Supabase Realtime delivers postgres_changes events ONLY for tables
+-- that are members of the `supabase_realtime` publication. REPLICA
+-- IDENTITY FULL above only controls how MUCH data each event carries
+-- — it doesn't control WHETHER events fire at all. If you've ever seen
+-- "sync only happens after refresh", it's because the tables weren't in
+-- this publication, so the client subscribed to a stream that never
+-- emitted anything.
+--
+-- Postgres has no `add table if not exists` syntax for publications, so
+-- we read pg_publication_tables and only add tables that aren't already
+-- members. Re-running this block is safe and idempotent.
+--
+-- Note: on a brand-new Supabase project, the publication exists but is
+-- empty (or contains only some tables, depending on what you toggled in
+-- the dashboard). The conditional create handles either state.
+do $$
+declare
+  pub_exists boolean;
+  t text;
+  tables_to_publish text[] := array[
+    'app_accounts',
+    'app_businesses',
+    'app_books',
+    'app_account_groups',
+    'app_cash_accounts',
+    'app_parties',
+    'app_categories',
+    'app_members',
+    'app_entries',
+    'app_audit_expenses',
+    'app_device_names',
+    'app_audit_log',
+    'app_quick_look',
+    'app_announcements',
+    'app_push_subscriptions'
+  ];
+begin
+  select exists (
+    select 1 from pg_publication where pubname = 'supabase_realtime'
+  ) into pub_exists;
+  if not pub_exists then
+    create publication supabase_realtime;
+  end if;
+  foreach t in array tables_to_publish loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime'
+        and schemaname = 'public'
+        and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end$$;
+-- After this block runs, every connected client will start receiving
+-- INSERT/UPDATE/DELETE events for these tables in real time. You
+-- should see "Realtime status: SUBSCRIBED" in the browser console
+-- once the page reloads.
 
 -- ----------------------------------------------------------------
 -- 3. Helper functions
@@ -681,29 +752,12 @@ create policy app_audit_log_insert on public.app_audit_log
 
 grant usage on schema public to anon, authenticated;
 grant select, insert, update, delete on all tables in schema public to authenticated;
-grant select, insert, update on all tables in schema public to anon;
-
--- ----------------------------------------------------------------
--- 7. Realtime publication
--- ----------------------------------------------------------------
-
-do $$
-declare
-  t text;
-begin
-  for t in select unnest(array[
-    'app_accounts','app_businesses','app_books','app_account_groups',
-    'app_cash_accounts','app_parties','app_categories','app_members',
-    'app_entries','app_audit_expenses'
-  ])
-  loop
-    begin
-      execute format('alter publication supabase_realtime add table public.%I', t);
-    exception when duplicate_object then null;
-    when others then raise notice 'Could not add % to publication: %', t, sqlerrm;
-    end;
-  end loop;
-end $$;
+-- anon has no row-level access (RLS policies are all to authenticated),
+-- but PostgREST needs table-level select grants on tables it inspects
+-- during auth flow. We grant select only — no insert/update/delete to
+-- anon. Even if a policy bug temporarily permitted anon writes, the
+-- table-level grant blocks it. Defense in depth.
+grant select on all tables in schema public to anon;
 
 -- ============================================================
 -- MIGRATION FROM SOFT-DELETE PROJECTS
@@ -743,6 +797,28 @@ end $$;
 -- If any existing row exceeds these limits, the ALTER will fail with a
 -- check-violation error. In that case, find and trim the offending row
 -- before re-running.
+
+-- ============================================================
+-- 9.5. One-shot cleanup: orphan member rows
+-- ============================================================
+-- If any previous account-deletion left member rows pointing at users
+-- that no longer exist in auth.users, a new account signing up with the
+-- same email inherits those memberships and sees "ghost businesses".
+-- Safe to run repeatedly — only removes rows where the user_id no
+-- longer matches a real auth user AND the user_login is no longer an
+-- active auth account's email.
+delete from public.app_members m
+where (
+  m.user_id is not null
+  and not exists (select 1 from auth.users u where u.id = m.user_id)
+)
+and (
+  m.user_login is null
+  or not exists (
+    select 1 from auth.users u
+    where lower(u.email) = lower(m.user_login)
+  )
+);
 
 do $$
 begin

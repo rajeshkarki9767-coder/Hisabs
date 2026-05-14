@@ -463,6 +463,17 @@
   .sidebar-nav-item.active { color: var(--sidebar-text); background: var(--sidebar-active); border-left-color: var(--accent-soft); font-weight: 500; }
   .sidebar-nav-item svg { flex-shrink: 0; opacity: 0.7; width: 14px; height: 14px; }
   .sidebar-nav-item.active svg { opacity: 1; color: var(--accent-soft); }
+  /* Numeric pill next to a sidebar item (e.g. announcement count).
+     Hidden by default via the `hidden` attribute; JS removes the
+     attribute when there's a count to display. */
+  .nav-badge {
+    margin-left: auto;
+    background: var(--accent); color: var(--paper);
+    font-size: 0.6rem; font-weight: 600;
+    padding: 0.05rem 0.4rem; border-radius: 999px;
+    min-width: 16px; text-align: center;
+  }
+  .nav-badge[hidden] { display: none; }
 
   .invites-section {
     background: linear-gradient(180deg, rgba(184,72,42,0.18), rgba(184,72,42,0.06));
@@ -601,6 +612,16 @@
   .search-wrap svg { position: absolute; left: 0.65rem; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--ink-mute); }
 
   .entries-wrap { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  /* Period label sitting above the entries table header — tells the
+     user what date range they're looking at. Quiet styling so the
+     actual data dominates. */
+  .entries-period-label {
+    padding: 0.5rem 1rem 0.35rem;
+    background: var(--surface-1);
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink-mute); font-weight: 600;
+    border-bottom: 1px dashed var(--line-soft);
+  }
   .entries-head { display: grid; grid-template-columns: 90px 1fr 150px 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
   .entries-head .col-amount, .entries-head .col-balance { text-align: right; }
   .entry-row { display: grid; grid-template-columns: 90px 1fr 150px 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
@@ -1208,6 +1229,35 @@
   .info-box { padding: 0.9rem 1rem; background: var(--paper-deep); border: 1px solid var(--line); font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 1rem; line-height: 1.55; }
   .info-box strong { color: var(--ink); }
 
+  /* Leaderboard rows on the Team & access page. One row per teammate
+     plus the owner. On wide screens, stats lay out in a single row;
+     on narrow screens they wrap into a 2-column grid below the name. */
+  .lb-list { display: flex; flex-direction: column; gap: 0.5rem; }
+  .lb-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1.4fr) auto repeat(4, minmax(80px, 1fr));
+    gap: 0.6rem 0.9rem;
+    align-items: center;
+    padding: 0.75rem 0.9rem;
+    border: 1px solid var(--line);
+    background: var(--input-bg-focus);
+  }
+  .lb-who { min-width: 0; }
+  .lb-who > div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-badge { display: flex; align-items: center; }
+  .lb-stat-label { font-size: 0.6rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; }
+  .lb-stat-val { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 500; margin-top: 0.1rem; }
+  .lb-in .lb-stat-val { color: var(--gain); }
+  .lb-out .lb-stat-val { color: var(--loss); }
+  .lb-net .lb-stat-val.positive { color: var(--gain); }
+  .lb-net .lb-stat-val.negative { color: var(--loss); }
+  @media (max-width: 880px) {
+    .lb-row { grid-template-columns: 1fr auto; grid-auto-flow: row; }
+    .lb-row .lb-stat { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline; padding: 0.25rem 0; border-top: 1px dashed var(--line-soft); }
+    .lb-row .lb-stat-label { margin: 0; }
+    .lb-row .lb-stat-val { margin: 0; }
+  }
+
   /* TOAST — fixed bottom-right, z-index above FAB on mobile */
   .toast {
     position: fixed; bottom: calc(2rem + var(--safe-bottom)); right: 2rem;
@@ -1359,8 +1409,16 @@
     .entry-row .entry-actions { opacity: 1; position: static; display: flex; gap: 0.25rem; }
     .entry-act-btn { padding: 0.3rem; }
 
-    .fab { display: flex; gap: 0.4rem; position: fixed; bottom: calc(0.75rem + var(--safe-bottom)); left: 0.75rem; right: 0.75rem; z-index: 60; }
-    .fab-btn { flex: 1; padding: 0.8rem; border: none; cursor: pointer; color: #f5f1e8; font-weight: 600; font-size: 0.8rem; letter-spacing: 0.04em; box-shadow: 0 8px 24px -4px rgba(26,22,18,0.5); display: flex; align-items: center; justify-content: center; gap: 0.3rem; text-transform: uppercase; border-radius: var(--r); }
+    /* Mobile: the top-bar "+ Entry" button is redundant with the
+       floating FAB at the bottom. Hide it to reclaim space. The button
+       is identified by its onclick="openModal('entry')". The FAB
+       below is the only entry point. */
+    .page-actions .btn[onclick*="openModal('entry')"] { display: none; }
+
+    .fab { display: flex; gap: 0.4rem; position: fixed; bottom: calc(0.75rem + var(--safe-bottom)); left: 0.75rem; right: 0.75rem; z-index: 60; justify-content: center; }
+    /* Single-FAB layout: center the button, give it a max width so it
+       doesn't stretch the full screen on tablets. */
+    .fab-btn { padding: 0.85rem 1.4rem; border: none; cursor: pointer; color: #f5f1e8; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; box-shadow: 0 8px 24px -4px rgba(26,22,18,0.5); display: flex; align-items: center; justify-content: center; gap: 0.35rem; text-transform: uppercase; border-radius: var(--r); min-width: 160px; max-width: 320px; }
     .fab-btn:disabled { opacity: 0.5; }
     .fab-btn.in { background: var(--gain); }
     .fab-btn.out { background: var(--loss); }
@@ -1390,6 +1448,51 @@
     .auth-headline { font-size: 1.65rem; }
     .sidebar-footer { padding-bottom: calc(0.75rem + var(--safe-bottom)); }
     .parties-grid { grid-template-columns: 1fr; }
+
+    /* ============================================================
+       Mobile compaction pass (#4)
+       Reduce spacing and font sizes so more data fits on screen.
+       Targets areas user touches most: entry rows, stats, period bar,
+       page header. Kept conservative — typography still readable.
+       ============================================================ */
+    main { padding: 0.6rem 0.55rem calc(4.5rem + var(--safe-bottom)); }
+    .page-header { margin-bottom: 0.5rem; }
+    .period-bar { padding: 0.4rem 0.55rem; gap: 0.3rem; margin-bottom: 0.5rem; }
+    .period-tab { padding: 0.25rem 0.5rem; font-size: 0.7rem; }
+    .period-current { font-size: 0.78rem; margin-bottom: 0.25rem; }
+    .stats { gap: 0.35rem; margin-bottom: 0.55rem; }
+    .stat { padding: 0.55rem 0.7rem; }
+    .stat-value { font-size: 0.95rem; }
+    .stat-balance-mobile .stat-value { font-size: 1.35rem; }
+    .stat-label { font-size: 0.55rem; }
+    .stat-meta { font-size: 0.6rem; }
+    .toolbar { padding: 0.35rem; margin-bottom: 0.45rem; gap: 0.3rem; }
+    .toolbar input, .toolbar select { font-size: 0.78rem; padding: 0.42rem 0.55rem; }
+    .entries-period-label { padding: 0.35rem 0.75rem 0.25rem; font-size: 0.62rem; letter-spacing: 0.1em; }
+    .entry-row { padding: 0.55rem 0.7rem; margin-bottom: 0.3rem; }
+    .entry-row .entry-date { font-size: 0.58rem; margin-bottom: 0.22rem; }
+    .entry-row .entry-note { font-size: 0.82rem; }
+    .entry-row .entry-party { font-size: 0.68rem; margin-top: 0.12rem; }
+    .entry-row .entry-amount { font-size: 0.86rem; top: 0.5rem; right: 0.6rem; }
+    .entry-card-footer { margin-top: 0.3rem; padding-top: 0.3rem; font-size: 0.6rem; }
+    .entry-card-footer .entry-by-name { font-size: 0.6rem; }
+    /* Page eyebrow/title get smaller too when visible (some pages
+       like Parties show them). */
+    .page-eyebrow { font-size: 0.62rem; }
+    .page-title { font-size: 1.1rem; }
+    .page-title-count { font-size: 0.7rem; padding: 0.1rem 0.35rem; }
+    /* Announcement banner trim — important-only banner can be denser. */
+    .announcements-wrap { margin-bottom: 0.55rem; }
+    .announcement { padding: 0.55rem 0.7rem; }
+    .announcement-text { font-size: 0.82rem; }
+    /* Party / category / account cards: tighter padding on mobile so
+       a couple more fit per scroll. */
+    .party-card { padding: 0.7rem 0.85rem; }
+    .party-card-name { font-size: 0.92rem; }
+    .party-card-meta { font-size: 0.7rem; }
+    .party-card-stat-label { font-size: 0.55rem; }
+    .party-card-stat-val { font-size: 0.85rem; }
+    .party-card-net { font-size: 0.78rem; }
   }
 </style>
 </head>
@@ -1579,6 +1682,11 @@
       <div id="sidebarQuickLookGroup">
         <div class="sidebar-section-label"><span>Quick Look</span></div>
         <div class="sidebar-nav">
+          <div class="sidebar-nav-item" id="navAnnouncementsView" onclick="switchView('announcementsView')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+            Announcements
+            <span class="nav-badge" id="navAnnouncementsBadge" hidden></span>
+          </div>
           <div class="sidebar-nav-item" id="navQuickLook" onclick="switchView('quickLook')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Snapshot
@@ -1655,14 +1763,15 @@
     <div id="mainContent"></div>
   </main>
 
+  <!-- Floating action button (mobile). Single + Entry button; the
+       entry modal picks In vs Out via the type toggle inside it. The
+       previous dual Cash-In / Cash-Out buttons doubled the footprint
+       on mobile screens for no real value — most users tap, see the
+       form, set type, and submit. -->
   <div class="fab" id="fab">
-    <button class="fab-btn in" id="fabIn" onclick="openModal('entry', null, 'in')">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
-      Cash In
-    </button>
-    <button class="fab-btn out" id="fabOut" onclick="openModal('entry', null, 'out')">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
-      Cash Out
+    <button class="fab-btn in" id="fabEntry" onclick="openModal('entry')" aria-label="Add entry">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Entry
     </button>
   </div>
 </div>
@@ -1749,9 +1858,17 @@
   // of crashing later.
   let __sb = null;
   // Debug flag — enable verbose logging by running this in DevTools:
-  //   localStorage.hisabs_debug = '1'; location.reload();
+  //   hisabsDebug(true);   // or: localStorage.hisabs_debug = '1'; location.reload();
   try { window.__hisabsDebug = localStorage.getItem('hisabs_debug') === '1'; }
   catch (_) { window.__hisabsDebug = false; }
+  // Runtime toggle — no reload needed. Persists to localStorage so the
+  // setting survives the next reload too.
+  window.hisabsDebug = function(on) {
+    window.__hisabsDebug = !!on;
+    try { localStorage.setItem('hisabs_debug', on ? '1' : '0'); } catch (_) {}
+    console.log('hisabs debug:', on ? 'on' : 'off');
+    return on;
+  };
   function sb() {
     if (__sb) return __sb;
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
@@ -2224,7 +2341,12 @@
       const bizId = book.businessId;
       const existing = data.parties.find(p => p.businessId === bizId && p.name.toLowerCase() === e.party.toLowerCase());
       if (!existing) {
-        data.parties.push({ id: uid(), businessId: bizId, name: e.party, kind: 'both', createdAt: e.date || today() });
+        data.parties.push({
+          id: uid(), businessId: bizId, name: e.party, kind: 'both',
+          createdAt: e.date || today(),
+          createdBy: e.createdBy || null,
+          createdByName: e.createdByName || '',
+        });
         dirty = true;
       }
       if (!e.partyId) {
@@ -2588,7 +2710,23 @@
   function pendingInvitesForMe() {
     const u = me(); if (!u) return [];
     const myLogin = normalize(u.login);
-    return data.members.filter(m => m.userLogin === myLogin && m.status === 'pending');
+    // Only show truly-pending invites for this user. Guard against
+    // duplicate / stale rows: if there's ALREADY an accepted member row
+    // for this user in the same business, the pending row is a leftover
+    // from an old invite cycle and should be ignored (and ideally
+    // garbage-collected — see GC below).
+    const acceptedBizIds = new Set(
+      data.members.filter(m =>
+        m.status === 'accepted'
+        && ((u.cloud && m.userId === u.id) || normalize(m.userLogin) === myLogin)
+      ).map(m => m.businessId)
+    );
+    return data.members.filter(m => {
+      if (m.status !== 'pending') return false;
+      if (normalize(m.userLogin) !== myLogin) return false;
+      if (acceptedBizIds.has(m.businessId)) return false; // already in
+      return true;
+    });
   }
   function roleFor(businessId) {
     const u = me(); if (!u) return null;
@@ -2653,9 +2791,34 @@
     const role = roleFor(businessId);
     return role === 'owner' || role === 'manager' || role === 'staff';
   }
-  // Who can see the owner-only Audit tab? Owner only (per spec).
+  // Who can rename a party? Owner and manager always. Staff can rename
+  // ONLY parties they created themselves. Legacy parties without a
+  // createdBy are treated as "anyone with add-party permission can
+  // rename" so existing data isn't locked. Viewer never.
+  function canRenameParty(party) {
+    if (!party) return false;
+    const role = roleFor(party.businessId);
+    if (role === 'owner' || role === 'manager') return true;
+    if (role !== 'staff') return false;
+    if (!party.createdBy) return true; // legacy: allow
+    const u = me();
+    return !!(u && party.createdBy === u.id);
+  }
+  // Who can DELETE a party? Owner and manager only. Staff cannot
+  // delete even their own — deletion has historical consequences
+  // (entries reference partyId).
+  function canDeleteParty(party) {
+    if (!party) return false;
+    const role = roleFor(party.businessId);
+    return role === 'owner' || role === 'manager';
+  }
+  // Who can see the Audit tab? Owner and viewer. The viewer is a trusted
+  // read-only role — typically an accountant or business partner — and
+  // should see everything the owner sees, just without edit ability.
+  // Manager and staff don't see audit (it's bookkeeping internals).
   function canSeeAudit(businessId) {
-    return roleFor(businessId) === 'owner';
+    const r = roleFor(businessId);
+    return r === 'owner' || r === 'viewer';
   }
 
   // ================================================================
@@ -2861,6 +3024,12 @@
     try { stopSyncSystem(); } catch (_) {}
     try { localStorage.removeItem(SYNC_QUEUE_KEY); } catch (_) {}
     try { localStorage.removeItem(SYNC_SNAPSHOT_KEY); } catch (_) {}
+    // D4: Clear the push-trigger queue too. Without this, a pending
+    // push trigger from user A would persist into user B's session
+    // if both sign in on the same browser. The Edge Function would
+    // reject it (auth mismatch) but the retry loop would log noise
+    // until the 24h age-out kicked in.
+    try { localStorage.removeItem('hisabs_push_trigger_queue_v1'); } catch (_) {}
     // Clear the local device-name cache too. If the same user re-signs-in,
     // they can rename again; if a different user signs in on this browser,
     // they get a fresh slate (not inheriting the previous person's label).
@@ -3093,9 +3262,12 @@
   function renderPermissions() {
     const role = session.activeBizId ? roleFor(session.activeBizId) : null;
     document.getElementById('userRole').textContent = role ? role[0].toUpperCase() + role.slice(1) : '—';
-    document.getElementById('addBookBtn').disabled = !(role === 'owner' || role === 'manager');
-    document.getElementById('fabIn').disabled = !canAddEntry();
-    document.getElementById('fabOut').disabled = !canAddEntry();
+    const addBookBtn = document.getElementById('addBookBtn');
+    if (addBookBtn) addBookBtn.disabled = !(role === 'owner' || role === 'manager');
+    // The dual fabIn/fabOut buttons were replaced by a single fabEntry
+    // in the mobile layout refactor (#3). Update its disabled state.
+    const fabEntry = document.getElementById('fabEntry');
+    if (fabEntry) fabEntry.disabled = !canAddEntry();
   }
 
   function renderBusinesses() {
@@ -3110,10 +3282,14 @@
              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
            </button>`
         : '';
+      // Display label: `staff` role is shown as "team" everywhere
+      // user-facing per the rename. The internal role identifier stays
+      // 'staff' for backward compat with member rows already in the DB.
+      const roleLabel = role === 'staff' ? 'team' : role;
       return `<div class="biz-item ${b.id === session.activeBizId ? 'active' : ''}" onclick="selectBiz('${b.id}')">
         <span>${escapeHtml(b.name)}</span>
         <span class="biz-item-right">
-          <span class="biz-role">${role}</span>
+          <span class="biz-role">${roleLabel}</span>
           ${gear}
         </span>
       </div>`;
@@ -3160,15 +3336,35 @@
     }
     const navQuickLook = document.getElementById('navQuickLook');
     if (navQuickLook) navQuickLook.classList.toggle('active', session.view === 'quickLook');
+    // Announcements tab (under Quick Look) — active state + count badge
+    // for important unread/recent posts. Visible to anyone with a role.
+    const navAnnouncementsView = document.getElementById('navAnnouncementsView');
+    if (navAnnouncementsView) {
+      navAnnouncementsView.classList.toggle('active', session.view === 'announcementsView');
+      const badge = document.getElementById('navAnnouncementsBadge');
+      if (badge) {
+        const count = session.activeBizId
+          ? (data.announcements || []).filter(a => a.businessId === session.activeBizId).length
+          : 0;
+        if (count > 0) {
+          badge.textContent = String(count);
+          badge.removeAttribute('hidden');
+        } else {
+          badge.setAttribute('hidden', '');
+        }
+      }
+    }
     // Quick Look section: visible whenever a business is active (any role).
     // Hidden on the no-businesses welcome state to avoid confusing empty UI.
     const ql = document.getElementById('sidebarQuickLookGroup');
     if (ql) ql.style.display = session.activeBizId ? 'block' : 'none';
-    // Management group: visible only when current user is owner of the active
-    // business. Hosts Announcements and Staff.
+    // Management group: visible only when current user is OWNER of the
+    // active business. Hosts Announcements and Team management — both
+    // of which are owner-only operations. Note: viewer now sees Audit
+    // (read-only), but the Management group must stay owner-only.
     const mgmt = document.getElementById('sidebarManagementGroup');
     if (mgmt) {
-      const isOwner = !!(session.activeBizId && canSeeAudit(session.activeBizId));
+      const isOwner = !!(session.activeBizId && roleFor(session.activeBizId) === 'owner');
       mgmt.style.display = isOwner ? 'block' : 'none';
       const navAnnouncements = document.getElementById('navAnnouncements');
       if (navAnnouncements) navAnnouncements.classList.toggle('active', session.view === 'announcements');
@@ -3240,6 +3436,7 @@
     if (session.view === 'expenses') { renderExpensesView(root); return; }
     if (session.view === 'staff') { renderStaffView(root); return; }
     if (session.view === 'announcements') { renderAnnouncementsManageView(root); return; }
+    if (session.view === 'announcementsView') { renderAnnouncementsReadView(root); return; }
     if (session.view === 'quickLook') { renderQuickLookView(root); return; }
     renderEntriesView(root);
   }
@@ -3276,9 +3473,11 @@
           <option value="out">Out only</option>
         </select>
       </div>`;
+    const periodLabelText = currentPeriodLabel();
     const entriesHTML = `
       <div id="entryFilterBanner"></div>
       <div class="entries-wrap">
+        <div class="entries-period-label">${escapeHtml(periodLabelText)}</div>
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>From / To</div>
           <div class="col-amount">Amount</div><div class="col-balance">Balance</div><div></div>
@@ -3445,7 +3644,17 @@
     const list = document.getElementById('entriesList');
     if (!list) return;
     if (!session.activeBookId) {
-      list.innerHTML = '<div class="empty"><div class="empty-headline">Select a book to begin.</div></div>'; return;
+      // Try to auto-pick the first book of the active business so users
+      // don't see a "select a book" prompt when one obvious choice exists.
+      const bizBooks = data.books.filter(b => b.businessId === session.activeBizId);
+      if (bizBooks.length) {
+        session.activeBookId = bizBooks[0].id;
+        saveSession();
+        // Fall through and render the entries normally for the picked book.
+      } else {
+        list.innerHTML = '<div class="empty"><div class="empty-headline">Select a book to begin.</div></div>';
+        return;
+      }
     }
     const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
     const typeF = document.getElementById('filterType')?.value || 'all';
@@ -3817,17 +4026,28 @@
           <span class="party-card-net-label">${net >= 0 ? 'Net inflow' : 'Net outflow'}</span>
           <span class="party-card-net-val ${net >= 0 ? 'positive' : 'negative'}">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</span>
         </div>` : '';
-      const actions = canManage ? (() => {
-        const menuId = registerCardMenu([
-          { label: 'Edit', icon: CARD_MENU_ICONS.edit, run: () => renameParty(p.id) },
-          { label: 'Delete', icon: CARD_MENU_ICONS.delete, dangerous: true, run: () => deletePartyAction(p.id) },
-        ]);
+      // Per-party action menu. Staff can rename their own parties but
+      // not delete; owner/manager can do both. Viewer sees no menu.
+      const canRen = canRenameParty(p);
+      const canDel = canDeleteParty(p);
+      const actions = (canRen || canDel) ? (() => {
+        const items = [];
+        if (canRen) items.push({ label: 'Edit', icon: CARD_MENU_ICONS.edit, run: () => renameParty(p.id) });
+        if (canDel) items.push({ label: 'Delete', icon: CARD_MENU_ICONS.delete, dangerous: true, run: () => deletePartyAction(p.id) });
+        const menuId = registerCardMenu(items);
         return dotMenuTriggerHTML(menuId);
       })() : '';
+      // Show created-by line for owner & manager (helps them audit who's
+      // adding parties). Staff/viewer don't see this — keeps the card
+      // visually lighter for them.
+      const createdByLine = (canManage && p.createdByName) ? `
+        <div class="party-card-creator" style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.25rem;">added by ${escapeHtml(p.createdByName)}</div>
+      ` : '';
       return `<div class="party-card" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         <div class="party-card-name">${escapeHtml(p.name)}</div>
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
+        ${createdByLine}
         ${statsBlock}
       </div>`;
     }).join('') : (
@@ -4755,7 +4975,7 @@
 
   function addAuditExpense() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!biz || !canSeeAudit(biz.id)) { toast('Only the owner can manage audit.'); return; }
+    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can manage audit.'); return; }
     const desc = validateDescription(document.getElementById('mAuditDesc')?.value);
     if (desc === null) return;
     const amt = validateAmount(document.getElementById('mAuditAmt')?.value);
@@ -4781,6 +5001,10 @@
     toast('Expense added.');
   }
   function deleteAuditExpense(id) {
+    const x = data.auditExpenses.find(e => e.id === id);
+    if (!x) return;
+    const biz = data.businesses.find(b => b.id === x.businessId);
+    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can delete expenses.'); return; }
     if (!confirm('Delete this expense? Cannot be undone.')) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
     saveData();
@@ -4791,7 +5015,7 @@
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
-    if (!biz || !canSeeAudit(biz.id)) { toast('Only the owner can edit.'); return; }
+    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can edit.'); return; }
     const newDesc = prompt('Edit description:', x.description);
     if (newDesc == null) return;
     const trimmedDesc = String(newDesc).trim();
@@ -5090,17 +5314,23 @@
       if (!groupedByMonth[mk]) groupedByMonth[mk] = [];
       groupedByMonth[mk].push(x);
     }
+    // Only the owner can add/edit/delete expenses — viewers see this
+    // page read-only. Declared here (before renderExpenseRow) to avoid
+    // a TDZ ReferenceError when the inner function references it.
+    const canEditExpenses = roleFor(biz.id) === 'owner';
     function renderExpenseRow(x) {
+      const actions = canEditExpenses ? `
+        <div class="audit-exp-actions">
+          <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
+        </div>` : '';
       return `<div class="audit-exp-row">
         <div class="audit-exp-desc">
           ${escapeHtml(x.description)}
           <span class="audit-exp-date">${escapeHtml(expenseDate(x))}</span>
         </div>
         <div class="audit-exp-amt">${cur} ${fmt(x.amount)}</div>
-        <div class="audit-exp-actions">
-          <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
-          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
-        </div>
+        ${actions}
       </div>`;
     }
     // Decide whether to show the flat list or per-month grouping. If the
@@ -5128,12 +5358,12 @@
 
     // Expenses now have full-date storage, so the add row works in every
     // period. Default the date field to today; user can pick any date.
-    const addRow = `<div class="audit-exp-add">
+    const addRow = canEditExpenses ? `<div class="audit-exp-add">
         <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
         <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
         <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
         <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
-      </div>`;
+      </div>` : '';
 
     root.innerHTML = `
       <div class="page-header">
@@ -5415,6 +5645,18 @@
     if (status === 'accepted' && u && u.cloud) {
       m.userId = u.id;
     }
+    // GC: drop any OTHER pending rows for this same user+business so the
+    // "invite reappears" bug can't happen. If the owner sent multiple
+    // invites or this row was duplicated by an old sync hiccup, only
+    // one should survive — the one we just responded to.
+    const myLogin = u ? normalize(u.login) : null;
+    data.members = data.members.filter(x => {
+      if (x.id === m.id) return true;
+      if (x.businessId !== m.businessId) return true;
+      if (x.status !== 'pending') return true;
+      const matchesMe = (u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin);
+      return !matchesMe;
+    });
     saveData();
     if (status === 'accepted') {
       session.activeBizId = m.businessId;
@@ -5428,11 +5670,12 @@
   function renameParty(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
-    if (!canManageOps(p.businessId)) { toast('Only the owner or manager can rename.'); return; }
+    if (!canRenameParty(p)) { toast("You can only rename parties you created."); return; }
     const newName = prompt('New name for this party:', p.name);
     if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
     if (trimmed === p.name) return;
+    if (trimmed.length > LIMITS.name) { toast(`Name too long (max ${LIMITS.name} characters).`); return; }
     if (data.parties.find(x => x.businessId === p.businessId && x.name.toLowerCase() === trimmed.toLowerCase() && x.id !== p.id)) {
       toast('A party with that name already exists.'); return;
     }
@@ -5446,7 +5689,7 @@
   function deletePartyAction(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
-    if (!canManageOps(p.businessId)) { toast('Only the owner or manager can delete.'); return; }
+    if (!canDeleteParty(p)) { toast('Only the owner or manager can delete.'); return; }
     const bookIds = data.books.filter(b => b.businessId === p.businessId).map(b => b.id);
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id).length;
     if (!confirm(`Delete party "${p.name}"? ${linkedCount} entries will keep the name as text but lose the link.`)) return;
@@ -5463,6 +5706,15 @@
   function openModal(kind, payload, presetType) {
     const modal = document.getElementById('modalContent');
     if (!modal) return;
+    // D5: When opening a new modal, scrub any leftover state from a
+    // previous full-mode modal. The .modal-full class and the floating
+    // × button are added only for specific kinds (settings, biz settings,
+    // staff) — strip them by default so a non-full modal opening
+    // afterwards renders cleanly. Each `kind` that wants full-mode will
+    // re-add the class and button in its own branch.
+    modal.classList.remove('modal-full');
+    const lingeringFullClose = modal.querySelector('.modal-full-close');
+    if (lingeringFullClose) lingeringFullClose.remove();
     let handled = true;
     if (kind === 'entry') {
       if (!canAddEntry() && !payload) { toast("You can't add entries here."); return; }
@@ -5483,7 +5735,6 @@
       modal.innerHTML = staffModal();
     } else if (kind === 'period') { modal.innerHTML = periodModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
-    else if (kind === 'announcementsView') { modal.innerHTML = announcementsViewModalHTML(); }
     else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
     else if (kind === 'party') {
       if (!canAddParty(session.activeBizId)) { toast('You don\'t have permission to add parties.'); return; }
@@ -6182,12 +6433,18 @@
     if (data.parties.find(p => p.businessId === biz.id && p.name.toLowerCase() === name.toLowerCase())) {
       toast('A party with that name already exists.'); return;
     }
+    const u = me();
     const p = {
       id: uid(),
       businessId: biz.id,
       name,
       kind: 'both',
       createdAt: today(),
+      // Track who created so staff can later rename their own parties
+      // (#9). Older parties without these fields are treated as "anyone
+      // can rename" so existing data isn't locked.
+      createdBy: u?.id || null,
+      createdByName: u?.name || '',
       sortOrder: nextSortOrder(data.parties, 'businessId', biz.id),
     };
     data.parties.push(p);
@@ -6392,7 +6649,7 @@
               </div>
             </div>
             <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
-              ${statusBadge}<span class="role-badge ${m.role}">${m.role}</span>
+              ${statusBadge}<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>
               <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${m.id}')" aria-label="Remove">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -6405,7 +6662,7 @@
         <div class="input-wrap"><label>Phone or email</label><input type="text" id="mStaffLogin" placeholder="98xxxxxxxx or them@example.com"></div>
         <div class="input-wrap"><label>Role</label>
           <select id="mStaffRole">
-            <option value="manager">Manager — edit everything, no staff control</option>
+            <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
           </select>
@@ -6540,9 +6797,33 @@
       </div>` : ''}
       <h2 class="ql-section-title">In Use <span class="ql-count" id="qlInUseCount">${inUse.length}${__quickLookSearch ? ` of ${all.filter(r => r.inUse !== false).length}` : ''}</span></h2>
       <div id="qlInUseList">${renderQuickLookGrid(inUse, canManage, false)}</div>
-      <h2 class="ql-section-title" style="margin-top:1.75rem;">All <span class="ql-count" id="qlAllCount">${filtered.length}${__quickLookSearch ? ` of ${all.length}` : ''}</span></h2>
-      <div id="qlAllList">${renderQuickLookGrid(filtered, canManage, true)}</div>
+      ${(() => {
+        // "All" section is collapsed by default. The toggle reveals the
+        // remaining entries (the ones not marked in-use). When a search is
+        // active we expand automatically so search results aren't hidden.
+        const otherCount = filtered.length - inUse.length;
+        if (!all.length || otherCount <= 0) return '';
+        const expanded = !!__qlAllExpanded || !!__quickLookSearch;
+        return `
+          <div class="ql-all-toggle-wrap" style="margin-top:1.5rem;">
+            <button class="btn btn-sm btn-ghost ql-all-toggle" onclick="toggleQuickLookAllSection()">
+              ${expanded ? 'Hide other entries' : `View all (${otherCount} more)`}
+            </button>
+          </div>
+          ${expanded ? `
+            <h2 class="ql-section-title" style="margin-top:1.25rem;">All <span class="ql-count" id="qlAllCount">${filtered.length}${__quickLookSearch ? ` of ${all.length}` : ''}</span></h2>
+            <div id="qlAllList">${renderQuickLookGrid(filtered, canManage, true)}</div>
+          ` : ''}
+        `;
+      })()}
     `;
+  }
+  // Snapshot: whether the "All" section is expanded. Defaults to false so
+  // the user sees only In-Use entries on first load.
+  let __qlAllExpanded = false;
+  function toggleQuickLookAllSection() {
+    __qlAllExpanded = !__qlAllExpanded;
+    renderMain();
   }
 
   // Render a grid of cards. `showAll` toggles whether the toggle's state
@@ -6874,12 +7155,12 @@
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     if (!items.length) return ''; // nothing at all → render nothing
 
-    // New behavior: only "important" announcements show as the loud banner.
-    // Regular ones go behind a small pill that opens a modal so they don't
-    // crowd the entries view. This way an owner can post non-urgent FYI
-    // notes without overwhelming the screen.
+    // The entries page banner ONLY shows important announcements. The
+    // regular (non-important) ones live in the dedicated Announcements
+    // tab under Quick Look in the sidebar — that frees up vertical
+    // space on entries for what people actually came here to see.
     const important = items.filter(a => a.important);
-    const regular = items.filter(a => !a.important);
+    if (!important.length) return '';
 
     const importantCards = important.map(a => {
       const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
@@ -6907,33 +7188,19 @@
         </div>`;
     }).join('');
 
-    // "View announcements (N)" pill — appears whenever there are regular
-    // (non-important) items. Clicking opens a modal that lists ALL items
-    // including important ones, so it's a complete view.
-    const viewLink = regular.length
-      ? `<button class="announcement-view-link" onclick="openAnnouncementsViewModal()">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-          <span>View announcements <span class="announcement-view-count">${regular.length}</span></span>
-        </button>`
-      : '';
-
-    if (!importantCards && !viewLink) return '';
-    return `<div class="announcements-wrap">${importantCards}${viewLink}</div>`;
+    return `<div class="announcements-wrap">${importantCards}</div>`;
   }
 
-  // Modal: shows every announcement for the active business, regardless
-  // of importance. Used as the "View announcements" target on the entries
-  // view so users can see less-urgent notes without them crowding the
-  // page.
-  function openAnnouncementsViewModal() {
+  // Modal state for announcement edit flow.
+  let __announcementEditingId = null;
+  // Sidebar-tab version of the announcements view. Anyone with read
+  // access to the business can see this; owner gets edit/delete +
+  // post button.
+  function renderAnnouncementsReadView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!biz) return;
-    openModal('announcementsView');
-  }
-  function announcementsViewModalHTML() {
-    const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!biz) return '';
+    if (!biz) { root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>'; return; }
     const role = roleFor(biz.id);
+    if (!role) { root.innerHTML = '<div class="empty"><div class="empty-headline">No access.</div></div>'; return; }
     const isOwner = role === 'owner';
     const items = (data.announcements || [])
       .filter(a => a.businessId === biz.id)
@@ -6961,25 +7228,24 @@
           </div>
           ${isOwner ? `
             <div class="announcement-actions">
-              <button class="announcement-action-btn" onclick="closeModal();openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
+              <button class="announcement-action-btn" onclick="openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
               <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete"><svg width="14" height="14"><use href="#ico-trash"/></svg></button>
             </div>` : ''}
         </div>`;
-    }).join('') : '<div class="empty"><div class="empty-headline">No announcements yet.</div></div>';
-    return `
-      <div class="modal-handle"></div>
-      <h2 class="modal-title">Announcements</h2>
-      <p class="modal-sub">Every announcement for ${escapeHtml(biz.name)}. Important ones also show on the entries page.</p>
-      <div class="modal-body" style="max-height:min(60vh,540px);overflow-y:auto;">${list}</div>
-      <div class="modal-actions">
-        ${isOwner ? `<button class="btn btn-accent" onclick="closeModal();openAnnouncementPostModal();">+ Post announcement</button>` : ''}
-        <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+    }).join('') : `<div class="empty"><div class="empty-headline">No announcements yet.</div>${isOwner ? '<div>Tap "+ Post announcement" to share something with your team.</div>' : ''}</div>`;
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · directory</div>
+          <h1 class="page-title">Announcements <span class="page-title-count">${items.length}</span></h1>
+        </div>
+        ${isOwner ? `<div class="page-actions"><button class="btn btn-sm btn-accent" onclick="openAnnouncementPostModal()">+ Post announcement</button></div>` : ''}
       </div>
+      <p style="color:var(--ink-mute);font-size:0.85rem;margin-bottom:1rem;max-width:42rem;">Every announcement for this business. Important ones also surface on the entries page with a warning icon.</p>
+      <div>${list}</div>
     `;
   }
 
-  // Modal state
-  let __announcementEditingId = null;
   function openAnnouncementPostModal() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
@@ -7147,7 +7413,10 @@
     if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
     // Defense-in-depth: this view is owner-only; if a non-owner reaches it
     // (e.g. via a stale session.view value), redirect to Entries.
-    if (!canSeeAudit(biz.id)) { session.view = 'entries'; saveSession(); renderAll(); return; }
+    // Note: must check 'owner' explicitly. canSeeAudit() now includes
+    // viewer (per #12) but the Team & access page is for managing
+    // members, which only the owner can do.
+    if (roleFor(biz.id) !== 'owner') { session.view = 'entries'; saveSession(); renderAll(); return; }
     const u = me();
     const staff = data.members.filter(m => m.businessId === session.activeBizId);
     const ownerInitial = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
@@ -7185,7 +7454,7 @@
               </div>
             </div>
             <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
-              ${statusBadge}<span class="role-badge ${m.role}">${m.role}</span>
+              ${statusBadge}<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>
               <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${jsAttr(m.id)}')" aria-label="Remove">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
@@ -7198,7 +7467,7 @@
         <div class="input-wrap"><label>Phone or email</label><input type="text" id="mStaffLogin" placeholder="98xxxxxxxx or them@example.com"></div>
         <div class="input-wrap"><label>Role</label>
           <select id="mStaffRole">
-            <option value="manager">Manager — edit everything, no staff control</option>
+            <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
           </select>
@@ -7206,6 +7475,156 @@
         <div style="display:flex;justify-content:flex-end;">
           <button class="btn btn-accent" onclick="addStaff()">Send invite</button>
         </div>
+      </div>
+      ${renderTeamLeaderboard(biz, u)}
+    `;
+  }
+  // Owner-only leaderboard: per-member entry counts, cash in/out, net.
+  // Filtered by the active period. Helps the owner see at a glance who's
+  // been doing the data entry and how the numbers break down by person.
+  function renderTeamLeaderboard(biz, owner) {
+    // D2: Defensive null check. renderStaffView guards against non-owner
+    // viewers and would not call us if me() was null, but the owner
+    // local-account row could theoretically be missing in the
+    // accounts[] array (e.g. mid-sync race where session.userId
+    // points at an id no longer in accounts). Bail silently rather
+    // than throw, since this section is decorative.
+    if (!biz || !owner || !owner.id) return '';
+    const cur = currencyDisplay(biz.currency);
+    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
+    // Exclude entries on hidden accounts so leaderboard totals match
+    // the "live" totals shown on the Entries page.
+    const hiddenAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    );
+    const pred = periodPredicate();
+    const entries = data.entries.filter(e =>
+      bookIds.includes(e.bookId)
+      && !hiddenAcctIds.has(e.accountId)
+      && pred(e)
+    );
+    // Build the roster: owner first, then every accepted member.
+    // We aggregate by createdBy UUID — for entries where createdBy is
+    // missing (pre-feature data), bucket them into an "untracked" row.
+    const roster = [];
+    roster.push({
+      id: owner.id,
+      name: owner.name + ' (you)',
+      login: owner.login,
+      role: 'owner',
+    });
+    const acceptedMembers = data.members.filter(m =>
+      m.businessId === biz.id && m.status === 'accepted'
+    );
+    for (const m of acceptedMembers) {
+      const linked = accounts.find(a => a.login === m.userLogin || a.id === m.userId);
+      roster.push({
+        id: m.userId || null,
+        login: m.userLogin || '',
+        name: linked?.name || m.userLogin || 'Member',
+        role: m.role,
+      });
+    }
+    // Aggregate per user. Key by user_id when present, fall back to
+    // the createdByName so legacy/no-userid entries still show up.
+    const byKey = new Map();
+    function getBucket(key, displayMeta) {
+      let b = byKey.get(key);
+      if (!b) {
+        b = { ...displayMeta, count: 0, inSum: 0, outSum: 0 };
+        byKey.set(key, b);
+      }
+      return b;
+    }
+    for (const r of roster) {
+      const k = r.id ? 'u:' + r.id : 'login:' + (r.login || '').toLowerCase();
+      getBucket(k, r);
+    }
+    for (const e of entries) {
+      const amt = entryAmount(e);
+      let key, meta;
+      if (e.createdBy) {
+        key = 'u:' + e.createdBy;
+        // If unknown, fall back to recording the name from the entry.
+        if (!byKey.has(key)) {
+          meta = { id: e.createdBy, name: e.createdByName || 'Former member', login: '', role: 'former' };
+        }
+      } else {
+        key = 'unknown';
+        if (!byKey.has(key)) {
+          meta = { id: null, name: 'Untracked (older entries)', login: '', role: 'unknown' };
+        }
+      }
+      const bucket = meta ? getBucket(key, meta) : byKey.get(key);
+      bucket.count++;
+      if (e.type === 'in') bucket.inSum += amt;
+      else bucket.outSum += amt;
+    }
+    // Sort: by count descending, then by net descending. Owner row
+    // pinned at the top regardless of activity so it's always visible.
+    const allRows = [...byKey.values()];
+    const ownerRow = allRows.find(r => r.role === 'owner');
+    const rest = allRows.filter(r => r.role !== 'owner')
+      .sort((a, b) => {
+        if (b.count !== a.count) return b.count - a.count;
+        return (b.inSum - b.outSum) - (a.inSum - a.outSum);
+      });
+    const ordered = ownerRow ? [ownerRow, ...rest] : rest;
+
+    const totalEntries = ordered.reduce((s, r) => s + r.count, 0);
+    if (totalEntries === 0) {
+      // Don't render the leaderboard when there are no entries — owner
+      // can find this section empty otherwise. The roster is still
+      // visible above; this just hides the no-op stats grid.
+      return '';
+    }
+
+    // Build the table.
+    const periodLabel = currentPeriodLabel();
+    const rows = ordered.map(r => {
+      const net = r.inSum - r.outSum;
+      const roleBadge = r.role === 'owner'
+        ? '<span class="role-badge">Owner</span>'
+        : r.role === 'former'
+          ? '<span class="role-badge declined">Former</span>'
+          : r.role === 'unknown'
+            ? ''
+            : `<span class="role-badge ${r.role}">${r.role === 'staff' ? 'team' : r.role}</span>`;
+      const subtitle = r.login
+        ? `<div class="staff-meta">${escapeHtml(r.login)}</div>`
+        : '';
+      return `
+        <div class="lb-row">
+          <div class="lb-who">
+            <div style="font-weight:500;">${escapeHtml(r.name)}</div>
+            ${subtitle}
+          </div>
+          <div class="lb-badge">${roleBadge}</div>
+          <div class="lb-stat lb-count">
+            <div class="lb-stat-label">Entries</div>
+            <div class="lb-stat-val">${r.count}</div>
+          </div>
+          <div class="lb-stat lb-in">
+            <div class="lb-stat-label">Cash in</div>
+            <div class="lb-stat-val">${cur} ${fmt(r.inSum)}</div>
+          </div>
+          <div class="lb-stat lb-out">
+            <div class="lb-stat-label">Cash out</div>
+            <div class="lb-stat-val">${cur} ${fmt(r.outSum)}</div>
+          </div>
+          <div class="lb-stat lb-net">
+            <div class="lb-stat-label">Net</div>
+            <div class="lb-stat-val ${net >= 0 ? 'positive' : 'negative'}">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return `
+      <div class="settings-section" style="margin-top:1.75rem;">
+        <h3 class="settings-heading">Activity by team member</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Who entered what during <strong>${escapeHtml(periodLabel)}</strong>. Hidden accounts are excluded from these totals (same as the Entries view).</p>
+        ${renderPeriodBar()}
+        <div class="lb-list" style="margin-top:0.85rem;">${rows}</div>
       </div>
     `;
   }
@@ -7658,11 +8077,12 @@
         <ul style="list-style:none;display:flex;flex-direction:column;gap:0.4rem;">
           ${accessible.map(b => {
             const r = roleFor(b.id);
+            const roleLabel = r === 'staff' ? 'team' : r;
             return `<li style="display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.75rem;background:var(--paper-deep);border:1px solid var(--line);">
-              <span>${escapeHtml(b.name)} <span style="font-size:0.65rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;margin-left:0.4rem;">${r}</span></span>
+              <span>${escapeHtml(b.name)} <span style="font-size:0.65rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;margin-left:0.4rem;">${roleLabel}</span></span>
               ${r === 'owner' || r === 'manager'
                 ? `<button class="btn btn-sm btn-ghost" onclick="closeModal();openBizSettings('${b.id}')">Settings →</button>`
-                : '<span style="font-size:0.78rem;color:var(--ink-mute);">read-only</span>'}
+                : `<button class="btn btn-sm btn-danger-outline" onclick="openLeaveBusinessModal('${b.id}')">Leave →</button>`}
             </li>`;
           }).join('')}
         </ul>
@@ -7797,6 +8217,106 @@
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Deleting this business removes all its books, entries, parties, categories, and accounts. Cannot be undone.</p>
         <button class="btn btn-sm btn-danger-outline" onclick="deleteBusinessAction('${biz.id}')">Delete this business</button>
       </div>` : ''}`;
+  }
+
+  // ================================================================
+  // LEAVE BUSINESS (for non-owners)
+  // ================================================================
+  // A staff/manager/viewer can leave a business they were invited to.
+  // The owner of the business never sees this — they'd transfer or
+  // delete the business instead. To prevent fat-finger accidents, we
+  // require the user to type the business name exactly before
+  // confirming. Once left, the member row is removed locally; the
+  // sync layer pushes the deletion to cloud, and the business
+  // disappears from this user's sidebar everywhere.
+  let __leaveBizPendingId = null;
+  function openLeaveBusinessModal(bizId) {
+    const biz = data.businesses.find(b => b.id === bizId);
+    if (!biz) { toast('Business not found.'); return; }
+    const u = me(); if (!u) return;
+    const role = roleFor(bizId);
+    if (role === 'owner') {
+      toast("Owners can't leave their own business — delete it from Settings if needed.");
+      return;
+    }
+    if (!role) { toast("You're not a member of this business."); return; }
+    __leaveBizPendingId = bizId;
+    closeModal();
+    const modal = document.getElementById('modalContent');
+    modal.classList.remove('modal-full');
+    // D5: Strip the lingering top-right × button left over from any
+    // previously-opened full-mode modal (e.g. business settings).
+    // Without this, the × hovers over the leave-business modal even
+    // though it's no longer a modal-full layout — visual glitch.
+    const oldFullClose = modal.querySelector('.modal-full-close');
+    if (oldFullClose) oldFullClose.remove();
+    modal.innerHTML = `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Leave ${escapeHtml(biz.name)}?</h2>
+      <p class="modal-sub">You'll lose access to all entries, parties, accounts, and announcements in this business. The owner will need to invite you again if you change your mind. <strong>Your past entries stay in the books</strong> — they're not deleted.</p>
+      <div class="input-wrap" style="margin-top:0.75rem;">
+        <label>Type the business name to confirm</label>
+        <input type="text" id="leaveBizConfirm" autocomplete="off" autocapitalize="off" autocorrect="off" placeholder="${escapeHtml(biz.name)}" oninput="updateLeaveBizButton()">
+        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.4rem;">Type exactly: <strong>${escapeHtml(biz.name)}</strong></p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal();openModal('settings')">Cancel</button>
+        <button class="btn btn-danger" id="leaveBizConfirmBtn" disabled onclick="leaveBusinessConfirmed()">Leave business</button>
+      </div>
+    `;
+    document.getElementById('modalBackdrop').classList.add('active');
+    setTimeout(() => document.getElementById('leaveBizConfirm')?.focus(), 30);
+  }
+  function updateLeaveBizButton() {
+    const biz = data.businesses.find(b => b.id === __leaveBizPendingId);
+    if (!biz) return;
+    const input = document.getElementById('leaveBizConfirm');
+    const btn = document.getElementById('leaveBizConfirmBtn');
+    if (!input || !btn) return;
+    btn.disabled = (input.value.trim() !== biz.name);
+  }
+  function leaveBusinessConfirmed() {
+    const bizId = __leaveBizPendingId;
+    const biz = data.businesses.find(b => b.id === bizId);
+    if (!biz) { closeModal(); return; }
+    const input = document.getElementById('leaveBizConfirm');
+    if (!input || input.value.trim() !== biz.name) {
+      toast('Name does not match. Cannot leave.');
+      return;
+    }
+    const u = me();
+    if (!u) return;
+    // Find every membership row tying this user to this business and
+    // remove them. There SHOULD only be one, but if there's a stale
+    // duplicate (the bug we previously fixed in respondInvite) we clean
+    // up here too. Match by userId OR userLogin to be defensive.
+    const myLogin = normalize(u.login);
+    const beforeCount = data.members.length;
+    data.members = data.members.filter(m => {
+      if (m.businessId !== bizId) return true;
+      const mine = (u.cloud && m.userId === u.id) || normalize(m.userLogin) === myLogin;
+      return !mine; // drop matching rows
+    });
+    const removedCount = beforeCount - data.members.length;
+    if (removedCount === 0) {
+      toast('Could not find your membership — already removed?');
+      __leaveBizPendingId = null;
+      closeModal();
+      renderAll();
+      return;
+    }
+    // If this was the active business, switch to another visible one
+    // (or null if none left).
+    const visible = visibleBusinesses();
+    if (session.activeBizId === bizId) {
+      session.activeBizId = visible[0]?.id || null;
+      session.activeBookId = null;
+    }
+    saveData(); saveSession();
+    __leaveBizPendingId = null;
+    closeModal();
+    renderAll();
+    toast(`You've left "${biz.name}".`);
   }
 
   function openBizSettings(bizId) {
@@ -11034,7 +11554,32 @@
     const seen = new Map();
     for (const op of ops) seen.set(op.table + ':' + op.recordId, op);
     const coalesced = [...seen.values()];
-    __syncQueue.push(...coalesced);
+    // D3: Dedupe across the persistent queue as well. Without this, a
+    // user editing the same row 1000 times offline accumulates 1000
+    // queue entries — wasting localStorage (5MB cap), CPU on every
+    // serialize, and bandwidth when we eventually drain. Replace any
+    // existing op for (table, recordId) with the newest version,
+    // preserving attempt counters from the existing op so backoff
+    // continues to work for stuck records.
+    //
+    // EXCEPTION: if the existing op is mid-flight (attempts > 0 and
+    // last attempt was very recent), don't blow it away — it's about
+    // to settle. We let drainQueueOnce update it post-success.
+    for (const newOp of coalesced) {
+      const key = newOp.table + ':' + newOp.recordId;
+      const existingIdx = __syncQueue.findIndex(q => (q.table + ':' + q.recordId) === key);
+      if (existingIdx !== -1) {
+        const existing = __syncQueue[existingIdx];
+        // Preserve retry metadata so an op stuck in backoff doesn't
+        // reset its attempt count just because the user edited again.
+        newOp.attempts = existing.attempts || 0;
+        newOp.lastAttemptAt = existing.lastAttemptAt || 0;
+        newOp.lastError = existing.lastError;
+        __syncQueue[existingIdx] = newOp;
+      } else {
+        __syncQueue.push(newOp);
+      }
+    }
     persistQueue();
     // CRITICAL: do NOT persist the snapshot here. The snapshot represents
     // last-known-cloud-state. Queueing an op doesn't make it cloud state —
@@ -11191,6 +11736,7 @@
 
   // ----------- Realtime listener -------------
   let __realtimeChannel = null;
+  let __realtimeFirstStatusLogged = false;
 
   function startRealtimeListener() {
     if (__realtimeChannel) return;
@@ -11232,9 +11778,14 @@
           { event: '*', schema: 'public', table: 'app_announcements' },
           (payload) => onRealtimeEvent('announcements', payload))
         .subscribe((status) => {
-          // Debug-only: noisy in production. Toggle by setting
-          // localStorage.hisabs_debug = '1' in DevTools.
-          if (window.__hisabsDebug) console.log('Realtime status:', status);
+          // First status is ALWAYS logged so users can confirm at a glance
+          // whether realtime connected. Subsequent ones (reconnects, etc.)
+          // only log when window.__hisabsDebug is on, to keep production
+          // console quiet.
+          if (!__realtimeFirstStatusLogged || window.__hisabsDebug) {
+            console.log('Hisabs realtime:', status);
+            __realtimeFirstStatusLogged = true;
+          }
           updateSyncBadge();
           if (status === 'SUBSCRIBED') {
             // On reconnect, do a delta pull to catch any events we missed
@@ -11298,7 +11849,25 @@
         }
       }
       storageWrite(DATA_KEY, JSON.stringify(data));
+      // Capture scroll position BEFORE renderAll wipes the DOM. Without
+      // this, every remote realtime event (which can fire several times
+      // per minute while team members work) would re-render the entries
+      // table and snap the user's scroll back to the top. This was the
+      // "drag down and it jumps up" bug.
+      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
       try { renderAll(); } catch (_) {}
+      // Restore after the next paint so the new DOM has its full height.
+      if (scrollY > 0) {
+        requestAnimationFrame(() => {
+          // Only restore if the user hasn't scrolled themselves in the
+          // interim. If they scrolled to top deliberately, leave them.
+          // We treat "user did nothing yet" as scrollY still being near 0.
+          const nowY = window.scrollY || document.documentElement.scrollTop || 0;
+          if (nowY < 5) {
+            window.scrollTo({ top: scrollY, behavior: 'instant' });
+          }
+        });
+      }
     }, 150);
   }
 
@@ -11568,6 +12137,13 @@
     const now = Date.now();
     const MAX_AGE_MS = 24 * 60 * 60 * 1000;
     const MAX_ATTEMPTS = 10;
+    // After this many consecutive failures on a single item, assume the
+    // function is undeployed (CORS preflight failure is the common
+    // symptom) and stop hammering the endpoint. The flag persists in
+    // localStorage so we don't try again until the next reload — by
+    // which time the user has hopefully deployed the function or knows
+    // why pushes aren't firing.
+    const ATTEMPTS_BEFORE_GIVE_UP = 3;
     let q = loadPushTriggerQueue();
     if (!q.length) return;
     // Drop items past the age/attempt threshold.
@@ -11584,7 +12160,19 @@
         // Bump attempts.
         const q2 = loadPushTriggerQueue();
         const m = q2.find(i => i.id === item.id);
-        if (m) { m.attempts = (m.attempts || 0) + 1; savePushTriggerQueue(q2); }
+        if (m) {
+          m.attempts = (m.attempts || 0) + 1;
+          savePushTriggerQueue(q2);
+          // If we've burned several attempts on the same id, the
+          // endpoint is consistently failing — almost certainly an
+          // undeployed function. Mark unavailable and clear the queue
+          // so we stop spamming CORS errors in the console.
+          if (m.attempts >= ATTEMPTS_BEFORE_GIVE_UP) {
+            markEdgeFunctionUnavailable();
+            savePushTriggerQueue([]);
+            return;
+          }
+        }
       }
     }
   }
@@ -11593,6 +12181,12 @@
   // gave us a 4xx that means "give up, not retryable"). Returns false
   // for retryable errors (network / 5xx).
   async function sendPushTrigger(announcementId) {
+    // If we already learned this session that the function isn't
+    // deployed (CORS preflight failure, 404 from gateway, etc.), don't
+    // attempt the fetch — it would just log another red error in the
+    // console. The flag is set after a few attempts fail and persists
+    // until the next reload.
+    if (__edgeFunctionUnavailable) return true; // drop silently
     let session;
     try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
     if (!session?.access_token) return false; // not signed in → keep
@@ -11607,15 +12201,24 @@
         body: JSON.stringify({ announcement_id: announcementId }),
       });
       if (resp.ok) return true;
-      // 404 = fn not deployed yet, but the announcement still exists.
-      // Treat 404 as "give up for now but retry later" so it'll re-fire
-      // once the function is deployed.
-      if (resp.status === 404) return false;
-      // 4xx other than 404 (auth issue, forbidden) → don't retry forever.
+      // 404 from gateway = function not deployed. No point retrying.
+      // Mark unavailable so the queue drains itself quietly.
+      if (resp.status === 404) {
+        markEdgeFunctionUnavailable();
+        return true; // drop
+      }
+      // 4xx other than 404 (auth, forbidden) → don't retry forever.
       if (resp.status >= 400 && resp.status < 500) return true; // drop
       return false; // 5xx, retry
     } catch (_) {
-      return false; // network failure, retry
+      // Network / CORS preflight failure. fetch throws here when the
+      // browser blocks the response. This is the common symptom of
+      // an undeployed function — the gateway returns a 404 without
+      // CORS headers, and the browser flags it as "preflight failed".
+      // We'll let the queue retry a couple times (in case it's truly
+      // a transient network blip), but after that flag the function
+      // as unavailable so the user's console isn't spammed.
+      return false;
     }
   }
 
@@ -11624,6 +12227,12 @@
   // upload the row first.
   async function triggerAnnouncementPush(announcementId) {
     if (!announcementId) return;
+    // If the function is known to be unavailable this session, don't
+    // bother queueing — recipients still get the foreground realtime
+    // alert (their app shows the chime + browser notification while
+    // open). Closed-app pushes don't work until the function is
+    // deployed, but that's a known limitation when VAPID isn't set up.
+    if (__edgeFunctionUnavailable) return;
     enqueuePushTrigger(announcementId);
     flushPushTriggerQueue();
   }
@@ -11890,11 +12499,15 @@
         id: r.id, business_id: r.businessId,
         name: r.name, kind: r.kind || null, sort_order: r.sortOrder || null,
         created_at_local: r.createdAt || null,
+        created_by: r.createdBy || null,
+        created_by_name: r.createdByName || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
         name: r.name, kind: r.kind, sortOrder: r.sort_order,
         createdAt: r.created_at_local || '',
+        createdBy: r.created_by || null,
+        createdByName: r.created_by_name || '',
       }),
     },
     categories: {
@@ -12197,10 +12810,29 @@
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.
       try { resetSyncSnapshot(); } catch (_) {}
+      // Re-pick active business/book in case the pull changed what the
+      // user has access to (e.g. their membership was revoked, or a
+      // brand-new account just learned about new businesses).
+      try {
+        const visible = visibleBusinesses();
+        if (!visible.find(b => b.id === session.activeBizId)) {
+          session.activeBizId = visible[0]?.id || null;
+        }
+        const booksOfBiz = data.books.filter(b => b.businessId === session.activeBizId);
+        if (!booksOfBiz.find(b => b.id === session.activeBookId)) {
+          session.activeBookId = booksOfBiz[0]?.id || null;
+        }
+        saveSession();
+      } catch (_) {}
       if (!silent && !opts.suppressReload) {
         toast('Pull complete. Refreshing…');
         setTimeout(() => location.reload(), 800);
-      } else if (!opts.suppressReload) {
+      } else {
+        // Silent / suppress-reload paths: always re-render so the UI
+        // reflects the fresh data. Previously this was gated by
+        // !suppressReload, which meant a brand-new account would show
+        // the sidebar role briefly as "owner" (stale from initial paint)
+        // before settling on the correct role. Now it re-renders cleanly.
         try { renderAll(); } catch (_) {}
       }
       return true;
