@@ -622,25 +622,60 @@
     color: var(--ink-mute); font-weight: 600;
     border-bottom: 1px dashed var(--line-soft);
   }
-  .entries-head { display: grid; grid-template-columns: 90px 1fr 150px 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
+  .entries-head { display: grid; grid-template-columns: 90px 1fr 170px 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
   .entries-head .col-amount, .entries-head .col-balance { text-align: right; }
-  .entry-row { display: grid; grid-template-columns: 90px 1fr 150px 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
+  .entry-row { display: grid; grid-template-columns: 90px 1fr 170px 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
+  /* CSS grid items default to min-width:auto which respects intrinsic
+     content size. A long category name, party name, or book name in
+     any cell would expand its track and shove neighboring columns
+     out of place — that's the "category and From/To intercepting"
+     overflow bug. Forcing min-width:0 on every direct grid child
+     lets long content respect its track width and truncate (or wrap
+     for flex children) instead of overflowing. */
+  .entry-row > * { min-width: 0; }
+  .entries-head > * { min-width: 0; }
   .entry-row:last-child { border-bottom: none; }
   .entry-row:hover { background: var(--surface-2); }
   .entry-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
   .entry-desc { min-width: 0; }
   .entry-note { font-size: 0.85rem; color: var(--ink); margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .entry-party { font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; cursor: pointer; }
+  .entry-party { font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; cursor: pointer; min-width: 0; }
   .entry-party:hover .entry-party-name { text-decoration: underline; }
-  .entry-party-tag { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-mute); font-weight: 600; }
-  .entry-cat { display: inline-block; font-size: 0.62rem; padding: 0.1rem 0.4rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; border-radius: var(--r-sm); }
+  .entry-party-tag { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-mute); font-weight: 600; flex-shrink: 0; }
+  /* Long party names (e.g. "Hari Wholesale Trading Pvt. Ltd.") used
+     to overflow the From/To column and spill into the Amount column
+     on tablet/small-laptop widths. Constrain the name to the
+     available space and truncate with ellipsis. The full name is
+     still in the tooltip via the parent .entry-party's title or on
+     the detail page. */
+  .entry-party-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* Category and account chips: cap at a reasonable max so a single
+     long word can't push the row wider than its grid track. */
+  .entry-cat { display: inline-block; max-width: 100%; font-size: 0.62rem; padding: 0.1rem 0.4rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.15rem; border-radius: var(--r-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
   .entry-cat-click { cursor: pointer; transition: all 0.12s; }
   .entry-cat-click:hover { border-color: var(--ink); color: var(--ink); }
-  .entry-chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.15rem; }
+  .entry-chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.15rem; min-width: 0; }
   .entry-acct-chip { background: transparent; border-color: var(--accent-soft); color: var(--accent); }
   .entry-acct-chip:hover { border-color: var(--accent); background: var(--paper-deep); color: var(--accent); }
   .entry-by { font-size: 0.7rem; color: var(--ink-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entry-by-name { font-weight: 500; color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* "edited at" indicator inline next to the "by Name" line. Small,
+     muted, italic so it reads as auxiliary information without
+     drawing attention away from the entry amount or party. Hover
+     reveals the full timestamp via the title attribute. */
+  .entry-edited-badge {
+    font-style: italic;
+    color: var(--ink-mute);
+    font-weight: 400;
+    font-size: 0.85em;
+    white-space: nowrap;
+  }
   .entry-amount, .entry-balance { font-family: var(--font-mono); text-align: right; font-weight: 500; font-size: 0.85rem; }
   .entry-amount.in { color: var(--gain); }
   .entry-amount.out { color: var(--loss); }
@@ -944,7 +979,7 @@
   .audit-summary-card.expenses::before { background: var(--loss); }
   .audit-summary-card.net::before { background: var(--ink); }
   .audit-summary-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); font-weight: 600; }
-  .audit-summary-value { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 500; color: var(--ink); margin: 0.3rem 0 0.2rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .audit-summary-value { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 500; color: var(--ink); margin: 0.3rem 0 0.2rem; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; overflow-wrap: anywhere; }
   .audit-summary-value.pos { color: var(--gain); }
   .audit-summary-value.neg { color: var(--loss); }
   .audit-summary-meta { font-size: 0.66rem; color: var(--ink-mute); }
@@ -973,7 +1008,7 @@
   .audit-month-totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin: 1rem 0 0.7rem; }
   .audit-month-totals-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); padding: 0.85rem 1rem; }
   .audit-month-totals-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); font-weight: 600; }
-  .audit-month-totals-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.2rem; font-weight: 500; letter-spacing: -0.01em; margin-top: 0.3rem; }
+  .audit-month-totals-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 1.2rem; font-weight: 500; letter-spacing: -0.01em; margin-top: 0.3rem; overflow-wrap: anywhere; }
   .audit-month-totals-value.in { color: var(--gain); }
   .audit-month-totals-value.out { color: var(--loss); }
   .audit-section-sub { font-size: 0.74rem; color: var(--ink-mute); margin-bottom: 0.7rem; }
@@ -1078,8 +1113,12 @@
   .setting-acct-group-name { font-weight: 500; font-size: 0.82rem; color: var(--ink); flex: 1; }
   .party-card-meta { font-size: 0.7rem; color: var(--ink-mute); margin-bottom: 0.65rem; }
   .party-card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; margin-bottom: 0.55rem; }
+  /* Defensive: grid children can't go below intrinsic content size
+     by default. Big Rs values would push the second column off-row.
+     Force min-width:0 + truncation so values stay in their lane. */
+  .party-card-stats > div { min-width: 0; }
   .party-card-stat-label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); margin-bottom: 0.1rem; font-weight: 600; }
-  .party-card-stat-val { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; }
+  .party-card-stat-val { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .party-card-stat-val.in { color: var(--gain); }
   .party-card-stat-val.out { color: var(--loss); }
   .party-card-net { padding-top: 0.55rem; border-top: 1px dashed var(--line); display: flex; justify-content: space-between; align-items: center; }
@@ -1242,11 +1281,17 @@
     border: 1px solid var(--line);
     background: var(--input-bg-focus);
   }
+  /* Prevent any cell from forcing the grid wider than its track —
+     same overflow defense as on .entry-row. */
+  .lb-row > * { min-width: 0; }
   .lb-who { min-width: 0; }
   .lb-who > div:first-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .lb-badge { display: flex; align-items: center; }
   .lb-stat-label { font-size: 0.6rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; }
-  .lb-stat-val { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 500; margin-top: 0.1rem; }
+  /* Stat values are mono-numbers; if they ever get longer than the
+     track (huge sums, foreign currencies), truncate rather than
+     overflow into the next cell. */
+  .lb-stat-val { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 500; margin-top: 0.1rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .lb-in .lb-stat-val { color: var(--gain); }
   .lb-out .lb-stat-val { color: var(--loss); }
   .lb-net .lb-stat-val.positive { color: var(--gain); }
@@ -1406,8 +1451,22 @@
     .entry-row .entry-balance, .entry-row .entry-by-col { display: none; }
     .entry-card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px dashed var(--line); font-size: 0.65rem; color: var(--ink-mute); }
     .entry-card-footer .entry-by-name { font-size: 0.65rem; color: var(--ink-soft); }
-    .entry-row .entry-actions { opacity: 1; position: static; display: flex; gap: 0.25rem; }
-    .entry-act-btn { padding: 0.3rem; }
+    .entry-row .entry-actions { opacity: 1; position: static; display: flex; gap: 0.2rem; }
+    /* Touch target: 40x40 px. WCAG 2.5.5 (Level AAA) recommends
+       44x44; Material Design uses 48x48; Apple HIG asks for 44x44.
+       40px is the absolute minimum we'll allow on mobile and only
+       because the entry card is already tappable in a wider sense
+       (the row has spacing around the button so accidental taps on
+       neighbors are unlikely). The icon stays 16x16 — we add padding
+       around it. */
+    .entry-act-btn { min-width: 40px; min-height: 40px; padding: 0.55rem; display: inline-grid; place-items: center; }
+    .entry-act-btn svg { width: 18px; height: 18px; }
+    /* Same touch-target treatment for party/category/account card
+       triggers (the ⋯ icon). Default 28×28 is below recommended
+       minimums; bump to 40×40 on mobile. The visual size of the
+       glyph stays small; padding does the work. */
+    .card-dot-trigger { width: 40px; height: 40px; }
+    .card-action-btn { min-width: 36px; min-height: 36px; width: auto; height: auto; padding: 0.4rem; }
 
     /* Mobile: the top-bar "+ Entry" button is redundant with the
        floating FAB at the bottom. Hide it to reclaim space. The button
@@ -1468,6 +1527,12 @@
     .stat-meta { font-size: 0.6rem; }
     .toolbar { padding: 0.35rem; margin-bottom: 0.45rem; gap: 0.3rem; }
     .toolbar input, .toolbar select { font-size: 0.78rem; padding: 0.42rem 0.55rem; }
+    /* The search input has the magnifying-glass icon overlaid via
+       absolute positioning at left:0.65rem. The toolbar rule above
+       would otherwise reset its left padding to 0.55rem and the icon
+       would sit on top of the placeholder text. Restore enough left
+       padding for the 14px icon + gap. */
+    .toolbar .search-wrap input { padding-left: 1.95rem; }
     .entries-period-label { padding: 0.35rem 0.75rem 0.25rem; font-size: 0.62rem; letter-spacing: 0.1em; }
     .entry-row { padding: 0.55rem 0.7rem; margin-bottom: 0.3rem; }
     .entry-row .entry-date { font-size: 0.58rem; margin-bottom: 0.22rem; }
@@ -1493,6 +1558,29 @@
     .party-card-stat-label { font-size: 0.55rem; }
     .party-card-stat-val { font-size: 0.85rem; }
     .party-card-net { font-size: 0.78rem; }
+  }
+
+  /* Tablet / small-laptop breakpoint (881–1024px) — between the
+     mobile card layout and the full desktop grid. The desktop grid
+     (90 + 1fr + 170 + 110 + 110 + 60 + 5 × 0.85rem gap ≈ 607px) only
+     leaves single-digit pixels for the 1fr description column at
+     900-ish viewports once the 232px sidebar and main padding are
+     subtracted. Result: column headers overlap and long content
+     gets squashed. Fix: hide the Balance column at these widths —
+     it's redundant with the totals in the stats cards above, and
+     gives the description ~125px of breathing room. */
+  @media (min-width: 881px) and (max-width: 1024px) {
+    .entries-head {
+      grid-template-columns: 90px 1fr 160px 110px 60px;
+    }
+    .entry-row {
+      grid-template-columns: 90px 1fr 160px 110px 60px;
+    }
+    /* Hide balance value cell + its header label. */
+    .entries-head .col-balance,
+    .entry-row .entry-balance {
+      display: none;
+    }
   }
 </style>
 </head>
@@ -1776,7 +1864,7 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this) closeModal()">
+<div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this){if(__asyncModalResolver){_asyncModalClose(__asyncModalKind==='prompt'?null:false);}else{closeModal();}}">
   <div class="modal" id="modalContent"></div>
 </div>
 
@@ -3168,7 +3256,23 @@
   // ================================================================
   // RENDER
   // ================================================================
+  // When true, the very next renderAll() should NOT preserve scroll
+  // position — instead it should reset to top. Set this from
+  // switchView so navigating to a new tab lands the user at the top
+  // of the new content, not at whatever scroll position they had on
+  // the previous tab. Cleared automatically after one render.
+  let __renderResetScroll = false;
   function renderAll() {
+    // Capture scroll position BEFORE we re-render anything. The DOM
+    // wipe inside renderMain() blows away the entries-list innerHTML
+    // and the browser snaps scrollY back to 0. This single guard
+    // covers every code path that triggers renderAll — realtime
+    // events, sync drain, catchup pull, user-initiated saves —
+    // without each caller having to remember to preserve.
+    const preserve = !__renderResetScroll;
+    const scrollY = preserve ? (window.scrollY || document.documentElement.scrollTop || 0) : 0;
+    const explicitReset = __renderResetScroll;
+    __renderResetScroll = false; // single-shot
     renderInvites();
     renderBusinesses();
     renderBooks();
@@ -3177,6 +3281,25 @@
     renderMain();
     renderPermissions();
     updateDateStrip();
+    // After render: either restore the captured scrollY (default
+    // background-render path) or explicitly scroll to top (user
+    // navigated to a new view). The browser doesn't always reset
+    // scroll on innerHTML wipes when document height is similar,
+    // so we have to be explicit about resets.
+    if (explicitReset) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    } else if (preserve && scrollY > 0) {
+      // Restore on next paint so the new DOM has its full height
+      // before we ask the browser to scroll. Use 'instant' so it
+      // doesn't animate. Skip restoration if the user has already
+      // scrolled themselves since we measured.
+      requestAnimationFrame(() => {
+        const nowY = window.scrollY || document.documentElement.scrollTop || 0;
+        if (nowY < 5) {
+          window.scrollTo({ top: scrollY, behavior: 'instant' });
+        }
+      });
+    }
   }
 
   // Update the date strip with current day + date, in the active business's locale.
@@ -3912,6 +4035,19 @@
     // generated (uid, ISO dates) get escaped so a corrupted restore can't XSS.
     const safeId = jsAttr(e.id || '');
     const safeDate = escapeHtml(e.date || '');
+    // Build the date line. e.date is the YYYY-MM-DD the user picked
+    // (or today() default). e.createdAt is the epoch-ms timestamp of
+    // when they pressed save — gives us the wall-clock time. Both
+    // show together so the user can tell early-morning vs late-night
+    // entries apart at a glance.
+    const timeStr = formatEntryTime(e.createdAt);
+    const dateLine = timeStr ? `${safeDate} · ${escapeHtml(timeStr)}` : safeDate;
+    // Edit indicator: only show if the entry was actually edited
+    // (helper applies a 5s threshold to ignore same-session re-saves).
+    const editedAtLabel = entryEditedLabel(e);
+    const editedBadge = editedAtLabel
+      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(editedAtLabel)}</span>`
+      : '';
     const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
@@ -3919,7 +4055,7 @@
     const acctChip = acct ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}">
-        <div class="entry-date">${safeDate}</div>
+        <div class="entry-date">${dateLine}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party" ${partyClick}><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -3930,7 +4066,7 @@
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
-          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}</span>
+          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
             <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16"><use href="#ico-edit"/></svg>
@@ -3943,7 +4079,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}">
-      <div class="entry-date">${safeDate}</div>
+      <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
@@ -3953,7 +4089,7 @@
       </div>
       <div>
         ${e.party ? `<div class="entry-party" ${partyClick}><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : '<span style="color:var(--ink-mute);font-size:0.8rem;">—</span>'}
-        <div class="entry-by entry-by-col" style="margin-top:0.2rem;"><span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}</span></div>
+        <div class="entry-by entry-by-col" style="margin-top:0.2rem;"><span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span></div>
       </div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
       <div class="entry-balance">${canSeeTotals(session.activeBizId) ? fmt(e._runBal) : '—'}</div>
@@ -4154,16 +4290,25 @@
 
   function renderPartyEntryRow(e, isMobile) {
     const canEdit = canEditEntry(e);
+    // Date+time line and edited indicator are shared across all
+    // entry-row renderers (main list + party/category/account
+    // detail views). See renderEntryRow for the design rationale.
+    const _timeStr = formatEntryTime(e.createdAt);
+    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    const _editedAtLabel = entryEditedLabel(e);
+    const editedBadge = _editedAtLabel
+      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
+      : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}">
-        <div class="entry-date">${e.date} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
-          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}</span>
+          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -4173,14 +4318,14 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}">
-      <div class="entry-date">${e.date}</div>
+      <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
       </div>
       <div style="font-size:0.82rem;color:var(--ink-soft);">${escapeHtml(e._bookName)}</div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
-      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}</div>
+      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -4408,16 +4553,23 @@
   function renderCategoryEntryRow(e, isMobile) {
     const canEdit = canEditEntry(e);
     const partyLabel = e.type === 'in' ? 'From' : 'To';
+    // Date+time + edited badge — same pattern as renderEntryRow.
+    const _timeStr = formatEntryTime(e.createdAt);
+    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    const _editedAtLabel = entryEditedLabel(e);
+    const editedBadge = _editedAtLabel
+      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
+      : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}">
-        <div class="entry-date">${e.date} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
-          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}</span>
+          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -4427,7 +4579,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}">
-      <div class="entry-date">${e.date}</div>
+      <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
       </div>
@@ -4436,7 +4588,7 @@
         <div style="font-size:0.72rem;color:var(--ink-mute);">${escapeHtml(e._bookName)}</div>
       </div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
-      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}</div>
+      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -4448,13 +4600,15 @@
   function openCategory(name) {
     session.view = 'category-detail';
     session.selectedCategory = name;
-    saveSession(); renderAll();
+    saveSession();
+    __renderResetScroll = true;
+    renderAll();
   }
 
-  function renameCategoryFlow(oldName) {
+  async function renameCategoryFlow(oldName) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = prompt('Rename category:', oldName);
+    const newName = await uiPrompt('Rename category:', oldName, { title: 'Rename category', submitLabel: 'Rename' });
     if (!newName || !newName.trim() || newName.trim() === oldName) return;
     const trimmed = newName.trim();
     if (data.categories.find(c => c.businessId === biz.id && c.name.toLowerCase() === trimmed.toLowerCase() && c.name !== oldName)) {
@@ -4470,11 +4624,11 @@
     toast(`Renamed to "${trimmed}".`);
   }
   // Rename a category by id, refreshing the per-business settings modal.
-  function renameCategoryByIdFromBizSettings(catId, bizId) {
+  async function renameCategoryByIdFromBizSettings(catId, bizId) {
     const cat = data.categories.find(c => c.id === catId);
     if (!cat) return;
     if (!canManageOps(cat.businessId)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = prompt('Rename category:', cat.name);
+    const newName = await uiPrompt('Rename category:', cat.name, { title: 'Rename category', submitLabel: 'Rename' });
     if (newName == null) return;
     const trimmed = newName.trim();
     if (!trimmed) { toast('Name cannot be blank.'); return; }
@@ -4491,12 +4645,12 @@
     toast(`Renamed to "${trimmed}".`);
   }
 
-  function deleteCategoryFromDetail(name) {
+  async function deleteCategoryFromDetail(name) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can remove.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     const count = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === name).length;
-    if (!confirm(`Remove "${name}" from the category list? ${count} entries keep the label as text.`)) return;
+    if (!(await uiConfirm(`Remove "${name}" from the category list? ${count} entries keep the label as text.`, { destructive: true, confirmLabel: 'Remove' }))) return;
     data.categories = data.categories.filter(c => !(c.businessId === biz.id && c.name === name));
     saveData();
     // Stay on detail view since the orphan category is still browsable
@@ -5000,12 +5154,12 @@
     renderMain();
     toast('Expense added.');
   }
-  function deleteAuditExpense(id) {
+  async function deleteAuditExpense(id) {
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
     if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can delete expenses.'); return; }
-    if (!confirm('Delete this expense? Cannot be undone.')) return;
+    if (!(await uiConfirm('Delete this expense? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
     saveData();
     renderMain();
@@ -5321,8 +5475,8 @@
     function renderExpenseRow(x) {
       const actions = canEditExpenses ? `
         <div class="audit-exp-actions">
-          <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
-          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
+          <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit" aria-label="Edit expense"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete" aria-label="Delete expense"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
         </div>` : '';
       return `<div class="audit-exp-row">
         <div class="audit-exp-desc">
@@ -5463,9 +5617,16 @@
   function renderAccountEntryRow(e, isMobile) {
     const canEdit = canEditEntry(e);
     const partyLabel = e.type === 'in' ? 'From' : 'To';
+    // Date+time + edited badge — same pattern as renderEntryRow.
+    const _timeStr = formatEntryTime(e.createdAt);
+    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    const _editedAtLabel = entryEditedLabel(e);
+    const editedBadge = _editedAtLabel
+      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
+      : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}">
-        <div class="entry-date">${e.date} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -5473,7 +5634,7 @@
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
-          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}</span>
+          <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -5483,7 +5644,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}">
-      <div class="entry-date">${e.date}</div>
+      <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
@@ -5493,7 +5654,7 @@
         <div style="font-size:0.72rem;color:var(--ink-mute);">${escapeHtml(e._bookName)}</div>
       </div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
-      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}</div>
+      <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -5502,11 +5663,11 @@
     </div>`;
   }
 
-  function renameAccountFlow(accId) {
+  async function renameAccountFlow(accId) {
     const acc = data.cashAccounts.find(a => a.id === accId);
     if (!acc) return;
     if (!canManageOps(acc.businessId)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = prompt('Rename account:', acc.name);
+    const newName = await uiPrompt('Rename account:', acc.name, { title: 'Rename account', submitLabel: 'Rename' });
     if (!newName || !newName.trim() || newName.trim() === acc.name) return;
     const trimmed = newName.trim();
     if (data.cashAccounts.find(a => a.businessId === acc.businessId && a.name.toLowerCase() === trimmed.toLowerCase() && a.id !== acc.id)) {
@@ -5517,7 +5678,7 @@
     toast(`Renamed to "${trimmed}".`);
   }
 
-  function deleteAccountAction(accId) {
+  async function deleteAccountAction(accId) {
     const acc = data.cashAccounts.find(a => a.id === accId);
     if (!acc) return;
     if (!canManageOps(acc.businessId)) { toast('Only the owner or manager can delete.'); return; }
@@ -5526,7 +5687,7 @@
     const bookIds = data.books.filter(b => b.businessId === acc.businessId).map(b => b.id);
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === acc.id).length;
     const fallback = others[0];
-    if (!confirm(`Delete account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`)) return;
+    if (!(await uiConfirm(`Delete account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`, { destructive: true, confirmLabel: 'Delete account' }))) return;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.accountId === acc.id) e.accountId = fallback.id; });
     data.cashAccounts = data.cashAccounts.filter(a => a.id !== accId);
     saveData();
@@ -5539,7 +5700,7 @@
   // entry-creation dropdown, so a closed account can't be picked by mistake.
   // The Accounts tab still shows them in a muted "Hidden" section at the
   // bottom, where they can be unhidden anytime.
-  function toggleAccountHidden(accId) {
+  async function toggleAccountHidden(accId) {
     const acc = data.cashAccounts.find(a => a.id === accId);
     if (!acc) return;
     if (!canManageOps(acc.businessId)) { toast('Only the owner or manager can change this.'); return; }
@@ -5556,7 +5717,7 @@
         return;
       }
       // Confirm so it's deliberate (hidden accounts disappear from + Entry).
-      if (!confirm(`Hide "${acc.name}"? It will stop appearing in the + Entry picker, but old entries and balances stay intact. You can unhide it anytime from the Accounts tab.`)) return;
+      if (!(await uiConfirm(`Hide "${acc.name}"? It will stop appearing in the + Entry picker, but old entries and balances stay intact. You can unhide it anytime from the Accounts tab.`, { confirmLabel: 'Hide' }))) return;
       acc.hidden = true;
       saveData(); renderAll();
       toast(`"${acc.name}" is hidden.`);
@@ -5586,7 +5747,9 @@
     session.selectedPartyId = null;
     session.selectedCategory = null;
     session.selectedAccountId = null;
-    saveSession(); closeDrawer(); renderAll();
+    saveSession(); closeDrawer();
+    __renderResetScroll = true;
+    renderAll();
   }
   function selectBook(id) {
     session.activeBookId = id;
@@ -5595,34 +5758,42 @@
     session.selectedPartyId = null;
     session.selectedCategory = null;
     session.selectedAccountId = null;
-    saveSession(); closeDrawer(); renderAll();
+    saveSession(); closeDrawer();
+    __renderResetScroll = true;
+    renderAll();
   }
   function switchView(view) {
     session.view = view;
     if (view !== 'party-detail') session.selectedPartyId = null;
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
-    saveSession(); closeDrawer(); renderAll();
+    saveSession(); closeDrawer();
+    __renderResetScroll = true; // new tab → land at the top
+    renderAll();
   }
   function openParty(partyId) {
     session.view = 'party-detail';
     session.selectedPartyId = partyId;
-    saveSession(); renderAll();
+    saveSession();
+    __renderResetScroll = true; // drilling into a detail view → top
+    renderAll();
   }
   function openAccount(accountId) {
     session.view = 'account-detail';
     session.selectedAccountId = accountId;
-    saveSession(); renderAll();
+    saveSession();
+    __renderResetScroll = true;
+    renderAll();
   }
   function setPeriod(p) {
     session.period = p; saveSession();
     renderMain();
   }
-  function deleteEntry(id) {
+  async function deleteEntry(id) {
     const entry = data.entries.find(e => e.id === id);
     if (!entry) return;
     if (!canEditEntry(entry)) { toast('You can only delete your own entries.'); return; }
-    if (!confirm('Delete this entry?')) return;
+    if (!(await uiConfirm('Delete this entry?', { destructive: true, confirmLabel: 'Delete entry' }))) return;
     data.entries = data.entries.filter(e => e.id !== id);
     saveData(); renderAll();
     toast('Entry deleted.');
@@ -5633,10 +5804,10 @@
     if (!canEditEntry(entry)) { toast('You can only edit your own entries.'); return; }
     openModal('entry', entry);
   }
-  function respondInvite(memberId, status) {
+  async function respondInvite(memberId, status) {
     const m = data.members.find(x => x.id === memberId);
     if (!m) return;
-    if (status === 'declined' && !confirm('Decline this invite? The owner will need to invite you again if you change your mind.')) return;
+    if (status === 'declined' && !(await uiConfirm('Decline this invite? The owner will need to invite you again if you change your mind.', { confirmLabel: 'Decline invite' }))) return;
     m.status = status;
     m.respondedAt = today();
     // On accept, capture the current user's Supabase id so the cloud row gets
@@ -5644,6 +5815,13 @@
     const u = me();
     if (status === 'accepted' && u && u.cloud) {
       m.userId = u.id;
+      // Capture the invitee's current name on the membership row so
+      // other members can see "Rajesh Karki" instead of just
+      // "rajesh@gmail.com" on the Team & Activity-by-member pages.
+      // saveAccount() keeps this in sync when the user later renames.
+      if (u.name && u.name.trim()) {
+        m.displayName = u.name.trim();
+      }
     }
     // GC: drop any OTHER pending rows for this same user+business so the
     // "invite reappears" bug can't happen. If the owner sent multiple
@@ -5667,11 +5845,11 @@
     } else { toast('Invite declined.'); }
     renderAll();
   }
-  function renameParty(partyId) {
+  async function renameParty(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
     if (!canRenameParty(p)) { toast("You can only rename parties you created."); return; }
-    const newName = prompt('New name for this party:', p.name);
+    const newName = await uiPrompt('New name for this party:', p.name, { title: 'Rename party', submitLabel: 'Rename' });
     if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
     if (trimmed === p.name) return;
@@ -5686,13 +5864,13 @@
     saveData(); renderAll();
     toast(`Renamed to "${trimmed}".`);
   }
-  function deletePartyAction(partyId) {
+  async function deletePartyAction(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
     if (!canDeleteParty(p)) { toast('Only the owner or manager can delete.'); return; }
     const bookIds = data.books.filter(b => b.businessId === p.businessId).map(b => b.id);
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id).length;
-    if (!confirm(`Delete party "${p.name}"? ${linkedCount} entries will keep the name as text but lose the link.`)) return;
+    if (!(await uiConfirm(`Delete party "${p.name}"? ${linkedCount} entries will keep the name as text but lose the link.`, { destructive: true, confirmLabel: 'Delete party' }))) return;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) delete e.partyId; });
     data.parties = data.parties.filter(x => x.id !== partyId);
     saveData();
@@ -5852,6 +6030,131 @@
   }
   function closeModal() { document.getElementById('modalBackdrop').classList.remove('active'); }
 
+  // ================================================================
+  // ASYNC CONFIRM / PROMPT — custom modal replacements for the
+  // native confirm()/prompt() dialogs. Native dialogs are blocked
+  // or behave inconsistently in installed iOS PWAs, and they look
+  // out of place against our themed UI. These return Promises so
+  // calling code reads almost identically to the native pattern:
+  //
+  //     if (await uiConfirm('Delete this?')) ...
+  //     const name = await uiPrompt('New name:', oldName);
+  //     if (name === null) return; // user cancelled
+  //
+  // Both functions take over the existing main modal slot. If a
+  // modal is already open when these are called, it is replaced
+  // (matches native confirm() which also blocks underneath).
+  // ================================================================
+
+  // Tracking the current async-modal promise resolvers so that
+  // backdrop clicks and the ESC handler can close the right one.
+  let __asyncModalResolver = null;
+  let __asyncModalKind = null; // 'confirm' | 'prompt' | null
+
+  function _asyncModalClose(value) {
+    if (!__asyncModalResolver) return;
+    const r = __asyncModalResolver;
+    __asyncModalResolver = null;
+    __asyncModalKind = null;
+    try { closeModal(); } catch (_) {}
+    r(value);
+  }
+
+  // Async confirmation dialog. Resolves true if user clicks the
+  // confirm button, false if they cancel (button, backdrop tap, or
+  // ESC). The `destructive` option styles the confirm button as a
+  // danger button — important for delete actions. `confirmLabel`
+  // and `cancelLabel` can be customized; both default sensibly.
+  function uiConfirm(message, opts) {
+    opts = opts || {};
+    const destructive = !!opts.destructive;
+    const confirmLabel = opts.confirmLabel || (destructive ? 'Delete' : 'OK');
+    const cancelLabel = opts.cancelLabel || 'Cancel';
+    const title = opts.title || (destructive ? 'Confirm delete' : 'Confirm');
+    return new Promise((resolve) => {
+      // If there's a previous async modal hanging, resolve it as cancel
+      if (__asyncModalResolver) { try { __asyncModalResolver(false); } catch(_) {} __asyncModalResolver = null; }
+      __asyncModalResolver = resolve;
+      __asyncModalKind = 'confirm';
+      const modal = document.getElementById('modalContent');
+      if (!modal) { resolve(false); return; }
+      modal.classList.remove('modal-full');
+      const oldFullClose = modal.querySelector('.modal-full-close');
+      if (oldFullClose) oldFullClose.remove();
+      modal.innerHTML = `
+        <div class="modal-handle"></div>
+        <h2 class="modal-title">${escapeHtml(title)}</h2>
+        <p class="modal-sub" style="white-space:pre-wrap;line-height:1.5;color:var(--ink);">${escapeHtml(message)}</p>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="uiConfirmCancelBtn">${escapeHtml(cancelLabel)}</button>
+          <button class="btn ${destructive ? 'btn-danger' : 'btn-accent'}" id="uiConfirmOkBtn">${escapeHtml(confirmLabel)}</button>
+        </div>
+      `;
+      document.getElementById('modalBackdrop').classList.add('active');
+      // Wire buttons and focus the cancel button by default (safer
+      // for destructive actions — Enter doesn't auto-delete).
+      document.getElementById('uiConfirmCancelBtn').addEventListener('click', () => _asyncModalClose(false));
+      document.getElementById('uiConfirmOkBtn').addEventListener('click', () => _asyncModalClose(true));
+      setTimeout(() => document.getElementById('uiConfirmCancelBtn')?.focus(), 50);
+    });
+  }
+
+  // Async input prompt. Resolves a trimmed string on submit, null
+  // on cancel. Matches native prompt()'s null-on-cancel convention
+  // so existing callsites swap in cleanly. `defaultValue` pre-fills
+  // the input. `placeholder` is the field's placeholder text. The
+  // submit button is disabled while the input is empty after trim.
+  function uiPrompt(message, defaultValue, opts) {
+    opts = opts || {};
+    const title = opts.title || 'Enter value';
+    const placeholder = opts.placeholder || '';
+    const submitLabel = opts.submitLabel || 'OK';
+    const cancelLabel = opts.cancelLabel || 'Cancel';
+    const inputType = opts.inputType || 'text';
+    const allowEmpty = !!opts.allowEmpty; // if true, empty input is a valid submit
+    return new Promise((resolve) => {
+      if (__asyncModalResolver) { try { __asyncModalResolver(null); } catch(_) {} __asyncModalResolver = null; }
+      __asyncModalResolver = resolve;
+      __asyncModalKind = 'prompt';
+      const modal = document.getElementById('modalContent');
+      if (!modal) { resolve(null); return; }
+      modal.classList.remove('modal-full');
+      const oldFullClose = modal.querySelector('.modal-full-close');
+      if (oldFullClose) oldFullClose.remove();
+      const initial = defaultValue == null ? '' : String(defaultValue);
+      modal.innerHTML = `
+        <div class="modal-handle"></div>
+        <h2 class="modal-title">${escapeHtml(title)}</h2>
+        <p class="modal-sub" style="white-space:pre-wrap;line-height:1.5;color:var(--ink);">${escapeHtml(message)}</p>
+        <div class="input-wrap" style="margin-top:0.5rem;">
+          <input type="${escapeHtml(inputType)}" id="uiPromptInput" placeholder="${escapeHtml(placeholder)}" autocomplete="off" autocapitalize="off" autocorrect="off">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" id="uiPromptCancelBtn">${escapeHtml(cancelLabel)}</button>
+          <button class="btn btn-accent" id="uiPromptOkBtn">${escapeHtml(submitLabel)}</button>
+        </div>
+      `;
+      document.getElementById('modalBackdrop').classList.add('active');
+      const inp = document.getElementById('uiPromptInput');
+      inp.value = initial;
+      const okBtn = document.getElementById('uiPromptOkBtn');
+      function updateOk() {
+        okBtn.disabled = !allowEmpty && !inp.value.trim();
+      }
+      inp.addEventListener('input', updateOk);
+      inp.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter' && !okBtn.disabled) { ev.preventDefault(); _asyncModalClose(inp.value); }
+      });
+      document.getElementById('uiPromptCancelBtn').addEventListener('click', () => _asyncModalClose(null));
+      okBtn.addEventListener('click', () => _asyncModalClose(inp.value));
+      updateOk();
+      // Focus the input and select existing text so the user can
+      // either edit or just hit Enter to keep the original value.
+      setTimeout(() => { inp.focus(); inp.select(); }, 50);
+    });
+  }
+
+
   // F10: Global ESC handler for the main modal stack. Standard a11y
   // expectation. Combobox + universal search overlay each have their
   // own ESC handlers (registered at narrower scopes); the capture flag
@@ -5864,6 +6167,13 @@
     // fire (capture order + propagation rules).
     const backdrop = document.getElementById('modalBackdrop');
     if (!backdrop || !backdrop.classList.contains('active')) return;
+    // If an async confirm/prompt is on screen, resolve it as cancel
+    // and let _asyncModalClose handle the cleanup. This is what
+    // native confirm/prompt do when the user presses Escape.
+    if (__asyncModalResolver) {
+      _asyncModalClose(__asyncModalKind === 'prompt' ? null : false);
+      return;
+    }
     // Skip if focus is in an input that's mid-edit — let the input
     // handle ESC naturally if it cares (most don't, but date pickers do).
     closeModal();
@@ -6636,7 +6946,11 @@
         </div>
         ${staff.map(m => {
           const linked = accounts.find(a => a.login === m.userLogin);
-          const displayName = linked?.name || m.userLogin;
+          // Prefer the displayName captured on the member row — it's the
+          // most authoritative source because the invitee writes it
+          // themselves on accept and on rename. Fall back to a locally
+          // known account (rare across devices), then to the email.
+          const displayName = m.displayName || linked?.name || m.userLogin;
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
           else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
@@ -6709,8 +7023,8 @@
     });
     saveData(); refreshStaffSurface(); toast("Invite sent.");
   }
-  function removeStaff(id) {
-    if (!confirm('Remove this team member?')) return;
+  async function removeStaff(id) {
+    if (!(await uiConfirm('Remove this team member?', { destructive: true, confirmLabel: 'Remove' }))) return;
     data.members = data.members.filter(m => m.id !== id);
     saveData(); refreshStaffSurface(); toast('Removed.');
   }
@@ -6954,14 +7268,14 @@
     saveData(); renderAll();
   }
 
-  function deleteQuickLookEntry(id) {
+  async function deleteQuickLookEntry(id) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     const role = roleFor(biz.id);
     if (role !== 'owner' && role !== 'manager') { toast('Only owner or manager can delete.'); return; }
     const row = (data.quickLook || []).find(r => r.id === id);
     if (!row) return;
-    if (!confirm(`Delete "${row.name}" from Snapshot? Cannot be undone.`)) return;
+    if (!(await uiConfirm(`Delete "${row.name}" from Snapshot? Cannot be undone.`, { destructive: true, confirmLabel: 'Delete' }))) return;
     data.quickLook = (data.quickLook || []).filter(r => r.id !== id);
     saveData(); renderAll();
     toast('Deleted.');
@@ -7228,8 +7542,8 @@
           </div>
           ${isOwner ? `
             <div class="announcement-actions">
-              <button class="announcement-action-btn" onclick="openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
-              <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete"><svg width="14" height="14"><use href="#ico-trash"/></svg></button>
+              <button class="announcement-action-btn" onclick="openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit" aria-label="Edit announcement"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
+              <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete" aria-label="Delete announcement"><svg width="14" height="14"><use href="#ico-trash"/></svg></button>
             </div>` : ''}
         </div>`;
     }).join('') : `<div class="empty"><div class="empty-headline">No announcements yet.</div>${isOwner ? '<div>Tap "+ Post announcement" to share something with your team.</div>' : ''}</div>`;
@@ -7338,11 +7652,11 @@
     saveData(); closeModal(); renderAll();
     toast('Announcement posted.');
   }
-  function deleteAnnouncement(id) {
+  async function deleteAnnouncement(id) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (roleFor(biz.id) !== 'owner') { toast('Only the owner can delete.'); return; }
-    if (!confirm('Delete this announcement? It will disappear for everyone in this business.')) return;
+    if (!(await uiConfirm('Delete this announcement? It will disappear for everyone in this business.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.announcements = (data.announcements || []).filter(a => a.id !== id);
     saveData(); renderAll();
     toast('Announcement removed.');
@@ -7441,7 +7755,10 @@
         </div>
         ${staff.map(m => {
           const linked = accounts.find(a => a.login === m.userLogin);
-          const displayName = linked?.name || m.userLogin;
+          // Prefer the displayName captured on the member row (set by
+          // the invitee on accept + updated on rename) before falling
+          // back to a locally-cached account or the bare email.
+          const displayName = m.displayName || linked?.name || m.userLogin;
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
           else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
@@ -7521,7 +7838,10 @@
       roster.push({
         id: m.userId || null,
         login: m.userLogin || '',
-        name: linked?.name || m.userLogin || 'Member',
+        // Same lookup priority as the Team & access list above —
+        // member-row displayName wins because it's the only source
+        // visible to other team members across devices.
+        name: m.displayName || linked?.name || m.userLogin || 'Member',
         role: m.role,
       });
     }
@@ -8128,8 +8448,8 @@
                 ? `<div class="reorder-list" id="reorderAccs_${g.id}">${inGroup.map(a => `<div class="reorder-row" data-id="${a.id}">
                     <span class="drag-handle" title="Drag to reorder">${dragHandleIcon()}</span>
                     <span class="reorder-row-name">${escapeHtml(a.name)}</span>
-                    <button class="icon-btn-light" onclick="renameAccountFlow('${a.id}')" title="Rename"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>
-                    ${accs.length > 1 ? `<button class="icon-btn-light" onclick="deleteAccountFromSettings('${a.id}')" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
+                    <button class="icon-btn-light" onclick="renameAccountFlow('${a.id}')" title="Rename" aria-label="Rename account"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>
+                    ${accs.length > 1 ? `<button class="icon-btn-light" onclick="deleteAccountFromSettings('${a.id}')" title="Remove" aria-label="Remove account"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
                   </div>`).join('')}</div>`
                 : inGroup.map(a => `<span class="chip">${escapeHtml(a.name)}</span>`).join(''))
             : '<span class="chip-empty">No accounts.</span>';
@@ -8137,8 +8457,8 @@
             <div class="setting-acct-group-head">
               <span class="setting-acct-group-icon">${accountKindIcon(g.kind)}</span>
               <span class="setting-acct-group-name">${escapeHtml(g.name)}</span>
-              ${canManage ? `<button class="icon-btn-light" onclick="renameGroup('${g.id}')" title="Rename"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>` : ''}
-              ${canManage && groups.length > 1 ? `<button class="icon-btn-light" onclick="deleteGroup('${g.id}')" title="Delete"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
+              ${canManage ? `<button class="icon-btn-light" onclick="renameGroup('${g.id}')" title="Rename" aria-label="Rename group"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>` : ''}
+              ${canManage && groups.length > 1 ? `<button class="icon-btn-light" onclick="deleteGroup('${g.id}')" title="Delete" aria-label="Delete group"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
             </div>
             ${canManage ? accRowList : `<div class="chips">${accRowList}</div>`}
           </div>`;
@@ -8529,25 +8849,70 @@
     }
   }
 
-  function saveAccount() {
+  async function saveAccount() {
     const u = me();
+    if (!u) return;
     const newName = document.getElementById('setName').value.trim();
     const pwdEl = document.getElementById('setPwd');
     const pwdEl2 = document.getElementById('setPwd2');
     const pwd1 = pwdEl ? pwdEl.value : '';
     const pwd2 = pwdEl2 ? pwdEl2.value : '';
     if (!newName) { toast('Name cannot be blank.'); return; }
+    if (newName.length > LIMITS.name) { toast(`Name too long (max ${LIMITS.name}).`); return; }
     if (pwd1 || pwd2) {
       if (pwd1 !== pwd2) { toast("Passwords don't match."); return; }
       u.password = pwd1;
     }
-    if (u.name !== newName) {
+    const nameChanged = (u.name !== newName);
+    if (nameChanged) {
       u.name = newName;
+      // Existing entries: update the cached createdByName so the
+      // Entries view shows the new label without waiting for a re-sync.
       data.entries.forEach(e => { if (e.createdBy === u.id) e.createdByName = newName; });
+      // Member rows: propagate the new name to every business this
+      // user belongs to (as an invited member, not as owner). Sync
+      // will push the rows; other members on other devices will see
+      // them via realtime. saveData triggers the diff/push pipeline.
+      let memberRowsUpdated = 0;
+      for (const m of (data.members || [])) {
+        const matchesMe = (m.userId && m.userId === u.id)
+          || (m.userLogin && u.login && normalize(m.userLogin) === normalize(u.login));
+        if (matchesMe && m.displayName !== newName) {
+          m.displayName = newName;
+          memberRowsUpdated++;
+        }
+      }
+      if (memberRowsUpdated) {
+        // No-op assignment to force the diff pipeline to notice the
+        // member rows mutated — they're already saved via saveData
+        // below, but being explicit here documents intent.
+      }
     }
     saveAccounts(); saveData();
     document.getElementById('userName').textContent = u.name;
     document.getElementById('userAvatar').textContent = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    // Push the name to Supabase auth.users.user_metadata so the next
+    // cloud session sees it (without this, refresh wipes the name back
+    // to whatever was saved at signup). Also pushes via the auth
+    // listener to any other tabs of this user on this browser. We do
+    // this AFTER local saves so the UI feels instant even on flaky
+    // networks.
+    if (nameChanged && u.cloud) {
+      try {
+        const { error } = await sb().auth.updateUser({ data: { name: newName } });
+        if (error) {
+          // Don't roll back the local change — the next attempt at
+          // sign-in could pick up the same value, or the user can
+          // re-save. Warn so we can see it in console if it happens.
+          console.warn('Could not push display name to Supabase:', error.message || error);
+          toast('Saved locally — cloud profile may not have updated.');
+          openModal('settings');
+          return;
+        }
+      } catch (e) {
+        console.warn('auth.updateUser threw:', e);
+      }
+    }
     toast('Account saved.');
     openModal('settings');
   }
@@ -8742,12 +9107,12 @@
     toast('Business deleted.');
     logAuditEvent('business_deleted', biz.name, { business_id: bizId, entries_removed: entryCount }).catch(() => {});
   }
-  function deleteCategory(id) {
+  async function deleteCategory(id) {
     const c = data.categories.find(x => x.id === id);
     if (!c) return;
     if (!canManageOps(c.businessId)) { toast('Only the owner or manager can remove.'); return; }
     // Existing entries keep the category text; this only removes it from the dropdown.
-    if (!confirm(`Remove "${c.name}" from the category list? Existing entries keep the label.`)) return;
+    if (!(await uiConfirm(`Remove "${c.name}" from the category list? Existing entries keep the label.`, { destructive: true, confirmLabel: 'Remove' }))) return;
     const bizId = c.businessId;
     data.categories = data.categories.filter(x => x.id !== id);
     saveData();
@@ -8756,7 +9121,7 @@
     else renderAll();
     toast('Removed.');
   }
-  function deleteAccountFromSettings(id) {
+  async function deleteAccountFromSettings(id) {
     const acc = data.cashAccounts.find(a => a.id === id);
     if (!acc) return;
     if (!canManageOps(acc.businessId)) { toast('Only the owner or manager can remove.'); return; }
@@ -8765,7 +9130,7 @@
     const bookIds = data.books.filter(b => b.businessId === acc.businessId).map(b => b.id);
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === acc.id).length;
     const fallback = others[0];
-    if (!confirm(`Remove account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`)) return;
+    if (!(await uiConfirm(`Remove account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`, { destructive: true, confirmLabel: 'Remove' }))) return;
     const bizId = acc.businessId;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.accountId === acc.id) e.accountId = fallback.id; });
     data.cashAccounts = data.cashAccounts.filter(a => a.id !== id);
@@ -9184,19 +9549,19 @@
     } else if (action === 'party') {
       session.selectedPartyId = id;
       session.view = 'party-detail';
-      saveSession(); renderAll();
+      saveSession(); __renderResetScroll = true; renderAll();
     } else if (action === 'category') {
       session.selectedCategory = id; // it's the name, passed as id field
       session.view = 'category-detail';
-      saveSession(); renderAll();
+      saveSession(); __renderResetScroll = true; renderAll();
     } else if (action === 'account') {
       session.selectedAccountId = id;
       session.view = 'account-detail';
-      saveSession(); renderAll();
+      saveSession(); __renderResetScroll = true; renderAll();
     } else if (action === 'book') {
       session.activeBookId = id;
       session.view = 'entries';
-      saveSession(); renderAll();
+      saveSession(); __renderResetScroll = true; renderAll();
     } else if (action === 'expense') {
       // Jump to the expenses view scoped to the expense's month.
       const x = data.auditExpenses.find(e => e.id === id);
@@ -9651,6 +10016,41 @@
     const day = Math.floor(hr / 24);
     if (day < 30) return `${day}d ago`;
     return new Date(t).toLocaleDateString();
+  }
+
+  // Format a stored timestamp (epoch ms from Date.now()) as a short
+  // time string, e.g. "3:42 PM" or "15:42" depending on locale. Used
+  // alongside the entry date so the user sees both "when" and "what
+  // time" of an entry without an extra tap. Returns empty string for
+  // missing/invalid input. We deliberately keep it short — the date
+  // already takes a line, the time is auxiliary detail.
+  function formatEntryTime(epochMs) {
+    if (!epochMs || typeof epochMs !== 'number' || !Number.isFinite(epochMs)) return '';
+    try {
+      const d = new Date(epochMs);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    } catch (_) { return ''; }
+  }
+  // Combine a YYYY-MM-DD date string with an epoch-ms time into a
+  // localized "Mon, May 14 · 3:42 PM" style line. Used in detail views
+  // where there's room for the longer label.
+  function formatEntryDateTime(dateStr, epochMs) {
+    const datePart = dateStr || '';
+    const timePart = formatEntryTime(epochMs);
+    if (!datePart && !timePart) return '';
+    if (!timePart) return datePart;
+    return `${datePart} · ${timePart}`;
+  }
+  // Decide whether an entry was meaningfully edited after creation.
+  // Edits within the first 5 seconds (e.g. user saves twice while
+  // tweaking) shouldn't show as "edited" — that would noise up the
+  // UI. Returns the edited timestamp string, or empty if not edited.
+  function entryEditedLabel(entry) {
+    if (!entry || !entry.editedAt) return '';
+    const created = entry.createdAt || 0;
+    if (entry.editedAt - created < 5000) return ''; // same-session save, ignore
+    return formatEntryDateTime('', entry.editedAt) || formatEntryTime(entry.editedAt);
   }
 
   // Cached after the first failure so we don't keep retrying a function
@@ -11849,25 +12249,11 @@
         }
       }
       storageWrite(DATA_KEY, JSON.stringify(data));
-      // Capture scroll position BEFORE renderAll wipes the DOM. Without
-      // this, every remote realtime event (which can fire several times
-      // per minute while team members work) would re-render the entries
-      // table and snap the user's scroll back to the top. This was the
-      // "drag down and it jumps up" bug.
-      const scrollY = window.scrollY || document.documentElement.scrollTop || 0;
+      // renderAll() now preserves scroll position automatically for
+      // all callers (sync, realtime, user actions). No need to wrap
+      // here. See the renderAll definition + __renderResetScroll
+      // sentinel for the implementation.
       try { renderAll(); } catch (_) {}
-      // Restore after the next paint so the new DOM has its full height.
-      if (scrollY > 0) {
-        requestAnimationFrame(() => {
-          // Only restore if the user hasn't scrolled themselves in the
-          // interim. If they scrolled to top deliberately, leave them.
-          // We treat "user did nothing yet" as scrollY still being near 0.
-          const nowY = window.scrollY || document.documentElement.scrollTop || 0;
-          if (nowY < 5) {
-            window.scrollTo({ top: scrollY, behavior: 'instant' });
-          }
-        });
-      }
     }, 150);
   }
 
@@ -12650,6 +13036,12 @@
         // card before they have a local copy of the business/inviter.
         invited_by_name: r.invitedByName || null,
         business_name: r.businessName || null,
+        // display_name: the invitee's chosen profile name. Captured
+        // when they accept the invite, and updated whenever they
+        // rename themselves in Profile settings. Lets every other
+        // member render real names on the Team page and leaderboard
+        // instead of falling back to email addresses.
+        display_name: r.displayName || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -12661,6 +13053,7 @@
         respondedAt: r.responded_at || undefined,
         invitedByName: r.invited_by_name || undefined,
         businessName: r.business_name || undefined,
+        displayName: r.display_name || undefined,
       }),
     },
   };
@@ -12719,9 +13112,16 @@
         }
       }
       // Also push the app_accounts profile row for the current user.
+      // Maps local fields to the schema columns: display_name (was
+      // misnamed `name` previously, which caused a silent PGRST
+      // 400 every time the user hit Force push), email (was `login`
+      // — same), and we drop the `joined` mapping because the
+      // schema's created_at default handles it. Account deletion is
+      // separate (handled by delete-self-account Edge Function).
       const { error: profErr } = await sb().from('app_accounts').upsert({
-        id: u.id, name: u.name, login: u.login,
-        joined: u.joined || today(),
+        id: u.id,
+        display_name: u.name || null,
+        email: u.login || null,
       }, { onConflict: 'id' });
       if (profErr) console.warn('Profile push failed:', profErr.message);
       if (!silent) toast('Push complete.');

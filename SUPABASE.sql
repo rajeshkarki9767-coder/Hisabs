@@ -133,10 +133,19 @@ create table if not exists public.app_members (
   responded_at text,
   invited_by_name text,
   business_name text,
+  -- display_name: the invitee's name, captured when they accept the
+  -- invite, and updated whenever they rename themselves in Profile.
+  -- Lets every other team member see real names in the Team & access
+  -- page and the Activity-by-team-member leaderboard, instead of
+  -- falling back to email addresses. Nullable for pre-existing
+  -- accepted rows that don't have a name set yet.
+  display_name text,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   deleted_at timestamptz
 );
+-- Add the column to existing app_members rows on upgrade. Idempotent.
+alter table public.app_members add column if not exists display_name text;
 create index if not exists idx_app_members_business_id on public.app_members(business_id);
 create index if not exists idx_app_members_user_id on public.app_members(user_id);
 create index if not exists idx_app_members_user_login on public.app_members(lower(user_login));
