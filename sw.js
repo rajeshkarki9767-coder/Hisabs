@@ -11,7 +11,7 @@
 // changes meaningfully so old caches get purged on activate.
 // ============================================================
 
-const CACHE_VERSION = 'hisabs-v9';
+const CACHE_VERSION = 'hisabs-v16';
 const APP_SHELL = [
   './',
   './index.html',
@@ -132,4 +132,80 @@ self.addEventListener('fetch', (event) => {
 // if we ever build an "update available, reload" prompt).
 self.addEventListener('message', (event) => {
   if (event.data === 'SKIP_WAITING') self.skipWaiting();
+});
+
+// When a Web Push arrives — including when the app is fully closed —
+// the browser wakes up the service worker and fires this event. We
+// parse the JSON payload (sent by send-announcement-push) and show
+// the OS notification. The push payload shape is:
+//   { title, body, important, announcement_id, author_name }
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    // If decoding failed, fall back to a generic notification so the
+    // user knows something arrived. Better than silent.
+    payload = { title: 'Hisabs', body: 'New activity in your business.' };
+  }
+  const title = String(payload.title || 'Hisabs').slice(0, 100);
+  const body  = String(payload.body  || '').slice(0, 300);
+  const important = !!payload.important;
+  const tag = payload.announcement_id ? `hisabs-ann-${String(payload.announcement_id).slice(0, 64)}` : 'hisabs-push';
+  const opts = {
+    body,
+    icon: './icons/icon-192.png',
+    badge: './icons/icon-192.png',
+    tag,
+    renotify: false,
+    requireInteraction: important,
+    // Hint to the OS that this is a high-priority, time-sensitive
+    // notification when marked important. Android respects this; iOS
+    // ignores it but doesn't error.
+    data: {
+      url: self.registration.scope,
+      announcement_id: payload.announcement_id || null,
+    },
+    // Vibration pattern for Android (iOS ignores). 200ms on, 100ms off,
+    // 200ms on. Short and polite.
+    vibrate: [200, 100, 200],
+  };
+  event.waitUntil(self.registration.showNotification(title, opts));
+});
+
+// When the push service decides our subscription is invalid (e.g.
+// the user revoked permission, or the browser data was wiped), it
+// can deliver a pushsubscriptionchange event with the new subscription.
+// We delete the SW-side state; the next time the user opens the app,
+// the client re-registers.
+self.addEventListener('pushsubscriptionchange', (event) => {
+  // We can't write to Supabase from here without auth — the page will
+  // re-register on next open. Just acknowledge to avoid the browser
+  // marking us as broken.
+  event.waitUntil(Promise.resolve());
+});
+// When the user taps an OS notification we showed (foreground or via
+// push), bring the app to the front. If no client is open, open one.
+// data.url defaults to the SW scope which is the app's URL.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Prefer an existing window for the same origin — focus it.
+    for (const client of all) {
+      try {
+        const u = new URL(client.url);
+        const t = new URL(targetUrl, self.location.origin);
+        if (u.origin === t.origin) {
+          await client.focus();
+          return;
+        }
+      } catch (_) {}
+    }
+    // No matching window → open a new one.
+    if (self.clients.openWindow) {
+      await self.clients.openWindow(targetUrl);
+    }
+  })());
 });

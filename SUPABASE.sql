@@ -162,13 +162,26 @@ create table if not exists public.app_audit_expenses (
   id text primary key,
   business_id text not null references public.app_businesses(id) on delete cascade,
   month text,
+  -- `date` was added in a later release to support day-granularity
+  -- expense filtering (custom date ranges). Older rows only had `month`
+  -- (e.g. '2026-05') and got backfilled to the first of that month.
+  -- Both columns are kept in sync going forward.
+  date date,
   label text,
   amount numeric not null default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   deleted_at timestamptz
 );
+-- Migration safety: if you upgraded from an earlier schema that didn't
+-- have `date`, add the column and backfill from `month`. Running this
+-- twice is fine — both statements are idempotent.
+alter table public.app_audit_expenses add column if not exists date date;
+update public.app_audit_expenses
+  set date = to_date(month || '-01', 'YYYY-MM-DD')
+  where date is null and month is not null;
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
+create index if not exists idx_app_audit_expenses_date on public.app_audit_expenses(date);
 
 -- Device names: friendly labels users give to their browsers/sessions.
 -- One row per (user, device) pair. Multiple sessions on the same browser
@@ -188,6 +201,48 @@ create table if not exists public.app_device_names (
 );
 create index if not exists idx_app_device_names_user on public.app_device_names(user_id);
 create index if not exists idx_app_device_names_session on public.app_device_names(session_id);
+
+-- Web Push subscription endpoints. One row per browser+user that has
+-- granted notification permission. Used by the send-announcement-push
+-- Edge Function to fan out notifications when an announcement is posted.
+--
+-- `endpoint` is the URL the push service (FCM / Mozilla / etc.) gave us
+-- when subscribe() succeeded. p256dh + auth are the encryption keys.
+-- Same shape returned by PushSubscription.toJSON().
+--
+-- A device that re-subscribes (e.g. after browser data clear) gets a
+-- new endpoint; we keep the old one until it 410-Gones away, then the
+-- Edge Function deletes it. The (endpoint) UNIQUE constraint prevents
+-- duplicate fanouts to the same endpoint if a user re-grants.
+create table if not exists public.app_push_subscriptions (
+  id text primary key,
+  user_id uuid not null,
+  endpoint text not null,
+  p256dh text not null,
+  auth_key text not null,
+  user_agent text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create unique index if not exists idx_app_push_subs_endpoint on public.app_push_subscriptions(endpoint);
+create index if not exists idx_app_push_subs_user on public.app_push_subscriptions(user_id);
+
+-- RLS: a user can manage their own push subscriptions. The Edge
+-- Function that sends pushes uses the service role and bypasses RLS,
+-- so it can read every member's subscriptions when fanning out.
+alter table public.app_push_subscriptions enable row level security;
+drop policy if exists app_push_subs_select on public.app_push_subscriptions;
+create policy app_push_subs_select on public.app_push_subscriptions
+  for select to authenticated using (user_id = auth.uid());
+drop policy if exists app_push_subs_insert on public.app_push_subscriptions;
+create policy app_push_subs_insert on public.app_push_subscriptions
+  for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists app_push_subs_update on public.app_push_subscriptions;
+create policy app_push_subs_update on public.app_push_subscriptions
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists app_push_subs_delete on public.app_push_subscriptions;
+create policy app_push_subs_delete on public.app_push_subscriptions
+  for delete to authenticated using (user_id = auth.uid());
 
 -- Failed sign-in attempt counter. Mirrors localStorage rate-limit state
 -- in the cloud so it persists across browser-clears and devices.
@@ -261,9 +316,15 @@ create table if not exists public.app_announcements (
   author_id uuid,
   author_name text,
   body text not null,
+  -- `important` flag added later. When true, the announcement shows on
+  -- the entries page with a warning icon; otherwise it lives behind the
+  -- "View announcements" link so the page doesn't get crowded.
+  important boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+-- Migration safety: existing tables get the column defaulted to false.
+alter table public.app_announcements add column if not exists important boolean not null default false;
 create index if not exists idx_app_announcements_business on public.app_announcements(business_id, created_at desc);
 
 -- ----------------------------------------------------------------
@@ -664,3 +725,59 @@ end $$;
 --
 -- The deleted_at column itself can stay — it's harmless legacy.
 -- ============================================================
+
+-- ============================================================
+-- 9. F14: Server-side length CHECK constraints (defensive depth)
+-- ============================================================
+-- The client validates lengths before insert, but a determined user with
+-- DevTools can bypass client validation and post arbitrary strings.
+-- Postgres `text` is unbounded, so a 100MB note would be accepted and
+-- become a permanent performance drag on every subsequent query that
+-- touches that row.
+--
+-- These CHECKs match the client-side LIMITS object (names: 120,
+-- description: 500, note: 2000). Added with a do-block so the migration
+-- is idempotent (Postgres has `add column if not exists` but no
+-- `add constraint if not exists` until v9.6+ on some clusters).
+--
+-- If any existing row exceeds these limits, the ALTER will fail with a
+-- check-violation error. In that case, find and trim the offending row
+-- before re-running.
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'app_entries_note_len') then
+    alter table public.app_entries add constraint app_entries_note_len check (note is null or length(note) <= 2000);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_entries_party_len') then
+    alter table public.app_entries add constraint app_entries_party_len check (party is null or length(party) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_entries_category_len') then
+    alter table public.app_entries add constraint app_entries_category_len check (category is null or length(category) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_businesses_name_len') then
+    alter table public.app_businesses add constraint app_businesses_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_books_name_len') then
+    alter table public.app_books add constraint app_books_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_parties_name_len') then
+    alter table public.app_parties add constraint app_parties_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_categories_name_len') then
+    alter table public.app_categories add constraint app_categories_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_account_groups_name_len') then
+    alter table public.app_account_groups add constraint app_account_groups_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_cash_accounts_name_len') then
+    alter table public.app_cash_accounts add constraint app_cash_accounts_name_len check (length(name) <= 120);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_audit_expenses_label_len') then
+    alter table public.app_audit_expenses add constraint app_audit_expenses_label_len check (label is null or length(label) <= 500);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'app_announcements_body_len') then
+    alter table public.app_announcements add constraint app_announcements_body_len check (length(body) <= 1000);
+  end if;
+end$$;
+

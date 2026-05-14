@@ -11,6 +11,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#f5f1e8">
 <title>Hisabs — your cash, in order</title>
+<!-- F8: SEO meta description. F9: Open Graph tags so shared links show
+     a readable card on chat apps and social. Image is the existing PWA
+     icon — no extra asset to maintain. -->
+<meta name="description" content="A quiet, careful place to keep your books. Track cash flow across multiple businesses, share with staff, sync across devices. Works offline.">
+<meta property="og:title" content="Hisabs — your cash, in order">
+<meta property="og:description" content="A quiet, careful place to keep your books. Track cash flow across multiple businesses, share with staff, sync across devices.">
+<meta property="og:type" content="website">
+<meta property="og:image" content="icons/icon-512.png">
+<meta name="twitter:card" content="summary">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
@@ -195,8 +204,8 @@
   .combo .combo-chevron:hover { color: var(--ink); }
   .combo-options {
     position: absolute; top: calc(100% + 4px); left: 0; right: 0;
-    background: var(--surface-1); border: 1px solid var(--line);
-    border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.14);
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: var(--r-sm); box-shadow: 0 6px 18px rgba(0,0,0,0.18);
     max-height: 240px; overflow-y: auto; z-index: 30;
   }
   .combo-group-head {
@@ -507,7 +516,7 @@
   .date-strip-search-icon { position: absolute; left: 0.55rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
 
   /* Dropdown with grouped results, anchored to the search input on desktop */
-  .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 480px; overflow-y: auto; z-index: 1000; }
+  .search-dropdown { position: absolute; top: calc(100% + 4px); left: 0; right: 0; background: var(--paper); border: 1px solid var(--line); border-radius: var(--r); box-shadow: 0 8px 24px rgba(0,0,0,0.18); max-height: 480px; overflow-y: auto; z-index: 1000; }
   .search-dropdown-empty { padding: 1.5rem 1rem; text-align: center; color: var(--ink-mute); font-size: 0.82rem; }
   .search-group { border-bottom: 1px solid var(--line-soft); }
   .search-group:last-child { border-bottom: none; }
@@ -548,6 +557,16 @@
   .page-title-wrap { flex: 1; min-width: 200px; }
   .page-eyebrow { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.16em; color: var(--ink-mute); margin-bottom: 0.25rem; font-weight: 500; }
   .page-title { font-family: var(--font-serif); font-size: 1.5rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.15; color: var(--ink); }
+  /* Small total-count chip rendered inline with the page title (Parties,
+     Categories, Accounts). Helps the user know the size of the list at a
+     glance without scanning the cards below. */
+  .page-title-count {
+    display: inline-block; vertical-align: 0.18em; margin-left: 0.5rem;
+    font-family: var(--font-sans); font-size: 0.78rem; font-weight: 500;
+    color: var(--ink-mute); background: var(--paper-deep);
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 0.1rem 0.55rem; letter-spacing: 0;
+  }
 
   .page-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
 
@@ -702,6 +721,32 @@
      the page visually quiet. */
   .announcements-wrap { margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem; }
   .announcement { background: var(--surface-1); border: 2px solid var(--accent); border-radius: var(--r); padding: 0.85rem 1rem; position: relative; display: flex; gap: 0.75rem; align-items: flex-start; }
+  /* Important variant: heavier border, warmer glow. Visually distinct
+     from a normal announcement so the user takes it seriously. */
+  .announcement.announcement-important { border-width: 2px; border-color: var(--loss); background: rgba(168,53,31,0.05); box-shadow: 0 1px 0 rgba(168,53,31,0.06); }
+  .announcement.announcement-important .announcement-icon { color: var(--loss); }
+  .announcement.announcement-important .announcement-author { color: var(--loss); }
+  .announcement-important-tag {
+    display: inline-block; background: var(--loss); color: var(--paper);
+    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em;
+    padding: 0.1rem 0.45rem; border-radius: 999px;
+    text-transform: uppercase;
+  }
+  /* "View announcements (N)" pill: compact tappable link on entries view.
+     Designed to be unobtrusive — shows up only when there's actually a
+     non-important announcement to view. */
+  .announcement-view-link {
+    display: inline-flex; align-items: center; gap: 0.5rem; align-self: flex-start;
+    padding: 0.45rem 0.8rem; border: 1px solid var(--line); border-radius: var(--r-sm);
+    background: var(--paper); color: var(--ink); font-family: var(--font-sans);
+    font-size: 0.82rem; cursor: pointer; transition: border-color 0.12s, background 0.12s;
+  }
+  .announcement-view-link:hover { border-color: var(--accent); background: var(--paper-deep); }
+  .announcement-view-count {
+    background: var(--accent); color: var(--paper); font-size: 0.7rem;
+    font-weight: 600; padding: 0.05rem 0.4rem; border-radius: 999px;
+    margin-left: 0.3rem;
+  }
   .announcement-icon { color: var(--accent); flex-shrink: 0; margin-top: 0.05rem; }
   .announcement-body { flex: 1; min-width: 0; }
   .announcement-meta { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
@@ -788,6 +833,14 @@
   .audit-exp-month-group:last-child { margin-bottom: 0; }
   .audit-exp-month-head { display: flex; justify-content: space-between; align-items: baseline; padding: 0.45rem 0.6rem; background: var(--paper-deep); border-radius: var(--r-sm); margin-bottom: 0.3rem; font-size: 0.82rem; font-weight: 600; }
   .audit-exp-month-total { font-family: var(--font-mono); color: var(--loss); font-weight: 500; }
+  /* Small monospaced date pill on each expense row. Helps the user see
+     when an expense was logged without opening it. */
+  .audit-exp-date {
+    display: inline-block; margin-left: 0.45rem; font-family: var(--font-mono);
+    font-size: 0.7rem; color: var(--ink-mute); background: var(--paper-deep);
+    border: 1px solid var(--line); border-radius: 999px; padding: 0.05rem 0.45rem;
+    vertical-align: 0.05em;
+  }
 
   .audit-month-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 0.85rem; }
   .audit-month-nav { background: transparent; border: 1px solid var(--line); width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--ink-soft); border-radius: var(--r-sm); }
@@ -1676,10 +1729,23 @@
   // restricts every row to its owner_user_id == auth.uid().
   const SUPABASE_URL = 'https://sdovwbxqxvbbtpndrohd.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNkb3Z3YnhxeHZiYnRwbmRyb2hkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg2NTMyNTYsImV4cCI6MjA5NDIyOTI1Nn0.uyhUS3YDoepwhpl0M0_fnDTynt3j-ey8x3KDfIrvIOs';
+  // VAPID public key for Web Push. Generate with:
+  //   npx web-push generate-vapid-keys
+  // Paste the publicKey here. The privateKey goes into Supabase secrets
+  // as VAPID_PRIVATE_KEY (and the public key as VAPID_PUBLIC_KEY) so
+  // the send-announcement-push Edge Function can sign messages.
+  // Until this key is filled in, Web Push registration is skipped
+  // silently — the app still works, you just don't get the
+  // closed-app notifications.
+  const VAPID_PUBLIC_KEY = '';  // ← paste your VAPID public key here
   // Lazy singleton — the UMD bundle exposes `window.supabase`. If the script
   // failed to load (offline, blocked, etc.) we surface a clear error instead
   // of crashing later.
   let __sb = null;
+  // Debug flag — enable verbose logging by running this in DevTools:
+  //   localStorage.hisabs_debug = '1'; location.reload();
+  try { window.__hisabsDebug = localStorage.getItem('hisabs_debug') === '1'; }
+  catch (_) { window.__hisabsDebug = false; }
   function sb() {
     if (__sb) return __sb;
     if (!window.supabase || typeof window.supabase.createClient !== 'function') {
@@ -2191,6 +2257,45 @@
     if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '').slice(0, 16);
     return Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 10);
   };
+
+  // Length limits for user-typed text. Text fields are stored in Postgres
+  // `text` columns (unbounded), but unbounded means a single pasted
+  // megabyte degrades the entries view, the sync payload, and the PDF
+  // export forever. Cap aggressively at the input layer.
+  //
+  // Numbers chosen to be generous for normal use but tight enough that
+  // a paste-by-mistake fails loud instead of silently lagging the app.
+  const LIMITS = {
+    name:        120,    // party, category, account, business, book, group
+    note:       2000,    // free-text entry note
+    description: 500,    // expense description, etc.
+    amount:    1e13,    // absolute max amount (10 trillion units)
+  };
+  // Validate a name-style input. Returns trimmed string or null if invalid.
+  // `field` is a human label used in the toast.
+  function validateName(raw, field) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s) { toast(`${field} can't be empty.`); return null; }
+    if (s.length > LIMITS.name) { toast(`${field} too long (max ${LIMITS.name} characters).`); return null; }
+    return s;
+  }
+  function validateNote(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (s.length > LIMITS.note) { toast(`Note too long (max ${LIMITS.note} characters).`); return null; }
+    return s;
+  }
+  function validateDescription(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s) { toast('Description required.'); return null; }
+    if (s.length > LIMITS.description) { toast(`Description too long (max ${LIMITS.description} characters).`); return null; }
+    return s;
+  }
+  function validateAmount(raw) {
+    const n = raw === '' || raw == null ? NaN : Number(raw);
+    if (!Number.isFinite(n) || n <= 0) { toast('Enter a valid amount.'); return null; }
+    if (n > LIMITS.amount) { toast(`Amount too large (max ${LIMITS.amount.toExponential(0)}).`); return null; }
+    return n;
+  }
   // Local-time ISO date (YYYY-MM-DD). Using toISOString() returned UTC dates,
   // which produces yesterday's date near midnight for users east of UTC (e.g.
   // Nepal at UTC+5:45). en-CA gives YYYY-MM-DD format consistently.
@@ -2484,7 +2589,17 @@
     const biz = data.businesses.find(b => b.id === businessId);
     if (!biz) return null;
     if (biz.ownerId === u.id) return 'owner';
-    const m = data.members.find(m => m.businessId === businessId && m.userLogin === normalize(u.login) && m.status === 'accepted');
+    // Match on userId first (canonical after acceptance), fall back to
+    // userLogin (only filled before the invitee signs in for the first
+    // time). This avoids a "not a member" UX bug when, for example, the
+    // owner invited bob@gmail.com but Bob signed in with Google using a
+    // case-variant or alt-email and the local cache hasn't refreshed.
+    const myLogin = normalize(u.login);
+    const m = data.members.find(m =>
+      m.businessId === businessId
+      && m.status === 'accepted'
+      && (m.userId === u.id || normalize(m.userLogin) === myLogin)
+    );
     return m ? m.role : null;
   }
   function canEditEntry(entry) {
@@ -2802,6 +2917,17 @@
       // Take an initial silent snapshot so we have at least one
       runAutoBackup({ silent: true });
     }
+    // F2: We do NOT auto-prompt for notification permission. Asking out
+    // of context guarantees users tap "Deny" and we lose the chance
+    // forever. The Settings → Notifications panel has an explicit
+    // "Enable system notifications" button — that's the only place we
+    // call requestPermission(). Here, we just re-register the push
+    // subscription if permission was already granted previously, so the
+    // server has an up-to-date endpoint.
+    try { rebindPushIfGranted(); } catch (_) {}
+    // F5: Drain any leftover push triggers from a previous offline post.
+    // Delay slightly to let auth fully restore before we try the call.
+    setTimeout(() => { try { flushPushTriggerQueue(); } catch (_) {} }, 2000);
   }
 
   // ================================================================
@@ -3493,18 +3619,28 @@
       if (acts && acts[idx] && typeof acts[idx].run === 'function') acts[idx].run();
     });
     document.body.appendChild(menu);
-    // Position near the click — flush to the right side of the trigger
-    const triggerRect = ev.currentTarget.getBoundingClientRect();
+    // Position near the click — flush to the right side of the trigger.
+    // CRITICAL: set `position: fixed` BEFORE measuring the menu's rect.
+    // Otherwise the menu participates in normal document flow at the
+    // bottom of <body>, which on long pages with scroll can put it
+    // outside the viewport — and `getBoundingClientRect()` returns
+    // viewport-relative coords. The width is still measurable but the
+    // top/left will be misleading, and any later layout pass might
+    // produce the wrong width.
     menu.style.position = 'fixed';
-    // Prefer to anchor the menu's right edge to the button's right edge so
-    // it doesn't push off the screen on narrow viewports. Width measured
-    // after appending.
+    menu.style.left = '-9999px';   // park off-screen so user doesn't see flicker
+    menu.style.top = '0';
+    // Force a layout pass so getBoundingClientRect reflects the fixed
+    // positioning before we compute the final coordinates.
+    void menu.offsetHeight;
+    const triggerRect = ev.currentTarget.getBoundingClientRect();
     const menuRect = menu.getBoundingClientRect();
+    // Anchor the menu's right edge to the button's right edge.
     let left = triggerRect.right - menuRect.width;
     if (left < 8) left = 8;
     if (left + menuRect.width > window.innerWidth - 8) left = window.innerWidth - menuRect.width - 8;
     menu.style.left = left + 'px';
-    // Place below the trigger; if no room, place above.
+    // Prefer below the trigger; if there's not enough room, place above.
     let top = triggerRect.bottom + 4;
     if (top + menuRect.height > window.innerHeight - 8) top = triggerRect.top - menuRect.height - 4;
     if (top < 8) top = 8;
@@ -3688,7 +3824,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · view</div>
-          <h1 class="page-title">Parties</h1>
+          <h1 class="page-title">Parties <span class="page-title-count">${totalParties}</span></h1>
         </div>
         <div class="page-actions">
           ${canExport(biz.id) && totalParties >= 1 ? exportIconButton('parties') : ''}
@@ -3929,13 +4065,12 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · view</div>
-          <h1 class="page-title">Categories</h1>
+          <h1 class="page-title">Categories <span class="page-title-count">${totalCats}</span></h1>
         </div>
         <div class="page-actions">
           ${canExport(biz.id) ? exportIconButton('categories') : ''}
           ${canManage && data.categories.filter(c => c.businessId === biz.id).length >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderCategories')">Reorder</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-accent" onclick="openModal('category')">+ New Category</button>` : ''}
-          ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="openBizSettings('${biz.id}')">Manage</button>` : ''}
         </div>
       </div>
       ${renderPeriodBar()}
@@ -4288,7 +4423,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · view</div>
-          <h1 class="page-title">Accounts</h1>
+          <h1 class="page-title">Accounts <span class="page-title-count">${allAccs.length}</span></h1>
         </div>
         <div class="page-actions">
           ${canExport(biz.id) ? exportIconButton('accounts') : ''}
@@ -4577,18 +4712,36 @@
   }
 
   // Add a free-text expense to the audit list for the active business + month.
+  // Get the effective date for an expense. Newer expenses have a full
+  // `date` field (YYYY-MM-DD). Legacy expenses only have `month` — fall
+  // back to the 1st of that month so filters that compare dates work.
+  // This keeps existing data viewable without forcing a one-time migration
+  // (which would have to run for every user across every device).
+  function expenseDate(x) {
+    if (x?.date) return x.date;
+    if (x?.month) return x.month + '-01';
+    return today();
+  }
+
   function addAuditExpense() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canSeeAudit(biz.id)) { toast('Only the owner can manage audit.'); return; }
-    const desc = document.getElementById('mAuditDesc')?.value.trim();
-    const amtRaw = document.getElementById('mAuditAmt')?.value;
-    const amt = parseFloat(amtRaw);
-    if (!desc) { toast('Enter a description.'); return; }
-    if (!amt || amt <= 0) { toast('Enter a valid amount.'); return; }
+    const desc = validateDescription(document.getElementById('mAuditDesc')?.value);
+    if (desc === null) return;
+    const amt = validateAmount(document.getElementById('mAuditAmt')?.value);
+    if (amt === null) return;
+    // The new date input — falls back to today if missing (e.g. on the
+    // legacy code path that doesn't render the date field yet).
+    const dateInput = document.getElementById('mAuditDate')?.value;
+    const expenseDateStr = dateInput || today();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDateStr)) { toast('Enter a valid date.'); return; }
     data.auditExpenses.push({
       id: uid(),
       businessId: biz.id,
-      month: getAuditMonth(),
+      // Keep `month` for backward compatibility with cloud rows that
+      // still expect it; `date` is the canonical field going forward.
+      month: expenseDateStr.slice(0, 7),
+      date: expenseDateStr,
       description: desc,
       amount: amt,
       createdAt: Date.now(),
@@ -4611,14 +4764,25 @@
     if (!biz || !canSeeAudit(biz.id)) { toast('Only the owner can edit.'); return; }
     const newDesc = prompt('Edit description:', x.description);
     if (newDesc == null) return;
-    const trimmedDesc = newDesc.trim();
+    const trimmedDesc = String(newDesc).trim();
     if (!trimmedDesc) { toast('Description cannot be blank.'); return; }
+    if (trimmedDesc.length > LIMITS.description) { toast(`Description too long (max ${LIMITS.description} characters).`); return; }
     const newAmtRaw = prompt('Edit amount:', String(x.amount));
     if (newAmtRaw == null) return;
-    const newAmt = parseFloat(newAmtRaw);
-    if (!newAmt || newAmt <= 0) { toast('Invalid amount.'); return; }
+    // M3: stricter parse — `Number()` rejects "1.2.3"/"abc" which
+    // parseFloat would silently accept.
+    const newAmt = newAmtRaw === '' ? NaN : Number(newAmtRaw);
+    if (!Number.isFinite(newAmt) || newAmt <= 0 || newAmt > LIMITS.amount) { toast('Invalid amount.'); return; }
+    // Date is editable too — default to the existing date or fall back to
+    // the legacy month.
+    const newDateRaw = prompt('Edit date (YYYY-MM-DD):', expenseDate(x));
+    if (newDateRaw == null) return;
+    const newDate = newDateRaw.trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { toast('Invalid date.'); return; }
     x.description = trimmedDesc;
     x.amount = newAmt;
+    x.date = newDate;
+    x.month = newDate.slice(0, 7);
     x.editedAt = Date.now();
     saveData();
     renderMain();
@@ -4648,11 +4812,29 @@
     // Filter entries by the active period predicate. This supports daily
     // granularity for custom ranges (e.g. May 5 → May 20), unlike the old
     // month-based filter.
+    // Audit excludes hidden accounts entirely. The user can mark an
+    // account as "hidden" when it's closed/retired; from the owner's
+    // point of view those accounts shouldn't be in current reporting.
+    // We exclude them from both the per-account breakdown AND the
+    // top-line totals — partial exclusion would mean the cards and
+    // the per-account list disagree, which is worse than either choice.
+    //
+    // Note: this changes the in/out/profit numbers compared to the
+    // entries view (which still shows hidden accounts' entries on All
+    // Time). That's intentional: Audit is the "current state of the
+    // business" report, entries is the full ledger.
+    const visibleAcctIds = new Set(
+      data.cashAccounts
+        .filter(a => a.businessId === biz.id && !a.hidden)
+        .map(a => a.id)
+    );
     const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
     const entryPred = auditEntryPredicate();
-    const rangeEntries = data.entries.filter(e => bookIds.has(e.bookId) && entryPred(e));
+    const rangeEntries = data.entries.filter(e =>
+      bookIds.has(e.bookId) && visibleAcctIds.has(e.accountId) && entryPred(e)
+    );
 
-    const accs = bySortOrder(data.cashAccounts.filter(a => a.businessId === biz.id));
+    const accs = bySortOrder(data.cashAccounts.filter(a => a.businessId === biz.id && !a.hidden));
     const groups = data.accountGroups.filter(g => g.businessId === biz.id).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
 
     // Per-account in/out for the range.
@@ -4669,9 +4851,12 @@
     const totalOut = Object.values(perAcct).reduce((s, v) => s + v.out, 0);
     const rangeProfit = totalIn - totalOut;
 
-    // Expenses across all months in the range.
+    // Expenses across the active period. Filtered by full date now that
+    // expenses have day-granularity storage; falls back to month-01 for
+    // any legacy expense missing a `date` field.
+    const expensePred = periodPredicate();
     const expensesForRange = data.auditExpenses
-      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
+      .filter(x => x.businessId === biz.id && expensePred({ date: expenseDate(x) }))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expensesForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
@@ -4856,28 +5041,31 @@
       session.view = 'entries'; saveSession(); renderAll(); return;
     }
     const cur = currencyDisplay(biz.currency);
-    const rangeMonths = getAuditRangeMonths();
-    const rangeMonthsSet = new Set(rangeMonths);
     const rangeLabel = getAuditRangeLabel();
-    // Adding a new expense only makes sense when viewing a single month —
-    // each expense is tied to one calendar month in storage. "All Time"
-    // and multi-month custom ranges hide the Add row.
-    const isMonthMode = periodIsSingleMonth();
-    const isSubMonth = periodIsSubMonth();
+    // Filter expenses by the active period using the same predicate
+    // entries use. expenseDate() returns the full YYYY-MM-DD date
+    // (with a fallback to month-01 for legacy rows). This means
+    // custom date ranges now work correctly at day granularity — no
+    // more "sub-month" warning needed.
+    const pred = periodPredicate();
     const expenses = data.auditExpenses
-      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
+      .filter(x => x.businessId === biz.id && pred({ date: expenseDate(x) }))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expenses.reduce((s, x) => s + entryAmount(x), 0);
 
-    // For multi-month views, group by month so the user can see breakdown.
+    // For multi-month views, group by month so the user sees a breakdown.
     const groupedByMonth = {};
     for (const x of expenses) {
-      if (!groupedByMonth[x.month]) groupedByMonth[x.month] = [];
-      groupedByMonth[x.month].push(x);
+      const mk = expenseDate(x).slice(0, 7);
+      if (!groupedByMonth[mk]) groupedByMonth[mk] = [];
+      groupedByMonth[mk].push(x);
     }
     function renderExpenseRow(x) {
       return `<div class="audit-exp-row">
-        <div class="audit-exp-desc">${escapeHtml(x.description)}</div>
+        <div class="audit-exp-desc">
+          ${escapeHtml(x.description)}
+          <span class="audit-exp-date">${escapeHtml(expenseDate(x))}</span>
+        </div>
         <div class="audit-exp-amt">${cur} ${fmt(x.amount)}</div>
         <div class="audit-exp-actions">
           <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
@@ -4885,15 +5073,16 @@
         </div>
       </div>`;
     }
+    // Decide whether to show the flat list or per-month grouping. If the
+    // expenses span more than one month, group them.
+    const monthsTouched = Object.keys(groupedByMonth);
     let expenseList;
     if (!expenses.length) {
       expenseList = `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(rangeLabel)} yet.</div>`;
-    } else if (isMonthMode) {
+    } else if (monthsTouched.length <= 1) {
       expenseList = expenses.map(renderExpenseRow).join('');
     } else {
-      // Group by month for quarter/year views so totals are obvious.
-      expenseList = rangeMonths
-        .filter(m => groupedByMonth[m] && groupedByMonth[m].length)
+      expenseList = monthsTouched.sort().reverse()
         .map(m => {
           const items = groupedByMonth[m];
           const monthTotal = items.reduce((s, x) => s + entryAmount(x), 0);
@@ -4907,21 +5096,14 @@
         }).join('');
     }
 
-    // Adding a new expense requires a single-month period — each expense
-    // is stored with a month tag, so adding from "All Time" or a multi-
-    // month custom range doesn't have a sensible target month.
-    const addRow = isMonthMode
-      ? `<div class="audit-exp-add">
-          <input type="text" id="mAuditDesc" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
-          <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
-          <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
-        </div>`
-      : `<div style="background:var(--paper-deep);border:1px dashed var(--line);border-radius:var(--r-sm);padding:0.75rem 0.85rem;font-size:0.82rem;color:var(--ink-mute);">
-          Switch to <strong>This Month</strong> or a custom range covering a single month to add a new expense — each expense is tied to one calendar month.
-        </div>`;
-    const subMonthNote = isSubMonth ? `<div style="background:var(--paper-deep);border:1px dashed var(--line);border-radius:var(--r-sm);padding:0.55rem 0.75rem;font-size:0.78rem;color:var(--ink-mute);margin-bottom:0.6rem;">
-      <strong>Note:</strong> custom ranges narrower than a month still show every expense for that month — expenses don't have day-level dates yet.
-    </div>` : '';
+    // Expenses now have full-date storage, so the add row works in every
+    // period. Default the date field to today; user can pick any date.
+    const addRow = `<div class="audit-exp-add">
+        <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
+        <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
+        <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
+        <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
+      </div>`;
 
     root.innerHTML = `
       <div class="page-header">
@@ -4947,7 +5129,6 @@
       <div class="audit-section">
         <h2 class="audit-section-title">Expenses for ${escapeHtml(rangeLabel)}</h2>
         <p class="audit-section-sub">Type any expense you want to track. These don't affect your cash book — they're a separate ledger, useful for tracking what's leaving your business outside of regular cash flow.</p>
-        ${subMonthNote}
         ${addRow}
         <div class="audit-exp-list">${expenseList}</div>
       </div>
@@ -5272,6 +5453,7 @@
       modal.innerHTML = staffModal();
     } else if (kind === 'period') { modal.innerHTML = periodModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
+    else if (kind === 'announcementsView') { modal.innerHTML = announcementsViewModalHTML(); }
     else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
     else if (kind === 'party') {
       if (!canAddParty(session.activeBizId)) { toast('You don\'t have permission to add parties.'); return; }
@@ -5389,6 +5571,23 @@
   }
   function closeModal() { document.getElementById('modalBackdrop').classList.remove('active'); }
 
+  // F10: Global ESC handler for the main modal stack. Standard a11y
+  // expectation. Combobox + universal search overlay each have their
+  // own ESC handlers (registered at narrower scopes); the capture flag
+  // here means those still run first and `stopPropagation()` lets them
+  // suppress modal close when appropriate.
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    // Only act on Escape if the main modal is open. If a combobox or
+    // search overlay handled it first via stopPropagation, this won't
+    // fire (capture order + propagation rules).
+    const backdrop = document.getElementById('modalBackdrop');
+    if (!backdrop || !backdrop.classList.contains('active')) return;
+    // Skip if focus is in an input that's mid-edit — let the input
+    // handle ESC naturally if it cares (most don't, but date pickers do).
+    closeModal();
+  });
+
   // ENTRY MODAL with party autocomplete + category dropdown
   function entryModal(existing, presetType) {
     const isEdit = !!existing;
@@ -5469,7 +5668,7 @@
         </div>
         <div class="input-wrap">
           <label>Description</label>
-          <textarea id="mNote" rows="2" placeholder="What was this for?">${escapeHtml(existing?.note || '')}</textarea>
+          <textarea id="mNote" rows="2" maxlength="2000" placeholder="What was this for?">${escapeHtml(existing?.note || '')}</textarea>
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -5732,9 +5931,11 @@
     const errs = [];
     // D3: stricter parse — Number() rejects "1abc"; parseFloat accepts it.
     // Empty / non-numeric → NaN → caught by !Number.isFinite below.
+    // L1: also reject absurdly large values that would break PDF render
+    // and downstream math.
     const rawAmt = document.getElementById('mAmount')?.value;
     const amt = rawAmt === '' || rawAmt == null ? NaN : Number(rawAmt);
-    if (!Number.isFinite(amt) || amt <= 0) {
+    if (!Number.isFinite(amt) || amt <= 0 || amt > LIMITS.amount) {
       document.getElementById('mAmount').closest('.input-wrap')?.classList.add('input-error');
       errs.push('amount');
     }
@@ -5794,6 +5995,12 @@
     }
     const partyText = partyRecord.name;
 
+    // M2: validate the optional note length. Reject paste-of-a-megabyte
+    // outright instead of letting it sync forever.
+    const noteRaw = document.getElementById('mNote').value;
+    const note = validateNote(noteRaw);
+    if (note === null) return; // toast shown by validateNote
+
     if (editId) {
       const e = data.entries.find(x => x.id === editId);
       if (!e || !canEditEntry(e)) { toast('Permission denied.'); return; }
@@ -5804,7 +6011,7 @@
       e.partyId = partyId || undefined;
       e.accountId = accountId || undefined;
       e.category = catValue;
-      e.note = document.getElementById('mNote').value.trim();
+      e.note = note;
       e.editedAt = Date.now();
       e.editedBy = u.id;
       toast('Entry updated.');
@@ -5816,7 +6023,7 @@
         party: partyText, partyId: partyId || undefined,
         accountId: accountId || undefined,
         category: catValue,
-        note: document.getElementById('mNote').value.trim(),
+        note,
         createdAt: Date.now(), createdBy: u.id, createdByName: u.name,
       });
       const newMonth = monthKey(newDate);
@@ -5836,7 +6043,7 @@
       <h2 class="modal-title">New business</h2>
       <p class="modal-sub">You'll be the owner. You can add team members after.</p>
       <div class="form-grid">
-        <div class="input-wrap"><label>Business name</label><input type="text" id="mBizName" placeholder="Himalaya Trading Co."></div>
+        <div class="input-wrap"><label>Business name</label><input type="text" id="mBizName" maxlength="120" placeholder="Himalaya Trading Co."></div>
         <div class="input-wrap"><label>Currency</label>
           <select id="mBizCur">${currencyOptionsHTML('NPR')}</select>
         </div>
@@ -5847,8 +6054,8 @@
       </div>`;
   }
   function saveBiz() {
-    const name = document.getElementById('mBizName').value.trim();
-    if (!name) { toast('Give it a name.'); return; }
+    const name = validateName(document.getElementById('mBizName').value, 'Business name');
+    if (!name) return;
     const u = me();
     const id = uid();
     const cur = document.getElementById('mBizCur').value || 'NPR';
@@ -5870,7 +6077,7 @@
       <h2 class="modal-title">New book</h2>
       <p class="modal-sub">A separate cash book inside <strong>${escapeHtml(biz.name)}</strong>.</p>
       <div class="form-grid">
-        <div class="input-wrap"><label>Book name</label><input type="text" id="mBookName" placeholder="Petty Cash, Online Sales…"></div>
+        <div class="input-wrap"><label>Book name</label><input type="text" id="mBookName" maxlength="120" placeholder="Petty Cash, Online Sales…"></div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="saveBook()">Create</button>
@@ -5878,8 +6085,8 @@
       </div>`;
   }
   function saveBook() {
-    const name = document.getElementById('mBookName').value.trim();
-    if (!name) { toast('Give it a name.'); return; }
+    const name = validateName(document.getElementById('mBookName').value, 'Book name');
+    if (!name) return;
     const id = uid();
     data.books.push({ id, businessId: session.activeBizId, name, createdAt: today() });
     session.activeBookId = id; session.period = { mode: 'current' }; session.view = 'entries';
@@ -5893,7 +6100,7 @@
       <h2 class="modal-title">New party</h2>
       <p class="modal-sub">A customer, vendor, or person you transact with.</p>
       <div class="form-grid">
-        <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" placeholder="Ram Bahadur / Acme Wholesale"></div>
+        <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" placeholder="Ram Bahadur / Acme Wholesale"></div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="savePartyManual()">Create</button>
@@ -5931,8 +6138,8 @@
     toast('Category created.');
   }
   function savePartyManual() {
-    const name = document.getElementById('mPartyName').value.trim();
-    if (!name) { toast('Enter a name.'); return; }
+    const name = validateName(document.getElementById('mPartyName').value, 'Party name');
+    if (!name) return;
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canAddParty(biz.id)) { toast('You don\'t have permission to add parties.'); return; }
     if (data.parties.find(p => p.businessId === biz.id && p.name.toLowerCase() === name.toLowerCase())) {
@@ -6628,22 +6835,25 @@
     const items = (data.announcements || [])
       .filter(a => a.businessId === biz.id)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (!items.length && !isOwner) return ''; // staff/viewer see nothing if there are no announcements
-    if (!items.length && isOwner) {
-      // Owner with no announcements yet: still hide the banner. The Management
-      // → Announcements page is where they post; we don't want a dead-space
-      // "Post" prompt on the entries page when there's nothing there yet.
-      return '';
-    }
-    const cards = items.map(a => {
+    if (!items.length) return ''; // nothing at all → render nothing
+
+    // New behavior: only "important" announcements show as the loud banner.
+    // Regular ones go behind a small pill that opens a modal so they don't
+    // crowd the entries view. This way an owner can post non-urgent FYI
+    // notes without overwhelming the screen.
+    const important = items.filter(a => a.important);
+    const regular = items.filter(a => !a.important);
+
+    const importantCards = important.map(a => {
       const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
       const time = relativeTime(a.createdAt) || '';
       return `
-        <div class="announcement">
-          <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        <div class="announcement announcement-important">
+          <svg class="announcement-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div class="announcement-body">
             <div class="announcement-meta">
               <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
+              <span class="announcement-important-tag">Important</span>
               <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
             </div>
             <div class="announcement-text">${escapeHtml(a.body)}</div>
@@ -6659,7 +6869,76 @@
             </div>` : ''}
         </div>`;
     }).join('');
-    return `<div class="announcements-wrap">${cards}</div>`;
+
+    // "View announcements (N)" pill — appears whenever there are regular
+    // (non-important) items. Clicking opens a modal that lists ALL items
+    // including important ones, so it's a complete view.
+    const viewLink = regular.length
+      ? `<button class="announcement-view-link" onclick="openAnnouncementsViewModal()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+          <span>View announcements <span class="announcement-view-count">${regular.length}</span></span>
+        </button>`
+      : '';
+
+    if (!importantCards && !viewLink) return '';
+    return `<div class="announcements-wrap">${importantCards}${viewLink}</div>`;
+  }
+
+  // Modal: shows every announcement for the active business, regardless
+  // of importance. Used as the "View announcements" target on the entries
+  // view so users can see less-urgent notes without them crowding the
+  // page.
+  function openAnnouncementsViewModal() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    openModal('announcementsView');
+  }
+  function announcementsViewModalHTML() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return '';
+    const role = roleFor(biz.id);
+    const isOwner = role === 'owner';
+    const items = (data.announcements || [])
+      .filter(a => a.businessId === biz.id)
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const list = items.length ? items.map(a => {
+      const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
+      const time = relativeTime(a.createdAt) || '';
+      const tag = a.important
+        ? '<span class="announcement-important-tag">Important</span>'
+        : '';
+      return `
+        <div class="announcement ${a.important ? 'announcement-important' : ''}" style="margin-bottom:0.6rem;">
+          <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            ${a.important
+              ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+              : '<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'}
+          </svg>
+          <div class="announcement-body">
+            <div class="announcement-meta">
+              <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
+              ${tag}
+              <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
+            </div>
+            <div class="announcement-text">${escapeHtml(a.body)}</div>
+          </div>
+          ${isOwner ? `
+            <div class="announcement-actions">
+              <button class="announcement-action-btn" onclick="closeModal();openAnnouncementEditModal('${jsAttr(a.id)}')" title="Edit"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
+              <button class="announcement-action-btn danger" onclick="deleteAnnouncement('${jsAttr(a.id)}')" title="Delete"><svg width="14" height="14"><use href="#ico-trash"/></svg></button>
+            </div>` : ''}
+        </div>`;
+    }).join('') : '<div class="empty"><div class="empty-headline">No announcements yet.</div></div>';
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Announcements</h2>
+      <p class="modal-sub">Every announcement for ${escapeHtml(biz.name)}. Important ones also show on the entries page.</p>
+      <div class="modal-body" style="max-height:min(60vh,540px);overflow-y:auto;">${list}</div>
+      <div class="modal-actions">
+        ${isOwner ? `<button class="btn btn-accent" onclick="closeModal();openAnnouncementPostModal();">+ Post announcement</button>` : ''}
+        <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+      </div>
+    `;
   }
 
   // Modal state
@@ -6684,15 +6963,23 @@
     const editing = __announcementEditingId
       ? (data.announcements || []).find(a => a.id === __announcementEditingId)
       : null;
+    const important = editing?.important ? 'checked' : '';
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">${editing ? 'Edit announcement' : 'Post an announcement'}</h2>
-      <p class="modal-sub">Everyone with access to this business will see this at the top of their entries view.</p>
+      <p class="modal-sub">Everyone with access to this business will see this. Only important ones show on the entries page — the rest live behind "View announcements".</p>
       <div class="input-wrap">
         <label>Message</label>
         <textarea id="annBody" rows="4" placeholder="e.g. Shop closed this Friday for maintenance. Please don't accept any payments on Friday." style="min-height:100px;resize:vertical;">${escapeHtml(editing?.body || '')}</textarea>
         <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.4rem;">Keep it short and clear. Line breaks are preserved.</p>
       </div>
+      <label class="toggle-row" style="margin-top:0.4rem;">
+        <input type="checkbox" id="annImportant" ${important}>
+        <span class="toggle-row-text">
+          <span class="toggle-row-title">Mark as important</span>
+          <span class="toggle-row-sub">Important announcements show on the entries page with a warning sign. Others stay in "View announcements" — handy for FYIs that don't need to interrupt everyone.</span>
+        </span>
+      </label>
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
         <button class="btn btn-accent" onclick="saveAnnouncement()">${editing ? 'Save changes' : 'Post'}</button>
@@ -6706,21 +6993,43 @@
     const body = (document.getElementById('annBody')?.value || '').trim();
     if (!body) { toast('Write something first.'); return; }
     if (body.length > 1000) { toast('Keep announcements under 1000 characters.'); return; }
+    const important = !!document.getElementById('annImportant')?.checked;
     if (!data.announcements) data.announcements = [];
     const u = me();
     if (__announcementEditingId) {
       const row = data.announcements.find(a => a.id === __announcementEditingId);
       if (!row) { closeModal(); return; }
       row.body = body;
+      row.important = important;
       row.updatedAt = Date.now();
+      // Edits flow through realtime as UPDATE, not INSERT, and the
+      // alert handler ignores UPDATEs — but mark it anyway for safety.
+      try { __ownAnnouncementIds.add(row.id); } catch (_) {}
     } else {
+      const newId = uid();
+      // Tag own announcement BEFORE the realtime echo can arrive, so
+      // we don't ding-and-notify ourselves when our own INSERT comes
+      // back through the realtime channel.
+      try { __ownAnnouncementIds.add(newId); } catch (_) {}
       data.announcements.push({
-        id: uid(), businessId: biz.id,
+        id: newId, businessId: biz.id,
         authorId: u?.id || null,
         authorName: u?.name || '',
         body,
+        important,
         createdAt: Date.now(), updatedAt: Date.now(),
       });
+      // Fire the push fan-out after the local sync has had time to
+      // upload the row to Supabase. The Edge Function needs to find
+      // it server-side. 3s is comfortably past the sync debounce
+      // window (200ms) + the 2s drain delay. If the user is offline
+      // right now, this call will fail; the fallback is the foreground
+      // realtime alert that fires for online recipients, plus the
+      // recipient's own catchup pull when they reconnect. Closed-app
+      // recipients depend on this push so it's the one we care about.
+      setTimeout(() => {
+        try { triggerAnnouncementPush(newId); } catch (_) {}
+      }, 3000);
     }
     __announcementEditingId = null;
     saveData(); closeModal(); renderAll();
@@ -6752,12 +7061,18 @@
       ? items.map(a => {
           const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
           const time = relativeTime(a.createdAt) || '';
+          const importantTag = a.important ? '<span class="announcement-important-tag">Important</span>' : '';
           return `
-            <div class="announcement" style="border-left-color:var(--accent);">
-              <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+            <div class="announcement ${a.important ? 'announcement-important' : ''}">
+              <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                ${a.important
+                  ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
+                  : '<path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/>'}
+              </svg>
               <div class="announcement-body">
                 <div class="announcement-meta">
                   <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
+                  ${importantTag}
                   <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
                 </div>
                 <div class="announcement-text">${escapeHtml(a.body)}</div>
@@ -7263,14 +7578,42 @@
               <span>Signed in with Google. No password needed.</span>
             </div>
           ` : `
-            <div class="form-row">
-              <div class="input-wrap"><label>New password</label><input type="password" id="setPwd" placeholder="leave blank to keep"></div>
-              <div class="input-wrap"><label>Confirm</label><input type="password" id="setPwd2" placeholder=""></div>
+            <!-- Change-password reveal. Hidden by default to keep the
+                 Profile tab uncluttered; user clicks the button to expand
+                 the inputs. Empty inputs are ignored by saveAccount, so
+                 a hidden state means "no password change". -->
+            <div id="setPwdReveal">
+              <button type="button" class="btn btn-sm btn-ghost" onclick="toggleChangePassword(true)">Change password</button>
+            </div>
+            <div id="setPwdSection" hidden>
+              <div class="form-row">
+                <div class="input-wrap"><label>New password</label><input type="password" id="setPwd" placeholder="at least 6 characters"></div>
+                <div class="input-wrap"><label>Confirm</label><input type="password" id="setPwd2" placeholder=""></div>
+              </div>
+              <div style="display:flex;justify-content:flex-end;margin-top:0.4rem;">
+                <button type="button" class="btn btn-sm btn-ghost" onclick="toggleChangePassword(false)">Cancel password change</button>
+              </div>
             </div>
           `}
           <div style="display:flex;justify-content:flex-end;"><button class="btn btn-sm" onclick="saveAccount()">Save account</button></div>
         </div>
       </div>
+      ${accessible.length ? `
+      <div class="settings-section">
+        <h3 class="settings-heading">Notifications</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.55rem;">Alerts when the owner posts a new announcement. ${typeof Notification === 'undefined' ? 'Your browser doesn\'t support notifications.' : (Notification.permission === 'granted' ? 'System notifications are <strong>enabled</strong>.' : Notification.permission === 'denied' ? 'System notifications are <strong>blocked</strong>. To re-enable, change the permission in your browser site settings.' : 'System notifications are <strong>not granted yet</strong>. Tap the button to enable.')}</p>
+        <div class="toggle-row">
+          <div class="toggle-row-text">
+            <div class="toggle-row-title">Play sound for new announcements</div>
+            <div class="toggle-row-desc">A short chime when a teammate posts. Browsers block audio until you tap somewhere on the page, so the very first alert after page load may be silent.</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="setChimeMuted" ${isChimeMuted() ? '' : 'checked'} onchange="setChimeMuted(!this.checked)"><span class="toggle-slider"></span></label>
+        </div>
+        ${typeof Notification !== 'undefined' && Notification.permission === 'default' ? `
+          <div style="margin-top:0.5rem;">
+            <button class="btn btn-sm btn-ghost" onclick="enableNotificationsExplicit()">Enable system notifications</button>
+          </div>` : ''}
+      </div>` : ''}
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Your businesses</h3>
@@ -7349,7 +7692,7 @@
       <div class="settings-section">
         <h3 class="settings-heading">Business identity</h3>
         <div class="form-grid">
-          <div class="input-wrap"><label>Business name</label><input type="text" id="setBizName" value="${escapeHtml(biz.name)}" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}></div>
+          <div class="input-wrap"><label>Business name</label><input type="text" id="setBizName" maxlength="120" value="${escapeHtml(biz.name)}" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}></div>
           <div class="input-wrap"><label>Currency</label>
             <select id="setBizCur" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${currencyOptionsHTML(biz.currency)}</select>
           </div>
@@ -7370,7 +7713,7 @@
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Used when adding entries. ${canManage ? 'Owner and managers can add or remove.' : 'Only the owner or manager can change these.'}</p>
         <div class="chips">${catChips}</div>
         ${canManage ? `<div style="display:flex;gap:0.5rem;">
-          <input type="text" id="setNewCat" placeholder="Add category…" style="flex:1;padding:0.55rem 0.75rem;font-size:0.9rem;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryToBiz('${biz.id}');}">
+          <input type="text" id="setNewCat" maxlength="120" placeholder="Add category…" style="flex:1;padding:0.55rem 0.75rem;font-size:0.9rem;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryToBiz('${biz.id}');}">
           <button class="btn btn-sm" onclick="addCategoryToBiz('${biz.id}')">Add</button>
         </div>` : ''}
       </div>
@@ -7606,6 +7949,29 @@
     const label = isCustomColor(color) ? color : (COLOR_PRESETS[color]?.label || color);
     toast(`Color set to ${label}.`);
   }
+  // Expand/collapse the password fields in Settings → Profile. The
+  // collapsed state means "I don't want to change my password right now".
+  // When collapsing, also clear the inputs so a half-typed password
+  // doesn't accidentally get submitted on Save.
+  function toggleChangePassword(show) {
+    const reveal = document.getElementById('setPwdReveal');
+    const section = document.getElementById('setPwdSection');
+    if (!reveal || !section) return;
+    if (show) {
+      reveal.setAttribute('hidden', '');
+      section.removeAttribute('hidden');
+      // Move focus into the new password field so the keyboard is ready.
+      setTimeout(() => document.getElementById('setPwd')?.focus(), 30);
+    } else {
+      const a = document.getElementById('setPwd');
+      const b = document.getElementById('setPwd2');
+      if (a) a.value = '';
+      if (b) b.value = '';
+      section.setAttribute('hidden', '');
+      reveal.removeAttribute('hidden');
+    }
+  }
+
   function saveAccount() {
     const u = me();
     const newName = document.getElementById('setName').value.trim();
@@ -7675,7 +8041,7 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can add categories.'); return; }
     const input = document.getElementById('setNewCat');
-    const name = input.value.trim();
+    const name = validateName(input?.value, 'Category name');
     if (!name) return;
     if (data.categories.find(c => c.businessId === biz.id && c.name.toLowerCase() === name.toLowerCase())) {
       toast('Already exists.'); return;
@@ -7695,9 +8061,9 @@
     const biz = data.businesses.find(b => b.id === bizId);
     if (!biz) return;
     if (biz.ownerId !== me().id) { toast('Only the owner can edit this.'); return; }
-    const name = document.getElementById('setBizName').value.trim();
+    const name = validateName(document.getElementById('setBizName').value, 'Business name');
+    if (!name) return;
     const cur = document.getElementById('setBizCur').value;
-    if (!name) { toast('Business name required.'); return; }
     // dup check
     if (data.businesses.find(b => b.id !== biz.id && b.ownerId === biz.ownerId && b.name.toLowerCase() === name.toLowerCase())) {
       toast('You already have another business with that name.'); return;
@@ -7713,8 +8079,7 @@
     const biz = data.businesses.find(b => b.id === bizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can add.'); return; }
     const input = document.getElementById('setNewCat');
-    if (!input) return;
-    const name = input.value.trim();
+    const name = validateName(input?.value, 'Category name');
     if (!name) return;
     if (data.categories.find(c => c.businessId === biz.id && c.name.toLowerCase() === name.toLowerCase())) {
       toast('Already exists.'); return;
@@ -8731,6 +9096,23 @@
     return new Date(t).toLocaleDateString();
   }
 
+  // Cached after the first failure so we don't keep retrying a function
+  // we already know is missing. We persist this flag to localStorage so
+  // even after a page reload the call is skipped — otherwise every visit
+  // to Settings prints a fresh CORS preflight error to console (browsers
+  // log these unconditionally, JS can't suppress them).
+  //
+  // To re-test after deploying the Edge Functions, clear the flag from
+  // localStorage (or just clear site data and sign in again).
+  let __edgeFunctionUnavailable = (() => {
+    try { return localStorage.getItem('hisabs_edge_fn_missing') === '1'; }
+    catch (_) { return false; }
+  })();
+  function markEdgeFunctionUnavailable() {
+    __edgeFunctionUnavailable = true;
+    try { localStorage.setItem('hisabs_edge_fn_missing', '1'); } catch (_) {}
+  }
+
   // Render a "soft" placeholder when the Edge Function isn't deployed
   // (404) or we can't reach it. Returns an HTML string.
   function devicesEmptyPlaceholder(reason) {
@@ -8743,6 +9125,22 @@
       </p>
       ${reason ? `<p style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.4rem;opacity:0.7;">${escapeHtml(reason)}</p>` : ''}
     `;
+  }
+
+  // Expand/collapse the hidden tail of the Activity Log list. Bound via
+  // inline onclick from the "View N more" button rendered by loadAuditLog.
+  function toggleAuditLogMore(btn) {
+    const hidden = document.getElementById('auditLogHidden');
+    if (!hidden || !btn) return;
+    if (hidden.hasAttribute('hidden')) {
+      hidden.removeAttribute('hidden');
+      btn.textContent = 'View less';
+    } else {
+      hidden.setAttribute('hidden', '');
+      // Restore original label — count of hidden rows
+      const hiddenCount = hidden.children.length;
+      btn.textContent = `View ${hiddenCount} more`;
+    }
   }
 
   async function loadAuditLog() {
@@ -8773,7 +9171,11 @@
         business_deleted: 'Business deleted',
         account_wiped: 'Account wiped',
       };
-      el.innerHTML = rows.map(r => {
+      // Default to showing 3 most recent entries. The rest is rendered
+      // but hidden behind a "View more" toggle to keep the Activity panel
+      // compact — most of the time, only the latest sign-in is what the
+      // user actually wants to see at a glance.
+      const renderRow = (r) => {
         const label = labels[r.event_type] || r.event_type;
         const dev = r.user_agent ? describeUserAgent(r.user_agent) : '';
         return `
@@ -8785,7 +9187,18 @@
             ${dev ? `<div style="font-size:0.7rem;color:var(--ink-mute);margin-top:0.15rem;">${escapeHtml(dev)}</div>` : ''}
           </div>
         `;
-      }).join('');
+      };
+      const visibleRows = rows.slice(0, 3).map(renderRow).join('');
+      const hiddenRows = rows.slice(3).map(renderRow).join('');
+      el.innerHTML = `
+        <div>${visibleRows}</div>
+        ${rows.length > 3 ? `
+          <div id="auditLogHidden" hidden>${hiddenRows}</div>
+          <button id="auditLogToggle" class="btn btn-sm btn-ghost" style="margin-top:0.55rem;" onclick="toggleAuditLogMore(this)">
+            View ${rows.length - 3} more
+          </button>
+        ` : ''}
+      `;
     } catch (e) {
       el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Could not load activity log: ${escapeHtml(e?.message || e)}</p>`;
     }
@@ -8803,6 +9216,15 @@
       return;
     }
     let resp, payload;
+    // If we already saw this fail in the current session, skip the
+    // request — saves a network round-trip AND avoids the browser
+    // printing a fresh CORS/Failed-to-fetch entry to the console every
+    // time the Settings modal opens. Once the user deploys the Edge
+    // Functions, a hard refresh clears this and the call retries.
+    if (__edgeFunctionUnavailable) {
+      el.innerHTML = devicesEmptyPlaceholder('');
+      return;
+    }
     try {
       resp = await fetch(`${SUPABASE_URL}/functions/v1/list-my-sessions`, {
         method: 'POST',
@@ -8814,7 +9236,11 @@
       });
       if (!resp.ok) {
         // 404 = function not deployed; treat as soft-not-available.
-        if (resp.status === 404) { el.innerHTML = devicesEmptyPlaceholder(''); return; }
+        if (resp.status === 404) {
+          markEdgeFunctionUnavailable();
+          el.innerHTML = devicesEmptyPlaceholder('');
+          return;
+        }
         const text = await resp.text().catch(() => '');
         el.innerHTML = devicesEmptyPlaceholder(`Server returned ${resp.status}: ${text.slice(0, 120)}`);
         return;
@@ -8823,10 +9249,11 @@
     } catch (e) {
       // "TypeError: Failed to fetch" is what Chrome/Edge return when the
       // function URL is unreachable — most often because it hasn't been
-      // deployed yet. Treat as soft-not-available with no scary error
-      // beneath the helpful explanation.
+      // deployed yet, or CORS preflight is failing. Treat as soft-not-
+      // available and remember so we don't keep retrying.
       const msg = String(e?.message || e || '');
       if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+        markEdgeFunctionUnavailable();
         el.innerHTML = devicesEmptyPlaceholder('');
       } else {
         el.innerHTML = devicesEmptyPlaceholder(`Network error: ${msg}`);
@@ -8876,6 +9303,13 @@
     let session;
     try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
     if (!session?.access_token) { toast('Not signed in.'); return; }
+    // Skip the call entirely if we already know the function isn't
+    // deployed — otherwise the browser logs a fresh CORS error every
+    // time the user taps "Sign out this device".
+    if (__edgeFunctionUnavailable) {
+      toast('Revoke function not deployed on this Supabase project yet.');
+      return;
+    }
     let resp;
     try {
       resp = await fetch(`${SUPABASE_URL}/functions/v1/revoke-my-session`, {
@@ -8888,14 +9322,19 @@
         body: JSON.stringify({ session_id: sessionId }),
       });
     } catch (e) {
+      markEdgeFunctionUnavailable();
       toast('Could not reach server.');
       return;
     }
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');
       console.warn('revoke-my-session failed:', resp.status, text);
-      if (resp.status === 404) toast('Revoke function not deployed yet.');
-      else toast('Could not revoke session.');
+      if (resp.status === 404) {
+        markEdgeFunctionUnavailable();
+        toast('Revoke function not deployed yet.');
+      } else {
+        toast('Could not revoke session.');
+      }
       return;
     }
     if (isCurrent) {
@@ -9491,20 +9930,27 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canSeeAudit(biz.id)) { toast('Only the owner can export audit.'); return; }
-    const rangeMonths = getAuditRangeMonths();
-    const rangeMonthsSet = new Set(rangeMonths);
     const rangeLabel = getAuditRangeLabel();
-    // Snapshot: range-of-entries summary + audit expense line items.
+    // Snapshot: entries + expenses within the active period. Both filter
+    // by full date now (expenses use expenseDate() to handle legacy rows
+    // that only have a month tag).
+    const expPred = periodPredicate();
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const rangeEntries = data.entries.filter(e => {
-      if (!bookIds.includes(e.bookId)) return false;
-      if (typeof e.date !== 'string' || e.date.length < 7) return false;
-      return rangeMonthsSet.has(e.date.slice(0, 7));
-    });
+    // Match the on-screen Audit view: exclude entries that point at hidden
+    // accounts. Otherwise the exported numbers wouldn't match what the
+    // owner just looked at on screen.
+    const visibleAcctIds = new Set(
+      data.cashAccounts
+        .filter(a => a.businessId === biz.id && !a.hidden)
+        .map(a => a.id)
+    );
+    const rangeEntries = data.entries.filter(e =>
+      bookIds.includes(e.bookId) && visibleAcctIds.has(e.accountId) && expPred(e)
+    );
     const inSum = rangeEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const outSum = rangeEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const auditExp = data.auditExpenses
-      .filter(x => x.businessId === biz.id && rangeMonthsSet.has(x.month))
+      .filter(x => x.businessId === biz.id && expPred({ date: expenseDate(x) }))
       .map(x => [x.description || '', Number(x.amount || 0).toFixed(2)]);
     const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
     const rows = [
@@ -10588,7 +11034,14 @@
     window.removeEventListener('offline', onOffline);
   }
 
-  function onOnline()  { __online = true;  updateSyncBadge(); drainQueueOnce(); }
+  function onOnline()  {
+    __online = true;
+    updateSyncBadge();
+    drainQueueOnce();
+    // F5: Reconnect → re-attempt any push triggers that queued up while
+    // we were offline.
+    try { flushPushTriggerQueue(); } catch (_) {}
+  }
   function onOffline() { __online = false; updateSyncBadge(); }
 
   async function drainQueueOnce() {
@@ -10742,7 +11195,9 @@
           { event: '*', schema: 'public', table: 'app_announcements' },
           (payload) => onRealtimeEvent('announcements', payload))
         .subscribe((status) => {
-          console.log('Realtime status:', status);
+          // Debug-only: noisy in production. Toggle by setting
+          // localStorage.hisabs_debug = '1' in DevTools.
+          if (window.__hisabsDebug) console.log('Realtime status:', status);
           updateSyncBadge();
           if (status === 'SUBSCRIBED') {
             // On reconnect, do a delta pull to catch any events we missed
@@ -10810,6 +11265,380 @@
     }, 150);
   }
 
+  // ================================================================
+  // ANNOUNCEMENT ALERTS (sound + browser notification)
+  // ================================================================
+  //
+  // When a new announcement arrives via realtime, we want recipients
+  // (NOT the author) to get a noticeable nudge: a short chime + a
+  // system-level browser notification. This works:
+  //
+  //   - In the app foreground (any browser):     audio + in-page toast
+  //   - Backgrounded PWA on Android/iOS 16.4+:    OS notification (drawer)
+  //   - Fully-closed app:                        nothing yet (needs Web
+  //                                              Push + VAPID + Edge Fn)
+  //
+  // Sound is synthesized via Web Audio so there's no bundled mp3.
+  // Browsers block audio until first user interaction; subsequent
+  // announcements after any tap play normally.
+
+  // Track which announcements we've already alerted on, to dedupe in
+  // case multiple realtime events fire for the same row (UPDATE after
+  // INSERT) or the same payload bounces through realtime twice.
+  const __announcedIds = new Set();
+  // Author of each fresh announcement, captured locally when we post.
+  // Used to suppress self-notifications even if our local copy hasn't
+  // synced back through realtime yet.
+  const __ownAnnouncementIds = new Set();
+
+  // Synthesize a ~3s announcement chime: two short attack notes (bell
+  // pattern) decaying into silence. Soft enough to not be alarming.
+  // Returns a Promise that resolves when the sound has finished or fails.
+  function playAnnouncementChime() {
+    try {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return Promise.resolve();
+      const ctx = new AC();
+      // Resume in case the context is suspended (autoplay policy).
+      if (ctx.state === 'suspended') {
+        try { ctx.resume(); } catch (_) {}
+      }
+      // Two-note chime: G5 then C6, the "bell ding" pattern.
+      const notes = [
+        { freq: 783.99, start: 0.0,  dur: 1.4 },  // G5
+        { freq: 1046.5, start: 0.15, dur: 1.5 },  // C6 (overlapping)
+        // A faint third note to give a 3s tail.
+        { freq: 1318.5, start: 0.40, dur: 2.5 },  // E6
+      ];
+      const now = ctx.currentTime;
+      for (const n of notes) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = n.freq;
+        // Envelope: quick attack, exponential decay. Peak gain ~0.15 to
+        // stay polite. exponentialRampToValueAtTime needs strictly > 0,
+        // so we ramp down to a tiny value (not 0).
+        gain.gain.setValueAtTime(0.0001, now + n.start);
+        gain.gain.exponentialRampToValueAtTime(0.15, now + n.start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + n.dur);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start(now + n.start);
+        osc.stop(now + n.start + n.dur + 0.05);
+      }
+      // Close the context after the chime to free resources.
+      return new Promise((resolve) => {
+        setTimeout(() => {
+          try { ctx.close(); } catch (_) {}
+          resolve();
+        }, 3100);
+      });
+    } catch (_) { return Promise.resolve(); }
+  }
+
+  // Show an OS-level notification if permission has been granted. This
+  // produces a real status-bar notification on Android Chrome / installed
+  // PWA on iOS 16.4+. In a foregrounded tab it shows as a desktop banner.
+  // Falls back silently if blocked or unsupported.
+  function showAnnouncementNotification(announcement, bizName) {
+    try {
+      if (typeof Notification === 'undefined') return;
+      if (Notification.permission !== 'granted') return;
+      const title = announcement.important
+        ? `⚠ ${bizName || 'Hisabs'} — Important`
+        : `${bizName || 'Hisabs'} — Announcement`;
+      const body = (announcement.body || '').slice(0, 220);
+      const tag = `hisabs-ann-${announcement.id}`;
+      // Use the SW registration if available so the notification persists
+      // when the tab is backgrounded. Falls back to in-tab Notification.
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, {
+            body,
+            icon: './icons/icon-192.png',
+            badge: './icons/icon-192.png',
+            tag,
+            renotify: false,
+            requireInteraction: !!announcement.important,
+            data: { url: location.origin + location.pathname, announcementId: announcement.id },
+          }).catch(() => {
+            // Fallback to in-tab notification if SW path fails
+            try { new Notification(title, { body, icon: './icons/icon-192.png', tag }); } catch (_) {}
+          });
+        }).catch(() => {
+          try { new Notification(title, { body, icon: './icons/icon-192.png', tag }); } catch (_) {}
+        });
+      } else {
+        new Notification(title, { body, icon: './icons/icon-192.png', tag });
+      }
+    } catch (_) {}
+  }
+
+  // Called from onRealtimeEvent for announcements. Dedupes, suppresses
+  // self-notifications, plays the chime, and fires the OS notification.
+  function handleAnnouncementAlert(restoredAnnouncement) {
+    if (!restoredAnnouncement || !restoredAnnouncement.id) return;
+    // Dedupe — same announcement might arrive twice (INSERT + UPDATE on
+    // server-side defaults like updated_at).
+    if (__announcedIds.has(restoredAnnouncement.id)) return;
+    __announcedIds.add(restoredAnnouncement.id);
+    // Self-suppression: if the current user is the author, no alert.
+    // Two checks: the locally-tracked set we populate on saveAnnouncement,
+    // and a userId match against the announcement row's author_id.
+    const u = me();
+    if (__ownAnnouncementIds.has(restoredAnnouncement.id)) return;
+    if (u && restoredAnnouncement.authorId && restoredAnnouncement.authorId === u.id) return;
+    // Only alert for fairly recent announcements — if we're catching up
+    // on history from a long offline session, we shouldn't replay a
+    // chime for every announcement posted in the past week.
+    const ageMs = Date.now() - (restoredAnnouncement.createdAt || Date.now());
+    if (ageMs > 5 * 60 * 1000) return; // older than 5 minutes → silent
+    // Find biz name for the notification title.
+    const biz = data.businesses.find(b => b.id === restoredAnnouncement.businessId);
+    const bizName = biz ? biz.name : '';
+    // Sound is opt-out: user can silence via Settings → Profile.
+    let muted = false;
+    try { muted = localStorage.getItem('hisabs_chime_muted') === '1'; } catch (_) {}
+    if (!muted) playAnnouncementChime();
+    showAnnouncementNotification(restoredAnnouncement, bizName);
+  }
+
+  function setChimeMuted(yes) {
+    try { localStorage.setItem('hisabs_chime_muted', yes ? '1' : '0'); } catch (_) {}
+  }
+  function isChimeMuted() {
+    try { return localStorage.getItem('hisabs_chime_muted') === '1'; }
+    catch (_) { return false; }
+  }
+
+  // ============================================================
+  // WEB PUSH (closed-app notifications)
+  // ============================================================
+  // Optional layer on top of foreground notifications. When the user
+  // grants permission, we register a PushSubscription with the browser's
+  // push service and save it to Supabase via save-push-subscription
+  // Edge Function. The send-announcement-push Edge Function then fans
+  // out pushes to every member's subscription whenever a new
+  // announcement is created.
+  //
+  // Requires:
+  //   - VAPID_PUBLIC_KEY set above
+  //   - save-push-subscription + send-announcement-push Edge Functions
+  //     deployed
+  //   - SUPABASE.sql run to create app_push_subscriptions table
+  //
+  // Without any of these, this code degrades silently and the app
+  // keeps working with just foreground notifications.
+
+  // Base64-URL → Uint8Array, required by PushManager.subscribe()'s
+  // applicationServerKey parameter.
+  function urlBase64ToUint8Array(base64String) {
+    try {
+      const padding = '='.repeat((4 - base64String.length % 4) % 4);
+      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const rawData = atob(base64);
+      const out = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; i++) out[i] = rawData.charCodeAt(i);
+      return out;
+    } catch (_) { return null; }
+  }
+
+  // Register a Web Push subscription with the browser and save it to
+  // Supabase. Idempotent — if already subscribed, re-sends the existing
+  // subscription so the server has the freshest endpoint. Safe to call
+  // multiple times; bails early if any prerequisite is missing.
+  async function registerPushSubscription() {
+    if (!VAPID_PUBLIC_KEY) return; // Not configured yet — silent no-op.
+    if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
+    if (typeof PushManager === 'undefined') return;
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    let session;
+    try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
+    if (!session?.access_token) return;
+    let reg;
+    try { reg = await navigator.serviceWorker.ready; } catch (_) { return; }
+    if (!reg) return;
+    let sub;
+    try {
+      sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        const applicationServerKey = urlBase64ToUint8Array(VAPID_PUBLIC_KEY);
+        if (!applicationServerKey) return;
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey,
+        });
+      }
+    } catch (e) {
+      // Common reasons: permission revoked, browser doesn't support push,
+      // VAPID key is malformed. Don't toast — degrade silently.
+      if (window.__hisabsDebug) console.warn('Push subscribe failed:', e?.message);
+      return;
+    }
+    if (!sub) return;
+    // Save to Supabase. If the function isn't deployed yet, fail silent.
+    try {
+      const payload = sub.toJSON();
+      await fetch(`${SUPABASE_URL}/functions/v1/save-push-subscription`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          endpoint: payload.endpoint,
+          keys: payload.keys,
+          userAgent: navigator.userAgent || '',
+        }),
+      });
+    } catch (_) { /* function not deployed — silent */ }
+  }
+
+  // Trigger a push fan-out for an announcement we just created.
+  // Best-effort: if the function isn't deployed or the network blips,
+  // the foreground realtime notification still works and the data
+  // is safe. We retry once on network failure.
+  // F5: Persistent push-trigger queue. If the call fails (offline, fn
+  // not deployed, server error), we queue the id and retry on every
+  // app open and every 'online' event. Each id has a max age of 24h
+  // and a max attempt count of 10 — past either limit we drop it. The
+  // foreground realtime alert still fires for online recipients in any
+  // case; this queue is for the closed-app push specifically.
+  const PUSH_TRIGGER_QUEUE_KEY = 'hisabs_push_trigger_queue_v1';
+  function loadPushTriggerQueue() {
+    try {
+      const raw = localStorage.getItem(PUSH_TRIGGER_QUEUE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (_) { return []; }
+  }
+  function savePushTriggerQueue(q) {
+    try { localStorage.setItem(PUSH_TRIGGER_QUEUE_KEY, JSON.stringify(q)); } catch (_) {}
+  }
+  function enqueuePushTrigger(announcementId) {
+    if (!announcementId) return;
+    const q = loadPushTriggerQueue();
+    if (q.find(item => item.id === announcementId)) return; // already queued
+    q.push({ id: announcementId, queuedAt: Date.now(), attempts: 0 });
+    savePushTriggerQueue(q);
+  }
+  function dequeuePushTrigger(announcementId) {
+    const q = loadPushTriggerQueue().filter(item => item.id !== announcementId);
+    savePushTriggerQueue(q);
+  }
+  async function flushPushTriggerQueue() {
+    const now = Date.now();
+    const MAX_AGE_MS = 24 * 60 * 60 * 1000;
+    const MAX_ATTEMPTS = 10;
+    let q = loadPushTriggerQueue();
+    if (!q.length) return;
+    // Drop items past the age/attempt threshold.
+    const fresh = q.filter(item =>
+      (now - (item.queuedAt || 0)) < MAX_AGE_MS &&
+      (item.attempts || 0) < MAX_ATTEMPTS
+    );
+    if (fresh.length !== q.length) savePushTriggerQueue(fresh);
+    for (const item of fresh) {
+      const ok = await sendPushTrigger(item.id);
+      if (ok) {
+        dequeuePushTrigger(item.id);
+      } else {
+        // Bump attempts.
+        const q2 = loadPushTriggerQueue();
+        const m = q2.find(i => i.id === item.id);
+        if (m) { m.attempts = (m.attempts || 0) + 1; savePushTriggerQueue(q2); }
+      }
+    }
+  }
+
+  // The actual server call. Returns true if the server accepted (or
+  // gave us a 4xx that means "give up, not retryable"). Returns false
+  // for retryable errors (network / 5xx).
+  async function sendPushTrigger(announcementId) {
+    let session;
+    try { session = (await sb().auth.getSession()).data?.session; } catch (_) {}
+    if (!session?.access_token) return false; // not signed in → keep
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-announcement-push`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ announcement_id: announcementId }),
+      });
+      if (resp.ok) return true;
+      // 404 = fn not deployed yet, but the announcement still exists.
+      // Treat 404 as "give up for now but retry later" so it'll re-fire
+      // once the function is deployed.
+      if (resp.status === 404) return false;
+      // 4xx other than 404 (auth issue, forbidden) → don't retry forever.
+      if (resp.status >= 400 && resp.status < 500) return true; // drop
+      return false; // 5xx, retry
+    } catch (_) {
+      return false; // network failure, retry
+    }
+  }
+
+  // Public API: enqueue then attempt to flush immediately. Caller
+  // (saveAnnouncement) wraps this in a setTimeout to let local sync
+  // upload the row first.
+  async function triggerAnnouncementPush(announcementId) {
+    if (!announcementId) return;
+    enqueuePushTrigger(announcementId);
+    flushPushTriggerQueue();
+  }
+
+  // F1 + F2: Replaces the old auto-prompt. Two responsibilities:
+  //   1. If permission is already granted, re-register the push
+  //      subscription (cheap, idempotent, ensures server has fresh
+  //      endpoint after reinstalls). Throttled to once per app load so
+  //      switching businesses doesn't spam Supabase.
+  //   2. If permission is NOT granted, do NOTHING. The user enables it
+  //      explicitly from Settings → Notifications.
+  let __pushRegisteredThisLoad = false;
+  function rebindPushIfGranted() {
+    if (typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return;
+    if (__pushRegisteredThisLoad) return;
+    __pushRegisteredThisLoad = true;
+    try { registerPushSubscription(); } catch (_) {}
+  }
+  // Called explicitly by the "Enable system notifications" button in
+  // Settings. Different from rebindPushIfGranted: this one is allowed
+  // to call requestPermission().
+  function enableNotificationsExplicit() {
+    if (typeof Notification === 'undefined') {
+      toast("This browser doesn't support notifications.");
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      try { registerPushSubscription(); } catch (_) {}
+      toast('Notifications already enabled.');
+      // Re-open settings so the user sees the updated status.
+      try { openModal('settings'); } catch (_) {}
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      toast('Notifications are blocked. Change permission in your browser site settings.');
+      return;
+    }
+    // Default → ask.
+    try {
+      Promise.resolve(Notification.requestPermission()).then((perm) => {
+        if (perm === 'granted') {
+          try { registerPushSubscription(); } catch (_) {}
+          toast('Notifications enabled.');
+        } else if (perm === 'denied') {
+          toast('Notifications blocked. You can change this later in browser settings.');
+        }
+        try { openModal('settings'); } catch (_) {}
+      }).catch(() => {});
+    } catch (_) {}
+  }
+
   function onRealtimeEvent(localKey, payload) {
     if (!payload) return;
     const map = cloudSchemaMap[localKey];
@@ -10833,7 +11662,8 @@
       }
       const restored = map.fromDb(newRow);
       const idx = list.findIndex(r => r.id === newRow.id);
-      if (idx === -1) {
+      const isInsert = (idx === -1);
+      if (isInsert) {
         list.push(restored);
       } else {
         const hasLocalUnsynced = __syncQueue.some(op => op.recordId === newRow.id);
@@ -10841,6 +11671,12 @@
           maybeWarnConflict(localKey, newRow.id, 'updated', { remote: restored, local: list[idx] });
         }
         list[idx] = restored;
+      }
+      // Announcement alert: only on INSERT (new posts) and only for
+      // announcements arriving from realtime, NOT our own catchup pulls.
+      // The handler dedupes and suppresses self-author notifications.
+      if (localKey === 'announcements' && isInsert) {
+        handleAnnouncementAlert(restored);
       }
       scheduleRemoteRender(localKey, newRow.id, 'upsert');
     } else if (eventType === 'DELETE') {
@@ -11085,13 +11921,20 @@
       // Column on the table is `label` (not `description`). Map both
       // ways so the local naming stays unchanged but the DB sees the
       // right column.
+      // `date` is the canonical day-granularity field; `month` is kept
+      // in sync (date.slice(0,7)) for backward compatibility with any
+      // older client that still reads the month column.
       toDb: (r) => ({
-        id: r.id, business_id: r.businessId, month: r.month,
+        id: r.id, business_id: r.businessId,
+        month: r.month || (r.date ? r.date.slice(0, 7) : null),
+        date: r.date || (r.month ? r.month + '-01' : null),
         label: r.description || null,
         amount: Number(r.amount) || 0,
       }),
       fromDb: (r) => ({
-        id: r.id, businessId: r.business_id, month: r.month,
+        id: r.id, businessId: r.business_id,
+        month: r.month || (r.date ? String(r.date).slice(0, 7) : null),
+        date: r.date ? String(r.date) : (r.month ? r.month + '-01' : null),
         description: r.label || '',
         amount: Number(r.amount),
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
@@ -11124,12 +11967,14 @@
         author_id: r.authorId || null,
         author_name: r.authorName || null,
         body: r.body || '',
+        important: !!r.important,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
         authorId: r.author_id || null,
         authorName: r.author_name || '',
         body: r.body || '',
+        important: !!r.important,
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
         updatedAt: r.updated_at ? new Date(r.updated_at).getTime() : Date.now(),
       }),
