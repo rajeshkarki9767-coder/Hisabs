@@ -265,11 +265,120 @@
   /* Boot splash. Covers everything until the boot code decides whether
      to show the app or the auth screen. Prevents the "auth screen flash
      on refresh" the user sees if we leave auth visible by default. */
-  .boot-splash { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: var(--paper); transition: opacity 0.2s ease; }
+  /* Boot splash. Covers everything until the boot code decides whether
+     to render the app, the auth screen, or the migration screen.
+     Branded mark + subtle animation so it feels intentional, not like a
+     loading-spinner stutter. Shown for at least 2s so the user sees the
+     brand even when the app is ready instantly (returning sign-in,
+     cached cloud session). */
+  .boot-splash {
+    position: fixed; inset: 0; z-index: 200;
+    display: grid; place-items: center;
+    background: var(--paper);
+    transition: opacity 0.4s ease;
+  }
   .boot-splash.fading { opacity: 0; pointer-events: none; }
-  .boot-splash-mark { display: flex; flex-direction: column; align-items: center; gap: 1rem; color: var(--ink-mute); }
-  .boot-splash-mark svg { width: 40px; height: 40px; }
-  .boot-splash-text { font-family: var(--font-sans); font-size: 0.85rem; letter-spacing: 0.04em; opacity: 0.55; }
+  .boot-splash-inner {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 1.25rem;
+    animation: bootSplashRise 0.5s ease-out;
+  }
+  /* The brand mark: ledger-book glyph, rendered larger and in the
+     accent colour. The two horizontal lines (rows of a ledger) animate
+     in sequence so the icon "fills in" like writing on a fresh page. */
+  .boot-splash-mark {
+    width: 84px; height: 84px;
+    border-radius: 22px;
+    background: var(--accent);
+    color: var(--paper);
+    display: grid; place-items: center;
+    box-shadow:
+      0 14px 40px -10px rgba(176, 70, 50, 0.45),
+      0 4px 12px -2px rgba(0, 0, 0, 0.08);
+    position: relative;
+    overflow: hidden;
+  }
+  .boot-splash-mark::before {
+    /* Subtle radial highlight on the top-left like a coin or seal. */
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 30% 25%, rgba(255,255,255,0.18), transparent 60%);
+    pointer-events: none;
+  }
+  .boot-splash-mark svg { width: 44px; height: 44px; position: relative; z-index: 1; }
+  /* Stroke-in animation for the ledger lines. The path total length is
+     short, so we use 100 as a generous dasharray and let each line
+     reveal over its own delay window. */
+  .boot-splash-mark svg .row {
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    animation: bootSplashDraw 0.7s 0.15s ease-out forwards;
+  }
+  .boot-splash-mark svg .row-2 { animation-delay: 0.30s; }
+  .boot-splash-mark svg .row-3 { animation-delay: 0.45s; }
+  .boot-splash-name {
+    font-family: var(--font-serif);
+    font-size: 1.65rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    opacity: 0;
+    animation: bootSplashFadeIn 0.5s 0.35s ease-out forwards;
+  }
+  .boot-splash-tag {
+    font-family: var(--font-sans);
+    font-size: 0.78rem;
+    letter-spacing: 0.06em;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    opacity: 0;
+    animation: bootSplashFadeIn 0.5s 0.55s ease-out forwards;
+  }
+  /* Soft pulsing dot row at the bottom — three dots that breathe in
+     sequence. Communicates "we're working" without feeling spinnery. */
+  .boot-splash-dots {
+    display: flex; gap: 0.45rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    animation: bootSplashFadeIn 0.5s 0.75s ease-out forwards;
+  }
+  .boot-splash-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--ink-mute);
+    animation: bootSplashPulse 1.4s ease-in-out infinite;
+  }
+  .boot-splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .boot-splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bootSplashRise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bootSplashFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bootSplashDraw {
+    to { stroke-dashoffset: 0; }
+  }
+  @keyframes bootSplashPulse {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.25); }
+  }
+  /* Respect reduced motion: skip all animations but keep the static
+     branded look so reduced-motion users still see the splash. */
+  @media (prefers-reduced-motion: reduce) {
+    .boot-splash-inner,
+    .boot-splash-mark svg .row,
+    .boot-splash-name,
+    .boot-splash-tag,
+    .boot-splash-dots,
+    .boot-splash-dots span {
+      animation: none !important;
+      opacity: 1 !important;
+      stroke-dashoffset: 0 !important;
+    }
+  }
   .auth-card { width: 100%; max-width: 400px; position: relative; z-index: 2; }
   .auth-brand { text-align: center; margin-bottom: 1.75rem; }
   .auth-brand-mark { display: inline-flex; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
@@ -622,9 +731,23 @@
     color: var(--ink-mute); font-weight: 600;
     border-bottom: 1px dashed var(--line-soft);
   }
-  .entries-head { display: grid; grid-template-columns: 90px 1fr 170px 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
+  /* DESKTOP entry-row grid (>1024px). The widths were tuned for two
+     constraints, both desktop-only:
+       1. The description column was 1fr — it absorbed all leftover
+          width, leaving the FROM/TO column at a fixed 170px. That
+          made the "edited Xm ago" badge clip when the user
+          (createdByName) had a long display name.
+       2. The FROM/TO column now uses a flexible fraction with a min
+          so it scales with the viewport and can always fit "by Sam
+          Karki · edited 2 minutes ago" without truncation.
+     Description still gets the larger share so notes have room.
+     Minmax floors kept modest (160/200) so narrow desktop viewports
+     (~1100px) don't trigger horizontal overflow. This block does
+     not affect mobile (≤880px: card layout) or tablet (881-1024px:
+     separate override below). */
+  .entries-head { display: grid; grid-template-columns: 90px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
   .entries-head .col-amount, .entries-head .col-balance { text-align: right; }
-  .entry-row { display: grid; grid-template-columns: 90px 1fr 170px 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
+  .entry-row { display: grid; grid-template-columns: 90px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
   /* CSS grid items default to min-width:auto which respects intrinsic
      content size. A long category name, party name, or book name in
      any cell would expand its track and shove neighboring columns
@@ -952,6 +1075,50 @@
   .party-card.acct-hidden:hover { opacity: 0.85; }
   .party-card.acct-hidden .party-card-name { color: var(--ink-mute); }
   .party-card.acct-hidden .party-card-net-val.positive { color: var(--ink-soft); }
+  /* Per-category breakdown shown on the party-detail page. A list
+     of clickable rows: name | +in | −out | net | count. Mobile
+     wraps the right-side stats onto a second line to keep them
+     readable on a narrow screen. */
+  .party-cat-breakdown { background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); padding: 0.55rem 0.65rem; }
+  .party-cat-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.4rem; padding: 0 0.15rem; }
+  .party-cat-rows { display: flex; flex-direction: column; gap: 0.2rem; }
+  .party-cat-row {
+    display: grid;
+    grid-template-columns: minmax(120px, 1fr) auto 36px;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.45rem 0.55rem;
+    background: var(--paper);
+    border: 1px solid transparent;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    transition: background 0.1s, border-color 0.1s;
+    width: 100%;
+  }
+  .party-cat-row:hover { background: var(--surface-3); border-color: var(--line); }
+  .party-cat-row.active { background: var(--accent-bg, rgba(176, 70, 50, 0.08)); border-color: var(--accent); }
+  .party-cat-name { font-size: 0.85rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .party-cat-stats { display: flex; gap: 0.85rem; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+  .party-cat-in { color: var(--gain); min-width: 60px; text-align: right; }
+  .party-cat-out { color: var(--loss); min-width: 60px; text-align: right; }
+  .party-cat-net { font-weight: 600; min-width: 72px; text-align: right; }
+  .party-cat-net.gain { color: var(--gain); }
+  .party-cat-net.loss { color: var(--loss); }
+  .party-cat-count { font-size: 0.65rem; color: var(--ink-mute); text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 600px) {
+    .party-cat-row {
+      grid-template-columns: 1fr auto;
+      grid-template-rows: auto auto;
+      gap: 0.15rem 0.5rem;
+    }
+    .party-cat-name { grid-column: 1; grid-row: 1; }
+    .party-cat-count { grid-column: 2; grid-row: 1; }
+    .party-cat-stats { grid-column: 1 / span 2; grid-row: 2; justify-content: flex-start; gap: 0.65rem; }
+    .party-cat-in, .party-cat-out, .party-cat-net { min-width: 0; }
+  }
   .acct-hidden-badge { display: inline-block; font-size: 0.55rem; padding: 0.05rem 0.4rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; vertical-align: middle; margin-left: 0.35rem; }
   .account-group.account-group-hidden { margin-top: 1.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); opacity: 0.85; }
   .account-group.account-group-hidden .account-group-head { color: var(--ink-mute); border-bottom-color: var(--line-soft); }
@@ -1570,11 +1737,17 @@
      it's redundant with the totals in the stats cards above, and
      gives the description ~125px of breathing room. */
   @media (min-width: 881px) and (max-width: 1024px) {
+    /* Tablet landscape: balance column is hidden here, so the
+       leftover width is split between description and FROM/TO using
+       the same proportion as desktop (description larger, FROM/TO
+       still flexible enough to show the edited badge in full).
+       Minmax floors kept low (140/180) so the grid fits inside the
+       narrowest tablet viewport without overflowing horizontally. */
     .entries-head {
-      grid-template-columns: 90px 1fr 160px 110px 60px;
+      grid-template-columns: 90px minmax(140px, 1.2fr) minmax(180px, 1fr) 110px 60px;
     }
     .entry-row {
-      grid-template-columns: 90px 1fr 160px 110px 60px;
+      grid-template-columns: 90px minmax(140px, 1.2fr) minmax(180px, 1fr) 110px 60px;
     }
     /* Hide balance value cell + its header label. */
     .entries-head .col-balance,
@@ -1589,14 +1762,19 @@
 <!-- Boot splash: shown until JS decides whether to render the auth screen or
      the app. Without this, refreshing while signed in flashes the auth screen
      for a few hundred milliseconds before the app appears. -->
-<div class="boot-splash" id="bootSplash">
-  <div class="boot-splash-mark">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <rect x="3" y="4" width="18" height="16" rx="2"/>
-      <line x1="3" y1="9" x2="21" y2="9"/>
-      <line x1="9" y1="4" x2="9" y2="20"/>
-    </svg>
-    <div class="boot-splash-text">Hisabs</div>
+<div class="boot-splash" id="bootSplash" aria-hidden="true">
+  <div class="boot-splash-inner">
+    <div class="boot-splash-mark">
+      <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="5" y="5" width="22" height="22" rx="3.5"/>
+        <line class="row row-1" x1="10" y1="11" x2="22" y2="11"/>
+        <line class="row row-2" x1="10" y1="16" x2="22" y2="16"/>
+        <line class="row row-3" x1="10" y1="21" x2="18" y2="21"/>
+      </svg>
+    </div>
+    <div class="boot-splash-name">Hisabs</div>
+    <div class="boot-splash-tag">हिसाब</div>
+    <div class="boot-splash-dots"><span></span><span></span><span></span></div>
   </div>
 </div>
 
@@ -3068,13 +3246,22 @@
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager';
   }
-  // Who can see the Audit tab? Owner and viewer. The viewer is a trusted
-  // read-only role — typically an accountant or business partner — and
-  // should see everything the owner sees, just without edit ability.
-  // Manager and staff don't see audit (it's bookkeeping internals).
+  // Who can see the Audit tab? Owner, manager, and viewer. Manager
+  // has full operational authority over the business (add/edit/delete
+  // entries, manage parties etc) so they need to see the audit log to
+  // understand what's happening. Viewer is a trusted read-only role
+  // — typically an accountant or business partner — and should see
+  // everything the owner sees. Staff (data-entry role) doesn't.
   function canSeeAudit(businessId) {
     const r = roleFor(businessId);
-    return r === 'owner' || r === 'viewer';
+    return r === 'owner' || r === 'manager' || r === 'viewer';
+  }
+  // Who can ADD / EDIT / DELETE audit expenses? Owner and manager.
+  // Viewer is read-only — they can see the audit log including
+  // expenses but can't change them.
+  function canManageExpenses(businessId) {
+    const r = roleFor(businessId);
+    return r === 'owner' || r === 'manager';
   }
 
   // ================================================================
@@ -3117,16 +3304,80 @@
     hideBootSplash();
   }
 
+  // Wall-clock timestamp captured when the page started parsing.
+  // Used to enforce a minimum splash duration so the brand mark
+  // doesn't flicker by in 50ms on instant returning sign-ins.
+  const __bootStartTs = Date.now();
+  const BOOT_SPLASH_MIN_MS = 2000;
+  let __splashHidePending = false;
+
+  // Re-show the branded splash as an overlay. Used when a slow async
+  // operation (sign-in → cloudPullAll, accept invite, etc) would
+  // otherwise leave the user staring at an empty screen.
+  // Idempotent: calling it twice doesn't double up.
+  // Pair every call with hideBootSplash() when the work completes.
+  function showLoadingSplash() {
+    let splash = document.getElementById('bootSplash');
+    if (splash) {
+      // Already in DOM (maybe fading out). Re-show it.
+      splash.dataset.hidden = '0';
+      splash.classList.remove('fading');
+      __splashHidePending = false;
+      return;
+    }
+    // Rebuild the splash markup. Match the static HTML at boot so
+    // the user sees an identical brand element.
+    splash = document.createElement('div');
+    splash.className = 'boot-splash';
+    splash.id = 'bootSplash';
+    splash.setAttribute('aria-hidden', 'true');
+    splash.innerHTML = `
+      <div class="boot-splash-inner">
+        <div class="boot-splash-mark">
+          <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="5" y="5" width="22" height="22" rx="3.5"/>
+            <line class="row row-1" x1="10" y1="11" x2="22" y2="11"/>
+            <line class="row row-2" x1="10" y1="16" x2="22" y2="16"/>
+            <line class="row row-3" x1="10" y1="21" x2="18" y2="21"/>
+          </svg>
+        </div>
+        <div class="boot-splash-name">Hisabs</div>
+        <div class="boot-splash-tag">हिसाब</div>
+        <div class="boot-splash-dots"><span></span><span></span><span></span></div>
+      </div>
+    `;
+    document.body.appendChild(splash);
+    __splashHidePending = false;
+  }
+
   // Fade out and remove the boot splash. Called once boot has decided
   // what to render (either the app, the auth screen, or the migration
   // screen). Safe to call multiple times.
-  function hideBootSplash() {
+  //
+  // The splash stays up for at least BOOT_SPLASH_MIN_MS from page load,
+  // even if hide is requested earlier — so users see the brand even
+  // when boot decisions are instant. The first call schedules the
+  // actual hide; subsequent calls are no-ops while pending.
+  //
+  // Special case: when force=true, we skip the minimum-duration gate
+  // (used after re-showing via showLoadingSplash, since the user has
+  // already seen the splash for at least the initial 2s).
+  function hideBootSplash(force) {
     const splash = document.getElementById('bootSplash');
     if (!splash || splash.dataset.hidden === '1') return;
-    splash.dataset.hidden = '1';
-    splash.classList.add('fading');
-    // Remove from DOM after fade completes so it can't intercept clicks.
-    setTimeout(() => { try { splash.remove(); } catch (_) {} }, 250);
+    if (__splashHidePending && !force) return;
+    __splashHidePending = true;
+    const elapsed = Date.now() - __bootStartTs;
+    const wait = force ? 0 : Math.max(0, BOOT_SPLASH_MIN_MS - elapsed);
+    setTimeout(() => {
+      const s = document.getElementById('bootSplash');
+      if (!s || s.dataset.hidden === '1') return;
+      s.dataset.hidden = '1';
+      s.classList.add('fading');
+      // Remove from DOM after fade completes so it can't intercept
+      // clicks. Match the CSS transition (0.4s) plus a buffer.
+      setTimeout(() => { try { s.remove(); } catch (_) {} }, 450);
+    }, wait);
   }
 
   // Toggle a password input between hidden (•••) and shown (plain text).
@@ -3655,17 +3906,18 @@
     document.getElementById('navAccounts').classList.toggle('active', session.view === 'accounts' || session.view === 'account-detail');
     const navAudit = document.getElementById('navAudit');
     if (navAudit) {
-      // Audit is owner-only and only meaningful when a business is active.
-      const isOwner = session.activeBizId && canSeeAudit(session.activeBizId);
-      navAudit.style.display = isOwner ? 'flex' : 'none';
+      // Visible to owner, manager, and viewer (see canSeeAudit).
+      // Staff role doesn't see this tab.
+      const canSee = session.activeBizId && canSeeAudit(session.activeBizId);
+      navAudit.style.display = canSee ? 'flex' : 'none';
       navAudit.classList.toggle('active', session.view === 'audit');
     }
     const navExpenses = document.getElementById('navExpenses');
     if (navExpenses) {
-      // Same gate as Audit — expenses feed into the Net profit calculation, so
-      // they share the owner-only visibility rule.
-      const isOwner = session.activeBizId && canSeeAudit(session.activeBizId);
-      navExpenses.style.display = isOwner ? 'flex' : 'none';
+      // Same gate as Audit — expenses feed into the Net profit
+      // calculation, so they share the same visibility rule.
+      const canSee = session.activeBizId && canSeeAudit(session.activeBizId);
+      navExpenses.style.display = canSee ? 'flex' : 'none';
       navExpenses.classList.toggle('active', session.view === 'expenses');
     }
     const navQuickLook = document.getElementById('navQuickLook');
@@ -3743,6 +3995,24 @@
     __cardMenuRegistry = new Map();
     __cardMenuNextId = 1;
     const root = document.getElementById('mainContent');
+    // Capture focus state of input fields that survive across renders.
+    // The Entries view has #searchInput; the Parties view has its own
+    // search box. Without this, any background re-render (realtime
+    // event from another device, sync drain, etc) tears down the
+    // input element while the user is typing — on mobile this
+    // dismisses the keyboard and looks like the search "closing".
+    let _preservedFocus = null;
+    const _activeEl = document.activeElement;
+    if (_activeEl && _activeEl.id && _activeEl.tagName === 'INPUT') {
+      const focusableIds = new Set(['searchInput', 'partiesSearchInput', 'categoriesSearchInput', 'accountsSearchInput']);
+      if (focusableIds.has(_activeEl.id)) {
+        _preservedFocus = {
+          id: _activeEl.id,
+          selStart: _activeEl.selectionStart,
+          selEnd: _activeEl.selectionEnd,
+        };
+      }
+    }
     const visible = visibleBusinesses();
     if (!visible.length) {
       // User just signed up, or all their businesses were deleted, or they have
@@ -3760,11 +4030,11 @@
       `;
       return;
     }
-    if (session.view === 'parties') { renderPartiesView(root); return; }
+    if (session.view === 'parties') { renderPartiesView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'party-detail') { renderPartyDetailView(root); return; }
-    if (session.view === 'categories') { renderCategoriesView(root); return; }
+    if (session.view === 'categories') { renderCategoriesView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'category-detail') { renderCategoryDetailView(root); return; }
-    if (session.view === 'accounts') { renderAccountsView(root); return; }
+    if (session.view === 'accounts') { renderAccountsView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'account-detail') { renderAccountDetailView(root); return; }
     if (session.view === 'audit') { renderAuditView(root); return; }
     if (session.view === 'expenses') { renderExpensesView(root); return; }
@@ -3773,6 +4043,27 @@
     if (session.view === 'announcementsView') { renderAnnouncementsReadView(root); return; }
     if (session.view === 'quickLook') { renderQuickLookView(root); return; }
     renderEntriesView(root);
+    _restoreFocusAfterRender(_preservedFocus);
+  }
+
+  // Helper used by renderMain to restore focus + cursor position on
+  // search inputs after the view re-renders. Without this, a
+  // background re-render (realtime event, sync drain) destroys the
+  // input element while the user is typing — on mobile, that
+  // dismisses the keyboard. We re-focus on the next frame so the
+  // browser has finished applying the new innerHTML.
+  function _restoreFocusAfterRender(preserved) {
+    if (!preserved || !preserved.id) return;
+    requestAnimationFrame(() => {
+      const el = document.getElementById(preserved.id);
+      if (!el) return;
+      try {
+        el.focus({ preventScroll: true });
+        if (typeof preserved.selStart === 'number' && typeof preserved.selEnd === 'number') {
+          el.setSelectionRange(preserved.selStart, preserved.selEnd);
+        }
+      } catch (_) {}
+    });
   }
 
   function entriesPageHeader() {
@@ -4012,7 +4303,18 @@
     let entries = allBookEntries.filter(pred);
     entries = entries.filter(e => {
       if (typeF !== 'all' && e.type !== typeF) return false;
-      if (search && !(`${e.note} ${e.category} ${e.party || ''}`.toLowerCase().includes(search))) return false;
+      if (search) {
+        // Build the haystack: note + category + party (existing
+        // searchable fields), plus the word "edited" and a
+        // YYYY-MM-DD timestamp if the entry was meaningfully edited.
+        // That way typing "edited" surfaces edited entries, and
+        // typing a date like "2026-05-14" matches entries edited
+        // on that day.
+        const _editLabel = entryEditedLabel(e);
+        const editedToken = _editLabel ? `edited ${_editLabel}` : '';
+        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${editedToken}`.toLowerCase();
+        if (!hay.includes(search)) return false;
+      }
       if (__entryFilter.partyId && e.partyId !== __entryFilter.partyId) return false;
       if (__entryFilter.category) {
         if (__entryFilter.category === '__uncat__') { if (e.category) return false; }
@@ -4423,7 +4725,7 @@
         </div>
       </div>
       ${renderPeriodBar()}
-      ${totalParties >= 6 ? `<div class="entity-search-wrap">
+      ${totalParties >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="partiesSearchInput" class="entity-search-input" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
         ${__partiesSearch ? `<button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
@@ -4434,6 +4736,19 @@
     `;
   }
 
+  // In-memory category filter for the party-detail view. Clicking a
+  // row in the spending-by-category breakdown sets this; clicking
+  // again (or "Clear") unsets it. Not persisted to session — when
+  // the user navigates away and back, the view starts unfiltered.
+  let __partyDetailCatFilter = null;
+
+  function setPartyDetailCatFilter(cat) {
+    // Toggle: clicking the active filter again clears it.
+    __partyDetailCatFilter = (__partyDetailCatFilter === cat) ? null : cat;
+    const root = document.getElementById('mainContent');
+    if (root) renderPartyDetailView(root);
+  }
+
   function renderPartyDetailView(root) {
     const party = data.parties.find(p => p.id === session.selectedPartyId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -4441,10 +4756,13 @@
     const cur = currencyDisplay(biz.currency);
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     const pred = periodPredicate();
-    const entries = data.entries
+    // ALL entries for this party in the active period — used for
+    // the category breakdown (always shows the full picture, not
+    // filtered by the active category).
+    const allEntries = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.partyId === party.id && pred(e))
       .sort((a, b) => b.date.localeCompare(a.date));
-    const { inSum, outSum } = sumEntries(entries);
+    const { inSum, outSum } = sumEntries(allEntries);
     const net = inSum - outSum;
     const isMobile = window.innerWidth <= 880;
     const role = roleFor(biz.id);
@@ -4452,16 +4770,74 @@
     const canEditParty = role === 'owner' || role === 'manager';
     const showTotals = (role === 'owner' || role === 'manager'); // staff/viewer never see totals on these views
 
+    // Per-category breakdown: how much money came IN from this party,
+    // and how much went OUT to this party, sliced by category. Lets
+    // the owner spot "Bina pays mostly for Sales but I keep spending
+    // on Restock with her" type patterns at a glance. Sorted by
+    // absolute net so the biggest movers float to the top.
+    const catRollup = new Map();
+    for (const e of allEntries) {
+      const cat = (e.category && e.category.trim()) || '— Uncategorised';
+      const r = catRollup.get(cat) || { inSum: 0, outSum: 0, count: 0 };
+      const amt = Number(e.amount) || 0;
+      if (e.type === 'in') r.inSum += amt; else r.outSum += amt;
+      r.count += 1;
+      catRollup.set(cat, r);
+    }
+    const catRows = Array.from(catRollup.entries())
+      .map(([cat, r]) => ({ cat, ...r, net: r.inSum - r.outSum }))
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+
+    // Filtered entries for the list below. If a category is active,
+    // only show entries in that category (or uncategorised when the
+    // user clicked the "Uncategorised" row).
+    const entries = __partyDetailCatFilter
+      ? allEntries.filter(e => {
+          const eCat = (e.category && e.category.trim()) || '— Uncategorised';
+          return eCat === __partyDetailCatFilter;
+        })
+      : allEntries;
+
+    // Per-category breakdown UI. Hidden for staff/viewer (no totals
+    // role). The block is dense on purpose — small rows so the user
+    // can scan many categories at once. Each row is a button that
+    // toggles the entries filter below.
+    const catBreakdownHTML = (!showTotals || !catRows.length) ? '' : `
+      <div class="party-cat-breakdown" style="margin-bottom:1.1rem;">
+        <div class="party-cat-head">
+          <span style="font-size:0.78rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">By category</span>
+          ${__partyDetailCatFilter ? `<button class="btn btn-sm btn-ghost" onclick="setPartyDetailCatFilter(null)" style="font-size:0.72rem;padding:0.2rem 0.55rem;">Clear filter</button>` : ''}
+        </div>
+        <div class="party-cat-rows">
+          ${catRows.map(r => {
+            const isActive = __partyDetailCatFilter === r.cat;
+            const netStr = (r.net >= 0 ? '+' : '') + fmt(r.net);
+            const netCls = r.net > 0 ? 'gain' : (r.net < 0 ? 'loss' : '');
+            return `<button class="party-cat-row ${isActive ? 'active' : ''}"
+                onclick="setPartyDetailCatFilter(${JSON.stringify(r.cat).replace(/"/g, '&quot;')})"
+                title="Click to filter entries below by this category">
+              <span class="party-cat-name">${escapeHtml(r.cat)}</span>
+              <span class="party-cat-stats">
+                <span class="party-cat-in">+${fmt(r.inSum)}</span>
+                <span class="party-cat-out">−${fmt(r.outSum)}</span>
+                <span class="party-cat-net ${netCls}">${netStr}</span>
+              </span>
+              <span class="party-cat-count">${r.count}×</span>
+            </button>`;
+          }).join('')}
+        </div>
+      </div>`;
+
     const statsHTML = !showTotals
       ? ''
       : isMobile ? `<div class="stats">
-      <div class="stat stat-balance-mobile"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">across ${entries.length} entries</div></div>
+      <div class="stat stat-balance-mobile"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">across ${allEntries.length} entries</div></div>
       <div class="stat in"><div class="stat-label">Received from</div><div class="stat-value">${cur} ${fmt(inSum)}</div></div>
       <div class="stat out"><div class="stat-label">Paid to</div><div class="stat-value">${cur} ${fmt(outSum)}</div></div>
     </div>` : `<div class="stats">
-      <div class="stat in"><div class="stat-label">Received from</div><div class="stat-value">${cur} ${fmt(inSum)}</div><div class="stat-meta">${entries.filter(e=>e.type==='in').length} entries</div></div>
-      <div class="stat out"><div class="stat-label">Paid to</div><div class="stat-value">${cur} ${fmt(outSum)}</div><div class="stat-meta">${entries.filter(e=>e.type==='out').length} entries</div></div>
-      <div class="stat"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${entries.length} total</div></div>
+      <div class="stat in"><div class="stat-label">Received from</div><div class="stat-value">${cur} ${fmt(inSum)}</div><div class="stat-meta">${allEntries.filter(e=>e.type==='in').length} entries</div></div>
+      <div class="stat out"><div class="stat-label">Paid to</div><div class="stat-value">${cur} ${fmt(outSum)}</div><div class="stat-meta">${allEntries.filter(e=>e.type==='out').length} entries</div></div>
+      <div class="stat"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${allEntries.length} total</div></div>
     </div>`;
 
     const entriesHTML = entries.length ? entries.map(e => {
@@ -4488,7 +4864,8 @@
         </div>
       </div>
       ${statsHTML}
-      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All transactions</div>
+      ${catBreakdownHTML}
+      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">${__partyDetailCatFilter ? `Transactions in “${escapeHtml(__partyDetailCatFilter)}”` : 'All transactions'}</div>
       <div class="entries-wrap">
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>Book</div>
@@ -4680,7 +5057,7 @@
         </div>
       </div>
       ${renderPeriodBar()}
-      ${totalCats >= 6 ? `<div class="entity-search-wrap">
+      ${totalCats >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="categoriesSearchInput" class="entity-search-input" placeholder="Search categories…" value="${escapeHtml(__categoriesSearch)}" oninput="setCategoriesSearch(this.value)">
         ${__categoriesSearch ? `<button class="entity-search-clear" onclick="setCategoriesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
@@ -5062,7 +5439,7 @@
           <div class="acct-grand-value">${cur} ${grand >= 0 ? '' : '−'}${fmt(Math.abs(grand))}</div>
         </div>`;
       })() : ''}
-      ${totalAccountsAndGroups >= 6 ? `<div class="entity-search-wrap">
+      ${totalAccountsAndGroups >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="accountsSearchInput" class="entity-search-input" placeholder="Search accounts…" value="${escapeHtml(__accountsSearch)}" oninput="setAccountsSearch(this.value)">
         ${__accountsSearch ? `<button class="entity-search-clear" onclick="setAccountsSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
@@ -5340,7 +5717,7 @@
 
   function addAuditExpense() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can manage audit.'); return; }
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can manage audit.'); return; }
     const desc = validateDescription(document.getElementById('mAuditDesc')?.value);
     if (desc === null) return;
     const amt = validateAmount(document.getElementById('mAuditAmt')?.value);
@@ -5369,7 +5746,7 @@
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
-    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can delete expenses.'); return; }
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can delete expenses.'); return; }
     if (!(await uiConfirm('Delete this expense? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
     saveData();
@@ -5380,7 +5757,7 @@
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
-    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can edit.'); return; }
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can edit.'); return; }
     const newDesc = await uiPrompt('Edit description:', x.description, { title: 'Edit expense', submitLabel: 'Next' });
     if (newDesc == null) return;
     const trimmedDesc = String(newDesc).trim();
@@ -5415,8 +5792,7 @@
       return;
     }
     if (!canSeeAudit(biz.id)) {
-      // Non-owners (manager, staff, viewer) should never have reached this view;
-      // bounce them back to entries silently.
+      // Staff role can't see audit — bounce them back to entries silently.
       session.view = 'entries'; saveSession(); renderAll(); return;
     }
     const cur = currencyDisplay(biz.currency);
@@ -5682,7 +6058,7 @@
     // Only the owner can add/edit/delete expenses — viewers see this
     // page read-only. Declared here (before renderExpenseRow) to avoid
     // a TDZ ReferenceError when the inner function references it.
-    const canEditExpenses = roleFor(biz.id) === 'owner';
+    const canEditExpenses = canManageExpenses(biz.id);
     function renderExpenseRow(x) {
       const actions = canEditExpenses ? `
         <div class="audit-exp-actions">
@@ -5975,7 +6351,12 @@
   }
   function switchView(view) {
     session.view = view;
-    if (view !== 'party-detail') session.selectedPartyId = null;
+    if (view !== 'party-detail') {
+      session.selectedPartyId = null;
+      // Drop the party-detail category filter too so a fresh open
+      // of any party starts unfiltered.
+      __partyDetailCatFilter = null;
+    }
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
     saveSession(); closeDrawer();
@@ -5984,6 +6365,9 @@
   }
   function openParty(partyId) {
     session.view = 'party-detail';
+    // If opening a DIFFERENT party than the one we were on, clear
+    // any leftover category filter from the previous party.
+    if (session.selectedPartyId !== partyId) __partyDetailCatFilter = null;
     session.selectedPartyId = partyId;
     saveSession();
     __renderResetScroll = true; // drilling into a detail view → top
@@ -7365,12 +7749,18 @@
         </div>
       </div>`;
   }
-  function addStaff() {
-    const login = normalize(document.getElementById('mStaffLogin').value);
+  async function addStaff() {
+    const loginInputEl = document.getElementById('mStaffLogin');
+    const login = normalize(loginInputEl?.value || '');
     const role = document.getElementById('mStaffRole').value;
     const u = me();
-    if (!login) { toast('Enter their phone or email.'); return; }
+    if (!login) { toast('Enter their email.'); return; }
     if (login === normalize(u.login)) { toast("That's you."); return; }
+    // Tight email shape check before we even talk to the server.
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(login)) {
+      toast('Enter a valid email address.');
+      return;
+    }
     const existing = data.members.find(m => m.businessId === session.activeBizId && m.userLogin === login);
     if (existing) {
       if (existing.status === 'declined') {
@@ -7383,6 +7773,68 @@
         saveData(); refreshStaffSurface(); toast('Re-invited.'); return;
       }
       toast('Already invited.'); return;
+    }
+    // Verify the email belongs to an existing Hisabs account before
+    // creating the invite. Random/typo'd emails would otherwise sit
+    // pending forever because nobody can see them. The Edge Function
+    // check-user-exists returns {exists:true|false}; we treat
+    // network failures and undeployed-function 404s permissively
+    // (let the invite go through) so the feature degrades gracefully
+    // in case the function isn't deployed yet on this project.
+    const sb_ = sb();
+    const { data: sessionData } = await sb_.auth.getSession();
+    const accessToken = sessionData?.session?.access_token;
+    // Track availability separately from the sessions-functions flag
+    // so one deployed-status doesn't bleed into the other.
+    const inviteCheckSkip = (() => {
+      try { return localStorage.getItem('hisabs_invite_check_missing') === '1'; }
+      catch (_) { return false; }
+    })();
+    if (accessToken && !inviteCheckSkip) {
+      // Find the addStaff button — could be in either the modal or
+      // the full-page view. Pick the visible one. Filter to offsetParent
+      // !== null which is a quick "is it actually displayed" check.
+      const allBtns = Array.from(document.querySelectorAll('[onclick="addStaff()"]'));
+      const btn = allBtns.find(b => b.offsetParent !== null) || allBtns[0] || null;
+      const origLabel = btn?.textContent;
+      try {
+        if (btn) { btn.disabled = true; btn.textContent = 'Checking…'; }
+        const resp = await fetch(`${SUPABASE_URL}/functions/v1/check-user-exists`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'apikey': SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email: login }),
+        });
+        if (resp.status === 404) {
+          // Function not deployed on this project — remember and
+          // skip on subsequent invites. Falls back to letting the
+          // invite proceed.
+          try { localStorage.setItem('hisabs_invite_check_missing', '1'); } catch (_) {}
+        } else if (resp.ok) {
+          const json = await resp.json();
+          // soft:true means the function had a transient backend
+          // problem — be permissive.
+          if (json && json.exists === false) {
+            toast('No user has been created with this email. Ask them to sign up first.');
+            return;
+          }
+        } else {
+          // 5xx etc — proceed permissively, but log.
+          console.warn('Invite precheck failed (HTTP ' + resp.status + '); proceeding anyway.');
+        }
+      } catch (e) {
+        const msg = String(e?.message || e || '');
+        if (/failed to fetch|networkerror|load failed/i.test(msg)) {
+          try { localStorage.setItem('hisabs_invite_check_missing', '1'); } catch (_) {}
+        } else {
+          console.warn('Invite precheck threw; proceeding anyway:', msg);
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = origLabel || 'Send invite'; }
+      }
     }
     // Denormalize the inviter's name and the business's name onto the member
     // row. The invitee will see these in their pending-invites sidebar before
@@ -10427,12 +10879,24 @@
   // Decide whether an entry was meaningfully edited after creation.
   // Edits within the first 5 seconds (e.g. user saves twice while
   // tweaking) shouldn't show as "edited" — that would noise up the
-  // UI. Returns the edited timestamp string, or empty if not edited.
+  // UI. Returns a "YYYY-MM-DD · 3:42 PM" string showing WHEN the
+  // edit happened (date + time), or empty if not meaningfully
+  // edited. The full date matters for entries edited days or weeks
+  // after creation; showing only the time was misleading on entries
+  // edited on a different day.
   function entryEditedLabel(entry) {
     if (!entry || !entry.editedAt) return '';
     const created = entry.createdAt || 0;
     if (entry.editedAt - created < 5000) return ''; // same-session save, ignore
-    return formatEntryDateTime('', entry.editedAt) || formatEntryTime(entry.editedAt);
+    const d = new Date(entry.editedAt);
+    if (isNaN(d.getTime())) return '';
+    // YYYY-MM-DD in local time (matches how entry dates are stored
+    // and displayed elsewhere in the app).
+    const datePart = d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+    const timePart = formatEntryTime(entry.editedAt);
+    return timePart ? `${datePart} · ${timePart}` : datePart;
   }
 
   // Cached after the first failure so we don't keep retrying a function
@@ -11241,7 +11705,7 @@
   function exportExpensesDashboard(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
-    if (!canSeeAudit(biz.id)) { toast('Only the owner can export expenses.'); return; }
+    if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export expenses.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     const pred = periodPredicate();
     // Expenses view shows cash-out entries categorised by category.
@@ -11268,7 +11732,7 @@
   function exportAuditDashboard(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
-    if (!canSeeAudit(biz.id)) { toast('Only the owner can export audit.'); return; }
+    if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export audit.'); return; }
     const rangeLabel = getAuditRangeLabel();
     // Snapshot: entries + expenses within the active period. Both filter
     // by full date now (expenses use expenseDate() to handle legacy rows
@@ -11817,6 +12281,11 @@
     const originalText = submitBtn.textContent;
     submitBtn.disabled = true;
     submitBtn.textContent = authMode_ === 'signup' ? 'Creating account…' : 'Signing in…';
+    // Re-show the splash overlay so the user sees the brand mark
+    // while we contact Supabase and (on fresh signin) pull data.
+    // Without this, after credentials are accepted the auth screen
+    // could be briefly visible empty before the app appears.
+    showLoadingSplash();
     try {
       if (authMode_ === 'signup') {
         const { data, error } = await sb().auth.signUp({
@@ -11856,6 +12325,11 @@
     } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = originalText;
+      // If auth failed and we're still on the auth screen, drop the
+      // loading splash. (Success path: onSupabaseSignedIn → showApp
+      // → hideBootSplash handles the success case.)
+      const authIsActive = document.getElementById('authScreen')?.classList.contains('is-active');
+      if (authIsActive) hideBootSplash(true);
     }
   }
 
@@ -11974,22 +12448,36 @@
     if (localStorage.getItem(CLOUD_MIGRATED_KEY) !== '1') {
       localStorage.setItem(CLOUD_MIGRATED_KEY, '1');
     }
-    showApp();
-    // Kick off the realtime sync system. On a brand-new sign-in we also do
-    // an initial full pull so this device gets caught up with cloud state
-    // before any local diffs are computed. On a returning sign-in (snapshot
-    // already present), we do a delta-pull AFTER starting the worker, so
-    // that any local ops that survived a previous session reach the cloud
-    // before we replace local state with the cloud snapshot.
-    try {
-      const firstSignin = !__syncSnapshot;
-      if (firstSignin) {
+    // On a FRESH sign-in (no sync snapshot yet — typically a brand-new
+    // device, or first sign-in after migrating), the local cache is
+    // empty: no businesses, no books, no entries. If we called
+    // showApp() now, the user would briefly see the "Welcome, create
+    // your first business" empty state before cloudPullAll fills in
+    // the real data. Bad UX.
+    //
+    // Instead, on a fresh sign-in, run cloudPullAll BEFORE showApp so
+    // the local in-memory state is populated when the app first
+    // renders. The splash stays up throughout (its minimum-duration
+    // gate is 2 seconds, so a pull that finishes faster simply lets
+    // the splash linger; a pull that takes longer just extends it).
+    const firstSignin = !__syncSnapshot;
+    if (firstSignin) {
+      try {
         await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
+      } catch (e) {
+        // Pull failed (offline, etc). Continue to showApp anyway —
+        // the user can still work with cached data and the sync
+        // system will retry. Better than blocking sign-in entirely.
+        console.warn('Initial pull failed, proceeding with cached data:', e?.message || e);
       }
+    }
+    showApp();
+    // Kick off the realtime sync system. Returning sign-ins use a
+    // delta-pull AFTER starting the worker, so any local ops that
+    // survived a previous session reach the cloud before we replace
+    // local state with the cloud snapshot.
+    try {
       startSyncSystem();
-      // Catch up on any events that fired while we were signed out. Wait for
-      // the queue to drain first so a pending local op isn't overwritten by
-      // the cloud state.
       if (!firstSignin) {
         scheduleCatchupPull();
       }
