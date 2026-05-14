@@ -2792,8 +2792,27 @@
   function visibleBusinesses() {
     const u = me(); if (!u) return [];
     const myLogin = normalize(u.login);
-    return data.businesses.filter(b => b.ownerId === u.id ||
-      data.members.some(m => m.businessId === b.id && m.userLogin === myLogin && m.status === 'accepted'));
+    return data.businesses.filter(b => {
+      // Owners always see their own businesses.
+      if (b.ownerId === u.id) return true;
+      // Live membership lookup: is there a member row matching this
+      // user for this business with accepted status?
+      const liveMatch = data.members.some(m =>
+        m.businessId === b.id && m.status === 'accepted'
+        && (m.userId === u.id || normalize(m.userLogin) === myLogin)
+      );
+      if (liveMatch) return true;
+      // Fallback: if we've previously confirmed a role for this
+      // (user, business) pair, treat the business as visible even
+      // when data.members is transiently empty (mid-cloudPullAll,
+      // realtime stream gap, etc). Without this fallback, viewers
+      // and other non-owner roles get the "Welcome, create your
+      // first business" empty state during the brief window where
+      // members hasn't populated yet — what users perceive as
+      // "data shows for a second then hides".
+      const cached = _getAccess(u.id, b.id);
+      return !!cached?.role;
+    });
   }
   function pendingInvitesForMe() {
     const u = me(); if (!u) return [];
@@ -2825,28 +2844,125 @@
   // returns null. The cache is in-memory only — on a fresh page
   // load it starts empty (so a real demotion/revocation surfaces
   // immediately on next refresh).
-  const __roleCache = new Map(); // key: `${userId}|${bizId}` -> role string
-  function _roleCacheKey(uid, bid) { return `${uid}|${bid}`; }
+  // Persistent role + access cache. Survives page refresh so the
+  // first render after reload uses the last-known answer instead
+  // of recomputing from possibly-empty data.members (which arrives
+  // asynchronously from cloudPullAll). The keys are global by
+  // user+business; the values are { role, staffSeesTotals }
+  // snapshots. Updated whenever a fresh, authoritative answer is
+  // computed.
+  const ACCESS_CACHE_KEY = 'hisabs_access_cache_v1';
+  function _loadAccessCache() {
+    try {
+      const raw = localStorage.getItem(ACCESS_CACHE_KEY);
+      const parsed = raw ? JSON.parse(raw) : null;
+      return (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) ? parsed : {};
+    } catch (_) { return {}; }
+  }
+  function _saveAccessCache(obj) {
+    try { localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify(obj)); } catch (_) {}
+  }
+  const __accessCache = _loadAccessCache(); // { "uid|bid": { role: 'viewer'|'owner'|..., staffSeesTotals: bool, t: ms } }
+  function _accessKey(uid, bid) { return `${uid}|${bid}`; }
+  function _setAccess(uid, bid, role, staffSeesTotals) {
+    const key = _accessKey(uid, bid);
+    const entry = __accessCache[key] || {};
+    if (role !== undefined) entry.role = role;
+    if (staffSeesTotals !== undefined) entry.staffSeesTotals = staffSeesTotals;
+    entry.t = Date.now();
+    __accessCache[key] = entry;
+    _saveAccessCache(__accessCache);
+  }
+  function _getAccess(uid, bid) {
+    return __accessCache[_accessKey(uid, bid)] || null;
+  }
+
+  // Legacy alias for the in-memory cache name used elsewhere in
+  // this file. Backed by the same persistent store now.
+  const __roleCache = {
+    get: (k) => { const [uid, bid] = k.split('|'); const a = _getAccess(uid, bid); return a?.role; },
+    set: (k, role) => { const [uid, bid] = k.split('|'); _setAccess(uid, bid, role, undefined); },
+    delete: (k) => { delete __accessCache[k]; _saveAccessCache(__accessCache); },
+    clear: () => { for (const k of Object.keys(__accessCache)) delete __accessCache[k]; _saveAccessCache(__accessCache); },
+    get size() { return Object.keys(__accessCache).length; },
+  };
+  function _roleCacheKey(uid, bid) { return _accessKey(uid, bid); }
 
   function roleFor(businessId) {
     const u = me(); if (!u) return null;
-    const biz = data.businesses.find(b => b.id === businessId);
-    if (!biz) {
-      // Business not in local data: if we have a cached role, the
-      // business is briefly missing (mid-pull) — return cached
-      // rather than null. The next render with full data will
-      // refresh the cache.
-      return __roleCache.get(_roleCacheKey(u.id, businessId)) || null;
+    // Check the persistent access cache FIRST. The cache stores the
+    // last-confirmed role from a previous successful render. If a
+    // non-owner role is cached, we trust it even when the local
+    // `data.businesses[*].ownerId` says we're the owner — that
+    // mismatch usually means the local cache was poisoned by an
+    // older "recovery" pass and the cloud is the source of truth.
+    // cloudPullAll will refresh both the cache and the data shortly.
+    // Owner role is always recomputed live (not from cache) because
+    // an owner downgrading themselves is a legitimate flow and
+    // shouldn't be hidden behind a stale cache entry.
+    const cached = _getAccess(u.id, businessId);
+    if (cached && cached.role && cached.role !== 'owner') {
+      // Trust the cached non-owner role. Still update from live
+      // data when it confirms a different role (e.g. promotion).
+      const biz = data.businesses.find(b => b.id === businessId);
+      if (biz) {
+        const myLogin = normalize(u.login);
+        const m = data.members.find(m =>
+          m.businessId === businessId
+          && m.status === 'accepted'
+          && (m.userId === u.id || normalize(m.userLogin) === myLogin)
+        );
+        // Only override the cache if live data has a CLEAR answer
+        // (real member row OR real ownership). If live data is
+        // empty (transient mid-pull), keep the cached value.
+        if (m) {
+          _setAccess(u.id, businessId, m.role, undefined);
+          return m.role;
+        }
+        if (biz.ownerId === u.id) {
+          // Live data says this user owns the business but the cache
+          // says they're a non-owner. Two scenarios:
+          //   1. Poisoned local cache (the "recovery loop" bug): the
+          //      ownerId got rewritten incorrectly on a previous
+          //      sign-in. Cloud will fix it shortly.
+          //   2. Genuine promotion: the user really is now the owner
+          //      (someone transferred ownership to them).
+          //
+          // Tell them apart by looking at the rest of the member
+          // table. If `data.members` has SOMETHING (so it's not
+          // transient empty mid-pull) and yet has no row for this
+          // user in this business, the promotion explanation wins
+          // — clear the cache and return 'owner'. If the table is
+          // transient-empty, prefer the cached role for now;
+          // cloudPullAll will sort it out.
+          const myLogin2 = normalize(u.login);
+          const hasAnyMemberRow = data.members.length > 0;
+          const hasOtherMemberRowForThisBiz = data.members.some(mm =>
+            mm.businessId === businessId
+            && !(mm.userId === u.id || normalize(mm.userLogin) === myLogin2)
+          );
+          if (hasAnyMemberRow && hasOtherMemberRowForThisBiz) {
+            // Members table is populated and includes other people's
+            // rows for this business but none for us → we really
+            // aren't a member anymore. Genuine promotion (or removal).
+            // Refresh the cache to match live state.
+            _setAccess(u.id, businessId, 'owner', undefined);
+            return 'owner';
+          }
+          // Otherwise (transient empty / mid-pull): keep cached role
+          // for a stable render. Don't write the cache.
+          return cached.role;
+        }
+      }
+      return cached.role;
     }
+    // No cache, or cache says owner — compute live.
+    const biz = data.businesses.find(b => b.id === businessId);
+    if (!biz) return cached?.role || null;
     if (biz.ownerId === u.id) {
-      __roleCache.set(_roleCacheKey(u.id, businessId), 'owner');
+      _setAccess(u.id, businessId, 'owner', undefined);
       return 'owner';
     }
-    // Match on userId first (canonical after acceptance), fall back to
-    // userLogin (only filled before the invitee signs in for the first
-    // time). This avoids a "not a member" UX bug when, for example, the
-    // owner invited bob@gmail.com but Bob signed in with Google using a
-    // case-variant or alt-email and the local cache hasn't refreshed.
     const myLogin = normalize(u.login);
     const m = data.members.find(m =>
       m.businessId === businessId
@@ -2854,17 +2970,10 @@
       && (m.userId === u.id || normalize(m.userLogin) === myLogin)
     );
     if (m) {
-      __roleCache.set(_roleCacheKey(u.id, businessId), m.role);
+      _setAccess(u.id, businessId, m.role, undefined);
       return m.role;
     }
-    // No live match. Fall back to cached role if available. This
-    // prevents the "viewer data flashes off for a second after
-    // refresh" bug: cloudPullAll briefly leaves data.members empty
-    // between row arrivals and the first render with empty members
-    // would compute null role and hide all stats/entries. With
-    // sticky cache, the viewer continues to see what they're
-    // entitled to throughout the pull.
-    return __roleCache.get(_roleCacheKey(u.id, businessId)) || null;
+    return cached?.role || null;
   }
   function canEditEntry(entry) {
     const u = me(); if (!u || !entry) return false;
@@ -2895,9 +3004,36 @@
     // Owner, manager, viewer always see totals — viewer is a trusted read-only role
     // (accountant, business partner). Staff is the only role gated by the owner toggle.
     if (role === 'owner' || role === 'manager' || role === 'viewer') return true;
+    // For staff, the gate is `business.staffSeesTotals`. We use a
+    // persistent snapshot so the answer is stable across the
+    // refresh→cloudPullAll race:
+    //
+    //   - On render #1 (loadAll cache): use the cached snapshot
+    //     if present. This is what we last saw the cloud say.
+    //   - On render #2 (after cloudPullAll): the snapshot was
+    //     just refreshed from the cloud; use that.
+    //
+    // If the owner just turned the toggle OFF, the snapshot is
+    // false from the moment cloudPullAll completes — staff will
+    // see hidden state without the "shows-for-a-second" flash on
+    // the NEXT refresh (because the snapshot is persisted to
+    // localStorage). For the current session, cloudPullAll's
+    // re-render still applies the new value.
+    const u = me();
+    const cached = u ? _getAccess(u.id, businessId) : null;
     const biz = data.businesses.find(b => b.id === businessId);
-    // staffSeesTotals defaults to true if undefined (backward compat for existing businesses)
-    return biz?.staffSeesTotals !== false;
+    // Prefer live data when present; fall back to cached snapshot.
+    // Default to true only if neither source has an answer
+    // (backward compat for very old businesses).
+    let staffSees;
+    if (biz && biz.staffSeesTotals !== undefined) staffSees = biz.staffSeesTotals;
+    else if (cached && cached.staffSeesTotals !== undefined) staffSees = cached.staffSeesTotals;
+    else staffSees = true;
+    // Snapshot live answer to persistent cache for next refresh.
+    if (u && biz && biz.staffSeesTotals !== undefined) {
+      _setAccess(u.id, businessId, undefined, !!biz.staffSeesTotals);
+    }
+    return staffSees !== false;
   }
   // Exports (PDF + Excel) are available to owner, manager, and viewer.
   // Staff is excluded — they're the front-of-house data entry role and
@@ -3453,7 +3589,13 @@
 
   function renderPermissions() {
     const role = session.activeBizId ? roleFor(session.activeBizId) : null;
-    document.getElementById('userRole').textContent = role ? role[0].toUpperCase() + role.slice(1) : '—';
+    // Display labels: the internal "staff" role is shown as "Team"
+    // in the UI per product copy (the management page is also
+    // called Team). All other roles use their internal name with
+    // a capital first letter.
+    const roleLabels = { owner: 'Owner', manager: 'Manager', staff: 'Team', viewer: 'Viewer' };
+    const roleLabel = role ? (roleLabels[role] || (role[0].toUpperCase() + role.slice(1))) : '—';
+    document.getElementById('userRole').textContent = roleLabel;
     const addBookBtn = document.getElementById('addBookBtn');
     if (addBookBtn) addBookBtn.disabled = !(role === 'owner' || role === 'manager');
     // The dual fabIn/fabOut buttons were replaced by a single fabEntry
@@ -5910,9 +6052,49 @@
       const books = data.books.filter(b => b.businessId === m.businessId);
       session.activeBookId = books[0]?.id || null;
       saveSession();
+      // Seed the access cache immediately so the very next render
+      // resolves the user's role without waiting for cloudPullAll.
+      // This is what makes the business appear in the sidebar
+      // instantly after acceptance.
+      if (u) {
+        try { _setAccess(u.id, m.businessId, m.role, undefined); } catch (_) {}
+      }
       toast('Invite accepted.');
-    } else { toast('Invite declined.'); }
-    renderAll();
+      renderAll();
+      // After accepting, RLS now lets this user read the business's
+      // books, entries, parties, categories, and accounts. The local
+      // data has none of those yet. Drain the sync queue (to push
+      // the accepted-status update to the cloud, which is what
+      // unlocks RLS for OUR reads), then pull everything fresh so
+      // the business's data appears immediately instead of slowly
+      // trickling in via realtime events (which would otherwise
+      // require the user to refresh 5–6 times).
+      if (u && u.cloud) {
+        (async () => {
+          try {
+            // Best-effort drain: push our membership-accepted op to the
+            // cloud so the server-side RLS check unlocks reads. Wait
+            // briefly for the queue to clear, then pull.
+            let waited = 0;
+            while (Array.isArray(__syncQueue) && __syncQueue.length > 0 && waited < 5000) {
+              try { await drainQueueOnce(); } catch (_) {}
+              await new Promise(r => setTimeout(r, 250));
+              waited += 250;
+            }
+            // Now pull every table so books/entries/parties/categories/
+            // accounts/announcements for this business arrive in one
+            // round trip. Silent + suppressReload so no UI confirm and
+            // no full-page reload.
+            await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
+          } catch (e) {
+            console.warn('Post-accept pull failed (will retry via realtime):', e?.message || e);
+          }
+        })();
+      }
+    } else {
+      toast('Invite declined.');
+      renderAll();
+    }
   }
   async function renameParty(partyId) {
     const p = data.parties.find(x => x.id === partyId);
@@ -11766,29 +11948,26 @@
       __syncSnapshot = null;
       console.log('Ownership migration: rewrote pre-cloud ownerIds to Supabase user. Sync queue/snapshot reset.');
     }
-    // Recovery path: catches the case where the first cloud sign-in completed
-    // (accounts is already [cloudUser]) but data records still carry the
-    // pre-migration ownerId. This happened in real deployments — every push
-    // was rejected by RLS until the records' ownerId was rewritten.
-    // We treat any non-matching ownerId/createdBy as "mine, fix it" because
-    // on a single-user device that's always the right call.
-    let recoveryFixed = 0;
+    // Poison-cleanup: previous versions ran a "recovery loop" that
+    // rewrote every business's ownerId to the signed-in user
+    // regardless of actual ownership. This poisoned localStorage on
+    // viewer/staff/manager devices. The first render after such a
+    // user updates to this version could briefly show them as Owner
+    // before cloudPullAll restores truth. Detect that state by
+    // cross-referencing the persistent access cache: if it
+    // previously confirmed a non-owner role for (this user, this
+    // business), the locally-cached "I own this" is poison — null
+    // out the ownerId so roleFor doesn't latch onto it. cloudPullAll
+    // shortly after will write the real owner_id.
     for (const b of data.businesses || []) {
-      if (b.ownerId !== sbUser.id) { b.ownerId = sbUser.id; recoveryFixed++; }
-    }
-    for (const e of data.entries || []) {
-      if (e.createdBy && e.createdBy !== sbUser.id) { e.createdBy = sbUser.id; recoveryFixed++; }
-      if (e.editedBy && e.editedBy !== sbUser.id)   { e.editedBy   = sbUser.id; recoveryFixed++; }
-    }
-    if (recoveryFixed) {
-      saveData();
-      try {
-        localStorage.removeItem(SYNC_QUEUE_KEY);
-        localStorage.removeItem(SYNC_SNAPSHOT_KEY);
-      } catch (_) {}
-      __syncQueue = [];
-      __syncSnapshot = null;
-      console.log('Recovery: fixed', recoveryFixed, 'stale-owner records, reset sync state.');
+      if (b.ownerId !== sbUser.id) continue;
+      const cachedAccess = _getAccess(sbUser.id, b.id);
+      if (cachedAccess && cachedAccess.role && cachedAccess.role !== 'owner') {
+        // Wipe the poisoned ownerId. Use empty string (not undefined)
+        // so the field stays present-but-falsy for downstream code
+        // that does truthy checks.
+        b.ownerId = '';
+      }
     }
     // First successful cloud sign-in completes the migration. From now on
     // this device is in cloud-only mode and we skip the migration screen.
@@ -12930,11 +13109,12 @@
       if (newRow.deleted_at) {
         const idx = list.findIndex(r => r.id === newRow.id);
         if (idx !== -1) {
+          const removed = list[idx];
           maybeWarnConflict(localKey, newRow.id, 'deleted');
           list.splice(idx, 1);
           // If this was OUR member row being soft-deleted, invalidate
           // role cache for that business so the demotion takes effect.
-          if (localKey === 'members') _invalidateRoleCacheIfMine(list[idx]);
+          if (localKey === 'members') _invalidateRoleCacheIfMine(removed);
           scheduleRemoteRender(localKey, newRow.id, 'delete');
         }
         return;
@@ -12951,12 +13131,15 @@
         }
         list[idx] = restored;
       }
-      // If a member row about US just changed status away from
-      // 'accepted', clear cached role so we don't keep showing
-      // privileged data. (Promotions/role changes are picked up
-      // naturally on next roleFor call since cache write happens
-      // whenever a real match is found.)
-      if (localKey === 'members' && restored.status !== 'accepted') {
+      // If a member row about US just changed to an explicit
+      // non-member status (revoked / declined / removed), clear
+      // cached role so we don't keep showing privileged data.
+      // Only known revocation statuses count — an undefined or
+      // malformed status field must NOT count as a revocation, or
+      // a transient payload deserialization issue would wipe a
+      // legitimate viewer's role cache and hide their data.
+      const REVOKED_STATUSES = new Set(['revoked', 'removed', 'declined']);
+      if (localKey === 'members' && restored.status && REVOKED_STATUSES.has(restored.status)) {
         _invalidateRoleCacheIfMine(restored);
       }
       // Announcement alert: only on INSERT (new posts) and only for
@@ -12991,7 +13174,17 @@
     const isMine = (member.userId && member.userId === u.id)
       || (member.userLogin && normalize(member.userLogin) === normalize(u.login));
     if (!isMine) return;
-    __roleCache.delete(_roleCacheKey(u.id, member.businessId));
+    // Only wipe the role component of the cache. The
+    // staffSeesTotals snapshot is a property of the BUSINESS (not
+    // the user's membership), so deleting the whole entry on a
+    // member-row revocation would lose unrelated state.
+    const key = _accessKey(u.id, member.businessId);
+    const entry = __accessCache[key];
+    if (!entry) return;
+    delete entry.role;
+    // If the entry is now empty (no role, no staff flag), drop it.
+    if (entry.staffSeesTotals === undefined) delete __accessCache[key];
+    _saveAccessCache(__accessCache);
   }
 
   // Pull recent changes — used on reconnect to catch missed events.
