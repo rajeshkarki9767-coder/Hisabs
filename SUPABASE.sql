@@ -198,30 +198,27 @@ alter table public.app_audit_expenses add column if not exists date date;
 update public.app_audit_expenses
   set date = to_date(month || '-01', 'YYYY-MM-DD')
   where date is null and month is not null;
+-- Optional quantity field — added in v50 for the Expenses redesign.
+-- Stored as numeric (not integer) so fractional units like "1.5 kg
+-- sugar" work. Nullable: legacy rows + entries where qty doesn't
+-- make sense (utilities, rent) just leave it empty.
+alter table public.app_audit_expenses add column if not exists qty numeric;
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
 create index if not exists idx_app_audit_expenses_date on public.app_audit_expenses(date);
 
--- "Others" expenses: same shape as app_audit_expenses but a separate
--- table because they have a different semantic meaning. Audit expenses
--- represent business-internal costs that come OUT of tracked accounts.
--- Others represent costs paid from UNTRACKED sources — the owner's
--- personal wallet, a manager fronting cash, a partner covering a bill,
--- etc. They still deduct from profit but the money never flowed
--- through a tracked cash account, so they can't be regular entries.
-create table if not exists public.app_other_expenses (
-  id text primary key,
-  business_id text not null references public.app_businesses(id) on delete cascade,
-  month text,
-  date date,
-  label text,
-  paid_by text,                       -- optional free-text: "Owner Rajesh", "Manager Bina", etc.
-  amount numeric not null default 0,
-  created_at timestamptz default now(),
-  updated_at timestamptz default now(),
-  deleted_at timestamptz
-);
-create index if not exists idx_app_other_expenses_business_id on public.app_other_expenses(business_id);
-create index if not exists idx_app_other_expenses_date on public.app_other_expenses(date);
+-- Reimbursements ("Others") table — REMOVED in v49.
+-- The original concept (out-of-pocket expenses from untracked sources)
+-- turned out to be redundant with the existing cash-account system:
+-- the recommended workflow now is to create a cash account named
+-- "Owner's wallet" (or similar) and log entries there. The audit
+-- treats every cash account uniformly, so out-of-pocket costs are
+-- captured naturally without a separate ledger.
+--
+-- DROP IF EXISTS is safe on fresh databases (no-op) and on existing
+-- ones (cascades to remove RLS policies + realtime publication
+-- references + any orphan rows). This SQL is idempotent — re-running
+-- it on a database that already dropped the table is also a no-op.
+drop table if exists public.app_other_expenses cascade;
 
 -- Tax rate stored per business. Owner-editable; viewer/manager can
 -- see it via the Audit view but cannot change it. Stored as numeric
@@ -404,6 +401,44 @@ create table if not exists public.app_announcements (
 alter table public.app_announcements add column if not exists important boolean not null default false;
 create index if not exists idx_app_announcements_business on public.app_announcements(business_id, created_at desc);
 
+-- Internal transfers between two cash accounts of the same business.
+-- A transfer creates 2 or 3 paired entries (out from source, in to
+-- destination, and optionally a second out for the fee) and one
+-- parent row here that points at them. The parent makes it trivial
+-- to reverse the whole thing atomically on any device — delete the
+-- row and the realtime fan-out cascades the children via the
+-- transfer_id column on app_entries.
+--
+-- Owner-only at the app layer (and enforced by the standard
+-- can_write_business policy, which the owner satisfies). Other
+-- roles can READ transfers (so they see paired entries on the
+-- Entries page) but cannot create or reverse them.
+create table if not exists public.app_transfers (
+  id text primary key,
+  business_id text not null references public.app_businesses(id) on delete cascade,
+  from_account_id text references public.app_cash_accounts(id) on delete set null,
+  to_account_id text references public.app_cash_accounts(id) on delete set null,
+  amount numeric not null,
+  fee numeric not null default 0,
+  transfer_date date,
+  description text,
+  -- JSON array of entry ids in app_entries that belong to this
+  -- transfer. Used for atomic reversal on any device.
+  entry_ids jsonb not null default '[]'::jsonb,
+  created_by uuid,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+create index if not exists idx_app_transfers_business on public.app_transfers(business_id, created_at desc);
+
+-- transfer_id on app_entries links a row to its parent in app_transfers.
+-- Nullable: only entries created by a transfer have this set.
+-- Idempotent: re-running this SQL on a database that already has the
+-- column is a no-op.
+alter table public.app_entries add column if not exists transfer_id text;
+create index if not exists idx_app_entries_transfer_id on public.app_entries(transfer_id) where transfer_id is not null;
+
 -- ----------------------------------------------------------------
 -- 2. REPLICA IDENTITY FULL
 -- ----------------------------------------------------------------
@@ -427,12 +462,12 @@ alter table public.app_categories      replica identity full;
 alter table public.app_members         replica identity full;
 alter table public.app_entries         replica identity full;
 alter table public.app_audit_expenses  replica identity full;
-alter table public.app_other_expenses  replica identity full;
 alter table public.app_device_names    replica identity full;
 alter table public.app_failed_logins   replica identity full;
 alter table public.app_audit_log       replica identity full;
 alter table public.app_quick_look      replica identity full;
 alter table public.app_announcements   replica identity full;
+alter table public.app_transfers       replica identity full;
 
 -- ----------------------------------------------------------------
 -- 2.5. Supabase Realtime publication membership
@@ -467,11 +502,11 @@ declare
     'app_members',
     'app_entries',
     'app_audit_expenses',
-    'app_other_expenses',
     'app_device_names',
     'app_audit_log',
     'app_quick_look',
     'app_announcements',
+    'app_transfers',
     'app_push_subscriptions'
   ];
 begin
@@ -584,10 +619,10 @@ alter table public.app_categories      enable row level security;
 alter table public.app_members         enable row level security;
 alter table public.app_entries         enable row level security;
 alter table public.app_audit_expenses  enable row level security;
-alter table public.app_other_expenses  enable row level security;
 alter table public.app_device_names    enable row level security;
 alter table public.app_quick_look      enable row level security;
 alter table public.app_announcements   enable row level security;
+alter table public.app_transfers       enable row level security;
 
 -- ----------------------------------------------------------------
 -- 5. Policies
@@ -631,7 +666,7 @@ declare
 begin
   for t in select unnest(array[
     'app_books','app_account_groups','app_cash_accounts','app_parties',
-    'app_categories','app_entries','app_audit_expenses','app_other_expenses'
+    'app_categories','app_entries','app_audit_expenses'
   ])
   loop
     execute format('drop policy if exists %1$s_select on public.%1$s', t);
@@ -656,6 +691,25 @@ begin
     );
   end loop;
 end $$;
+
+-- app_transfers: read for any business member, write owner-only.
+-- Mirrors the app's client-side gate ("Only the owner can transfer.")
+-- so the rule holds even if a non-owner tried to manipulate sync.
+-- DROP policies first so re-running this SQL replaces any earlier
+-- version cleanly.
+drop policy if exists app_transfers_select on public.app_transfers;
+create policy app_transfers_select on public.app_transfers
+  for select using (public.can_read_business(business_id));
+drop policy if exists app_transfers_insert on public.app_transfers;
+create policy app_transfers_insert on public.app_transfers
+  for insert with check (public.user_owns_business(business_id));
+drop policy if exists app_transfers_update on public.app_transfers;
+create policy app_transfers_update on public.app_transfers
+  for update using (public.user_owns_business(business_id))
+              with check (public.user_owns_business(business_id));
+drop policy if exists app_transfers_delete on public.app_transfers;
+create policy app_transfers_delete on public.app_transfers
+  for delete using (public.user_owns_business(business_id));
 
 -- app_members: invitee can see/accept their row; business owner manages
 drop policy if exists app_members_select on public.app_members;
