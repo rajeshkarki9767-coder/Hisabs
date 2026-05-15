@@ -321,14 +321,24 @@ create table if not exists public.app_audit_log (
   user_agent text,
   occurred_at timestamptz default now()
 );
+-- v60: add business_id column so owner-scoped activity (entry edits,
+-- deletes) can be filtered by business and visible to the owner via
+-- RLS. Existing per-user rows (sign-in, business_created, etc.) stay
+-- with NULL business_id, keeping the user-only filter working for
+-- those. The whole migration is idempotent — re-running this file is
+-- safe.
+alter table public.app_audit_log
+  add column if not exists business_id text;
 create index if not exists idx_app_audit_log_user_time on public.app_audit_log(user_id, occurred_at desc);
+create index if not exists idx_app_audit_log_biz_time on public.app_audit_log(business_id, occurred_at desc);
 
--- Keep the audit log compact. After every insert, prune rows so each
--- user has at most 10 entries (the 10 most recent by occurred_at).
--- Storage in Supabase is metered, and the activity log is for at-a-
--- glance review, not forensics — older entries are noise. Trigger
--- runs per-row after insert; deletes excess rows belonging to the
--- same user whose new row just landed.
+-- Keep the audit log compact. Two pruning rules now:
+--   (a) per-user rows (business_id IS NULL) — cap at 10
+--   (b) per-business rows (business_id NOT NULL) — cap at 500 so the
+--       owner has weeks of edit/delete history to scroll through.
+-- Triggers fire after each insert and trim only the bucket the new row
+-- belongs to. Stronger separation prevents one user's heavy editing
+-- from evicting another's sign-in events.
 create or replace function public.prune_audit_log_for_user()
 returns trigger
 language plpgsql
@@ -336,13 +346,23 @@ security definer
 set search_path = public, auth
 as $$
 begin
-  delete from public.app_audit_log
-  where id in (
-    select id from public.app_audit_log
-    where user_id = new.user_id
-    order by occurred_at desc
-    offset 10
-  );
+  if new.business_id is null then
+    delete from public.app_audit_log
+    where id in (
+      select id from public.app_audit_log
+      where user_id = new.user_id and business_id is null
+      order by occurred_at desc
+      offset 10
+    );
+  else
+    delete from public.app_audit_log
+    where id in (
+      select id from public.app_audit_log
+      where business_id = new.business_id
+      order by occurred_at desc
+      offset 500
+    );
+  end if;
   return new;
 end;
 $$;
@@ -403,6 +423,30 @@ create table if not exists public.app_announcements (
 -- Migration safety: existing tables get the column defaulted to false.
 alter table public.app_announcements add column if not exists important boolean not null default false;
 create index if not exists idx_app_announcements_business on public.app_announcements(business_id, created_at desc);
+
+-- v61: per-user views of an announcement. One row per (user_id,
+-- announcement_id). Records when the user saw it and, optionally,
+-- whether they reacted. Owner can see who has/hasn't viewed and
+-- who's reacted; members only see their own row.
+--
+-- This is intentionally a single table (instead of a separate views
+-- + reactions split) because the two are 1:1 by (user, announcement)
+-- anyway and joining them on read costs more than carrying both
+-- columns. NULL reacted_at = "viewed but did not react"; non-null
+-- = "reacted at that time".
+create table if not exists public.app_announcement_views (
+  id text primary key,
+  announcement_id text not null references public.app_announcements(id) on delete cascade,
+  user_id uuid not null,
+  viewed_at timestamptz default now(),
+  reacted_at timestamptz,
+  reaction text,  -- emoji/short string; nullable. Defaults to "❤" if reacted.
+  -- One row per user-per-announcement. Re-viewing updates viewed_at;
+  -- reacting updates reacted_at + reaction.
+  unique (announcement_id, user_id)
+);
+create index if not exists idx_app_ann_views_ann on public.app_announcement_views(announcement_id);
+create index if not exists idx_app_ann_views_user on public.app_announcement_views(user_id);
 
 -- Internal transfers between two cash accounts of the same business.
 -- A transfer creates 2 or 3 paired entries (out from source, in to
@@ -625,6 +669,7 @@ alter table public.app_audit_expenses  enable row level security;
 alter table public.app_device_names    enable row level security;
 alter table public.app_quick_look      enable row level security;
 alter table public.app_announcements   enable row level security;
+alter table public.app_announcement_views enable row level security;
 alter table public.app_transfers       enable row level security;
 
 -- ----------------------------------------------------------------
@@ -836,6 +881,32 @@ drop policy if exists app_announcements_delete on public.app_announcements;
 create policy app_announcements_delete on public.app_announcements
   for delete using (public.user_owns_business(business_id));
 
+-- v61: app_announcement_views RLS — user can read/write their own
+-- view rows. Owner of the announcement's business can read every
+-- view row for that announcement to see who has/hasn't read or
+-- reacted. Owner cannot WRITE other users' view rows (can't fake
+-- engagement).
+alter table public.app_announcement_views enable row level security;
+drop policy if exists app_ann_views_select on public.app_announcement_views;
+create policy app_ann_views_select on public.app_announcement_views
+  for select using (
+    user_id = auth.uid()
+    or exists (
+      select 1 from public.app_announcements a
+      where a.id = announcement_id
+        and public.user_owns_business(a.business_id)
+    )
+  );
+drop policy if exists app_ann_views_insert on public.app_announcement_views;
+create policy app_ann_views_insert on public.app_announcement_views
+  for insert with check (user_id = auth.uid());
+drop policy if exists app_ann_views_update on public.app_announcement_views;
+create policy app_ann_views_update on public.app_announcement_views
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+drop policy if exists app_ann_views_delete on public.app_announcement_views;
+create policy app_ann_views_delete on public.app_announcement_views
+  for delete using (user_id = auth.uid());
+
 -- app_failed_logins: must be accessible to unauthenticated callers
 -- (they're trying to sign in!). The data exposed is minimal — just
 -- attempt counts per email — and the table is write-mostly: clients
@@ -866,7 +937,14 @@ create policy app_failed_logins_delete on public.app_failed_logins
 alter table public.app_audit_log enable row level security;
 drop policy if exists app_audit_log_select on public.app_audit_log;
 create policy app_audit_log_select on public.app_audit_log
-  for select using (user_id = auth.uid());
+  for select using (
+    -- Self: any row I wrote
+    user_id = auth.uid()
+    -- OR: I own the business this row is scoped to. Owner sees the
+    -- full edit/delete trail across the team. user_owns_business is
+    -- security-definer + non-recursive so no RLS storm.
+    or (business_id is not null and public.user_owns_business(business_id))
+  );
 drop policy if exists app_audit_log_insert on public.app_audit_log;
 create policy app_audit_log_insert on public.app_audit_log
   for insert with check (user_id = auth.uid());

@@ -63,11 +63,25 @@
       "label": "Money grouped by account — cash, bank, cards, wallets"
     },
     {
+      "src": "screenshots/05-insights-mobile.png",
+      "sizes": "412x892",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Business insights — KPIs, growth trends, and rankings"
+    },
+    {
       "src": "screenshots/04-entries-wide.png",
       "sizes": "1280x720",
       "type": "image/png",
       "form_factor": "wide",
       "label": "Full bookkeeping interface on tablet or desktop"
+    },
+    {
+      "src": "screenshots/06-insights-wide.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Business insights dashboard on desktop"
     }
   ]
 }
