@@ -201,6 +201,36 @@ update public.app_audit_expenses
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
 create index if not exists idx_app_audit_expenses_date on public.app_audit_expenses(date);
 
+-- "Others" expenses: same shape as app_audit_expenses but a separate
+-- table because they have a different semantic meaning. Audit expenses
+-- represent business-internal costs that come OUT of tracked accounts.
+-- Others represent costs paid from UNTRACKED sources — the owner's
+-- personal wallet, a manager fronting cash, a partner covering a bill,
+-- etc. They still deduct from profit but the money never flowed
+-- through a tracked cash account, so they can't be regular entries.
+create table if not exists public.app_other_expenses (
+  id text primary key,
+  business_id text not null references public.app_businesses(id) on delete cascade,
+  month text,
+  date date,
+  label text,
+  paid_by text,                       -- optional free-text: "Owner Rajesh", "Manager Bina", etc.
+  amount numeric not null default 0,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  deleted_at timestamptz
+);
+create index if not exists idx_app_other_expenses_business_id on public.app_other_expenses(business_id);
+create index if not exists idx_app_other_expenses_date on public.app_other_expenses(date);
+
+-- Tax rate stored per business. Owner-editable; viewer/manager can
+-- see it via the Audit view but cannot change it. Stored as numeric
+-- so non-integer percentages (e.g. 8.5%) are supported. Bounded to
+-- 0..100 at the application layer; we keep the DB constraint loose
+-- (no CHECK) so future business cases (negative for rebates, >100
+-- for tiered rates) aren't blocked by schema.
+alter table public.app_businesses add column if not exists tax_rate numeric not null default 0;
+
 -- Device names: friendly labels users give to their browsers/sessions.
 -- One row per (user, device) pair. Multiple sessions on the same browser
 -- share a device_id (kept in browser localStorage), so renaming once
@@ -397,6 +427,7 @@ alter table public.app_categories      replica identity full;
 alter table public.app_members         replica identity full;
 alter table public.app_entries         replica identity full;
 alter table public.app_audit_expenses  replica identity full;
+alter table public.app_other_expenses  replica identity full;
 alter table public.app_device_names    replica identity full;
 alter table public.app_failed_logins   replica identity full;
 alter table public.app_audit_log       replica identity full;
@@ -436,6 +467,7 @@ declare
     'app_members',
     'app_entries',
     'app_audit_expenses',
+    'app_other_expenses',
     'app_device_names',
     'app_audit_log',
     'app_quick_look',
@@ -552,6 +584,7 @@ alter table public.app_categories      enable row level security;
 alter table public.app_members         enable row level security;
 alter table public.app_entries         enable row level security;
 alter table public.app_audit_expenses  enable row level security;
+alter table public.app_other_expenses  enable row level security;
 alter table public.app_device_names    enable row level security;
 alter table public.app_quick_look      enable row level security;
 alter table public.app_announcements   enable row level security;
@@ -598,7 +631,7 @@ declare
 begin
   for t in select unnest(array[
     'app_books','app_account_groups','app_cash_accounts','app_parties',
-    'app_categories','app_entries','app_audit_expenses'
+    'app_categories','app_entries','app_audit_expenses','app_other_expenses'
   ])
   loop
     execute format('drop policy if exists %1$s_select on public.%1$s', t);

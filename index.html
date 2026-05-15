@@ -259,6 +259,26 @@
   .auth-pwd-hint.ok { color: var(--gain); }
   .auth-pwd-hint.bad { color: var(--loss); }
 
+  /* Skip-to-content link: visually hidden until keyboard-focused.
+     Standard WCAG 2.4.1 pattern. Renders on top of everything when
+     visible, with the accent color so it's obvious. */
+  .skip-link {
+    position: fixed; left: 8px; top: 8px;
+    z-index: 9999;
+    background: var(--accent); color: var(--paper);
+    padding: 0.5rem 0.85rem;
+    border-radius: var(--r-sm, 6px);
+    font-size: 0.85rem; font-weight: 600;
+    text-decoration: none;
+    transform: translateY(-150%);
+    transition: transform 0.15s ease;
+  }
+  .skip-link:focus {
+    transform: translateY(0);
+    outline: 2px solid var(--paper);
+    outline-offset: 2px;
+  }
+
   /* ============ AUTH ============ */
   .auth-screen { position: fixed; inset: 0; z-index: 100; display: none; place-items: center; padding: 1.5rem; background: var(--paper); overflow-y: auto; }
   .auth-screen.is-active { display: grid; }
@@ -377,6 +397,17 @@
       animation: none !important;
       opacity: 1 !important;
       stroke-dashoffset: 0 !important;
+    }
+    /* Globally tone down motion for users who've opted out. Keeps
+       transitions feeling instant rather than animated. Uses a
+       very small non-zero duration (0.01ms) instead of 0 because a
+       handful of older browsers register `transition: none` as a
+       glitch when JS toggles state mid-render. */
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
     }
   }
   .auth-card { width: 100%; max-width: 400px; position: relative; z-index: 2; }
@@ -1133,6 +1164,110 @@
   .audit-net-value { font-family: var(--font-mono); font-size: 2.4rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; margin: 0.45rem 0 0.35rem; font-variant-numeric: tabular-nums; color: var(--gain); }
   .audit-net-value.neg { color: var(--loss); }
   .audit-net-meta { font-size: 0.74rem; color: var(--ink-soft); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  /* Operating profit (pre-tax) — a "lite" version of the Net profit
+     hero card. Visually subordinate: thinner border, smaller value,
+     muted color. Sits above the tax row and net-profit hero so the
+     user can see the full chain: cash profit → operating profit →
+     net profit. */
+  .audit-operating-profit {
+    padding: 0.85rem 1.1rem;
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--ink-mute);
+    border-radius: var(--r);
+    margin: 0.85rem 0 0;
+    text-align: center;
+  }
+  .audit-operating-profit.neg { border-left-color: var(--loss); }
+  .audit-operating-profit.pos { border-left-color: var(--gain); }
+  .audit-operating-profit-label {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.16em;
+    color: var(--ink-mute); font-weight: 700;
+  }
+  .audit-operating-profit-value {
+    font-family: var(--font-mono); font-size: 1.45rem; font-weight: 600;
+    letter-spacing: -0.02em; line-height: 1.1;
+    margin: 0.25rem 0 0.2rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .audit-operating-profit.neg .audit-operating-profit-value { color: var(--loss); }
+  .audit-operating-profit-meta {
+    font-size: 0.7rem; color: var(--ink-mute);
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  }
+  /* Sub-label below the value in a totals card — e.g. "From tracked
+     accounts" under Cash Out. Small, italic, muted. */
+  .audit-month-totals-sub {
+    font-size: 0.62rem; color: var(--ink-mute);
+    margin-top: 0.15rem; font-style: italic;
+  }
+  .audit-month-totals-sub-inline {
+    font-size: 0.62rem; color: var(--ink-mute);
+    margin-left: 0.3rem; font-style: italic; font-weight: 400;
+    text-transform: none; letter-spacing: 0;
+  }
+  /* Tax % row — sits above the Net profit card. Owner sees an
+     editable button; viewer/manager see a read-only span. */
+  .audit-tax-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0.7rem 1rem;
+    background: var(--paper-deep, var(--surface-2));
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin: 0.85rem 0 0;
+  }
+  .audit-tax-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); font-weight: 600; }
+  .audit-tax-meta { font-size: 0.7rem; color: var(--ink-mute); margin-top: 0.15rem; }
+  .audit-tax-btn {
+    font: inherit; font-family: var(--font-mono);
+    font-size: 1.1rem; font-weight: 600;
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm, 6px);
+    padding: 0.35rem 0.7rem;
+    cursor: pointer; color: var(--ink);
+    display: inline-flex; align-items: center;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .audit-tax-btn:hover { background: var(--surface-3, var(--surface-2)); border-color: var(--ink-mute); }
+  .audit-tax-readonly {
+    font-family: var(--font-mono);
+    font-size: 1.1rem; font-weight: 600;
+    color: var(--ink);
+    padding: 0.35rem 0.7rem;
+    border: 1px dashed var(--line);
+    border-radius: var(--r-sm, 6px);
+  }
+  /* "paid by" chip on Others rows. Small, muted, italic so it
+     reads as metadata, not the main description. */
+  .audit-exp-paidby {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.4rem;
+    font-size: 0.68rem;
+    color: var(--ink-mute);
+    background: var(--surface-3, var(--surface-2));
+    border-radius: var(--r-sm, 6px);
+    font-style: italic;
+    font-weight: 500;
+  }
+  /* The Others-tab add row needs one more column than the Expenses
+     add row (extra "paid by" field). Stack on narrow viewports. */
+  .audit-exp-add-others {
+    display: grid;
+    grid-template-columns: 1.4fr 0.7fr 0.9fr 0.8fr auto;
+    gap: 0.4rem;
+    align-items: center;
+  }
+  @media (max-width: 700px) {
+    .audit-exp-add-others {
+      grid-template-columns: 1fr 1fr;
+      grid-auto-rows: auto;
+    }
+    .audit-exp-add-others input { width: 100%; }
+    .audit-exp-add-others > button { grid-column: 1 / -1; }
+  }
   /* "Total expenses" row below the Cash in / Cash out / Profit grid. Full
      width, same card style, but visually grouped with the totals strip above. */
   .audit-expenses-total-row { margin-top: 0.55rem; }
@@ -1758,6 +1893,10 @@
 </style>
 </head>
 <body>
+<!-- Skip-to-content link: hidden until focused (WCAG 2.4.1).
+     Lets keyboard users jump past the sidebar straight into the
+     main content area without tabbing through every nav item. -->
+<a href="#mainContent" class="skip-link">Skip to content</a>
 
 <!-- Boot splash: shown until JS decides whether to render the auth screen or
      the app. Without this, refreshing while signed in flashes the auth screen
@@ -1895,29 +2034,33 @@
 
       <div>
         <div class="sidebar-section-label"><span>View</span></div>
-        <div class="sidebar-nav">
-          <div class="sidebar-nav-item" id="navEntries" onclick="switchView('entries')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        <div class="sidebar-nav" role="navigation" aria-label="Main views">
+          <div class="sidebar-nav-item" id="navEntries" onclick="switchView('entries')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('entries');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
             Entries
           </div>
-          <div class="sidebar-nav-item" id="navParties" onclick="switchView('parties')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="sidebar-nav-item" id="navParties" onclick="switchView('parties')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('parties');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Parties
           </div>
-          <div class="sidebar-nav-item" id="navCategories" onclick="switchView('categories')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+          <div class="sidebar-nav-item" id="navCategories" onclick="switchView('categories')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('categories');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
             Categories
           </div>
-          <div class="sidebar-nav-item" id="navAccounts" onclick="switchView('accounts')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h4"/><path d="M14 14h4"/></svg>
+          <div class="sidebar-nav-item" id="navAccounts" onclick="switchView('accounts')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('accounts');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 14h4"/><path d="M14 14h4"/></svg>
             Accounts
           </div>
-          <div class="sidebar-nav-item" id="navExpenses" onclick="switchView('expenses')" style="display:none;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          <div class="sidebar-nav-item" id="navExpenses" onclick="switchView('expenses')" style="display:none;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('expenses');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
             Expenses
           </div>
-          <div class="sidebar-nav-item" id="navAudit" onclick="switchView('audit')" style="display:none;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/><circle cx="7" cy="14" r="1.5"/><circle cx="11" cy="10" r="1.5"/><circle cx="14" cy="13" r="1.5"/><circle cx="19" cy="7" r="1.5"/></svg>
+          <div class="sidebar-nav-item" id="navOthers" onclick="switchView('others')" style="display:none;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('others');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M9 15c.83-.83 2.17-.83 3 0"/></svg>
+            Reimbursements
+          </div>
+          <div class="sidebar-nav-item" id="navAudit" onclick="switchView('audit')" style="display:none;" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('audit');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/><circle cx="7" cy="14" r="1.5"/><circle cx="11" cy="10" r="1.5"/><circle cx="14" cy="13" r="1.5"/><circle cx="19" cy="7" r="1.5"/></svg>
             Audit
           </div>
         </div>
@@ -1928,13 +2071,13 @@
            business or the current user isn't its owner. -->
       <div id="sidebarManagementGroup" style="display:none;">
         <div class="sidebar-section-label"><span>Management</span></div>
-        <div class="sidebar-nav">
-          <div class="sidebar-nav-item" id="navAnnouncements" onclick="switchView('announcements')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
+        <div class="sidebar-nav" role="navigation" aria-label="Management">
+          <div class="sidebar-nav-item" id="navAnnouncements" onclick="switchView('announcements')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('announcements');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
             Announcements
           </div>
-          <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('staff');}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Team
           </div>
         </div>
@@ -2026,7 +2169,7 @@
     <!-- The desktop sync badge is rendered inside the date strip (between
          day and date). The mobile sync dot lives in the topbar. -->
     <div class="date-strip" id="dateStrip"></div>
-    <div id="mainContent"></div>
+    <div id="mainContent" tabindex="-1"></div>
   </main>
 
   <!-- Floating action button (mobile). Single + Entry button; the
@@ -2456,7 +2599,7 @@
   migrateFromV4();
 
   let accounts = [];
-  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], quickLook: [], announcements: [] };
+  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], otherExpenses: [], quickLook: [], announcements: [] };
   // parties: [{ id, businessId, name, kind: 'customer'|'vendor'|'both', createdAt }]
   // categories: [{ id, businessId, name }]
   // accountGroups: [{ id, businessId, name, kind: 'cash'|'wallet'|'bank'|'card'|'other', sortOrder }]
@@ -2524,6 +2667,7 @@
           cashAccounts: Array.isArray(d.cashAccounts) ? d.cashAccounts : [],
           accountGroups: Array.isArray(d.accountGroups) ? d.accountGroups : [],
           auditExpenses: Array.isArray(d.auditExpenses) ? d.auditExpenses : [],
+          otherExpenses: Array.isArray(d.otherExpenses) ? d.otherExpenses : [],
           quickLook: Array.isArray(d.quickLook) ? d.quickLook : [],
           announcements: Array.isArray(d.announcements) ? d.announcements : [],
         };
@@ -2695,6 +2839,19 @@
   // Nepal at UTC+5:45). en-CA gives YYYY-MM-DD format consistently.
   const today = () => {
     const d = new Date();
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // YYYY-MM-DD for "yesterday" in the user's local timezone. Built
+  // by subtracting one day from now, not by string-mangling today()'s
+  // result — the latter would break on month/year boundaries (e.g.
+  // the 1st of the month).
+  const yesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
@@ -3664,7 +3821,19 @@
     if (!p || p.mode === 'current') return monthLabel(today().slice(0,7));
     if (p.mode === 'month') return monthLabel(p.monthKey);
     if (p.mode === 'all') return 'All time';
-    if (p.mode === 'range') return `${p.from} → ${p.to}`;
+    if (p.mode === 'range') {
+      // Friendly labels for single-day ranges that match today/yesterday.
+      // Anything else (a different single day, or a multi-day range)
+      // falls through to the from→to format.
+      if (p.from === p.to) {
+        const t = today();
+        const y = yesterday();
+        if (p.from === t) return 'Today';
+        if (p.from === y) return 'Yesterday';
+        return p.from; // single arbitrary day → just show the date
+      }
+      return `${p.from} → ${p.to}`;
+    }
     return '—';
   }
   function periodPredicate() {
@@ -3900,17 +4069,26 @@
   }
 
   function renderSidebarNav() {
-    document.getElementById('navEntries').classList.toggle('active', session.view === 'entries');
-    document.getElementById('navParties').classList.toggle('active', session.view === 'parties' || session.view === 'party-detail');
-    document.getElementById('navCategories').classList.toggle('active', session.view === 'categories' || session.view === 'category-detail');
-    document.getElementById('navAccounts').classList.toggle('active', session.view === 'accounts' || session.view === 'account-detail');
+    // Helper: toggle .active class AND aria-current for screen
+    // readers so the focused user knows which view they're on.
+    const setActive = (id, isActive) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.toggle('active', isActive);
+      if (isActive) el.setAttribute('aria-current', 'page');
+      else el.removeAttribute('aria-current');
+    };
+    setActive('navEntries',    session.view === 'entries');
+    setActive('navParties',    session.view === 'parties' || session.view === 'party-detail');
+    setActive('navCategories', session.view === 'categories' || session.view === 'category-detail');
+    setActive('navAccounts',   session.view === 'accounts' || session.view === 'account-detail');
     const navAudit = document.getElementById('navAudit');
     if (navAudit) {
       // Visible to owner, manager, and viewer (see canSeeAudit).
       // Staff role doesn't see this tab.
       const canSee = session.activeBizId && canSeeAudit(session.activeBizId);
       navAudit.style.display = canSee ? 'flex' : 'none';
-      navAudit.classList.toggle('active', session.view === 'audit');
+      setActive('navAudit', session.view === 'audit');
     }
     const navExpenses = document.getElementById('navExpenses');
     if (navExpenses) {
@@ -3918,15 +4096,22 @@
       // calculation, so they share the same visibility rule.
       const canSee = session.activeBizId && canSeeAudit(session.activeBizId);
       navExpenses.style.display = canSee ? 'flex' : 'none';
-      navExpenses.classList.toggle('active', session.view === 'expenses');
+      setActive('navExpenses', session.view === 'expenses');
     }
-    const navQuickLook = document.getElementById('navQuickLook');
-    if (navQuickLook) navQuickLook.classList.toggle('active', session.view === 'quickLook');
+    const navOthers = document.getElementById('navOthers');
+    if (navOthers) {
+      // Same gate as Audit/Expenses — Others is a parallel expense
+      // ledger that also feeds Net profit.
+      const canSee = session.activeBizId && canSeeAudit(session.activeBizId);
+      navOthers.style.display = canSee ? 'flex' : 'none';
+      setActive('navOthers', session.view === 'others');
+    }
+    setActive('navQuickLook', session.view === 'quickLook');
     // Announcements tab (under Quick Look) — active state + count badge
     // for important unread/recent posts. Visible to anyone with a role.
     const navAnnouncementsView = document.getElementById('navAnnouncementsView');
     if (navAnnouncementsView) {
-      navAnnouncementsView.classList.toggle('active', session.view === 'announcementsView');
+      setActive('navAnnouncementsView', session.view === 'announcementsView');
       const badge = document.getElementById('navAnnouncementsBadge');
       if (badge) {
         const count = session.activeBizId
@@ -4038,6 +4223,7 @@
     if (session.view === 'account-detail') { renderAccountDetailView(root); return; }
     if (session.view === 'audit') { renderAuditView(root); return; }
     if (session.view === 'expenses') { renderExpensesView(root); return; }
+    if (session.view === 'others') { renderOthersView(root); return; }
     if (session.view === 'staff') { renderStaffView(root); return; }
     if (session.view === 'announcements') { renderAnnouncementsManageView(root); return; }
     if (session.view === 'announcementsView') { renderAnnouncementsReadView(root); return; }
@@ -4213,14 +4399,38 @@
     const p = session.period;
     const isCurrent = p.mode === 'current';
     const isAll = p.mode === 'all';
-    const isCustom = !isCurrent && !isAll;
+    // Today / Yesterday are stored as single-day ranges so they reuse
+    // the existing predicate ("date >= from && date <= to") without
+    // needing a new mode. They count as "active" only when from===to
+    // and the date matches today/yesterday respectively — a custom
+    // 1-day range to some other date (e.g. last Friday) stays Custom.
+    const t = today();
+    const y = yesterday();
+    const isToday = p.mode === 'range' && p.from === t && p.to === t;
+    const isYesterday = p.mode === 'range' && p.from === y && p.to === y;
+    // Custom = any non-current, non-all, non-today, non-yesterday state.
+    const isCustom = !isCurrent && !isAll && !isToday && !isYesterday;
     return `<div class="period-bar">
       <span class="period-bar-label">Showing</span>
       <button class="period-tab ${isCurrent ? 'active' : ''}" onclick="setPeriod({mode:'current'})">This Month</button>
+      <button class="period-tab ${isToday ? 'active' : ''}" onclick="setPeriodToday()">Today</button>
+      <button class="period-tab ${isYesterday ? 'active' : ''}" onclick="setPeriodYesterday()">Yesterday</button>
       <button class="period-tab ${isAll ? 'active' : ''}" onclick="setPeriod({mode:'all'})">All Time</button>
       <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom ${isCustom ? '·' : '…'}</button>
       <span class="period-current">${escapeHtml(currentPeriodLabel())}</span>
     </div>`;
+  }
+
+  // Convenience wrappers so the button onclick stays readable, and so
+  // the same handler can be triggered programmatically (sidebar nav,
+  // tests, future keyboard shortcuts) without recomputing dates inline.
+  function setPeriodToday() {
+    const t = today();
+    setPeriod({ mode: 'range', from: t, to: t });
+  }
+  function setPeriodYesterday() {
+    const y = yesterday();
+    setPeriod({ mode: 'range', from: y, to: y });
   }
 
   function renderStats() {
@@ -4607,10 +4817,10 @@
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
       <div class="entry-balance">${canSeeTotals(session.activeBizId) ? fmt(e._runBal) : '—'}</div>
       <div class="entry-actions">
-        <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t}>
+        <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t} aria-label="Edit entry">
           <svg width="15" height="15"><use href="#ico-edit"/></svg>
         </button>
-        <button class="entry-act-btn danger" onclick="deleteEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t}>
+        <button class="entry-act-btn danger" onclick="deleteEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t} aria-label="Delete entry">
           <svg width="15" height="15"><use href="#ico-trash"/></svg>
         </button>
       </div>
@@ -4840,12 +5050,15 @@
       <div class="stat"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${allEntries.length} total</div></div>
     </div>`;
 
+    const _emptyMsg = __partyDetailCatFilter
+      ? `No transactions with this party in “${escapeHtml(__partyDetailCatFilter)}” yet.`
+      : 'No transactions with this party yet.';
     const entriesHTML = entries.length ? entries.map(e => {
       const book = data.books.find(b => b.id === e.bookId);
       const enriched = { ...e, _runBal: 0, _bookName: book?.name || '' };
       // override row to show book name in place of balance for party-detail view (only matters desktop)
       return renderPartyEntryRow(enriched, isMobile);
-    }).join('') : '<div class="empty"><div class="empty-headline">No transactions with this party yet.</div></div>';
+    }).join('') : `<div class="empty"><div class="empty-headline">${_emptyMsg}</div></div>`;
 
     root.innerHTML = `
       <button class="party-detail-back" onclick="switchView('parties')">
@@ -5614,6 +5827,9 @@
       for (const x of data.auditExpenses) {
         if (x.businessId === biz.id && x.month) months.add(x.month);
       }
+      for (const x of (data.otherExpenses || [])) {
+        if (x.businessId === biz.id && x.month) months.add(x.month);
+      }
       return [...months].sort();
     }
     if (p.mode === 'range') {
@@ -5785,6 +6001,116 @@
     toast('Expense updated.');
   }
 
+  // ================================================================
+  // OTHER EXPENSES (UI-labeled "Reimbursements")
+  // ================================================================
+  // The user-facing name is "Reimbursements" — costs paid from
+  // someone's pocket instead of a tracked business account (owner
+  // fronting cash, manager covering a bill, partner buying supplies,
+  // etc.). The database table and code symbols still use "other" /
+  // "otherExpenses" so the rename was cosmetic — no schema migration
+  // needed. Don't confuse this with regular "expenses" which are
+  // costs the BUSINESS paid through a tracked account.
+  function addOtherExpense() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can add reimbursements.'); return; }
+    const desc = validateDescription(document.getElementById('mOtherDesc')?.value);
+    if (desc === null) return;
+    const amt = validateAmount(document.getElementById('mOtherAmt')?.value);
+    if (amt === null) return;
+    const dateInput = document.getElementById('mOtherDate')?.value;
+    const expenseDateStr = dateInput || today();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDateStr)) { toast('Enter a valid date.'); return; }
+    const paidByRaw = document.getElementById('mOtherPaidBy')?.value || '';
+    const paidBy = String(paidByRaw).trim().slice(0, 100);
+    data.otherExpenses.push({
+      id: uid(),
+      businessId: biz.id,
+      month: expenseDateStr.slice(0, 7),
+      date: expenseDateStr,
+      description: desc,
+      paidBy,
+      amount: amt,
+      createdAt: Date.now(),
+    });
+    saveData();
+    renderMain();
+    toast('Reimbursement added.');
+  }
+
+  async function deleteOtherExpense(id) {
+    const x = (data.otherExpenses || []).find(e => e.id === id);
+    if (!x) return;
+    const biz = data.businesses.find(b => b.id === x.businessId);
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can delete.'); return; }
+    if (!(await uiConfirm('Delete this reimbursement? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
+    data.otherExpenses = data.otherExpenses.filter(x => x.id !== id);
+    saveData();
+    renderMain();
+    toast('Reimbursement deleted.');
+  }
+
+  async function editOtherExpense(id) {
+    const x = (data.otherExpenses || []).find(e => e.id === id);
+    if (!x) return;
+    const biz = data.businesses.find(b => b.id === x.businessId);
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner or manager can edit.'); return; }
+    const newDesc = await uiPrompt('Edit description:', x.description, { title: 'Edit reimbursement', submitLabel: 'Next' });
+    if (newDesc == null) return;
+    const trimmedDesc = String(newDesc).trim();
+    if (!trimmedDesc) { toast('Description cannot be blank.'); return; }
+    if (trimmedDesc.length > LIMITS.description) { toast(`Description too long (max ${LIMITS.description} characters).`); return; }
+    const newAmtRaw = await uiPrompt('Edit amount:', String(x.amount), { title: 'Edit reimbursement', submitLabel: 'Next', inputType: 'text' });
+    if (newAmtRaw == null) return;
+    const newAmt = newAmtRaw === '' ? NaN : Number(newAmtRaw);
+    if (!Number.isFinite(newAmt) || newAmt <= 0 || newAmt > LIMITS.amount) { toast('Invalid amount.'); return; }
+    const newDateRaw = await uiPrompt('Edit date (YYYY-MM-DD):', expenseDate(x), { title: 'Edit reimbursement', submitLabel: 'Next', placeholder: 'YYYY-MM-DD' });
+    if (newDateRaw == null) return;
+    const newDate = String(newDateRaw).trim();
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { toast('Enter a valid date.'); return; }
+    const newPaidByRaw = await uiPrompt('Paid by (optional, e.g. "Owner Rajesh"):', x.paidBy || '', { title: 'Edit reimbursement', submitLabel: 'Save' });
+    // Cancel on paidBy → keep existing value; null = user cancelled
+    if (newPaidByRaw == null) return;
+    x.description = trimmedDesc;
+    x.amount = newAmt;
+    x.date = newDate;
+    x.month = newDate.slice(0, 7);
+    x.paidBy = String(newPaidByRaw).trim().slice(0, 100);
+    x.editedAt = Date.now();
+    saveData();
+    renderMain();
+    toast('Reimbursement updated.');
+  }
+
+  // ================================================================
+  // TAX RATE
+  // ================================================================
+  // Per-business percentage applied to profit-after-expenses in the
+  // audit summary. Owner-only edit; viewer/manager see the rate but
+  // can't change it.
+  async function setBusinessTaxRate() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Only the owner can change the tax rate.'); return; }
+    const current = Number(biz.taxRate) || 0;
+    const raw = await uiPrompt('Tax % (applied to Operating profit). Enter 0 to disable.',
+      String(current),
+      { title: 'Tax rate', submitLabel: 'Save', inputType: 'text', placeholder: 'e.g. 13' });
+    if (raw == null) return;
+    const trimmed = String(raw).trim();
+    if (trimmed === '') return;
+    const val = Number(trimmed);
+    if (!Number.isFinite(val) || val < 0 || val > 100) {
+      toast('Enter a number between 0 and 100.');
+      return;
+    }
+    biz.taxRate = val;
+    biz.updatedAt = Date.now();
+    saveData();
+    renderMain();
+    toast(`Tax rate set to ${val}%.`);
+  }
+
   function renderAuditView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) {
@@ -5855,7 +6181,28 @@
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expensesForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
-    const netProfit = rangeProfit - expenseTotal;
+    // Reimbursements (internal field name: otherExpenses) —
+    // costs paid from someone's pocket. Reduce profit alongside
+    // regular expenses.
+    const othersForRange = (data.otherExpenses || [])
+      .filter(x => x.businessId === biz.id && expensePred({ date: expenseDate(x) }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const othersTotal = othersForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+
+    // Tax math (variables use legacy names; UI labels say
+    // "Operating profit" / "Reimbursements"):
+    //   operatingProfit = cashProfit − expenses − reimbursements
+    //   if operatingProfit > 0:  tax = operatingProfit × (taxRate / 100)
+    //   else:                    tax = 0  (no tax on losses)
+    //   netProfit = operatingProfit − tax
+    // Rationale: applying tax to a negative figure would generate a
+    // "credit" the user can't actually claim. Real tax systems
+    // calculate liability against positive income only — this matches
+    // that and matches what every shopkeeper expects.
+    const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
+    const profitBeforeTax = rangeProfit - expenseTotal - othersTotal;
+    const taxAmount = (profitBeforeTax > 0) ? profitBeforeTax * (taxRate / 100) : 0;
+    const netProfit = profitBeforeTax - taxAmount;
 
     // Render: expenses section
     // Read-only on Audit — the "Manage →" jump button is intentionally removed
@@ -5876,6 +6223,24 @@
             <span class="neg">${cur} ${fmt(expenseTotal)}</span>
           </div>
         ` : `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(rangeLabel)}.</div>`}
+      </div>
+    `;
+    const othersSection = `
+      <div class="audit-section">
+        <h2 class="audit-section-title">Reimbursements</h2>
+        <p class="audit-section-sub">Logged on the Reimbursements tab. ${othersForRange.length} entr${othersForRange.length === 1 ? 'y' : 'ies'} in ${escapeHtml(rangeLabel)}.</p>
+        ${othersForRange.length ? `
+          <div class="audit-balances">
+            ${othersForRange.map(x => `<div class="audit-acct-row">
+              <span class="audit-acct-name">${escapeHtml(x.description)}${x.paidBy ? ` <span class="audit-exp-paidby">paid by ${escapeHtml(x.paidBy)}</span>` : ''}</span>
+              <span class="audit-acct-bal neg">${cur} ${fmt(x.amount)}</span>
+            </div>`).join('')}
+          </div>
+          <div class="audit-balances-total">
+            <span>Total reimbursements</span>
+            <span class="neg">${cur} ${fmt(othersTotal)}</span>
+          </div>
+        ` : `<div class="audit-exp-empty">No reimbursements logged for ${escapeHtml(rangeLabel)}.</div>`}
       </div>
     `;
 
@@ -5924,10 +6289,17 @@
       </div>
     `;
 
-    // Render: totals row — Cash in / Cash out / Profit, then a SEPARATE
-    // "Total expenses" card below as a 1-up row. Net profit is the hero
-    // card and sits in the middle, with a brighter background and larger
-    // type, since it's the headline number the user came for.
+    // Render: totals row — Cash in / Cash out (book entries only) /
+    // Profit (book in − book out). Below that, separate cards for the
+    // "Total Cash Out (incl. reimbursements)" combined figure, plus
+    // Total expenses and Total reimbursements as standalone breakdowns.
+    //
+    // The pure "Cash out" stays as a verifiable book-entry number you
+    // can match against till counts. The "Total Cash Out (incl…)"
+    // line is the all-in money-leaving-the-business view that combines
+    // book entries + reimbursements, so the user sees both without
+    // losing the audit trail.
+    const totalCashOutIncl = totalOut + othersTotal;
     const totalsSection = `
       <div class="audit-month-totals">
         <div class="audit-month-totals-card">
@@ -5937,24 +6309,81 @@
         <div class="audit-month-totals-card">
           <div class="audit-month-totals-label">Cash out</div>
           <div class="audit-month-totals-value out">${cur} ${fmt(totalOut)}</div>
+          <div class="audit-month-totals-sub">From tracked accounts</div>
         </div>
         <div class="audit-month-totals-card">
-          <div class="audit-month-totals-label">Profit</div>
+          <div class="audit-month-totals-label">Cash profit</div>
           <div class="audit-month-totals-value ${rangeProfit >= 0 ? 'in' : 'out'}">${cur} ${rangeProfit >= 0 ? '+' : '−'}${fmt(Math.abs(rangeProfit))}</div>
+          <div class="audit-month-totals-sub">In − Out</div>
         </div>
       </div>
       <div class="audit-expenses-total-row">
         <div class="audit-month-totals-card audit-month-totals-card-wide">
+          <div class="audit-month-totals-label">Total Cash Out <span class="audit-month-totals-sub-inline">(incl. reimbursements)</span></div>
+          <div class="audit-month-totals-value out">${cur} ${fmt(totalCashOutIncl)}</div>
+        </div>
+        <div class="audit-month-totals-card audit-month-totals-card-wide">
           <div class="audit-month-totals-label">Total expenses</div>
           <div class="audit-month-totals-value out">${cur} ${fmt(expenseTotal)}</div>
         </div>
+        <div class="audit-month-totals-card audit-month-totals-card-wide">
+          <div class="audit-month-totals-label">Total reimbursements</div>
+          <div class="audit-month-totals-value out">${cur} ${fmt(othersTotal)}</div>
+        </div>
       </div>
     `;
+
+    // Tax control. Owner sees an editable button; viewer/manager see
+    // the rate read-only. Always shows alongside the net profit so
+    // the user can see both at a glance.
+    const isOwnerForTax = roleFor(biz.id) === 'owner';
+    const taxControlSection = `
+      <div class="audit-tax-row">
+        <div class="audit-tax-label-wrap">
+          <div class="audit-tax-label">Tax %</div>
+          <div class="audit-tax-meta">Applied to Operating profit</div>
+        </div>
+        <div class="audit-tax-value-wrap">
+          ${isOwnerForTax
+            ? `<button class="audit-tax-btn" onclick="setBusinessTaxRate()" title="Change tax rate" aria-label="Change tax rate">${escapeHtml(String(taxRate))}%<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="margin-left:0.4rem;vertical-align:-1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`
+            : `<span class="audit-tax-readonly">${escapeHtml(String(taxRate))}%</span>`
+          }
+        </div>
+      </div>
+    `;
+    // Net profit math now exposes Operating profit (pre-tax) as a
+    // first-class number, then Tax, then Net profit (after-tax).
+    // This matches standard income-statement terminology so users
+    // who hand the export to an accountant don't need to re-label.
+    //
+    //   Operating profit = Cash profit − Expenses − Reimbursements
+    //   Tax              = Operating profit × tax rate (if > 0)
+    //   Net profit       = Operating profit − Tax
+    //
+    // profitBeforeTax was computed above using the same formula —
+    // alias it here so the variable name on screen matches the label.
+    const operatingProfit = profitBeforeTax;
+    const operatingProfitSection = `
+      <div class="audit-operating-profit ${operatingProfit >= 0 ? 'pos' : 'neg'}">
+        <div class="audit-operating-profit-label">Operating profit</div>
+        <div class="audit-operating-profit-value">${cur} ${operatingProfit >= 0 ? '+' : '−'}${fmt(Math.abs(operatingProfit))}</div>
+        <div class="audit-operating-profit-meta">Cash profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))} − Expenses ${cur} ${fmt(expenseTotal)} − Reimbursements ${cur} ${fmt(othersTotal)}</div>
+      </div>
+    `;
+    // Net profit hero card — final number after tax. Shows the tax
+    // deduction inline when applicable, otherwise just mirrors the
+    // operating profit. The label distinguishes from operating
+    // profit so the user can read either number at a glance.
+    const netProfitMeta = taxRate > 0
+      ? `Operating profit ${cur} ${operatingProfit >= 0 ? '' : '−'}${fmt(Math.abs(operatingProfit))} − Tax ${taxRate}% (${cur} ${fmt(taxAmount)})`
+      : `Same as Operating profit (no tax applied)`;
     const netSection = `
+      ${operatingProfitSection}
+      ${taxControlSection}
       <div class="audit-net ${netProfit >= 0 ? 'pos' : 'neg'}">
-        <div class="audit-net-label">Net profit</div>
+        <div class="audit-net-label">Net profit${taxRate > 0 ? ' (after tax)' : ''}</div>
         <div class="audit-net-value ${netProfit >= 0 ? 'pos' : 'neg'}">${cur} ${netProfit >= 0 ? '+' : '−'}${fmt(Math.abs(netProfit))}</div>
-        <div class="audit-net-meta">Profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))} − Expenses ${cur} ${fmt(expenseTotal)}</div>
+        <div class="audit-net-meta">${netProfitMeta}</div>
       </div>
     `;
 
@@ -6010,6 +6439,7 @@
       ${renderAuditRangeBar()}
 
       ${expensesSection}
+      ${othersSection}
       ${accountsSection}
       ${totalsSection}
       ${netSection}
@@ -6132,6 +6562,113 @@
         <p class="audit-section-sub">Type any expense you want to track. These don't affect your cash book — they're a separate ledger, useful for tracking what's leaving your business outside of regular cash flow.</p>
         ${addRow}
         <div class="audit-exp-list">${expenseList}</div>
+      </div>
+    `;
+  }
+
+  // ================================================================
+  // OTHERS VIEW
+  // ================================================================
+  // Same UI shape as the Expenses tab, but with one extra column:
+  // "Paid by" (optional free text — owner/manager fronting cash from
+  // their own pocket, a partner covering a bill, etc.). These deduct
+  // from the audit's net profit alongside regular expenses.
+  function renderOthersView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) {
+      root.innerHTML = '<div class="empty"><div class="empty-headline">Pick a business.</div></div>';
+      return;
+    }
+    if (!canSeeAudit(biz.id)) {
+      session.view = 'entries'; saveSession(); renderAll(); return;
+    }
+    const cur = currencyDisplay(biz.currency);
+    const rangeLabel = getAuditRangeLabel();
+    const pred = periodPredicate();
+    const others = (data.otherExpenses || [])
+      .filter(x => x.businessId === biz.id && pred({ date: expenseDate(x) }))
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    const othersTotal = others.reduce((s, x) => s + entryAmount(x), 0);
+
+    const groupedByMonth = {};
+    for (const x of others) {
+      const mk = expenseDate(x).slice(0, 7);
+      if (!groupedByMonth[mk]) groupedByMonth[mk] = [];
+      groupedByMonth[mk].push(x);
+    }
+    const canEditOthers = canManageExpenses(biz.id);
+    function renderOtherRow(x) {
+      const actions = canEditOthers ? `
+        <div class="audit-exp-actions">
+          <button class="icon-btn-light" onclick="editOtherExpense('${jsAttr(x.id)}')" title="Edit" aria-label="Edit reimbursement"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteOtherExpense('${jsAttr(x.id)}')" title="Delete" aria-label="Delete reimbursement"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
+        </div>` : '';
+      const paidByStr = x.paidBy ? `<span class="audit-exp-paidby">paid by ${escapeHtml(x.paidBy)}</span>` : '';
+      return `<div class="audit-exp-row">
+        <div class="audit-exp-desc">
+          ${escapeHtml(x.description)}
+          <span class="audit-exp-date">${escapeHtml(expenseDate(x))}</span>
+          ${paidByStr}
+        </div>
+        <div class="audit-exp-amt">${cur} ${fmt(x.amount)}</div>
+        ${actions}
+      </div>`;
+    }
+    const monthsTouched = Object.keys(groupedByMonth);
+    let othersList;
+    if (!others.length) {
+      othersList = `<div class="audit-exp-empty">No reimbursements logged for ${escapeHtml(rangeLabel)} yet.</div>`;
+    } else if (monthsTouched.length <= 1) {
+      othersList = others.map(renderOtherRow).join('');
+    } else {
+      othersList = monthsTouched.sort().reverse()
+        .map(m => {
+          const items = groupedByMonth[m];
+          const monthTotal = items.reduce((s, x) => s + entryAmount(x), 0);
+          return `<div class="audit-exp-month-group">
+            <div class="audit-exp-month-head">
+              <span>${escapeHtml(auditMonthLabel(m))}</span>
+              <span class="audit-exp-month-total">${cur} ${fmt(monthTotal)}</span>
+            </div>
+            ${items.map(renderOtherRow).join('')}
+          </div>`;
+        }).join('');
+    }
+
+    const addRow = canEditOthers ? `<div class="audit-exp-add audit-exp-add-others">
+        <input type="text" id="mOtherDesc" maxlength="500" placeholder="What was paid for?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mOtherAmt').focus();}">
+        <input type="number" id="mOtherAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mOtherPaidBy').focus();}">
+        <input type="text" id="mOtherPaidBy" maxlength="100" placeholder='Paid by (e.g. "Owner")' onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mOtherDate').focus();}">
+        <input type="date" id="mOtherDate" value="${today()}" title="Date">
+        <button class="btn btn-sm btn-accent" onclick="addOtherExpense()">+ Add</button>
+      </div>` : '';
+
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · view</div>
+          <h1 class="page-title">Reimbursements</h1>
+        </div>
+        <div class="page-actions">
+          ${exportIconButton('others')}
+        </div>
+      </div>
+
+      ${renderAuditRangeBar()}
+
+      <div class="audit-summary">
+        <div class="audit-summary-card expenses">
+          <div class="audit-summary-label">Total reimbursements</div>
+          <div class="audit-summary-value">${cur} ${fmt(othersTotal)}</div>
+          <div class="audit-summary-meta">${others.length} ${others.length === 1 ? 'entry' : 'entries'} in ${escapeHtml(rangeLabel)}</div>
+        </div>
+      </div>
+
+      <div class="audit-section">
+        <h2 class="audit-section-title">Reimbursements for ${escapeHtml(rangeLabel)}</h2>
+        <p class="audit-section-sub">Business costs paid from someone's pocket instead of a tracked account — owner fronting cash, manager covering a bill, etc. These reduce the audit's net profit. Use the "Paid by" field to track who needs to be paid back.</p>
+        ${addRow}
+        <div class="audit-exp-list">${othersList}</div>
       </div>
     `;
   }
@@ -6705,11 +7242,46 @@
   // Centralised open/close helpers used by every modal entry point.
   // The raw `.classList.add('active')` calls scattered through the
   // code now route through these so the lock can never be missed.
+  // Focus restoration: remember the element that had focus before
+  // the modal opened so we can return there on close. Important for
+  // keyboard / screen-reader users — without this they get dropped
+  // to <body> and have to re-tab their way back to where they were.
+  let __lastFocusBeforeModal = null;
+
+  // Global Escape handler for the modal backdrop. Browsers don't
+  // close our custom modal automatically (it's just a div), so we
+  // do it ourselves. Also dismisses uiConfirm/uiAlert/uiPrompt as
+  // a "cancel" via the same close path.
+  document.addEventListener('keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    const bd = document.getElementById('modalBackdrop');
+    if (!bd || !bd.classList.contains('active')) return;
+    // If a custom async dialog is open, treat Escape as Cancel.
+    if (typeof _asyncModalClose === 'function' && document.getElementById('uiConfirmCancelBtn')) {
+      try { _asyncModalClose(false); } catch (_) { closeModal(); }
+      ev.preventDefault();
+      return;
+    }
+    closeModal();
+    ev.preventDefault();
+  });
+
   function _showModalBackdrop() {
     const bd = document.getElementById('modalBackdrop');
     if (!bd) return;
     if (!bd.classList.contains('active')) {
+      // Remember focus so closeModal can restore it.
+      const active = document.activeElement;
+      __lastFocusBeforeModal = (active && active !== document.body) ? active : null;
       _lockBodyScroll();
+      // a11y: make everything behind the modal inert (uninteractive
+      // and invisible to AT) while the modal is open. Browsers that
+      // don't support `inert` will simply ignore the attribute —
+      // the focus trap below still keeps Tab inside the modal.
+      const app = document.getElementById('app');
+      const auth = document.getElementById('authScreen');
+      try { app && app.setAttribute('inert', ''); } catch (_) {}
+      try { auth && auth.setAttribute('inert', ''); } catch (_) {}
     }
     bd.classList.add('active');
   }
@@ -6719,6 +7291,18 @@
     if (bd.classList.contains('active')) {
       bd.classList.remove('active');
       _unlockBodyScroll();
+      // Drop the inert attribute so the background regains
+      // interactivity.
+      try { document.getElementById('app')?.removeAttribute('inert'); } catch (_) {}
+      try { document.getElementById('authScreen')?.removeAttribute('inert'); } catch (_) {}
+      // Return focus to where the user was before opening the
+      // modal. Best effort — if the element vanished (e.g. it was
+      // a list row that got re-rendered), focus falls through to
+      // <body> which is fine.
+      if (__lastFocusBeforeModal) {
+        try { __lastFocusBeforeModal.focus({ preventScroll: true }); } catch (_) {}
+        __lastFocusBeforeModal = null;
+      }
     }
   }
   // Focus trap for the modal backdrop. While a modal is open,
@@ -7735,8 +8319,8 @@
       </div>
       <h3 class="settings-heading" style="margin-top:1.25rem;">Invite someone</h3>
       <div class="form-grid">
-        <div class="input-wrap"><label>Phone or email</label><input type="text" id="mStaffLogin" placeholder="98xxxxxxxx or them@example.com"></div>
-        <div class="input-wrap"><label>Role</label>
+        <div class="input-wrap"><label for="mStaffLogin">Phone or email</label><input type="text" id="mStaffLogin" autocomplete="email" placeholder="98xxxxxxxx or them@example.com"></div>
+        <div class="input-wrap"><label for="mStaffRole">Role</label>
           <select id="mStaffRole">
             <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
@@ -7750,9 +8334,15 @@
       </div>`;
   }
   async function addStaff() {
-    const loginInputEl = document.getElementById('mStaffLogin');
+    // Either surface may be active: the modal (#mStaffLogin) or the
+    // full-page Team view (#pgStaffLogin). Try the modal first since
+    // it's the foreground when present; fall back to the page view.
+    // This avoids the duplicate-id pitfall — both IDs are unique
+    // now, so getElementById always picks the right one.
+    const loginInputEl = document.getElementById('mStaffLogin') || document.getElementById('pgStaffLogin');
+    const roleEl = document.getElementById('mStaffRole') || document.getElementById('pgStaffRole');
     const login = normalize(loginInputEl?.value || '');
-    const role = document.getElementById('mStaffRole').value;
+    const role = roleEl?.value || 'staff';
     const u = me();
     if (!login) { toast('Enter their email.'); return; }
     if (login === normalize(u.login)) { toast("That's you."); return; }
@@ -7864,6 +8454,8 @@
   // but the canonical entry point is now switchView('staff').
   function refreshStaffSurface() {
     if (session.view === 'staff') { renderMain(); return; }
+    // If the modal is open we re-render it; if the page view is up
+    // it gets re-rendered via renderAll's view dispatch.
     if (document.getElementById('mStaffLogin')) { openModal('staff'); return; }
     renderAll();
   }
@@ -8611,9 +9203,9 @@
       </div>
       <h3 class="settings-heading" style="margin-top:0;">Invite someone</h3>
       <div class="form-grid" style="max-width:42rem;">
-        <div class="input-wrap"><label>Phone or email</label><input type="text" id="mStaffLogin" placeholder="98xxxxxxxx or them@example.com"></div>
-        <div class="input-wrap"><label>Role</label>
-          <select id="mStaffRole">
+        <div class="input-wrap"><label for="pgStaffLogin">Phone or email</label><input type="text" id="pgStaffLogin" autocomplete="email" placeholder="98xxxxxxxx or them@example.com"></div>
+        <div class="input-wrap"><label for="pgStaffRole">Role</label>
+          <select id="pgStaffRole">
             <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
@@ -9052,7 +9644,10 @@
         <p>Accounts are money buckets — the cash drawer, your savings account, a wallet, a credit card. They're grouped by kind (Cash, Bank, Wallet, Card). When you make an entry, you pick which account the money moved through. Reorder accounts and groups from <strong>sidebar gear → Accounts</strong>.</p>
 
         <h3>Period filters</h3>
-        <p>The top of every view has a period bar: <strong>This Month</strong> (default), <strong>All Time</strong>, or <strong>Custom</strong>. All totals on that view reflect the period you've picked.</p>
+        <p>The top of every view has a period bar: <strong>This Month</strong> (default), <strong>Today</strong>, <strong>Yesterday</strong>, <strong>All Time</strong>, or <strong>Custom</strong>. All totals on that view reflect the period you've picked.</p>
+
+        <h3>Audit, Expenses &amp; Reimbursements</h3>
+        <p><strong>Expenses</strong> tracks business costs paid through tracked accounts (rent, utilities, supplies you bought from the till). <strong>Reimbursements</strong> tracks costs paid from someone's pocket — owner fronting cash, manager covering a bill — that the business still owes. Both reduce the audit's Operating profit. The audit page shows <em>Cash Profit</em> (in − out), then <em>Operating profit</em> (after expenses &amp; reimbursements), then <em>Net profit</em> (after tax). Owner sets the Tax % on the audit page; viewers and managers see the rate but can't change it.</p>
 
         <h3>Roles and staff</h3>
         <ul>
@@ -9923,6 +10518,7 @@
     data.accountGroups = data.accountGroups.filter(g => g.businessId !== bizId);
     data.members = data.members.filter(m => m.businessId !== bizId);
     data.auditExpenses = data.auditExpenses.filter(x => x.businessId !== bizId);
+    data.otherExpenses = (data.otherExpenses || []).filter(x => x.businessId !== bizId);
     data.quickLook = (data.quickLook || []).filter(x => x.businessId !== bizId);
     data.announcements = (data.announcements || []).filter(x => x.businessId !== bizId);
     data.businesses = data.businesses.filter(b => b.id !== bizId);
@@ -10044,7 +10640,7 @@
     const bizId = biz.id;
     const bookIds = new Set(data.books.filter(b => b.businessId === bizId).map(b => b.id));
     const MAX_PER_GROUP = 8;
-    const out = { entries: [], parties: [], categories: [], accounts: [], books: [], expenses: [], snapshot: [], announcements: [] };
+    const out = { entries: [], parties: [], categories: [], accounts: [], books: [], expenses: [], others: [], snapshot: [], announcements: [] };
 
     // Books — match name
     for (const b of data.books) {
@@ -10103,6 +10699,16 @@
       if (out.expenses.length >= MAX_PER_GROUP) break;
     }
 
+    // Others — match description, paidBy, amount
+    for (const x of (data.otherExpenses || [])) {
+      if (x.businessId !== bizId) continue;
+      const descHit = (x.description || '').toLowerCase().includes(q);
+      const paidByHit = (x.paidBy || '').toLowerCase().includes(q);
+      const amtHit = String(x.amount || '').includes(q) || fmt(x.amount).toLowerCase().includes(q);
+      if (descHit || paidByHit || amtHit) out.others.push(x);
+      if (out.others.length >= MAX_PER_GROUP) break;
+    }
+
     // Snapshot (was Quick Look) — match name, tag
     for (const s of (data.quickLook || [])) {
       if (s.businessId !== bizId) continue;
@@ -10125,6 +10731,7 @@
     // empty state and rendering.
     out.totalHits = out.entries.length + out.parties.length + out.categories.length +
                     out.accounts.length + out.books.length + out.expenses.length +
+                    out.others.length +
                     out.snapshot.length + out.announcements.length;
     return out;
   }
@@ -10240,6 +10847,19 @@
         <div class="search-result-body">
           <div class="search-result-title">${highlightMatch(x.description, query)}</div>
           <div class="search-result-sub">${escapeHtml(x.month || '')}</div>
+        </div>
+        <div class="search-result-amount neg">−${fmt(x.amount)}</div>
+      </div>`;
+    });
+
+    // Reimbursements (internal name: otherExpenses)
+    pushGroup('Reimbursements', results.others, (x, flatIdx) => {
+      const sub = x.paidBy ? `${escapeHtml(x.month || '')} · paid by ${escapeHtml(x.paidBy)}` : escapeHtml(x.month || '');
+      return `<div class="search-result" data-idx="${flatIdx}" data-action="other" data-id="${jsAttr(x.id)}" onclick="onUniversalSearchPick('other', '${jsAttr(x.id)}')">
+        <div class="search-result-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9 9h.01"/><path d="M15 9h.01"/><path d="M9 15c.83-.83 2.17-.83 3 0"/></svg></div>
+        <div class="search-result-body">
+          <div class="search-result-title">${highlightMatch(x.description, query)}</div>
+          <div class="search-result-sub">${sub}</div>
         </div>
         <div class="search-result-amount neg">−${fmt(x.amount)}</div>
       </div>`;
@@ -10399,6 +11019,16 @@
         setPeriod({ mode: 'month', monthKey: x.month });
       }
       session.view = 'expenses';
+      saveSession(); renderAll();
+    } else if (action === 'other') {
+      // Jump to the Reimbursements view scoped to that row's month.
+      // Internal action name kept as 'other' to match the table/code
+      // symbol; UI label is "Reimbursements".
+      const x = (data.otherExpenses || []).find(e => e.id === id);
+      if (x && x.month) {
+        setPeriod({ mode: 'month', monthKey: x.month });
+      }
+      session.view = 'others';
       saveSession(); renderAll();
     } else if (action === 'snapshot') {
       session.view = 'quickLook';
@@ -10577,6 +11207,7 @@
       // Audit expenses are scoped to the business — only owner sees them,
       // but include in full backups so they survive a round-trip.
       auditExpenses: includeEntries ? data.auditExpenses.filter(x => x.businessId === bizId) : [],
+      otherExpenses: includeEntries ? (data.otherExpenses || []).filter(x => x.businessId === bizId) : [],
       quickLook: (data.quickLook || []).filter(x => x.businessId === bizId),
       announcements: (data.announcements || []).filter(x => x.businessId === bizId),
     };
@@ -10632,6 +11263,7 @@
         data.entries = data.entries.filter(e => !bookIdsToRemove.has(e.bookId)).concat(arr(snap.entries));
         // Audit expenses are also business-scoped: replace this business's slice.
         data.auditExpenses = data.auditExpenses.filter(x => x.businessId !== bizId).concat(arr(snap.auditExpenses));
+        data.otherExpenses = (data.otherExpenses || []).filter(x => x.businessId !== bizId).concat(arr(snap.otherExpenses));
         data.quickLook = (data.quickLook || []).filter(x => x.businessId !== bizId).concat(arr(snap.quickLook));
         data.announcements = (data.announcements || []).filter(x => x.businessId !== bizId).concat(arr(snap.announcements));
       }
@@ -11313,6 +11945,7 @@
     data.cashAccounts = data.cashAccounts.filter(a => !ownedBizIds.includes(a.businessId));
     data.accountGroups = data.accountGroups.filter(g => !ownedBizIds.includes(g.businessId));
     data.auditExpenses = data.auditExpenses.filter(x => !ownedBizIds.includes(x.businessId));
+    data.otherExpenses = (data.otherExpenses || []).filter(x => !ownedBizIds.includes(x.businessId));
     data.quickLook = (data.quickLook || []).filter(x => !ownedBizIds.includes(x.businessId));
     data.announcements = (data.announcements || []).filter(x => !ownedBizIds.includes(x.businessId));
     accounts = accounts.filter(a => a.id !== u.id);
@@ -11383,6 +12016,8 @@
       exportAuditDashboard(format);
     } else if (target === 'expenses') {
       exportExpensesDashboard(format);
+    } else if (target === 'others') {
+      exportOthersDashboard(format);
     } else if (target === 'snapshot') {
       exportQuickLookDashboard(format);
     } else {
@@ -11416,20 +12051,26 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!book || !biz) { toast('Book or business missing.'); return; }
     const cur = currencyDisplay(biz.currency || 'NPR');
-    // Defensive sort: coerce missing/non-string dates so a corrupt entry can't
-    // crash the export with "Cannot read properties of undefined (localeCompare)".
-    const entries = getPeriodEntries().slice().sort((a, b) => {
-      const ad = typeof a.date === 'string' ? a.date : '';
-      const bd = typeof b.date === 'string' ? b.date : '';
-      if (ad !== bd) return ad < bd ? -1 : 1;
-      return (a.createdAt || 0) - (b.createdAt || 0);
-    });
+    // Export ALL entries for this book, ignoring the active on-screen
+    // period filter. The user expects "Download" to capture the full
+    // ledger — the period selector at the top is a viewing aid, not
+    // an export scope. If they want period-only data, they can filter
+    // in Excel or the PDF reader afterwards.
+    const entries = data.entries
+      .filter(e => e.bookId === session.activeBookId)
+      .slice()
+      .sort((a, b) => {
+        const ad = typeof a.date === 'string' ? a.date : '';
+        const bd = typeof b.date === 'string' ? b.date : '';
+        if (ad !== bd) return ad < bd ? -1 : 1;
+        return (a.createdAt || 0) - (b.createdAt || 0);
+      });
     if (!entries.length) { toast('Nothing to export.'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(20); doc.setFont('helvetica', 'normal'); doc.text(book.name, 14, 22);
     doc.setFontSize(10); doc.setTextColor(120);
-    doc.text(`${biz.name}  ·  ${biz.currency} (${cur})  ·  ${currentPeriodLabel()}  ·  Generated ${today()}`, 14, 28);
+    doc.text(`${biz.name}  ·  ${biz.currency} (${cur})  ·  All time  ·  Generated ${today()}`, 14, 28);
     let bal = 0;
     const rows = entries.map(e => {
       const amt = Number(e.amount);
@@ -11460,9 +12101,8 @@
       foot: [['', '', '', '', 'Totals', fmt(inSum, biz.currency), fmt(outSum, biz.currency), fmt(inSum - outSum, biz.currency), '']],
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
-    const periodPart = currentPeriodLabel().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'all';
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
-    doc.save(`${bookPart}_${periodPart}.pdf`);
+    doc.save(`${bookPart}_all.pdf`);
     toast('PDF downloaded.');
   }
   function exportExcel() {
@@ -11471,13 +12111,17 @@
     const book = data.books.find(b => b.id === session.activeBookId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!book || !biz) { toast('Book or business missing.'); return; }
-    // Defensive sort (Q3): coerce missing/non-string dates
-    const entries = getPeriodEntries().slice().sort((a, b) => {
-      const ad = typeof a.date === 'string' ? a.date : '';
-      const bd = typeof b.date === 'string' ? b.date : '';
-      if (ad !== bd) return ad < bd ? -1 : 1;
-      return (a.createdAt || 0) - (b.createdAt || 0);
-    });
+    // Export ALL entries for this book, ignoring the active on-screen
+    // period filter. See exportPDF for rationale.
+    const entries = data.entries
+      .filter(e => e.bookId === session.activeBookId)
+      .slice()
+      .sort((a, b) => {
+        const ad = typeof a.date === 'string' ? a.date : '';
+        const bd = typeof b.date === 'string' ? b.date : '';
+        if (ad !== bd) return ad < bd ? -1 : 1;
+        return (a.createdAt || 0) - (b.createdAt || 0);
+      });
     if (!entries.length) { toast('Nothing to export.'); return; }
     // CSV-safe cell escaper: prevent formula injection (a cell starting with = + - @ \t \r
     // is treated as a formula by Excel/Sheets — prefix with single quote to defuse).
@@ -11510,7 +12154,7 @@
     });
     const headerLines = [
       csvCell(`${book.name} — ${biz.name} (${biz.currency})`),
-      [csvCell('Period'), csvCell(currentPeriodLabel())].join(','),
+      [csvCell('Period'), csvCell('All time')].join(','),
       [csvCell('Generated'), csvCell(today())].join(','),
       '',
       headers.map(csvCell).join(','),
@@ -11522,9 +12166,8 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    const periodPart = currentPeriodLabel().replace(/[^a-zA-Z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '') || 'all';
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
-    a.download = `${bookPart}_${periodPart}.csv`;
+    a.download = `${bookPart}_all.csv`;
     document.body.appendChild(a);
     a.click();
     // Q2: revoke after the click has had time to register the download. Revoking
@@ -11625,10 +12268,10 @@
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring the on-screen period filter — see exportPDF.
     const partiesList = data.parties.filter(p => p.businessId === biz.id);
     const rows = partiesList.map(p => {
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id && pred(e));
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       return [p.name, p.kind || '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
@@ -11637,11 +12280,11 @@
     const totalOut = rows.reduce((s, r) => s + Number(r[4]), 0);
     const opts = {
       title: `Parties — ${biz.name}`,
-      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.currency} · All time · Generated ${today()}`,
       columns: ['Name', 'Kind', 'Entries', 'Received from', 'Paid to', 'Net'],
       rows,
       totals: ['', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
-      filename: `parties_${biz.name}_${currentPeriodLabel()}`,
+      filename: `parties_${biz.name}_all`,
       columnAlign: { 2: 'right', 3: 'right', 4: 'right', 5: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -11652,10 +12295,10 @@
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring period filter — see exportPDF.
     const cats = data.categories.filter(c => c.businessId === biz.id);
     const rows = cats.map(c => {
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === c.name && pred(e));
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === c.name);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       return [c.name, ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
@@ -11664,11 +12307,11 @@
     const totalOut = rows.reduce((s, r) => s + Number(r[3]), 0);
     const opts = {
       title: `Categories — ${biz.name}`,
-      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.currency} · All time · Generated ${today()}`,
       columns: ['Category', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
       totals: ['', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
-      filename: `categories_${biz.name}_${currentPeriodLabel()}`,
+      filename: `categories_${biz.name}_all`,
       columnAlign: { 1: 'right', 2: 'right', 3: 'right', 4: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -11679,11 +12322,11 @@
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring period filter — see exportPDF.
     const accs = data.cashAccounts.filter(a => a.businessId === biz.id);
     const rows = accs.map(a => {
       const group = data.accountGroups.find(g => g.id === a.groupId);
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && pred(e));
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       return [a.name, group?.name || '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
@@ -11692,11 +12335,11 @@
     const totalOut = rows.reduce((s, r) => s + Number(r[4]), 0);
     const opts = {
       title: `Accounts — ${biz.name}`,
-      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.currency} · All time · Generated ${today()}`,
       columns: ['Account', 'Group', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
       totals: ['', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
-      filename: `accounts_${biz.name}_${currentPeriodLabel()}`,
+      filename: `accounts_${biz.name}_all`,
       columnAlign: { 2: 'right', 3: 'right', 4: 'right', 5: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -11707,10 +12350,9 @@
     if (!biz) return;
     if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export expenses.'); return; }
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
-    // Expenses view shows cash-out entries categorised by category.
+    // ALL cash-out entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.type === 'out' && pred(e))
+      .filter(e => bookIds.includes(e.bookId) && e.type === 'out')
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const rows = ents.map(e => {
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
@@ -11719,11 +12361,11 @@
     const total = rows.reduce((s, r) => s + Number(r[5]), 0);
     const opts = {
       title: `Expenses — ${biz.name}`,
-      subtitle: `${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.currency} · All time · Generated ${today()}`,
       columns: ['Date', 'Note', 'Party', 'Category', 'Account', 'Amount'],
       rows,
       totals: ['', '', '', '', 'Total', total.toFixed(2)],
-      filename: `expenses_${biz.name}_${currentPeriodLabel()}`,
+      filename: `expenses_${biz.name}_all`,
       columnAlign: { 5: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -11733,45 +12375,86 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export audit.'); return; }
-    const rangeLabel = getAuditRangeLabel();
-    // Snapshot: entries + expenses within the active period. Both filter
-    // by full date now (expenses use expenseDate() to handle legacy rows
-    // that only have a month tag).
-    const expPred = periodPredicate();
+    // ALL-time audit summary, ignoring the on-screen period filter —
+    // the user wants the complete picture in their export.
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    // Match the on-screen Audit view: exclude entries that point at hidden
-    // accounts. Otherwise the exported numbers wouldn't match what the
-    // owner just looked at on screen.
     const visibleAcctIds = new Set(
       data.cashAccounts
         .filter(a => a.businessId === biz.id && !a.hidden)
         .map(a => a.id)
     );
     const rangeEntries = data.entries.filter(e =>
-      bookIds.includes(e.bookId) && visibleAcctIds.has(e.accountId) && expPred(e)
+      bookIds.includes(e.bookId) && visibleAcctIds.has(e.accountId)
     );
     const inSum = rangeEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const outSum = rangeEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const auditExp = data.auditExpenses
-      .filter(x => x.businessId === biz.id && expPred({ date: expenseDate(x) }))
+      .filter(x => x.businessId === biz.id)
       .map(x => [x.description || '', Number(x.amount || 0).toFixed(2)]);
     const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
+    const otherExp = (data.otherExpenses || [])
+      .filter(x => x.businessId === biz.id)
+      .map(x => [
+        (x.description || '') + (x.paidBy ? ` (paid by ${x.paidBy})` : ''),
+        Number(x.amount || 0).toFixed(2)
+      ]);
+    const otherSum = otherExp.reduce((s, r) => s + Number(r[1]), 0);
+    const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
+    const operatingProfit = inSum - outSum - expSum - otherSum;
+    const taxAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
+    const netProfit = operatingProfit - taxAmount;
+    const totalCashOutIncl = outSum + otherSum;
     const rows = [
       ['Cash in (book entries)', inSum.toFixed(2)],
       ['Cash out (book entries)', outSum.toFixed(2)],
+      ['Reimbursements', otherSum.toFixed(2)],
+      ['Total Cash Out (incl. reimbursements)', totalCashOutIncl.toFixed(2)],
       ['Audit-only expenses', expSum.toFixed(2)],
-      ['Net profit', (inSum - outSum - expSum).toFixed(2)],
+      ['Operating profit', operatingProfit.toFixed(2)],
+      [`Tax (${taxRate}%)`, taxAmount.toFixed(2)],
+      ['Net profit (after tax)', netProfit.toFixed(2)],
       ['', ''], // blank separator
       ['— Audit expense line items —', ''],
       ...auditExp,
+      ['', ''],
+      ['— Reimbursement line items —', ''],
+      ...otherExp,
     ];
     const opts = {
       title: `Audit summary — ${biz.name}`,
-      subtitle: `${rangeLabel} · ${biz.currency} · Generated ${today()}`,
+      subtitle: `All time · ${biz.currency} · Tax ${taxRate}% · Generated ${today()}`,
       columns: ['Item', 'Amount'],
       rows,
-      filename: `audit_${biz.name}_${rangeLabel.replace(/\s+/g, '_')}`,
+      filename: `audit_${biz.name}_all`,
       columnAlign: { 1: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  // Export the Others list as a standalone PDF/CSV. Used by the
+  // download button on the Others tab.
+  function exportOthersDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export.'); return; }
+    const ents = (data.otherExpenses || [])
+      .filter(x => x.businessId === biz.id)
+      .sort((a, b) => (expenseDate(a) || '').localeCompare(expenseDate(b) || ''));
+    const rows = ents.map(x => [
+      expenseDate(x) || '',
+      x.description || '',
+      x.paidBy || '',
+      Number(x.amount || 0).toFixed(2),
+    ]);
+    const total = rows.reduce((s, r) => s + Number(r[3]), 0);
+    const opts = {
+      title: `Reimbursements — ${biz.name}`,
+      subtitle: `${biz.currency} · All time · Generated ${today()}`,
+      columns: ['Date', 'Description', 'Paid by', 'Amount'],
+      rows,
+      totals: ['', '', 'Total', total.toFixed(2)],
+      filename: `reimbursements_${biz.name}_all`,
+      columnAlign: { 3: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
@@ -11952,9 +12635,9 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!p || !biz) return;
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id && pred(e))
+      .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const rows = ents.map(e => {
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
@@ -11968,11 +12651,11 @@
     const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const opts = {
       title: `${p.name} — Party ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
       columns: ['Date', 'Note', 'Category', 'Account', 'Received', 'Paid'],
       rows,
       totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
-      filename: `party_${p.name}_${currentPeriodLabel()}`,
+      filename: `party_${p.name}_all`,
       columnAlign: { 4: 'right', 5: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -11982,9 +12665,9 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.category === catName && pred(e))
+      .filter(e => bookIds.includes(e.bookId) && e.category === catName)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const rows = ents.map(e => {
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
@@ -11998,11 +12681,11 @@
     const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const opts = {
       title: `${catName} — Category ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
       columns: ['Date', 'Note', 'Party', 'Account', 'Cash in', 'Cash out'],
       rows,
       totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
-      filename: `category_${catName}_${currentPeriodLabel()}`,
+      filename: `category_${catName}_all`,
       columnAlign: { 4: 'right', 5: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -12013,9 +12696,9 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!a || !biz) return;
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    const pred = periodPredicate();
+    // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && pred(e))
+      .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     let bal = 0;
     const rows = ents.map(e => {
@@ -12032,11 +12715,11 @@
     const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
     const opts = {
       title: `${a.name} — Account ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · ${currentPeriodLabel()} · Generated ${today()}`,
+      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
       columns: ['Date', 'Note', 'Party', 'Category', 'In', 'Out', 'Balance'],
       rows,
       totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)],
-      filename: `account_${a.name}_${currentPeriodLabel()}`,
+      filename: `account_${a.name}_all`,
       columnAlign: { 4: 'right', 5: 'right', 6: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -12639,6 +13322,7 @@
         members: data.members.map(cloneShallow),
         entries: data.entries.map(cloneShallow),
         auditExpenses: data.auditExpenses.map(cloneShallow),
+        otherExpenses: (data.otherExpenses || []).map(cloneShallow),
         quickLook: (data.quickLook || []).map(cloneShallow),
         announcements: (data.announcements || []).map(cloneShallow),
       };
@@ -13041,6 +13725,9 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_audit_expenses' },
           (payload) => onRealtimeEvent('auditExpenses', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_other_expenses' },
+          (payload) => onRealtimeEvent('otherExpenses', payload))
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_quick_look' },
           (payload) => onRealtimeEvent('quickLook', payload))
@@ -13787,12 +14474,14 @@
         currency: r.currency || 'NPR',
         owner_id: ownerId,                    // always set to current user on push
         staff_sees_totals: r.staffSeesTotals !== false,
+        tax_rate: Number(r.taxRate) || 0,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
         id: r.id, name: r.name, currency: r.currency,
         ownerId: r.owner_id,
         staffSeesTotals: r.staff_sees_totals,
+        taxRate: Number(r.tax_rate) || 0,
         createdAt: r.created_at_local || '',
       }),
     },
@@ -13928,6 +14617,29 @@
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       }),
     },
+    otherExpenses: {
+      table: 'app_other_expenses',
+      // Same shape as auditExpenses with one extra denormalised field:
+      // paid_by — free-text describing who fronted the cash (e.g.
+      // "Owner Rajesh", "Manager Bina"). Empty/null when not specified.
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        month: r.month || (r.date ? r.date.slice(0, 7) : null),
+        date: r.date || (r.month ? r.month + '-01' : null),
+        label: r.description || null,
+        paid_by: r.paidBy || null,
+        amount: Number(r.amount) || 0,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        month: r.month || (r.date ? String(r.date).slice(0, 7) : null),
+        date: r.date ? String(r.date) : (r.month ? r.month + '-01' : null),
+        description: r.label || '',
+        paidBy: r.paid_by || '',
+        amount: Number(r.amount),
+        createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      }),
+    },
     quickLook: {
       table: 'app_quick_look',
       toDb: (r) => ({
@@ -14013,7 +14725,7 @@
   // Push order matters because of foreign keys: parents before children.
   const cloudPushOrder = [
     'businesses', 'books', 'accountGroups', 'cashAccounts',
-    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'quickLook', 'announcements',
+    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'otherExpenses', 'quickLook', 'announcements',
   ];
 
   async function cloudPushAll(opts) {
@@ -14156,6 +14868,7 @@
       data.members       = mergeWithPending('members',       fetched.members,       data.members);
       data.entries       = mergeWithPending('entries',       fetched.entries,       data.entries);
       data.auditExpenses = mergeWithPending('auditExpenses', fetched.auditExpenses, data.auditExpenses);
+      data.otherExpenses = mergeWithPending('otherExpenses', fetched.otherExpenses, data.otherExpenses);
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
       data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       saveData();

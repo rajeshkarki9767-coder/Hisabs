@@ -71,6 +71,35 @@ Deno.serve(async (req: Request): Promise<Response> => {
     return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
   }
 
+  // Authorisation: only owners (i.e. users who actually have a
+  // business to invite people INTO) can call this endpoint. This
+  // throttles drive-by enumeration — a freshly signed-up account
+  // with no businesses can't probe whether arbitrary emails are
+  // registered. Owners are the natural caller anyway (Team page
+  // is owner-only in the UI), so legitimate use isn't affected.
+  // Uses the user's own JWT for the check so RLS applies; no
+  // service-role escalation needed for this gate.
+  try {
+    const userJwtClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${accessToken}` } },
+    });
+    const { count, error: countErr } = await userJwtClient
+      .from('app_businesses')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userData.user.id)
+      .limit(1);
+    if (countErr) {
+      // RLS or schema issue — block defensively. Better to fail
+      // closed than to leak.
+      return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 403);
+    }
+    if (!count || count < 1) {
+      return jsonResp(CORS_HEADERS, { error: 'Not allowed: no businesses' }, 403);
+    }
+  } catch (_) {
+    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 403);
+  }
+
   // Parse body.
   let body: any = {};
   try { body = await req.json(); } catch (_) { return jsonResp(CORS_HEADERS, { error: 'Invalid JSON' }, 400); }
