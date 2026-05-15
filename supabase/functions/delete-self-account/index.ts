@@ -108,13 +108,20 @@ Deno.serve(async (req: Request): Promise<Response> => {
   //   - app_device_names rows for this user_id.
   // We do this BEFORE deleting the auth user so a partial failure doesn't
   // leak orphan rows.
+  //
+  // Use two separate .delete() calls rather than .or() with the email
+  // interpolated into a filter string. PostgREST's .or() takes a literal
+  // filter expression; passing user-controlled text into it would be
+  // unsafe in principle even though Supabase Auth validates email format
+  // before account creation. Two calls = no filter-string construction.
   try {
+    await adminClient.from('app_members').delete().eq('user_id', userId);
     if (userEmail) {
+      // .ilike with a plain value is safe — supabase-js parameterises it.
+      // (The risk earlier was building the whole filter string via .or().)
       await adminClient.from('app_members')
         .delete()
-        .or(`user_id.eq.${userId},user_login.ilike.${userEmail.toLowerCase()}`);
-    } else {
-      await adminClient.from('app_members').delete().eq('user_id', userId);
+        .ilike('user_login', userEmail.toLowerCase());
     }
     await adminClient.from('app_push_subscriptions').delete().eq('user_id', userId);
     await adminClient.from('app_device_names').delete().eq('user_id', userId);

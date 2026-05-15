@@ -203,6 +203,9 @@ update public.app_audit_expenses
 -- sugar" work. Nullable: legacy rows + entries where qty doesn't
 -- make sense (utilities, rent) just leave it empty.
 alter table public.app_audit_expenses add column if not exists qty numeric;
+-- v56: optional per-row note (free-form context for a single addition,
+-- separate from the description which is the group-name). Nullable.
+alter table public.app_audit_expenses add column if not exists note text;
 create index if not exists idx_app_audit_expenses_business_id on public.app_audit_expenses(business_id);
 create index if not exists idx_app_audit_expenses_date on public.app_audit_expenses(date);
 

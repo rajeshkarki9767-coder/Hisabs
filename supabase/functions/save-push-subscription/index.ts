@@ -72,6 +72,15 @@ Deno.serve(async (req: Request): Promise<Response> => {
   if (!endpoint || !p256dh || !authKey) {
     return jsonResp(CORS_HEADERS, { error: 'Missing subscription fields' }, 400);
   }
+  // Bound the length of each field so a caller with a valid JWT can't
+  // bloat app_push_subscriptions with megabyte-sized payloads. Real
+  // values are tiny: FCM/Mozilla/Apple endpoints are <500 chars,
+  // p256dh is a 65-byte ECDSA public key base64-url'd (~87 chars),
+  // auth_key is a 16-byte random base64-url'd (~24 chars). The caps
+  // below give plenty of headroom while still preventing abuse.
+  if (endpoint.length > 1024 || p256dh.length > 256 || authKey.length > 128) {
+    return jsonResp(CORS_HEADERS, { error: 'Subscription fields too long' }, 400);
+  }
   // Sanity-check endpoint URL — must be https.
   try {
     const u = new URL(endpoint);

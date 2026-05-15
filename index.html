@@ -790,7 +790,27 @@
   .entries-head > * { min-width: 0; }
   .entry-row:last-child { border-bottom: none; }
   .entry-row:hover { background: var(--surface-2); }
+  /* v56: entry-row status backgrounds for at-a-glance scanning.
+     - Default: white/paper, normal entry created today (no badge)
+     - Edited (yellow tint): user changed the entry after creating it
+     - Past date (blue tint): entry's calendar date is older than today
+     Hover state takes precedence so the row still feels interactive. */
+  .entry-row.entry-row-edited {
+    background: rgba(217, 167, 53, 0.08);
+  }
+  .entry-row.entry-row-edited:hover {
+    background: rgba(217, 167, 53, 0.14);
+  }
+  .entry-row.entry-row-pastdate {
+    background: rgba(73, 116, 168, 0.08);
+  }
+  .entry-row.entry-row-pastdate:hover {
+    background: rgba(73, 116, 168, 0.14);
+  }
   .entry-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
+  /* v57: when a back-dated entry shows "· added <today>" suffix, make
+     it visually secondary so the picked date stays prominent. */
+  .entry-added { color: var(--ink-mute); font-style: italic; }
   .entry-desc { min-width: 0; }
   .entry-note { font-size: 0.85rem; color: var(--ink); margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entry-party { font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; cursor: pointer; min-width: 0; }
@@ -985,6 +1005,72 @@
   .announcement-action-btn.danger:hover { color: var(--loss); }
   .announcement-post-btn { background: transparent; border: 1px dashed var(--line); color: var(--ink-mute); padding: 0.65rem 0.85rem; border-radius: var(--r); cursor: pointer; font-size: 0.85rem; text-align: left; transition: border-color 0.12s, color 0.12s; display: flex; align-items: center; gap: 0.5rem; width: 100%; }
   .announcement-post-btn:hover { border-color: var(--accent); color: var(--accent); }
+  /* v59: unread-state ring + "New" pill + reaction footer */
+  .announcement.announcement-unread {
+    box-shadow: 0 0 0 2px var(--accent-soft, rgba(168, 53, 31, 0.18)), 0 1px 0 rgba(168, 53, 31, 0.06);
+  }
+  .announcement-new-tag {
+    display: inline-block; background: var(--accent); color: var(--paper);
+    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em;
+    padding: 0.1rem 0.45rem; border-radius: 999px;
+    text-transform: uppercase;
+  }
+  .announcement-footer {
+    display: flex; align-items: center; gap: 0.55rem;
+    margin-top: 0.55rem;
+    flex-wrap: wrap;
+  }
+  .announcement-react-chip {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    cursor: pointer;
+    transition: transform 0.15s, background 0.12s, border-color 0.12s, color 0.12s;
+    font-family: inherit;
+    -webkit-user-select: none; user-select: none;
+  }
+  .announcement-react-chip:hover {
+    background: var(--surface-1);
+    border-color: var(--ink-soft);
+  }
+  .announcement-react-chip.reacted {
+    background: rgba(168, 53, 31, 0.1);
+    border-color: var(--loss);
+    color: var(--loss);
+    font-weight: 600;
+  }
+  .announcement-react-chip .announcement-react-heart {
+    font-size: 0.9rem; line-height: 1;
+    color: var(--ink-mute);
+  }
+  .announcement-react-chip.reacted .announcement-react-heart {
+    color: var(--loss);
+  }
+  .announcement-react-chip.has-count { padding-right: 0.55rem; }
+  .announcement-react-chip .announcement-react-count {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+  }
+  .announcement-react-chip.react-pulse {
+    animation: react-pulse 0.4s ease-out;
+  }
+  @keyframes react-pulse {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.25); }
+    100% { transform: scale(1); }
+  }
+  .announcement-react-hint {
+    font-size: 0.68rem; color: var(--ink-mute); font-style: italic;
+  }
+  @media (hover: none) {
+    /* On touch devices the "double-tap" tip is more obvious than
+       "click the heart"; show it more prominently. */
+    .announcement-react-hint { font-style: normal; }
+  }
 
   /* Chip menu popover (tap a chip on an entry) */
   .chip-menu { background: var(--paper); border: 1px solid var(--line); box-shadow: var(--shadow-lg); z-index: 250; min-width: 240px; padding: 0.35rem; animation: fade 0.12s; }
@@ -1154,6 +1240,37 @@
     font-size: 0.7rem;
     color: var(--ink-mute);
   }
+  /* v56: total count chip next to "Recent transfers" header so the
+     user sees how many exist for the period at a glance. */
+  .acct-transfer-recent-count {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.05rem 0.4rem;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 999px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  /* "View more" / "Show less" toggle at the bottom of the recent
+     transfers list. Borderless button, accent text, hover underline. */
+  .acct-transfer-recent-more {
+    display: block;
+    width: 100%;
+    margin-top: 0.4rem;
+    padding: 0.4rem 0.5rem;
+    background: transparent;
+    border: none;
+    border-top: 1px dashed var(--line-soft);
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+  }
+  .acct-transfer-recent-more:hover { text-decoration: underline; }
   @media (max-width: 600px) {
     .acct-transfer-recent-row {
       grid-template-columns: 1fr auto;
@@ -1237,18 +1354,36 @@
      Three sections (A: first portion read-only, B: salaries with
      rows, C: profit shares with rows). Owner-only; persists per-biz.
      ============================================================ */
+  /* v58: Distribution lives on its own page now, so the outer
+     wrapper just sets the top spacing — each section card has
+     its own background/border/padding. */
   .distribution-card {
-    background: var(--surface-1);
-    border: 1px solid var(--line);
-    border-radius: var(--r);
-    padding: 0.95rem 1.1rem;
-    margin-top: 0.85rem;
+    margin-top: 0.4rem;
   }
   .dist-head { margin-bottom: 0.85rem; }
   .dist-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--ink); margin: 0; }
   .dist-sub { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; }
-  .dist-section { padding: 0.75rem 0; border-top: 1px dashed var(--line-soft); }
-  .dist-section:first-of-type { border-top: none; padding-top: 0; }
+  /* v58: when Distribution moved to its own page, sections render
+     as distinct cards (not dashed-separator regions inside one card).
+     Each card gets a 4px colored left stripe to signal what it is at
+     a glance. Border-left chosen over background tints to keep the
+     paper-deep cream surface consistent with the rest of the app. */
+  .dist-section {
+    padding: 0.95rem 1.1rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 0.85rem;
+  }
+  .dist-section-amount {
+    border-left: 4px solid var(--ink);
+  }
+  .dist-section-salaries {
+    border-left: 4px solid #4974a8; /* muted blue — matches accent palette */
+  }
+  .dist-section-shares {
+    border-left: 4px solid var(--gain); /* green for profit allocation */
+  }
   .dist-section-head {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 0.55rem;
@@ -1259,7 +1394,8 @@
   }
   .dist-section-help { font-size: 0.7rem; color: var(--ink-mute); margin-top: 0.4rem; font-style: italic; }
   .dist-empty { font-size: 0.78rem; color: var(--ink-mute); padding: 0.6rem 0; font-style: italic; }
-  /* Section A — first portion display */
+  /* Section A — Amount display. Changed currency is now PRIMARY and
+     larger; biz currency line sits below in smaller muted text. */
   .dist-first-row {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 0.85rem; padding: 0.55rem 0.7rem;
@@ -1267,14 +1403,15 @@
     border-radius: var(--r-sm);
   }
   .dist-first-label { font-size: 0.78rem; color: var(--ink-soft); }
-  .dist-first-values { display: flex; flex-direction: column; align-items: flex-end; gap: 0.1rem; }
+  .dist-first-values { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
   .dist-first-portion {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 1.05rem; font-weight: 600; color: var(--ink);
+    font-size: 1.35rem; font-weight: 700; color: var(--ink);
+    line-height: 1.1;
   }
-  .dist-first-portion-converted {
+  .dist-first-portion-biz {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 0.78rem; color: var(--ink-mute);
+    font-size: 0.72rem; color: var(--ink-mute);
   }
   /* Section B — Salary rows. 6-column grid on desktop; stacks on mobile. */
   .dist-salary-header,
@@ -1482,21 +1619,82 @@
   .forecast-pace.up { background: rgba(46,110,55,0.15); color: var(--gain); }
   .forecast-pace.down { background: rgba(168,53,31,0.15); color: var(--loss); }
   .forecast-pace-muted { color: var(--ink-mute); font-size: 0.65rem; font-style: italic; }
-  .forecast-best-day {
-    display: flex; align-items: baseline; justify-content: space-between;
-    gap: 0.85rem; padding: 0.65rem 0.95rem;
-    background: rgba(46,110,55,0.08);
-    border: 1px solid var(--gain);
-    border-radius: var(--r);
+  /* v58 item 13: paired Best Day + Worst Day cards. Each card shows
+     the weekday name + ISO date in the header, then a 3-stat grid
+     (Cash in / Cash out / Net profit) below. Side-by-side on desktop,
+     stacked on mobile. Color accents: green tint for best, red tint
+     for worst — same palette as the rest of the gain/loss UI. */
+  .forecast-day-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
     margin-bottom: 0.95rem;
   }
-  .forecast-best-day-label {
-    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.13em;
-    color: var(--gain); font-weight: 700;
+  .forecast-day-card {
+    padding: 0.85rem 1rem;
+    border-radius: var(--r);
+    border: 1px solid var(--line);
+    background: var(--surface-1);
   }
-  .forecast-best-day-value {
+  .forecast-day-card.forecast-best-day {
+    background: rgba(46, 110, 55, 0.06);
+    border-color: var(--gain);
+  }
+  .forecast-day-card.forecast-worst-day {
+    background: rgba(168, 53, 31, 0.06);
+    border-color: var(--loss);
+  }
+  .forecast-day-card-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 0.85rem; margin-bottom: 0.55rem;
+    flex-wrap: wrap;
+  }
+  .forecast-day-card-label {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.13em;
+    font-weight: 700;
+  }
+  .forecast-day-card.forecast-best-day .forecast-day-card-label { color: var(--gain); }
+  .forecast-day-card.forecast-worst-day .forecast-day-card-label { color: var(--loss); }
+  .forecast-day-card-date {
+    display: flex; flex-direction: column; align-items: flex-end; gap: 0.05rem;
+    min-width: 0;
+  }
+  .forecast-day-weekday {
+    font-family: var(--font-serif); font-size: 0.95rem; font-weight: 600;
+    color: var(--ink); line-height: 1.1;
+  }
+  .forecast-day-ymd {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 0.85rem; color: var(--ink); font-weight: 500;
+    font-size: 0.7rem; color: var(--ink-mute);
+  }
+  .forecast-day-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.5rem;
+    padding-top: 0.55rem;
+    border-top: 1px dashed var(--line);
+  }
+  .forecast-day-stat {
+    display: flex; flex-direction: column; gap: 0.2rem; min-width: 0;
+  }
+  .forecast-day-stat-label {
+    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-mute); font-weight: 600;
+  }
+  .forecast-day-stat-val {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 0.85rem; font-weight: 600;
+  }
+  .forecast-day-stat-val.pos { color: var(--gain); }
+  .forecast-day-stat-val.neg { color: var(--loss); }
+  @media (max-width: 720px) {
+    .forecast-day-cards { grid-template-columns: 1fr; gap: 0.6rem; }
+    .forecast-day-card-stats { gap: 0.4rem; }
+  }
+  /* Legacy single best-day callout (kept for any old code path) —
+     same visual treatment as a single new card without the stats grid. */
+  .forecast-best-day {
+    /* shape inherited from .forecast-day-card.forecast-best-day above */
   }
   /* Chart */
   .forecast-chart-wrap {
@@ -1544,43 +1742,85 @@
     font-size: 0.72rem; color: var(--ink-mute);
     margin: 0.15rem 0 0.75rem;
   }
-  .forecast-breakdown { display: flex; flex-direction: column; gap: 0.25rem; }
-  .forecast-bk-row {
+  /* v58 item 16: Forecast projection breakdown — redesigned. Each
+     metric reads as a "story row" with clear visual sections:
+        [Label]     [So far value]  →  [× N days formula]  [Projected value]  [pace tag]
+     The arrow + formula chain shows the math openly so it's obvious
+     where the projection comes from. Net profit row gets a dark
+     hero treatment as the final answer. */
+  .forecast-section-breakdown {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 0.95rem 1.1rem;
+    margin-bottom: 0.95rem;
+  }
+  .forecast-section-head { margin-bottom: 0.85rem; }
+  .forecast-row {
     display: grid;
-    grid-template-columns: 1.4fr 1fr 1fr 1fr 1fr;
-    gap: 0.55rem; align-items: baseline;
-    padding: 0.45rem 0.55rem;
+    grid-template-columns: 180px 1fr;
+    gap: 0.85rem; align-items: center;
+    padding: 0.6rem 0.55rem;
     border-radius: var(--r-sm);
-    font-size: 0.82rem;
+    transition: background 0.1s;
   }
-  .forecast-bk-row:nth-child(even) { background: var(--paper-deep); }
-  .forecast-bk-head {
-    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.13em;
+  .forecast-row:hover { background: var(--paper-deep); }
+  .forecast-row-label {
+    font-size: 0.85rem; font-weight: 600; color: var(--ink);
+  }
+  .forecast-row-chain {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto;
+    gap: 0.6rem; align-items: center;
+  }
+  .forecast-row-mtd, .forecast-row-proj, .forecast-row-pace {
+    display: flex; flex-direction: column; gap: 0.15rem; min-width: 0;
+  }
+  .forecast-row-pace { align-items: flex-end; text-align: right; }
+  .forecast-row-tag {
+    font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.12em;
     color: var(--ink-mute); font-weight: 600;
-    background: transparent !important; padding-bottom: 0.2rem;
   }
-  .forecast-bk-label { color: var(--ink); font-weight: 500; }
-  .forecast-bk-val {
+  .forecast-row-val {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    text-align: right;
+    font-size: 0.88rem; color: var(--ink);
   }
-  .forecast-bk-val.pos { color: var(--gain); }
-  .forecast-bk-val.neg { color: var(--loss); }
-  .forecast-bk-val.muted { color: var(--ink-mute); }
-  .forecast-bk-proj { font-weight: 600; }
-  .forecast-bk-divider {
-    border-top: 1px dashed var(--line); padding-top: 0.55rem;
+  .forecast-row-val.proj { font-size: 1rem; font-weight: 700; }
+  .forecast-row-val.pos { color: var(--gain); }
+  .forecast-row-val.neg { color: var(--loss); }
+  .forecast-row-avg {
+    display: flex; align-items: center; gap: 0.45rem;
+    color: var(--ink-mute); font-size: 0.7rem;
+    text-align: center; justify-content: center; min-width: 0;
   }
-  .forecast-bk-final {
-    background: var(--ink) !important; color: var(--paper);
+  .forecast-row-arrow {
+    color: var(--ink-mute); font-size: 1rem; font-weight: 300;
+  }
+  .forecast-row-formula {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 0.7rem; color: var(--ink-soft);
+    white-space: nowrap;
+  }
+  .forecast-row-divider {
+    border-top: 1px dashed var(--line); padding-top: 0.75rem; margin-top: 0.35rem;
+  }
+  .forecast-row-tax .forecast-row-mtd .forecast-row-val,
+  .forecast-row-tax .forecast-row-pace { display: none; }
+  .forecast-row-tax .forecast-row-mtd::after {
+    content: '—'; color: var(--ink-mute); font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+  .forecast-row-final {
+    background: var(--ink); padding: 0.85rem 0.95rem; margin-top: 0.5rem;
     border-radius: var(--r-sm);
-    padding: 0.65rem 0.55rem;
   }
-  .forecast-bk-final .forecast-bk-label { color: var(--paper); font-weight: 700; }
-  .forecast-bk-final .forecast-bk-val { color: var(--paper); }
-  .forecast-bk-final .forecast-bk-val.pos { color: var(--gain-on-dark, #62c178); }
-  .forecast-bk-final .forecast-bk-val.neg { color: var(--loss-on-dark, #f08a78); }
-  .forecast-bk-final .forecast-bk-val.muted { color: rgba(255,255,255,0.5); }
+  .forecast-row-final:hover { background: var(--ink); }
+  .forecast-row-final .forecast-row-label { color: var(--paper); }
+  .forecast-row-final .forecast-row-tag { color: rgba(255,255,255,0.55); }
+  .forecast-row-final .forecast-row-val { color: var(--paper); }
+  .forecast-row-final .forecast-row-val.pos { color: var(--gain-on-dark, #62c178); }
+  .forecast-row-final .forecast-row-val.neg { color: var(--loss-on-dark, #f08a78); }
+  .forecast-row-final .forecast-row-arrow { color: rgba(255,255,255,0.4); }
+  .forecast-row-final .forecast-row-formula { color: rgba(255,255,255,0.45); }
+  /* Layout note section */
   .forecast-method {
     background: var(--surface-2); border: 1px solid var(--line-soft);
     border-radius: var(--r); padding: 0.85rem 1.1rem;
@@ -1597,25 +1837,277 @@
   .forecast-method p:last-child { margin-bottom: 0; }
   @media (max-width: 880px) {
     .forecast-insights { grid-template-columns: repeat(2, 1fr); }
-    .forecast-bk-row {
-      grid-template-columns: 1.2fr 1fr 1fr;
-      font-size: 0.76rem;
+    .forecast-row {
+      grid-template-columns: 1fr;
+      gap: 0.45rem;
     }
-    /* Hide daily-avg and last-month columns on small screens; the
-       MTD and Projected columns are the headline numbers. */
-    .forecast-bk-row > :nth-child(3),
-    .forecast-bk-row > :nth-child(5) { display: none; }
+    .forecast-row-chain {
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+    /* Hide the avg-chain on small screens — too much horizontal real
+       estate. The label + projected + pace tell the story. */
+    .forecast-row-avg { display: none; }
   }
   @media (max-width: 480px) {
     .forecast-insights { grid-template-columns: 1fr; gap: 0.5rem; }
     .forecast-month-banner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
-    .forecast-bk-row {
-      grid-template-columns: 1.4fr 1fr 1fr;
-    }
     .audit-forecast-cta { margin: 0.3rem 0 0.5rem; }
   }
 
   /* End of distribution / forecast styles */
+
+  /* ============================================================
+     v59: Insights tab styles
+     ============================================================ */
+  /* Period bar at the top of the Insights page. Same visual language
+     as the rest of the period filters (showing-bar buttons). */
+  .insights-period-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.85rem; flex-wrap: wrap;
+    padding: 0.55rem 0.75rem;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: var(--r);
+    margin-bottom: 0.95rem;
+  }
+  .insights-period-buttons { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; }
+  .insights-period-label {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink-mute); font-weight: 600; margin-right: 0.4rem;
+  }
+  .insights-period-buttons button {
+    padding: 0.32rem 0.75rem; font-size: 0.75rem;
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 999px; cursor: pointer; color: var(--ink-soft);
+    font-family: inherit;
+  }
+  .insights-period-buttons button:hover { background: var(--surface-1); }
+  .insights-period-buttons button.active {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+    font-weight: 600;
+  }
+  .insights-period-current {
+    font-family: var(--font-mono); font-size: 0.78rem;
+    color: var(--ink-mute);
+  }
+  /* KPI grid — 4 cards across on desktop, 2 on tablet, 1 on mobile */
+  .insights-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.95rem;
+  }
+  .insights-kpi {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 0.85rem 1rem;
+  }
+  .insights-kpi-label {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.35rem;
+  }
+  .insights-kpi-value {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 1.25rem; font-weight: 700; color: var(--ink);
+    line-height: 1.1; margin-bottom: 0.3rem;
+  }
+  .insights-kpi-value.pos { color: var(--gain); }
+  .insights-kpi-value.neg { color: var(--loss); }
+  .insights-kpi-sub { font-size: 0.7rem; color: var(--ink-mute); }
+  /* "Biggest" row — 3 small cards across */
+  .insights-biggest-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.95rem;
+  }
+  .insights-biggest-card {
+    background: var(--surface-2); border: 1px dashed var(--line);
+    border-radius: var(--r); padding: 0.7rem 0.85rem;
+  }
+  .insights-biggest-label {
+    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.12em;
+    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.3rem;
+  }
+  .insights-biggest-value {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 1rem; font-weight: 600; color: var(--ink);
+    line-height: 1.15; word-break: break-word;
+  }
+  .insights-biggest-value.pos { color: var(--gain); }
+  .insights-biggest-value.neg { color: var(--loss); }
+  .insights-biggest-sub { font-size: 0.7rem; color: var(--ink-mute); margin-top: 0.2rem; }
+  .insights-biggest-empty { font-size: 0.78rem; color: var(--ink-mute); font-style: italic; }
+  /* Chart wrap shared by bar + line charts */
+  .insights-chart-wrap {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 0.85rem 1rem;
+    margin-bottom: 0.95rem;
+  }
+  .insights-chart-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    gap: 0.85rem; flex-wrap: wrap; margin-bottom: 0.6rem;
+  }
+  .insights-chart-title {
+    font-family: var(--font-serif); font-size: 0.95rem; font-weight: 600;
+    color: var(--ink); margin: 0;
+  }
+  .insights-chart-sub { font-size: 0.72rem; color: var(--ink-mute); font-weight: 400; }
+  .insights-chart-legend { display: flex; gap: 0.85rem; font-size: 0.72rem; color: var(--ink-soft); }
+  .insights-bar-svg, .insights-line-svg { width: 100%; height: auto; max-width: 100%; }
+  /* Pies — 2x2 grid on desktop, stacked on mobile */
+  .insights-pies-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 0.95rem;
+  }
+  .insights-pie-card {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 0.85rem 1rem;
+  }
+  .insights-pie-title {
+    font-family: var(--font-serif); font-size: 0.9rem; font-weight: 600;
+    color: var(--ink); margin: 0 0 0.55rem 0;
+  }
+  .insights-pie-body {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 0.85rem; align-items: center;
+  }
+  .insights-pie-svg { width: 100%; max-width: 200px; height: auto; }
+  .insights-pie-legend { display: flex; flex-direction: column; gap: 0.3rem; min-width: 0; }
+  .insights-legend-row {
+    display: grid;
+    grid-template-columns: 14px minmax(0, 1fr) 48px 70px;
+    gap: 0.4rem; align-items: center;
+    font-size: 0.72rem; min-width: 0;
+  }
+  .insights-legend-swatch {
+    width: 12px; height: 12px; border-radius: 2px; display: inline-block;
+  }
+  .insights-legend-label {
+    color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .insights-legend-pct {
+    font-family: var(--font-mono); color: var(--ink-mute); text-align: right;
+  }
+  .insights-legend-val {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    color: var(--ink-soft); text-align: right;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .insights-pie-empty {
+    font-size: 0.78rem; color: var(--ink-mute); font-style: italic;
+  }
+  /* Generic section wrap (top 10, heatmap, WoW) */
+  .insights-section {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r); padding: 0.95rem 1.1rem;
+    margin-bottom: 0.95rem;
+  }
+  .insights-section-title {
+    font-family: var(--font-serif); font-size: 0.95rem; font-weight: 600;
+    color: var(--ink); margin: 0 0 0.55rem 0;
+  }
+  .insights-section-help {
+    font-size: 0.72rem; color: var(--ink-mute); margin: 0 0 0.65rem 0;
+  }
+  /* Top 10 list */
+  .insights-top10 { display: flex; flex-direction: column; gap: 0.25rem; }
+  .insights-top10-row {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1.4fr) 90px 110px 110px 110px;
+    gap: 0.55rem; align-items: center;
+    padding: 0.45rem 0.55rem;
+    background: var(--paper-deep); border-radius: var(--r-sm);
+    font-size: 0.78rem;
+  }
+  .insights-top10-rank {
+    font-family: var(--font-mono); font-weight: 700;
+    color: var(--ink-mute); text-align: center;
+  }
+  .insights-top10-name {
+    color: var(--ink); font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .insights-top10-count { color: var(--ink-mute); font-size: 0.7rem; }
+  .insights-top10-in, .insights-top10-out, .insights-top10-net {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .insights-top10-in.pos { color: var(--gain); }
+  .insights-top10-out.neg { color: var(--loss); }
+  .insights-top10-net.pos { color: var(--gain); font-weight: 600; }
+  .insights-top10-net.neg { color: var(--loss); font-weight: 600; }
+  /* Heatmap */
+  .insights-heatmap-svg { width: 100%; height: auto; max-width: 100%; }
+  /* WoW grid — 4 cells on desktop, 2 on tablet */
+  .insights-wow-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.6rem;
+  }
+  .insights-wow-cell {
+    background: var(--paper-deep); border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm); padding: 0.6rem 0.7rem;
+  }
+  .insights-wow-label {
+    font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.35rem;
+  }
+  .insights-wow-net {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 0.95rem; font-weight: 700; margin-bottom: 0.2rem;
+  }
+  .insights-wow-net.pos { color: var(--gain); }
+  .insights-wow-net.neg { color: var(--loss); }
+  .insights-wow-flow {
+    font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-mute);
+    margin-bottom: 0.2rem;
+  }
+  .insights-wow-pct {
+    display: inline-block; padding: 0.1rem 0.4rem;
+    font-size: 0.62rem; font-weight: 600; border-radius: 999px;
+  }
+  .insights-wow-pct.pos { background: rgba(46,110,55,0.15); color: var(--gain); }
+  .insights-wow-pct.neg { background: rgba(168,53,31,0.15); color: var(--loss); }
+  /* Swatch bullets used in the bar-chart legend */
+  .fc-swatch {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 2px; margin-right: 0.3rem; vertical-align: -1px;
+  }
+  .fc-swatch-in { background: var(--gain); }
+  .fc-swatch-out { background: var(--loss); }
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .insights-kpis { grid-template-columns: repeat(2, 1fr); }
+    .insights-biggest-row { grid-template-columns: 1fr; }
+    .insights-pies-grid { grid-template-columns: 1fr; }
+    .insights-pie-body { grid-template-columns: 180px 1fr; }
+    .insights-wow-grid { grid-template-columns: repeat(2, 1fr); }
+    .insights-top10-row {
+      grid-template-columns: 28px minmax(0, 1fr) 90px 90px;
+      gap: 0.4rem;
+    }
+    .insights-top10-row > :nth-child(3) { display: none; }
+    .insights-top10-row > :nth-child(4) { display: none; }
+  }
+  @media (max-width: 600px) {
+    .insights-kpis { grid-template-columns: 1fr; }
+    .insights-pie-body { grid-template-columns: 1fr; }
+    .insights-pie-svg { max-width: 220px; margin: 0 auto; display: block; }
+    .insights-wow-grid { grid-template-columns: 1fr; }
+    .insights-top10-row {
+      grid-template-columns: 24px minmax(0, 1fr) 90px;
+      gap: 0.3rem;
+      font-size: 0.74rem;
+    }
+    .insights-top10-row > :nth-child(3) { display: none; }
+    .insights-top10-row > :nth-child(4) { display: none; }
+    .insights-top10-row > :nth-child(5) { display: none; }
+    .insights-period-bar { flex-direction: column; align-items: flex-start; }
+  }
+  /* End of v59 Insights styles */
      in the list but clearly not active. The "Hidden" section header at the
      bottom of Accounts groups them so they don't clutter the main view. */
   .party-card.acct-hidden { opacity: 0.6; background: var(--paper-deep); border-style: dashed; }
@@ -1802,10 +2294,12 @@
   .audit-month-totals-value.out { color: var(--loss); }
   .audit-section-sub { font-size: 0.74rem; color: var(--ink-mute); margin-bottom: 0.7rem; }
   .audit-exp-add { display: grid; grid-template-columns: 1fr 120px auto; gap: 0.4rem; margin-bottom: 0.7rem; }
-  /* Add row with the optional Quantity column. One extra cell vs the
-     plain version. Stacks vertically on mobile (see @media below). */
-  .audit-exp-add-qty { grid-template-columns: 1.5fr 100px 1fr 130px auto; }
+  /* Add row with the optional Quantity column. v56: also includes
+     optional Note column at the end. Stacks vertically on mobile
+     (see @media below). */
+  .audit-exp-add-qty { grid-template-columns: 1.5fr 100px 1fr 130px 1.4fr auto; }
   .audit-exp-add input { padding: 0.5rem 0.65rem; font-size: 0.82rem; }
+  .audit-exp-add-note { /* lives in the new 5th column; min-width:0 lets it shrink */ min-width: 0; }
   .audit-exp-list { display: flex; flex-direction: column; gap: 0.3rem; }
   .audit-exp-row { display: grid; grid-template-columns: 1fr auto auto; gap: 0.55rem; align-items: center; padding: 0.45rem 0.7rem; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); }
   .audit-exp-desc { color: var(--ink); font-size: 0.82rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
@@ -1853,6 +2347,7 @@
   .exp-hist-row > * { min-width: 0; }
   .exp-hist-date { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-soft); }
   .exp-hist-qty { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-mute); }
+  .exp-hist-note { font-size: 0.74rem; color: var(--ink-soft); margin-top: 0.2rem; font-style: italic; word-break: break-word; }
   .exp-hist-amt { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--loss); font-weight: 500; font-size: 0.88rem; text-align: right; }
   .exp-hist-actions { display: inline-flex; gap: 0.1rem; }
   @media (max-width: 600px) {
@@ -2847,7 +3342,7 @@
            every role (owner, manager, staff, viewer) — not gated like Management.
            Sits above Management so common-access items appear first in the nav. -->
       <div id="sidebarQuickLookGroup">
-        <div class="sidebar-section-label"><span>Quick Look</span></div>
+        <div class="sidebar-section-label"><span>What's New</span></div>
         <div class="sidebar-nav">
           <div class="sidebar-nav-item" id="navAnnouncementsView" onclick="switchView('announcementsView')">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
@@ -2858,19 +3353,30 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Snapshot
           </div>
+          <div class="sidebar-nav-item" id="navForecast" onclick="switchView('forecast')" style="display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Forecast
+          </div>
+          <div class="sidebar-nav-item" id="navDistribution" onclick="switchView('distribution')" style="display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3v9l6 6"/><path d="M12 12L5.5 7.5"/></svg>
+            Distribution
+          </div>
+          <div class="sidebar-nav-item" id="navInsights" onclick="switchView('insights')" style="display:none;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-5"/></svg>
+            Insights
+          </div>
         </div>
       </div>
 
       <!-- Management section: owner-only sidebar group for org admin tasks.
-           Currently houses Announcements and Staff. Hidden entirely when there's no active
-           business or the current user isn't its owner. -->
+           Currently houses just Team. Hidden entirely when there's no active
+           business or the current user isn't its owner. (Announcements
+           moved fully to Quick Look in v56 — the read view there carries
+           the owner's Post/Edit/Delete inline buttons, so a separate
+           "manage" entry was duplicative.) -->
       <div id="sidebarManagementGroup" style="display:none;">
         <div class="sidebar-section-label"><span>Management</span></div>
         <div class="sidebar-nav" role="navigation" aria-label="Management">
-          <div class="sidebar-nav-item" id="navAnnouncements" onclick="switchView('announcements')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('announcements');}">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
-            Announcements
-          </div>
           <div class="sidebar-nav-item" id="navStaff" onclick="switchView('staff')" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();switchView('staff');}">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             Team
@@ -3704,6 +4210,15 @@
   const EXPORT_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
   function exportIconButton(target) {
     return `<button class="btn-icon-ghost" onclick="openExportChooser('${target}')" title="Export" aria-label="Export">${EXPORT_ICON_SVG}</button>`;
+  }
+  // Print icon — opens the native browser print dialog where users can
+  // choose a printer or "Save as PDF". Same icon glyph everywhere
+  // (Audit + Expenses had it from v50; v56 puts it on every page that
+  // also offers Export so users can always reach a printable version).
+  function printIconButton() {
+    return `<button class="icon-btn-light" onclick="printPage()" title="Print or save as PDF" aria-label="Print or save as PDF">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+    </button>`;
   }
 
   // ================================================================
@@ -4932,6 +5447,38 @@
       setActive('navExpenses', session.view === 'expenses');
     }
     setActive('navQuickLook', session.view === 'quickLook');
+    // Forecast tab (under Quick Look) — visible to owner, manager,
+    // viewer (same gate as Audit; staff don't see financial summaries).
+    // Moved out of Audit into its own tab in v56 so non-owner roles
+    // can access it directly without going through the Audit page.
+    const navForecast = document.getElementById('navForecast');
+    if (navForecast) {
+      const canSeeForecast = session.activeBizId && canSeeAudit(session.activeBizId);
+      navForecast.style.display = canSeeForecast ? 'flex' : 'none';
+      setActive('navForecast', session.view === 'forecast');
+    }
+    // Distribution tab — owner-only. Manages how the first portion of
+    // net profit gets allocated to team salaries + profit shares.
+    // Owner-only because it's compensation data (sensitive) and the
+    // owner is the only one who can change tax/split inputs upstream
+    // anyway.
+    const navDistribution = document.getElementById('navDistribution');
+    if (navDistribution) {
+      const isOwnerOfActive = session.activeBizId
+        && roleFor(session.activeBizId) === 'owner';
+      navDistribution.style.display = isOwnerOfActive ? 'flex' : 'none';
+      setActive('navDistribution', session.view === 'distribution');
+    }
+    // Insights tab — visible to owner+manager+viewer (same gate as
+    // Audit/Forecast; staff don't see financial roll-ups). Provides
+    // pie charts, bar charts, trend lines, top-10 lists, growth %
+    // comparisons against previous periods. v59.
+    const navInsights = document.getElementById('navInsights');
+    if (navInsights) {
+      const canSeeInsights = session.activeBizId && canSeeAudit(session.activeBizId);
+      navInsights.style.display = canSeeInsights ? 'flex' : 'none';
+      setActive('navInsights', session.view === 'insights');
+    }
     // Announcements tab (under Quick Look) — active state + count badge
     // for important unread/recent posts. Visible to anyone with a role.
     const navAnnouncementsView = document.getElementById('navAnnouncementsView');
@@ -4939,11 +5486,15 @@
       setActive('navAnnouncementsView', session.view === 'announcementsView');
       const badge = document.getElementById('navAnnouncementsBadge');
       if (badge) {
-        const count = session.activeBizId
-          ? (data.announcements || []).filter(a => a.businessId === session.activeBizId).length
+        // v59: badge shows UNREAD count only, not total. Reads are
+        // tracked per user per business in localStorage. When the
+        // user opens the Announcements view, all current items get
+        // marked as read (see renderAnnouncementsReadView).
+        const unread = session.activeBizId
+          ? countUnreadAnnouncements(session.activeBizId)
           : 0;
-        if (count > 0) {
-          badge.textContent = String(count);
+        if (unread > 0) {
+          badge.textContent = String(unread);
           badge.removeAttribute('hidden');
         } else {
           badge.setAttribute('hidden', '');
@@ -4988,6 +5539,10 @@
       document.getElementById('mobileBookTitle').textContent = 'Audit';
     } else if (session.view === 'forecast') {
       document.getElementById('mobileBookTitle').textContent = 'Forecast';
+    } else if (session.view === 'distribution') {
+      document.getElementById('mobileBookTitle').textContent = 'Distribution';
+    } else if (session.view === 'insights') {
+      document.getElementById('mobileBookTitle').textContent = 'Insights';
     } else if (session.view === 'expenses') {
       document.getElementById('mobileBookTitle').textContent = 'Expenses';
     } else if (session.view === 'staff') {
@@ -5038,7 +5593,7 @@
         'splitPctInput', 'splitCurInput', 'splitRateInput',
         // Expenses page add-row: description / quantity / amount / date.
         // Same problem: types "Tea", realtime fires, value gone.
-        'mAuditDesc', 'mAuditQty', 'mAuditAmt', 'mAuditDate',
+        'mAuditDesc', 'mAuditQty', 'mAuditAmt', 'mAuditDate', 'mAuditNote',
       ]);
       if (focusableIds.has(_activeEl.id)) {
         _preservedFocus = {
@@ -5081,13 +5636,21 @@
     if (session.view === 'account-detail') { renderAccountDetailView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'audit') { renderAuditView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'forecast') { renderForecastView(root); _restoreFocusAfterRender(_preservedFocus); return; }
+    if (session.view === 'distribution') { renderDistributionView(root); _restoreFocusAfterRender(_preservedFocus); return; }
+    if (session.view === 'insights') { renderInsightsView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'expenses') { renderExpensesView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     // Backward-compatibility: 'others' was the Reimbursements view (v44-v48).
     // Removed in v49 — silently bounce to expenses if a stale session
     // had this view selected.
     if (session.view === 'others') { session.view = 'expenses'; saveSession(); renderExpensesView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'staff') { renderStaffView(root); _restoreFocusAfterRender(_preservedFocus); return; }
-    if (session.view === 'announcements') { renderAnnouncementsManageView(root); _restoreFocusAfterRender(_preservedFocus); return; }
+    if (session.view === 'announcements') {
+      // v56: management view removed (was a duplicate). Bounce to the
+      // read view which now carries inline owner controls.
+      session.view = 'announcementsView';
+      try { saveSession(); } catch (_) {}
+      renderAnnouncementsReadView(root); _restoreFocusAfterRender(_preservedFocus); return;
+    }
     if (session.view === 'announcementsView') { renderAnnouncementsReadView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'quickLook') { renderQuickLookView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     renderEntriesView(root);
@@ -5148,8 +5711,10 @@
     // nowhere meaningful to navigate to in those cases.
     let annButton = '';
     if (biz && role) {
-      const annTarget = role === 'owner' ? 'announcements' : 'announcementsView';
-      annButton = `<button class="btn-icon-ghost" onclick="switchView('${annTarget}')" title="Announcements" aria-label="Announcements">
+      // v56: both owner and members go to the same Quick Look →
+      // Announcements page. The owner sees Post/Edit/Delete inline
+      // there, so the role-aware dual target is no longer needed.
+      annButton = `<button class="btn-icon-ghost" onclick="switchView('announcementsView')" title="Announcements" aria-label="Announcements">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
       </button>`;
     }
@@ -5161,6 +5726,7 @@
         </div>
         <div class="page-actions">
           ${annButton}
+          ${printIconButton()}
           ${canSeeTotals(session.activeBizId) ? exportIconButton('entries') : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
         </div>
@@ -5661,21 +6227,54 @@
     // when they pressed save — gives us the wall-clock time. Both
     // show together so the user can tell early-morning vs late-night
     // entries apart at a glance.
+    //
+    // v57: when e.date differs from the date portion of e.createdAt
+    // (i.e. the user back-dated or forward-dated the entry), also
+    // surface the actual created date so the user knows when it
+    // was really entered. Example: today is May 15, user enters
+    // an entry dated May 14 → row shows "2026-05-14 · added 2026-05-15
+    // 11:56 AM" instead of the ambiguous "2026-05-14 · 11:56 AM".
+    // Same-day entries (the common case) still read as before.
     const timeStr = formatEntryTime(e.createdAt);
-    const dateLine = timeStr ? `${safeDate} · ${escapeHtml(timeStr)}` : safeDate;
+    let dateLine;
+    if (e.createdAt) {
+      const created = new Date(e.createdAt);
+      const createdYmd = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+      const sameDay = !e.date || createdYmd === e.date;
+      if (sameDay) {
+        dateLine = timeStr ? `${safeDate} · ${escapeHtml(timeStr)}` : safeDate;
+      } else {
+        // Different day — show picked date prominently, then a faint
+        // "added <actualDate> <time>" so it's clear when it was
+        // actually keyed in. Wrapped in <span class="entry-added">
+        // so we can grey it out without restyling the whole line.
+        dateLine = `${safeDate}<span class="entry-added"> · added ${escapeHtml(createdYmd)}${timeStr ? ' ' + escapeHtml(timeStr) : ''}</span>`;
+      }
+    } else {
+      dateLine = timeStr ? `${safeDate} · ${escapeHtml(timeStr)}` : safeDate;
+    }
     // Edit indicator: only show if the entry was actually edited
     // (helper applies a 5s threshold to ignore same-session re-saves).
     const editedAtLabel = entryEditedLabel(e);
     const editedBadge = editedAtLabel
       ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(editedAtLabel)}</span>`
       : '';
+    // v56: color-coded backgrounds for at-a-glance scanning.
+    //   .entry-row-edited   — entry was edited after creation (yellow tint)
+    //   .entry-row-pastdate — entry's date is older than today (blue tint)
+    // Edited wins over past-date when both apply, since "this was
+    // changed" is the more important signal.
+    const isEdited = !!editedAtLabel;
+    const isPastDate = e.date && e.date < today();
+    const statusCls = isEdited ? ' entry-row-edited'
+      : (isPastDate ? ' entry-row-pastdate' : '');
     const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
     const acct = e.accountId ? (accountMap ? accountMap.get(e.accountId) : data.cashAccounts.find(a => a.id === e.accountId)) : null;
     const acctChip = acct ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
-      return `<div class="entry-row entry-${e.type}">
+      return `<div class="entry-row entry-${e.type}${statusCls}">
         <div class="entry-date">${dateLine}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -5699,7 +6298,7 @@
         </div>
       </div>`;
     }
-    return `<div class="entry-row entry-${e.type}">
+    return `<div class="entry-row entry-${e.type}${statusCls}">
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -5827,6 +6426,7 @@
           <h1 class="page-title">Parties <span class="page-title-count">${totalParties}</span></h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) && totalParties >= 1 ? exportIconButton('parties') : ''}
           ${canAdd && totalParties >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderParties')">Reorder</button>` : ''}
           ${canAdd ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'party\')">+ New Party</button>' : ''}
@@ -5969,6 +6569,7 @@
           <h1 class="page-title">${escapeHtml(party.name)}</h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('party:' + party.id) : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="renameParty('${party.id}')">Rename</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-danger-outline" onclick="deletePartyAction('${party.id}')">Delete</button>` : ''}
@@ -5993,13 +6594,31 @@
     // entry-row renderers (main list + party/category/account
     // detail views). See renderEntryRow for the design rationale.
     const _timeStr = formatEntryTime(e.createdAt);
-    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    // v57: same back-dated indicator as renderEntryRow — see comment there.
+    let dateLine;
+    if (e.createdAt) {
+      const _created = new Date(e.createdAt);
+      const _createdYmd = `${_created.getFullYear()}-${String(_created.getMonth() + 1).padStart(2, '0')}-${String(_created.getDate()).padStart(2, '0')}`;
+      const _sameDay = !e.date || _createdYmd === e.date;
+      if (_sameDay) {
+        dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+      } else {
+        dateLine = `${e.date}<span class="entry-added"> · added ${escapeHtml(_createdYmd)}${_timeStr ? ' ' + escapeHtml(_timeStr) : ''}</span>`;
+      }
+    } else {
+      dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    }
     const _editedAtLabel = entryEditedLabel(e);
     const editedBadge = _editedAtLabel
       ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
       : '';
+    // v56 status classes — see renderEntryRow for design notes.
+    const isEdited = !!_editedAtLabel;
+    const isPastDate = e.date && e.date < today();
+    const statusCls = isEdited ? ' entry-row-edited'
+      : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
-      return `<div class="entry-row entry-${e.type}">
+      return `<div class="entry-row entry-${e.type}${statusCls}">
         <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -6016,7 +6635,7 @@
         </div>
       </div>`;
     }
-    return `<div class="entry-row entry-${e.type}">
+    return `<div class="entry-row entry-${e.type}${statusCls}">
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -6162,6 +6781,7 @@
           <h1 class="page-title">Categories <span class="page-title-count">${totalCats}</span></h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('categories') : ''}
           ${canManage && data.categories.filter(c => c.businessId === biz.id).length >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderCategories')">Reorder</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-accent" onclick="openModal('category')">+ New Category</button>` : ''}
@@ -6232,6 +6852,7 @@
           <h1 class="page-title">${escapeHtml(displayName)}${!isUncat && !isDefined ? ' <span class="cat-orphan-tag" style="font-size:0.55em;vertical-align:middle;">unlisted</span>' : ''}</h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) && !isUncat ? exportIconButton('category:' + jsAttr(catName)) : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="renameCategoryFlow('${jsAttr(catName)}')">Rename</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteCategoryFromDetail('${jsAttr(catName)}')">Remove</button>` : ''}
@@ -6254,13 +6875,31 @@
     const partyLabel = e.type === 'in' ? 'From' : 'To';
     // Date+time + edited badge — same pattern as renderEntryRow.
     const _timeStr = formatEntryTime(e.createdAt);
-    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    // v57: same back-dated indicator as renderEntryRow — see comment there.
+    let dateLine;
+    if (e.createdAt) {
+      const _created = new Date(e.createdAt);
+      const _createdYmd = `${_created.getFullYear()}-${String(_created.getMonth() + 1).padStart(2, '0')}-${String(_created.getDate()).padStart(2, '0')}`;
+      const _sameDay = !e.date || _createdYmd === e.date;
+      if (_sameDay) {
+        dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+      } else {
+        dateLine = `${e.date}<span class="entry-added"> · added ${escapeHtml(_createdYmd)}${_timeStr ? ' ' + escapeHtml(_timeStr) : ''}</span>`;
+      }
+    } else {
+      dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    }
     const _editedAtLabel = entryEditedLabel(e);
     const editedBadge = _editedAtLabel
       ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
       : '';
+    // v56 status classes — see renderEntryRow for design notes.
+    const isEdited = !!_editedAtLabel;
+    const isPastDate = e.date && e.date < today();
+    const statusCls = isEdited ? ' entry-row-edited'
+      : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
-      return `<div class="entry-row entry-${e.type}">
+      return `<div class="entry-row entry-${e.type}${statusCls}">
         <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -6277,7 +6916,7 @@
         </div>
       </div>`;
     }
-    return `<div class="entry-row entry-${e.type}">
+    return `<div class="entry-row entry-${e.type}${statusCls}">
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -6529,6 +7168,7 @@
           <h1 class="page-title">Accounts <span class="page-title-count">${allAccs.length}</span></h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('accounts') : ''}
           ${canManage && (data.accountGroups.filter(g => g.businessId === biz.id).length >= 2 || allAccs.length >= 2) ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'reorderAccounts\')">Reorder</button>' : ''}
           ${canManage ? '<button class="btn btn-sm btn-ghost" onclick="openModal(\'accountGroup\')">+ New Category</button>' : ''}
@@ -6562,11 +7202,31 @@
           Transfers
         </button>
         ${(() => {
-          const recent = (data.transfers || []).filter(t => t.businessId === biz.id).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, 3);
-          if (!recent.length) return '';
+          // Recent transfers — filtered by the same period selector
+          // the rest of the Accounts page uses (Today, Yesterday,
+          // This Month, All Time, Custom). Defaults to showing 4;
+          // the "View more" toggle expands to show the rest.
+          //
+          // Note: the predicate keys off the transfer's `date`
+          // field (the user-chosen date on the transfer), same as
+          // entries. A transfer dated 2026-05-01 stays inside
+          // "This Month" of May 2026 regardless of when it was
+          // actually recorded.
+          const pred = periodPredicate();
+          // We pass a minimal { date } stub since periodPredicate
+          // only reads .date — works for transfers too.
+          const allBizTransfers = (data.transfers || [])
+            .filter(t => t.businessId === biz.id)
+            .filter(t => pred({ date: t.date }))
+            .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          if (!allBizTransfers.length) return '';
+          const expanded = __acctTransfersExpanded === true;
+          const DEFAULT_LIMIT = 4;
+          const shown = expanded ? allBizTransfers : allBizTransfers.slice(0, DEFAULT_LIMIT);
+          const hiddenCount = allBizTransfers.length - shown.length;
           return `<div class="acct-transfer-recent">
-            <div class="acct-transfer-recent-head">Recent transfers</div>
-            ${recent.map(t => {
+            <div class="acct-transfer-recent-head">Recent transfers <span class="acct-transfer-recent-count">${allBizTransfers.length}</span></div>
+            ${shown.map(t => {
               const fromAcc = data.cashAccounts.find(a => a.id === t.fromAccountId);
               const toAcc = data.cashAccounts.find(a => a.id === t.toAccountId);
               return `<div class="acct-transfer-recent-row">
@@ -6576,6 +7236,8 @@
                 ${canManage ? `<button class="icon-btn-light" onclick="deleteTransferAction('${jsAttr(t.id)}')" title="Reverse transfer" aria-label="Reverse transfer"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
               </div>`;
             }).join('')}
+            ${hiddenCount > 0 ? `<button class="acct-transfer-recent-more" onclick="toggleAcctTransfersExpanded()">View more (${hiddenCount} ${hiddenCount === 1 ? 'transfer' : 'transfers'})</button>` : ''}
+            ${expanded && allBizTransfers.length > DEFAULT_LIMIT ? `<button class="acct-transfer-recent-more" onclick="toggleAcctTransfersExpanded()">Show less</button>` : ''}
           </div>`;
         })()}
       </div>` : ''}
@@ -6789,32 +7451,31 @@
   function refreshDistributionTotals() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
-    const cur = currencyDisplay(biz.currency);
-    // Section A — first portion in business currency, derived from
-    // __splitPct of __splitNetProfit. If a rate is set, also show in
-    // the user's picked currency.
-    const firstPortion = __splitNetProfit * (__splitPct / 100);
-    const inPickedCur = (__splitRate > 0 && __splitCurrency)
-      ? firstPortion * __splitRate
-      : null;
-    // Section B totals
+    const bizCur = currencyDisplay(biz.currency);
+    const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
+    const displayCur = hasChangedCurrency ? __splitCurrency : bizCur;
+    const conversionRate = hasChangedCurrency ? __splitRate : 1;
+    // Amount in both currencies. "first portion" naming kept in vars
+    // for legacy code readers but the user-facing label is now "Amount".
+    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    const firstPortionDisp = firstPortionBiz * conversionRate;
+    // Section B totals — all in display currency
     let totalSalary = 0;
-    let totalAdj = 0; // signed: deductions negative, additions positive
+    let totalAdj = 0;
     let totalFinal = 0;
     for (const r of __distSalaries) {
       totalSalary += r.salary;
       const signedAdj = r.adjustmentType === 'addition' ? r.adjustmentAmount : -r.adjustmentAmount;
       totalAdj += signedAdj;
       totalFinal += r.salary + signedAdj;
-      // Update final cell for this row
       const finalCell = document.querySelector(`[data-dist-row="${r.id}"] .dist-salary-final`);
       if (finalCell) {
         const f = r.salary + signedAdj;
-        finalCell.textContent = `${cur} ${fmt(f)}`;
+        finalCell.textContent = `${displayCur} ${fmt(f)}`;
         finalCell.classList.toggle('neg', f < 0);
       }
     }
-    const remaining = firstPortion - totalFinal;
+    const remaining = firstPortionDisp - totalFinal;
     // Section C amounts + total
     let totalSharePct = 0;
     let totalShareAmount = 0;
@@ -6823,34 +7484,31 @@
       const amt = (r.pct / 100) * remaining;
       totalShareAmount += amt;
       const amtCell = document.querySelector(`[data-dist-share="${r.id}"] .dist-share-amount`);
-      if (amtCell) amtCell.textContent = `${cur} ${fmt(amt)}`;
+      if (amtCell) amtCell.textContent = `${displayCur} ${fmt(amt)}`;
     }
-    // Patch the summary lines
     const $ = (sel) => document.querySelector(sel);
     if ($('.dist-first-portion')) {
-      $('.dist-first-portion').textContent = `${cur} ${fmt(firstPortion)}`;
+      $('.dist-first-portion').textContent = `${displayCur} ${fmt(firstPortionDisp)}`;
     }
-    if ($('.dist-first-portion-converted')) {
-      $('.dist-first-portion-converted').textContent = inPickedCur == null
-        ? ''
-        : `≈ ${escapeHtml(__splitCurrency)} ${fmt(inPickedCur)}`;
+    if ($('.dist-first-portion-biz')) {
+      $('.dist-first-portion-biz').textContent = hasChangedCurrency ? `${bizCur} ${fmt(firstPortionBiz)}` : '';
     }
-    if ($('.dist-total-salary')) $('.dist-total-salary').textContent = `${cur} ${fmt(totalSalary)}`;
+    if ($('.dist-total-salary')) $('.dist-total-salary').textContent = `${displayCur} ${fmt(totalSalary)}`;
     if ($('.dist-total-adj')) {
-      $('.dist-total-adj').textContent = `${totalAdj >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(totalAdj))}`;
+      $('.dist-total-adj').textContent = `${totalAdj >= 0 ? '+' : '−'}${displayCur} ${fmt(Math.abs(totalAdj))}`;
       $('.dist-total-adj').classList.toggle('pos', totalAdj > 0);
       $('.dist-total-adj').classList.toggle('neg', totalAdj < 0);
     }
-    if ($('.dist-total-final')) $('.dist-total-final').textContent = `${cur} ${fmt(totalFinal)}`;
+    if ($('.dist-total-final')) $('.dist-total-final').textContent = `${displayCur} ${fmt(totalFinal)}`;
     if ($('.dist-remaining')) {
-      $('.dist-remaining').textContent = `${cur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}`;
+      $('.dist-remaining').textContent = `${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}`;
       $('.dist-remaining').classList.toggle('neg', remaining < 0);
     }
     if ($('.dist-total-share-pct')) {
       $('.dist-total-share-pct').textContent = `${fmt(totalSharePct)}%`;
       $('.dist-total-share-pct').classList.toggle('over', totalSharePct > 100);
     }
-    if ($('.dist-total-share-amount')) $('.dist-total-share-amount').textContent = `${cur} ${fmt(totalShareAmount)}`;
+    if ($('.dist-total-share-amount')) $('.dist-total-share-amount').textContent = `${displayCur} ${fmt(totalShareAmount)}`;
   }
 
   // Full re-render of just the Distribution card body (without
@@ -6865,30 +7523,56 @@
 
   // Returns the HTML for the Distribution card. Three sections (A, B,
   // C) plus a datalist of team-member names for auto-suggest on the
-  // salary + share name inputs. Called from renderAuditView (which
-  // wraps it in #distributionCard) and from renderDistributionCard
-  // (which patches just the inner HTML on row add/remove).
+  // salary + share name inputs. Now rendered on its own dedicated
+  // page (renderDistributionView) instead of inline on Audit.
   //
-  // Math chain (computed live in JS, mirrored in refreshDistributionTotals):
-  //   firstPortion = __splitNetProfit × (__splitPct / 100)
+  // v58 currency logic — item 11:
+  //   When the owner has set a changed currency + rate in Split &
+  //   convert (e.g. "USD @ 0.0075"), Distribution now operates in
+  //   that changed currency:
+  //     - "Amount" (previously "First portion") header shows the
+  //       converted value prominently with the changed currency
+  //       symbol; the business-currency value sits below in smaller
+  //       muted text as a reference.
+  //     - All salary / adjustment / share amount inputs accept
+  //       values in the CHANGED currency. The user types salaries
+  //       in USD (or whatever).
+  //     - All totals / remaining / per-share amounts also display
+  //       in the changed currency.
+  //   When no rate is set (rate is 0 or currency is blank), the
+  //   page falls back to biz-currency only — header just shows the
+  //   biz currency amount with no conversion line.
+  //
+  //   The values stored in __distSalaries / __distShares are
+  //   interpreted as being in the active currency (changed if
+  //   present, else biz). This means if the user later changes
+  //   their picked currency, the stored numbers don't auto-convert
+  //   — they re-mean themselves in the new currency. We surface a
+  //   help note to that effect so it's not surprising.
+  //
+  // Math chain (same shape as v54 but in active currency):
+  //   firstPortionBiz   = __splitNetProfit × (__splitPct / 100)
+  //   firstPortionDisp  = firstPortionBiz × rate  (= firstPortionBiz when no rate)
   //   For each salary row:
   //     signedAdj = (addition ? +adjustmentAmount : -adjustmentAmount)
   //     final     = salary + signedAdj
-  //   totalFinal = sum(final across all rows)
-  //   remaining  = firstPortion - totalFinal
+  //   totalFinal = sum(final across all rows)        ← all in display ccy
+  //   remaining  = firstPortionDisp - totalFinal     ← all in display ccy
   //   For each share row:
-  //     amount   = (pct / 100) × remaining
+  //     amount   = (pct / 100) × remaining           ← all in display ccy
   function distributionCardBody() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return '';
-    const cur = currencyDisplay(biz.currency);
-    // Section A — read-only display of the first % portion in business
-    // currency, and (if user has set a rate) also in their picked
-    // currency. Updates live as the user edits Split & convert above.
-    const firstPortion = __splitNetProfit * (__splitPct / 100);
-    const inPickedCur = (__splitRate > 0 && __splitCurrency)
-      ? firstPortion * __splitRate
-      : null;
+    const bizCur = currencyDisplay(biz.currency);
+    // Determine active display currency. If the owner has set a rate
+    // and a currency on the Split & convert card, use those; else
+    // fall back to the business currency.
+    const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
+    const displayCur = hasChangedCurrency ? escapeHtml(__splitCurrency) : bizCur;
+    const conversionRate = hasChangedCurrency ? __splitRate : 1;
+    // The "Amount" (formerly "First portion") in BOTH currencies.
+    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    const firstPortionDisp = firstPortionBiz * conversionRate;
     // Team member names for auto-suggest. Pulls from accepted members
     // of the active biz; falls back to empty if no team yet. Names
     // are de-duplicated case-insensitively to avoid repeats in the
@@ -6898,7 +7582,6 @@
       const out = [];
       for (const m of data.members) {
         if (m.businessId !== biz.id || m.status !== 'accepted') continue;
-        // Use the display name if set, else the userLogin local part.
         const nm = (m.displayName || '').trim() || (m.userLogin || '').split('@')[0] || '';
         if (!nm) continue;
         const k = nm.toLowerCase();
@@ -6906,7 +7589,6 @@
         seen.add(k);
         out.push(nm);
       }
-      // Also include the owner's own name for distributions to self.
       const owner = data.businesses.find(b => b.id === biz.id);
       if (owner) {
         const ownerUser = accounts.find(a => a.id === owner.ownerId);
@@ -6921,23 +7603,27 @@
       ? `<datalist id="distMemberSuggest">${memberNames.map(n => `<option value="${escapeHtml(n)}">`).join('')}</datalist>`
       : '<datalist id="distMemberSuggest"></datalist>';
 
-    // Section A HTML — labels, the value, and (optionally) the
-    // converted value in the user's picked currency.
+    // Section A — "Amount" (renamed from "First portion"). Shows
+    // the changed-currency value BIG and the biz-currency value
+    // small below it. If no changed currency is set, just the
+    // biz-currency value.
     const sectionA = `
-      <div class="dist-section">
-        <div class="dist-section-title">First portion</div>
+      <div class="dist-section dist-section-amount">
+        <div class="dist-section-title">Amount</div>
         <div class="dist-first-row">
           <div class="dist-first-label">${escapeHtml(String(__splitPct))}% of Net profit</div>
           <div class="dist-first-values">
-            <div class="dist-first-portion">${cur} ${fmt(firstPortion)}</div>
-            <div class="dist-first-portion-converted">${inPickedCur == null ? '' : `≈ ${escapeHtml(__splitCurrency)} ${fmt(inPickedCur)}`}</div>
+            <div class="dist-first-portion">${displayCur} ${fmt(firstPortionDisp)}</div>
+            ${hasChangedCurrency ? `<div class="dist-first-portion-biz">${bizCur} ${fmt(firstPortionBiz)}</div>` : ''}
           </div>
         </div>
-        <div class="dist-section-help">Adjust the % or currency rate in Split &amp; convert above to change this.</div>
+        <div class="dist-section-help">
+          Adjust the % or currency rate in Split &amp; convert (on Audit) to change this.
+          ${hasChangedCurrency ? `All salaries and shares below are in <strong>${escapeHtml(__splitCurrency)}</strong>.` : ''}
+        </div>
       </div>`;
 
-    // Section B — Team (Salaries). Owner-only add button. Rows are
-    // patched in place on field changes to preserve input focus.
+    // Section B — Team (Salaries). Border-left blue accent (item 12).
     const salaryRows = __distSalaries.length ? __distSalaries.map(r => {
       const signedAdj = r.adjustmentType === 'addition' ? r.adjustmentAmount : -r.adjustmentAmount;
       const final = r.salary + signedAdj;
@@ -6949,12 +7635,11 @@
           <option value="addition" ${r.adjustmentType === 'addition' ? 'selected' : ''}>+ Addition</option>
         </select>
         <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
-        <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${cur} ${fmt(final)}</div>
+        <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
         <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
 
-    // Totals for Section B
     let totalSalary = 0;
     let totalAdj = 0;
     let totalFinal = 0;
@@ -6964,12 +7649,12 @@
       totalAdj += signedAdj;
       totalFinal += r.salary + signedAdj;
     }
-    const remaining = firstPortion - totalFinal;
+    const remaining = firstPortionDisp - totalFinal;
 
     const sectionB = `
-      <div class="dist-section">
+      <div class="dist-section dist-section-salaries">
         <div class="dist-section-head">
-          <div class="dist-section-title">Team (Salaries)</div>
+          <div class="dist-section-title">Team Salaries</div>
           <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add</button>
         </div>
         <div class="dist-salary-header">
@@ -6985,24 +7670,24 @@
         <div class="dist-totals">
           <div class="dist-totals-row">
             <span class="dist-totals-label">Total salary</span>
-            <span class="dist-total-salary">${cur} ${fmt(totalSalary)}</span>
+            <span class="dist-total-salary">${displayCur} ${fmt(totalSalary)}</span>
           </div>
           <div class="dist-totals-row">
             <span class="dist-totals-label">Total adjustment</span>
-            <span class="dist-total-adj ${totalAdj > 0 ? 'pos' : totalAdj < 0 ? 'neg' : ''}">${totalAdj >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(totalAdj))}</span>
+            <span class="dist-total-adj ${totalAdj > 0 ? 'pos' : totalAdj < 0 ? 'neg' : ''}">${totalAdj >= 0 ? '+' : '−'}${displayCur} ${fmt(Math.abs(totalAdj))}</span>
           </div>
           <div class="dist-totals-row dist-totals-final-row">
             <span class="dist-totals-label">Total final paid</span>
-            <span class="dist-total-final">${cur} ${fmt(totalFinal)}</span>
+            <span class="dist-total-final">${displayCur} ${fmt(totalFinal)}</span>
           </div>
         </div>` : ''}
         <div class="dist-remaining-card ${remaining < 0 ? 'neg' : ''}">
           <span class="dist-remaining-label">Remaining (after salaries)</span>
-          <span class="dist-remaining">${cur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}</span>
+          <span class="dist-remaining">${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}</span>
         </div>
       </div>`;
 
-    // Section C — Profit shares
+    // Section C — Profit shares. Border-left green accent (item 12).
     let totalSharePct = 0;
     let totalShareAmount = 0;
     const shareRows = __distShares.length ? __distShares.map(r => {
@@ -7012,15 +7697,15 @@
       return `<div class="dist-share-row" data-dist-share="${escapeHtml(r.id)}">
         <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
         <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
-        <div class="dist-share-amount">${cur} ${fmt(amt)}</div>
+        <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
         <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
 
     const sectionC = `
-      <div class="dist-section">
+      <div class="dist-section dist-section-shares">
         <div class="dist-section-head">
-          <div class="dist-section-title">Profit shares</div>
+          <div class="dist-section-title">Profit Shares</div>
           <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add</button>
         </div>
         <div class="dist-share-header">
@@ -7038,16 +7723,12 @@
           </div>
           <div class="dist-totals-row dist-totals-final-row">
             <span class="dist-totals-label">Total share amount</span>
-            <span class="dist-total-share-amount">${cur} ${fmt(totalShareAmount)}</span>
+            <span class="dist-total-share-amount">${displayCur} ${fmt(totalShareAmount)}</span>
           </div>
         </div>` : ''}
       </div>`;
 
     return datalistHTML + `
-      <div class="dist-head">
-        <h2 class="dist-title">Distribution</h2>
-        <p class="dist-sub">Allocate the first % portion to team salaries and profit shares. Saved per business.</p>
-      </div>
       ${sectionA}
       ${sectionB}
       ${sectionC}
@@ -7336,6 +8017,11 @@
       if (!Number.isFinite(qn) || qn <= 0 || qn > 1e9) { toast('Invalid quantity.'); return; }
       qty = qn;
     }
+    // v56: optional note — free-form context for this specific
+    // addition. Survives auto-merge into the group (each child keeps
+    // its own note; the group card shows them stacked).
+    const noteRaw = document.getElementById('mAuditNote')?.value || '';
+    const note = noteRaw.trim().slice(0, 500);
     data.auditExpenses.push({
       id: uid(),
       businessId: biz.id,
@@ -7346,6 +8032,7 @@
       description: desc,
       amount: amt,
       qty,
+      note: note || undefined,
       createdAt: Date.now(),
     });
     saveData();
@@ -7367,52 +8054,130 @@
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
     if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can delete expenses.'); return; }
+    // v56: close any open modal (e.g. the History modal that the
+    // user clicked Delete inside of) BEFORE showing the confirm.
+    // Without this, the confirm dialog would stack on top of the
+    // History modal causing focus chaos and the user landing on a
+    // stale list after deletion.
+    if (document.getElementById('modalBackdrop')?.classList.contains('active')) {
+      try { closeModal(); } catch (_) {}
+      // Small delay so the close animation finishes before confirm.
+      await new Promise(r => setTimeout(r, 80));
+    }
     if (!(await uiConfirm('Delete this expense? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
     saveData();
     renderMain();
     toast('Expense deleted.');
   }
-  async function editAuditExpense(id) {
+  // Edit an audit expense. v56 rewrite: opens a single proper modal
+  // with all fields visible at once instead of chaining four
+  // uiPrompt() dialogs. The chained-prompt approach was glitchy —
+  // each prompt opened on top of the History modal causing focus
+  // chaos, and cancelling mid-flow left the user uncertain about
+  // partial state.
+  //
+  // The new modal also exposes the optional Note field (item 4 of
+  // v56). Note is per-row and survives inside the auto-merged
+  // group (each child keeps its own note).
+  function editAuditExpense(id) {
     const x = data.auditExpenses.find(e => e.id === id);
     if (!x) return;
     const biz = data.businesses.find(b => b.id === x.businessId);
     if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can edit.'); return; }
-    const newDesc = await uiPrompt('Edit description:', x.description, { title: 'Edit expense', submitLabel: 'Next' });
-    if (newDesc == null) return;
-    const trimmedDesc = String(newDesc).trim();
+    // Close the history modal first if it's open. Without this, the
+    // edit modal would render on top of it and on cancel the user
+    // would see the history modal again (correct) but with focus
+    // potentially trapped above. Cleaner to land back on Expenses.
+    if (document.getElementById('modalBackdrop')?.classList.contains('active')) {
+      try { closeModal(); } catch (_) {}
+    }
+    __expenseEditingId = id;
+    // Tiny delay so the close animation completes before the open.
+    setTimeout(() => openModal('expenseEdit'), 80);
+  }
+
+  // Module-level so the modal renderer can read which expense to
+  // pre-fill. Cleared on close.
+  let __expenseEditingId = null;
+
+  function expenseEditModalHTML() {
+    const id = __expenseEditingId;
+    if (!id) return '<div class="modal-handle"></div><p>No expense selected.</p>';
+    const x = data.auditExpenses.find(e => e.id === id);
+    if (!x) return '<div class="modal-handle"></div><p>Expense not found.</p>';
+    const dateVal = expenseDate(x);
+    const qtyVal = x.qty == null ? '' : String(x.qty);
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Edit expense</h2>
+      <p class="modal-sub">Update any field. All required except Quantity and Note.</p>
+      <div class="form-grid">
+        <div class="input-wrap">
+          <label>Description</label>
+          <input type="text" id="mExpEditDesc" maxlength="500" value="${escapeHtml(x.description || '')}" placeholder="What was the expense?">
+        </div>
+        <div class="form-row">
+          <div class="input-wrap">
+            <label>Amount</label>
+            <input type="number" id="mExpEditAmt" step="0.01" min="0" inputmode="decimal" value="${x.amount || ''}" placeholder="0.00">
+          </div>
+          <div class="input-wrap">
+            <label>Quantity (optional)</label>
+            <input type="number" id="mExpEditQty" step="0.01" min="0" inputmode="decimal" value="${escapeHtml(qtyVal)}" placeholder="—">
+          </div>
+        </div>
+        <div class="input-wrap">
+          <label>Date</label>
+          <input type="date" id="mExpEditDate" value="${escapeHtml(dateVal)}">
+        </div>
+        <div class="input-wrap">
+          <label>Note (optional)</label>
+          <input type="text" id="mExpEditNote" maxlength="500" value="${escapeHtml(x.note || '')}" placeholder="Free-form note about this expense">
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-accent" onclick="saveExpenseEdit()">Save changes</button>
+        </div>
+      </div>`;
+  }
+
+  // Save the edits from expenseEditModal. Validates all fields, then
+  // mutates the row in place and marks editedAt for the timeline.
+  function saveExpenseEdit() {
+    const id = __expenseEditingId;
+    if (!id) return;
+    const x = data.auditExpenses.find(e => e.id === id);
+    if (!x) { toast('Expense not found.'); closeModal(); return; }
+    const biz = data.businesses.find(b => b.id === x.businessId);
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can edit.'); return; }
+    const descRaw = document.getElementById('mExpEditDesc')?.value || '';
+    const trimmedDesc = descRaw.trim();
     if (!trimmedDesc) { toast('Description cannot be blank.'); return; }
     if (trimmedDesc.length > LIMITS.description) { toast(`Description too long (max ${LIMITS.description} characters).`); return; }
-    const newAmtRaw = await uiPrompt('Edit amount:', String(x.amount), { title: 'Edit expense', submitLabel: 'Next', inputType: 'text' });
-    if (newAmtRaw == null) return;
-    // M3: stricter parse — `Number()` rejects "1.2.3"/"abc" which
-    // parseFloat would silently accept.
-    const newAmt = newAmtRaw === '' ? NaN : Number(newAmtRaw);
+    const amtRaw = document.getElementById('mExpEditAmt')?.value || '';
+    const newAmt = amtRaw === '' ? NaN : Number(amtRaw);
     if (!Number.isFinite(newAmt) || newAmt <= 0 || newAmt > LIMITS.amount) { toast('Invalid amount.'); return; }
-    // Optional quantity. Existing value or blank prefilled; user can
-    // clear it to remove qty entirely (treated as null).
-    const qtyDefault = x.qty == null ? '' : String(x.qty);
-    const newQtyRaw = await uiPrompt('Quantity (optional, leave blank to remove):', qtyDefault, { title: 'Edit expense', submitLabel: 'Next', inputType: 'text', allowEmpty: true });
-    if (newQtyRaw == null) return;
+    const qtyRaw = document.getElementById('mExpEditQty')?.value || '';
     let newQty = null;
-    if (String(newQtyRaw).trim() !== '') {
-      const qn = Number(newQtyRaw);
+    if (String(qtyRaw).trim() !== '') {
+      const qn = Number(qtyRaw);
       if (!Number.isFinite(qn) || qn <= 0 || qn > 1e9) { toast('Invalid quantity.'); return; }
       newQty = qn;
     }
-    // Date is editable too — default to the existing date or fall back to
-    // the legacy month.
-    const newDateRaw = await uiPrompt('Edit date (YYYY-MM-DD):', expenseDate(x), { title: 'Edit expense', submitLabel: 'Save', placeholder: 'YYYY-MM-DD' });
-    if (newDateRaw == null) return;
-    const newDate = newDateRaw.trim();
+    const newDate = (document.getElementById('mExpEditDate')?.value || '').trim();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) { toast('Invalid date.'); return; }
+    const noteRaw = (document.getElementById('mExpEditNote')?.value || '').trim().slice(0, 500);
     x.description = trimmedDesc;
     x.amount = newAmt;
     x.qty = newQty;
     x.date = newDate;
     x.month = newDate.slice(0, 7);
+    x.note = noteRaw || undefined;
     x.editedAt = Date.now();
     saveData();
+    closeModal();
+    __expenseEditingId = null;
     renderMain();
     toast('Expense updated.');
   }
@@ -7720,23 +8485,11 @@
       </div>
     `;
 
-    // Distribution card — owner-only. Renders below Split & convert.
-    // Loads its state from localStorage every render so cross-device
-    // edits show up after sync. The card is a single empty container
-    // div here; the inner HTML is filled by distributionCardBody()
-    // which we invoke after the root.innerHTML write so the same
-    // template logic is shared with the patch-in-place re-renders.
-    const distributionWrap = isOwnerForTax
-      ? `<div class="distribution-card" id="distributionCard"><!-- filled after render --></div>`
-      : '';
-    const forecastButton = isOwnerForTax
-      ? `<div class="audit-forecast-cta">
-          <button class="btn btn-sm btn-ghost" onclick="switchView('forecast')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:0.3rem;"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            View monthly forecast
-          </button>
-        </div>`
-      : '';
+    // v58: Distribution moved to its own sidebar page (under What's
+    // New → Distribution). The card no longer renders on Audit; the
+    // Audit page now ends at the Split & convert section. Click the
+    // sidebar Distribution entry to see the salaries + profit shares
+    // breakdown.
 
     root.innerHTML = `
       <div class="page-header">
@@ -7745,14 +8498,10 @@
           <h1 class="page-title">Audit</h1>
         </div>
         <div class="page-actions">
-          <button class="icon-btn-light" onclick="printPage()" title="Print or save as PDF" aria-label="Print or save as PDF">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          </button>
+          ${printIconButton()}
           ${exportIconButton('audit')}
         </div>
       </div>
-
-      ${forecastButton}
 
       ${renderAuditRangeBar()}
 
@@ -7761,23 +8510,12 @@
       ${totalsSection}
       ${netSection}
       ${splitSection}
-      ${distributionWrap}
     `;
     // Stash the current net profit on a module-level so the calculator's input
     // handlers can read it without re-running the whole audit calc.
     __splitNetProfit = splitNet;
     __splitBusinessCurrency = cur;
     updateSplitCalc();
-    // Hydrate distribution state for this business and render the card.
-    // Done AFTER root.innerHTML so the wrap div exists. Owner-only —
-    // viewers/managers skip the load entirely so their localStorage
-    // never accidentally picks up another biz's data.
-    if (isOwnerForTax) {
-      const distState = loadDistributionStateFor(biz.id);
-      __distSalaries = distState.salaries;
-      __distShares = distState.shares;
-      renderDistributionCard();
-    }
   }
 
   // ================================================================
@@ -7814,7 +8552,20 @@
   // Daily chart renders cash in and cash out as paired bars per day,
   // with a "today" marker. SVG only — no chart library, keeps file
   // small.
-  function renderForecastView(root) {
+  // ================================================================
+  // DISTRIBUTION — own page (v58)
+  // ================================================================
+  // Owner-only. Lives under What's New → Distribution in the sidebar.
+  // The page wraps the existing distributionCardBody() (which contains
+  // the three sections: Amount / Team Salaries / Profit Shares) and
+  // adds page-level chrome: title, eyebrow, print + export icons.
+  //
+  // The card body is loaded the same way it was on Audit — hydrate
+  // module state from localStorage, set the global __split* vars from
+  // the per-biz split state (so the Amount shows the right currency
+  // when the user navigates here without visiting Audit first), then
+  // render the body.
+  function renderDistributionView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) {
       root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>';
@@ -7822,10 +8573,98 @@
     }
     if (roleFor(biz.id) !== 'owner') {
       root.innerHTML = `
-        <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">Forecast</h1></div></div>
+        <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">Distribution</h1></div></div>
         <div class="empty">
           <div class="empty-headline">Owner only</div>
-          <div>Monthly forecast is visible to the business owner.</div>
+          <div>Distribution data is visible to the business owner.</div>
+        </div>`;
+      return;
+    }
+    // Hydrate __split* from the per-biz split state. Audit normally
+    // does this, but a user landing on Distribution directly hasn't
+    // visited Audit yet — without this hydration, __splitCurrency
+    // and __splitRate would still be defaults (empty / 0) and the
+    // page would silently fall back to biz currency.
+    const splitState = loadSplitStateFor(biz.id);
+    __splitPct = splitState.pct;
+    __splitCurrency = splitState.currency || '';
+    __splitRate = splitState.rate || 0;
+    // Also hydrate the saved net profit. Audit re-derives this from
+    // the entries + expenses; if user hasn't visited Audit, the
+    // module-level cache could be stale. Fast re-derivation here
+    // mirrors the audit math (cash in − cash out − expenses, then
+    // − tax) so the Amount displays correctly on first load.
+    const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+    const hiddenAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    );
+    const pred = periodPredicate();
+    let cashIn = 0, cashOut = 0;
+    for (const e of data.entries) {
+      if (!bookIds.has(e.bookId)) continue;
+      if (hiddenAcctIds.has(e.accountId)) continue;
+      if (!pred(e)) continue;
+      const amt = entryAmount(e);
+      if (e.type === 'in') cashIn += amt;
+      else cashOut += amt;
+    }
+    const monthKeyOfPeriod = (() => {
+      const p = session.period || { mode: 'current' };
+      if (p.mode === 'current') return today().slice(0, 7);
+      if (p.mode === 'month') return p.monthKey;
+      return null; // all / range — sum across all matching auditExpenses
+    })();
+    let expenses = 0;
+    for (const x of data.auditExpenses) {
+      if (x.businessId !== biz.id) continue;
+      if (monthKeyOfPeriod && x.month !== monthKeyOfPeriod) continue;
+      if (!monthKeyOfPeriod) {
+        // For range / all-time, check the expense's date against the predicate
+        if (!pred({ date: x.date || (x.month ? x.month + '-01' : '') })) continue;
+      }
+      expenses += Number(x.amount) || 0;
+    }
+    const operatingProfit = cashIn - cashOut - expenses;
+    const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
+    const tax = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
+    __splitNetProfit = operatingProfit - tax;
+    __splitBusinessCurrency = currencyDisplay(biz.currency);
+    // Hydrate distribution rows
+    const distState = loadDistributionStateFor(biz.id);
+    __distSalaries = distState.salaries;
+    __distShares = distState.shares;
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · distribution</div>
+          <h1 class="page-title">Distribution</h1>
+        </div>
+        <div class="page-actions">
+          ${printIconButton()}
+          ${exportIconButton('distribution')}
+        </div>
+      </div>
+      <p class="page-intro">Allocate the first % portion of Net profit to team salaries and profit shares. All amounts in the changed currency you set in Split &amp; convert (Audit). Saved per business.</p>
+      <div class="distribution-card" id="distributionCard"><!-- filled below --></div>
+    `;
+    renderDistributionCard();
+  }
+
+  function renderForecastView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) {
+      root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>';
+      return;
+    }
+    if (!canSeeAudit(biz.id)) {
+      // v56: Forecast moved to its own tab and visibility expanded
+      // to owner + manager + viewer (same rule as Audit). Staff still
+      // can't see financial projections.
+      root.innerHTML = `
+        <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">Forecast</h1></div></div>
+        <div class="empty">
+          <div class="empty-headline">No access</div>
+          <div>Monthly forecast is visible to the business owner, managers, and viewers.</div>
         </div>`;
       return;
     }
@@ -7924,15 +8763,29 @@
     const profitPaceVsLast = pctChange(projNetProfit, lastIn - lastOut - lastExpenses);
     const lastNetProfit = lastIn - lastOut - lastExpenses;
 
-    // Best day so far this month
-    let bestDay = { day: null, net: 0 };
+    // Best AND worst day so far this month (v58 item 13). Each
+    // tracks the full {in, out, net} so the cards can show all three
+    // values plus the weekday name + ISO date.
+    let bestDay = { day: null, net: -Infinity, in: 0, out: 0 };
+    let worstDay = { day: null, net: Infinity, in: 0, out: 0 };
     for (const [d, b] of mtdByDay.entries()) {
       const net = b.in - b.out;
-      if (bestDay.day == null || net > bestDay.net) bestDay = { day: d, net };
+      if (net > bestDay.net) bestDay = { day: d, net, in: b.in, out: b.out };
+      if (net < worstDay.net) worstDay = { day: d, net, in: b.in, out: b.out };
     }
-    const bestDayStr = bestDay.day != null
-      ? `${monthKeyStr}-${String(bestDay.day).padStart(2, '0')}`
-      : '';
+    // If there was only one day of activity, best == worst — hide the
+    // worst card to avoid an awkward identical pair. Same if no
+    // activity at all (both stay null).
+    const haveBest = bestDay.day != null;
+    const haveWorst = worstDay.day != null && worstDay.day !== bestDay.day;
+    function dayMeta(d) {
+      const ymd = `${monthKeyStr}-${String(d).padStart(2, '0')}`;
+      const dt = new Date(yyyy, mm - 1, d);
+      const weekday = dt.toLocaleDateString('default', { weekday: 'long' });
+      return { ymd, weekday };
+    }
+    const bestMeta = haveBest ? dayMeta(bestDay.day) : null;
+    const worstMeta = haveWorst ? dayMeta(worstDay.day) : null;
 
     // Format month name for header
     const monthName = new Date(yyyy, mm - 1, 1).toLocaleString('default', { month: 'long' });
@@ -8057,71 +8910,115 @@
       </div>
     `;
 
-    // === Projection breakdown table ===
-    const breakdown = `
-      <div class="forecast-section">
-        <h2 class="forecast-section-title">Projection breakdown</h2>
-        <p class="forecast-section-sub">Based on average daily pace × ${daysInMonth} days in ${monthName}.</p>
-        <div class="forecast-breakdown">
-          <div class="forecast-bk-row forecast-bk-head">
-            <span>Metric</span>
-            <span>Month-to-date</span>
-            <span>Daily avg</span>
-            <span>Projected total</span>
-            <span>Last month</span>
+    // === Projection breakdown (v58 item 16 redesign) ===
+    // The old 5-column table felt dense and forced the eye to do a
+    // lot of small comparisons. The new layout tells the story:
+    //   1. Hero: BIG projected net profit number with vs-last-month chip
+    //   2. Breakdown: per-metric "story" rows — each shows MTD → Daily
+    //      avg → "× N days =" → Projected total, with last-month
+    //      comparison as a small pace tag at the end. Reads left to
+    //      right like a sentence.
+    //   3. Operating profit + tax + net profit get visual separators.
+    function metricRow(label, mtdVal, avgVal, projVal, lastVal, opts) {
+      opts = opts || {};
+      const valClass = opts.valClass || '';
+      const isFinal = !!opts.isFinal;
+      const isDivider = !!opts.isDivider;
+      const isTax = !!opts.isTax;
+      const showAvgChain = !opts.skipAvg;
+      const pct = lastVal ? ((projVal - lastVal) / Math.abs(lastVal)) * 100 : null;
+      const paceHtml = pct == null
+        ? '<span class="forecast-pace-muted">—</span>'
+        : `<span class="forecast-pace ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}%</span>`;
+      const projDisplay = `${cur} ${projVal >= 0 ? '' : '−'}${fmt(Math.abs(projVal))}`;
+      const mtdDisplay = `${cur} ${mtdVal >= 0 ? '' : '−'}${fmt(Math.abs(mtdVal))}`;
+      const avgDisplay = isTax || !showAvgChain ? '' : `${cur} ${fmt(avgVal)}/day × ${daysInMonth} days`;
+      return `<div class="forecast-row ${isFinal ? 'forecast-row-final' : ''} ${isDivider ? 'forecast-row-divider' : ''} ${isTax ? 'forecast-row-tax' : ''}">
+        <div class="forecast-row-label">${escapeHtml(label)}</div>
+        <div class="forecast-row-chain">
+          <div class="forecast-row-mtd">
+            <span class="forecast-row-tag">So far</span>
+            <span class="forecast-row-val ${valClass}">${mtdDisplay}</span>
           </div>
-          <div class="forecast-bk-row">
-            <span class="forecast-bk-label">Cash in</span>
-            <span class="forecast-bk-val pos">${cur} ${fmt(mtdIn)}</span>
-            <span class="forecast-bk-val">${cur} ${fmt(avgInPerDay)}</span>
-            <span class="forecast-bk-val forecast-bk-proj pos">${cur} ${fmt(projIn)}</span>
-            <span class="forecast-bk-val muted">${cur} ${fmt(lastIn)}</span>
+          ${avgDisplay ? `
+          <div class="forecast-row-avg">
+            <span class="forecast-row-arrow">→</span>
+            <span class="forecast-row-formula">${avgDisplay}</span>
+          </div>` : '<div class="forecast-row-avg"><span class="forecast-row-arrow">→</span></div>'}
+          <div class="forecast-row-proj">
+            <span class="forecast-row-tag">Projected</span>
+            <span class="forecast-row-val proj ${valClass}">${projDisplay}</span>
           </div>
-          <div class="forecast-bk-row">
-            <span class="forecast-bk-label">Cash out</span>
-            <span class="forecast-bk-val neg">${cur} ${fmt(mtdOut)}</span>
-            <span class="forecast-bk-val">${cur} ${fmt(avgOutPerDay)}</span>
-            <span class="forecast-bk-val forecast-bk-proj neg">${cur} ${fmt(projOut)}</span>
-            <span class="forecast-bk-val muted">${cur} ${fmt(lastOut)}</span>
-          </div>
-          <div class="forecast-bk-row">
-            <span class="forecast-bk-label">Expenses</span>
-            <span class="forecast-bk-val neg">${cur} ${fmt(mtdExpenses)}</span>
-            <span class="forecast-bk-val">${cur} ${fmt(avgExpPerDay)}</span>
-            <span class="forecast-bk-val forecast-bk-proj neg">${cur} ${fmt(projExpenses)}</span>
-            <span class="forecast-bk-val muted">${cur} ${fmt(lastExpenses)}</span>
-          </div>
-          <div class="forecast-bk-row forecast-bk-divider">
-            <span class="forecast-bk-label">Operating profit</span>
-            <span class="forecast-bk-val ${(mtdIn - mtdOut - mtdExpenses) >= 0 ? 'pos' : 'neg'}">${cur} ${(mtdIn - mtdOut - mtdExpenses) >= 0 ? '' : '−'}${fmt(Math.abs(mtdIn - mtdOut - mtdExpenses))}</span>
-            <span class="forecast-bk-val">${cur} ${fmt((mtdIn - mtdOut - mtdExpenses) / safeDays)}</span>
-            <span class="forecast-bk-val forecast-bk-proj ${projOperatingProfit >= 0 ? 'pos' : 'neg'}">${cur} ${projOperatingProfit >= 0 ? '' : '−'}${fmt(Math.abs(projOperatingProfit))}</span>
-            <span class="forecast-bk-val muted">${cur} ${(lastIn - lastOut - lastExpenses) >= 0 ? '' : '−'}${fmt(Math.abs(lastIn - lastOut - lastExpenses))}</span>
-          </div>
-          ${taxRate > 0 ? `
-          <div class="forecast-bk-row">
-            <span class="forecast-bk-label">Tax (${taxRate}%)</span>
-            <span class="forecast-bk-val muted">—</span>
-            <span class="forecast-bk-val muted">—</span>
-            <span class="forecast-bk-val forecast-bk-proj neg">${cur} ${fmt(projTax)}</span>
-            <span class="forecast-bk-val muted">—</span>
-          </div>` : ''}
-          <div class="forecast-bk-row forecast-bk-final">
-            <span class="forecast-bk-label">Net profit${taxRate > 0 ? ' (after tax)' : ''}</span>
-            <span class="forecast-bk-val ${(mtdIn - mtdOut - mtdExpenses) >= 0 ? 'pos' : 'neg'}">${cur} ${(mtdIn - mtdOut - mtdExpenses) >= 0 ? '' : '−'}${fmt(Math.abs(mtdIn - mtdOut - mtdExpenses))}</span>
-            <span class="forecast-bk-val">—</span>
-            <span class="forecast-bk-val forecast-bk-proj ${projNetProfit >= 0 ? 'pos' : 'neg'}">${cur} ${projNetProfit >= 0 ? '' : '−'}${fmt(Math.abs(projNetProfit))}</span>
-            <span class="forecast-bk-val muted">${cur} ${lastNetProfit >= 0 ? '' : '−'}${fmt(Math.abs(lastNetProfit))}</span>
+          <div class="forecast-row-pace">
+            <span class="forecast-row-tag">vs last month</span>
+            ${paceHtml}
           </div>
         </div>
+      </div>`;
+    }
+    const breakdown = `
+      <div class="forecast-section forecast-section-breakdown">
+        <div class="forecast-section-head">
+          <h2 class="forecast-section-title">Projection breakdown</h2>
+          <p class="forecast-section-sub">Daily pace × ${daysInMonth} days in ${escapeHtml(monthName)}.</p>
+        </div>
+        ${metricRow('Cash in', mtdIn, avgInPerDay, projIn, lastIn, { valClass: 'pos' })}
+        ${metricRow('Cash out', mtdOut, avgOutPerDay, projOut, lastOut, { valClass: 'neg' })}
+        ${metricRow('Expenses', mtdExpenses, avgExpPerDay, projExpenses, lastExpenses, { valClass: 'neg' })}
+        ${metricRow('Operating profit',
+          (mtdIn - mtdOut - mtdExpenses),
+          (mtdIn - mtdOut - mtdExpenses) / safeDays,
+          projOperatingProfit,
+          (lastIn - lastOut - lastExpenses),
+          { valClass: projOperatingProfit >= 0 ? 'pos' : 'neg', isDivider: true })}
+        ${taxRate > 0
+          ? metricRow(`Tax (${taxRate}%)`, 0, 0, projTax, 0, { valClass: 'neg', isTax: true, skipAvg: true })
+          : ''}
+        ${metricRow(`Net profit${taxRate > 0 ? ' (after tax)' : ''}`,
+          (mtdIn - mtdOut - mtdExpenses) - (((mtdIn - mtdOut - mtdExpenses) > 0 ? (mtdIn - mtdOut - mtdExpenses) * (taxRate / 100) : 0)),
+          0,
+          projNetProfit,
+          lastNetProfit,
+          { valClass: projNetProfit >= 0 ? 'pos' : 'neg', isFinal: true, skipAvg: true })}
       </div>
     `;
 
-    // === Best day callout ===
-    const bestDayCard = bestDay.day != null && bestDay.net > 0
-      ? `<div class="forecast-best-day">
-          <div class="forecast-best-day-label">Best day so far</div>
-          <div class="forecast-best-day-value">${escapeHtml(bestDayStr)} — ${cur} +${fmt(bestDay.net)} net</div>
+    // === Best + Worst day callouts (v58 item 13) ===
+    // Each shows: weekday name + ISO date, then a tiny stat row with
+    // cash in / cash out / net profit so the user can see why the
+    // day stood out. Side-by-side on desktop, stacked on mobile.
+    function dayCardHTML(meta, day, cls) {
+      const isPositive = day.net >= 0;
+      const accent = cls === 'best' ? 'forecast-best-day' : 'forecast-worst-day';
+      const label = cls === 'best' ? 'Best day so far' : 'Worst day so far';
+      return `<div class="forecast-day-card ${accent}">
+        <div class="forecast-day-card-head">
+          <div class="forecast-day-card-label">${label}</div>
+          <div class="forecast-day-card-date">
+            <span class="forecast-day-weekday">${escapeHtml(meta.weekday)}</span>
+            <span class="forecast-day-ymd">${escapeHtml(meta.ymd)}</span>
+          </div>
+        </div>
+        <div class="forecast-day-card-stats">
+          <div class="forecast-day-stat">
+            <span class="forecast-day-stat-label">Cash in</span>
+            <span class="forecast-day-stat-val pos">${cur} ${fmt(day.in)}</span>
+          </div>
+          <div class="forecast-day-stat">
+            <span class="forecast-day-stat-label">Cash out</span>
+            <span class="forecast-day-stat-val neg">${cur} ${fmt(day.out)}</span>
+          </div>
+          <div class="forecast-day-stat">
+            <span class="forecast-day-stat-label">Net profit</span>
+            <span class="forecast-day-stat-val ${isPositive ? 'pos' : 'neg'}">${cur} ${isPositive ? '+' : '−'}${fmt(Math.abs(day.net))}</span>
+          </div>
+        </div>
+      </div>`;
+    }
+    const bestDayCard = haveBest
+      ? `<div class="forecast-day-cards">
+          ${dayCardHTML(bestMeta, bestDay, 'best')}
+          ${haveWorst ? dayCardHTML(worstMeta, worstDay, 'worst') : ''}
         </div>`
       : '';
 
@@ -8141,6 +9038,7 @@
           <h1 class="page-title">Month end forecast</h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${exportIconButton('forecast')}
           <button class="btn btn-sm btn-ghost" onclick="switchView('audit')">← Back to Audit</button>
         </div>
@@ -8156,6 +9054,725 @@
       ${chart}
       ${breakdown}
       ${methodNote}
+    `;
+  }
+
+  // ================================================================
+  // INSIGHTS — owner+manager+viewer (v59)
+  // ================================================================
+  // A business-summary dashboard with pie/bar/trend charts and
+  // comparisons against the previous period. Default range is All
+  // time so users see lifetime patterns; the period bar lets them
+  // narrow to This Month, a Custom Month, or a Date Range.
+  //
+  // Sections (top to bottom):
+  //   - Period filter bar (matches the rest of the app's period UX)
+  //   - 5 summary KPI cards: Cash in / Cash out / Net profit / Entries / Avg entry
+  //   - Top biggest cards: biggest entry, biggest party, biggest expense
+  //   - Best day / Worst day callouts (reused from Forecast)
+  //   - Monthly bar chart: Cash in vs Cash out, last 12 months
+  //   - Net profit trend line, last 12 months
+  //   - Pie: by Party (top 8)
+  //   - Pie: by Category (top 8)
+  //   - Pie: by Account (top 8)
+  //   - Pie: by Expense category (top 8)
+  //   - Top 10 parties list (lifetime + period)
+  //   - Daily heatmap (last ~12 weeks)
+  //   - Week-over-week trend (last 4 weeks of current period)
+  //
+  // Chart implementation: hand-rolled inline SVG. No chart library —
+  // keeps the single-file model intact and avoids new dependencies.
+  //
+  // Module-level period state — separate from session.period so the
+  // user's main-page filter isn't disturbed. Defaults to all time.
+  let __insightsPeriod = { mode: 'all' };
+
+  function insightsPredicate() {
+    const p = __insightsPeriod || { mode: 'all' };
+    if (p.mode === 'all') return () => true;
+    if (p.mode === 'current') { const mk = today().slice(0, 7); return e => monthKey(e.date) === mk; }
+    if (p.mode === 'month') return e => monthKey(e.date) === p.monthKey;
+    if (p.mode === 'range') return e => e.date >= p.from && e.date <= p.to;
+    return () => true;
+  }
+
+  function insightsPeriodLabel() {
+    const p = __insightsPeriod || { mode: 'all' };
+    if (p.mode === 'all') return 'All time';
+    if (p.mode === 'current') return 'This month';
+    if (p.mode === 'month') {
+      const [y, m] = p.monthKey.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    }
+    if (p.mode === 'range') return `${p.from} → ${p.to}`;
+    return 'All time';
+  }
+
+  function setInsightsPeriod(modeOrObj) {
+    if (typeof modeOrObj === 'string') {
+      if (modeOrObj === 'all' || modeOrObj === 'current') {
+        __insightsPeriod = { mode: modeOrObj };
+      }
+    } else {
+      __insightsPeriod = modeOrObj;
+    }
+    const root = document.getElementById('mainContent');
+    if (root) renderInsightsView(root);
+  }
+
+  function openInsightsPeriodPicker() {
+    __insightsCustomPickerActive = true;
+    openModal('insightsPeriod');
+  }
+
+  // Track which picker is open — the existing periodModal flows
+  // mutate session.period. Insights needs its own.
+  let __insightsCustomPickerActive = false;
+
+  // Reset insights filter on view leave (consistent with other module
+  // states like __acctTransfersExpanded).
+
+  // -------- Chart helpers (hand-rolled SVG) --------
+  // Palette of distinct colors for pie / bar series, drawing from
+  // the existing theme tokens so charts feel native to the rest of
+  // the app rather than rainbow-y.
+  const __insightsPalette = [
+    '#4974a8', // accent blue
+    '#2e6e37', // gain green
+    '#a8351f', // loss red
+    '#b8801f', // mod amber
+    '#7a4d96', // muted purple
+    '#3e8c8a', // teal
+    '#c25b4c', // coral
+    '#6a5a3e', // taupe
+    '#8a7a5e', // sand
+    '#5e7a8a', // slate
+  ];
+
+  // Render a simple inline pie chart from a sorted array of
+  // { label, value, color }. Returns an SVG string. Slices are
+  // drawn clockwise from the top. Tiny slices (< 1% of total) are
+  // merged into an "Other" slice at the end so labels stay readable.
+  function insightsPieSVG(slices, opts) {
+    opts = opts || {};
+    const size = opts.size || 220;
+    const cx = size / 2, cy = size / 2;
+    const r = (size / 2) - 6;
+    const total = slices.reduce((s, x) => s + x.value, 0);
+    if (total <= 0) {
+      return `<svg viewBox="0 0 ${size} ${size}" class="insights-pie-svg" role="img" aria-label="No data">
+        <circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--paper-deep)" stroke="var(--line)"/>
+        <text x="${cx}" y="${cy + 4}" text-anchor="middle" font-size="11" fill="var(--ink-mute)">No data</text>
+      </svg>`;
+    }
+    let angle = -Math.PI / 2; // start at top
+    const paths = [];
+    for (let i = 0; i < slices.length; i++) {
+      const s = slices[i];
+      if (s.value <= 0) continue;
+      const sweep = (s.value / total) * Math.PI * 2;
+      // Full-circle slice (one item only)
+      if (slices.length === 1 || Math.abs(sweep - Math.PI * 2) < 0.0001) {
+        paths.push(`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${s.color}"/>`);
+        angle += sweep;
+        continue;
+      }
+      const x1 = cx + r * Math.cos(angle);
+      const y1 = cy + r * Math.sin(angle);
+      angle += sweep;
+      const x2 = cx + r * Math.cos(angle);
+      const y2 = cy + r * Math.sin(angle);
+      const largeArc = sweep > Math.PI ? 1 : 0;
+      paths.push(
+        `<path d="M ${cx} ${cy} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z" fill="${s.color}" stroke="var(--paper)" stroke-width="1.5"/>`
+      );
+    }
+    return `<svg viewBox="0 0 ${size} ${size}" class="insights-pie-svg" role="img" aria-label="${escapeHtml(opts.label || 'pie chart')}">${paths.join('')}</svg>`;
+  }
+
+  // Render a bar chart with paired bars (e.g. cash in green + cash
+  // out red) for each x-axis bucket. data: [{ label, in, out }].
+  function insightsPairedBarSVG(buckets, cur) {
+    const w = 720, h = 220;
+    const padL = 50, padR = 12, padT = 14, padB = 32;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    let maxV = 0;
+    for (const b of buckets) {
+      if (b.in > maxV) maxV = b.in;
+      if (b.out > maxV) maxV = b.out;
+    }
+    if (maxV === 0) maxV = 1;
+    function niceCeil(x) {
+      if (x <= 0) return 1;
+      const mag = Math.pow(10, Math.floor(Math.log10(x)));
+      const norm = x / mag;
+      let nice;
+      if (norm <= 1) nice = 1;
+      else if (norm <= 2) nice = 2;
+      else if (norm <= 5) nice = 5;
+      else nice = 10;
+      return nice * mag;
+    }
+    const yMax = niceCeil(maxV);
+    const bucketW = innerW / Math.max(1, buckets.length);
+    const barW = Math.max(3, (bucketW - 4) / 2);
+    const bars = [];
+    for (let i = 0; i < buckets.length; i++) {
+      const b = buckets[i];
+      const xStart = padL + i * bucketW + 2;
+      if (b.in > 0) {
+        const bh = (b.in / yMax) * innerH;
+        bars.push(`<rect x="${xStart.toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="var(--gain)" rx="1"/>`);
+      }
+      if (b.out > 0) {
+        const bh = (b.out / yMax) * innerH;
+        bars.push(`<rect x="${(xStart + barW + 2).toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" fill="var(--loss)" rx="1"/>`);
+      }
+    }
+    const yTicks = [];
+    for (let t = 0; t <= 4; t++) {
+      const val = yMax * (1 - t / 4);
+      const y = padT + (innerH * t) / 4;
+      yTicks.push(`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--line-soft)" stroke-width="0.6"/>`);
+      yTicks.push(`<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-mute)">${fmt(val)}</text>`);
+    }
+    const xLabels = buckets.map((b, i) => {
+      const x = padL + (i + 0.5) * bucketW;
+      return `<text x="${x.toFixed(1)}" y="${h - 14}" text-anchor="middle" font-size="10" fill="var(--ink-mute)">${escapeHtml(b.label)}</text>`;
+    });
+    return `<svg viewBox="0 0 ${w} ${h}" class="insights-bar-svg" role="img" aria-label="Cash in vs cash out by month">
+      ${yTicks.join('')}
+      ${bars.join('')}
+      ${xLabels.join('')}
+    </svg>`;
+  }
+
+  // Trend line chart. data: [{ label, value }]. Single line + dots.
+  function insightsLineSVG(points) {
+    const w = 720, h = 200;
+    const padL = 50, padR = 12, padT = 16, padB = 30;
+    const innerW = w - padL - padR;
+    const innerH = h - padT - padB;
+    if (!points.length) {
+      return `<svg viewBox="0 0 ${w} ${h}" class="insights-line-svg"><text x="${w/2}" y="${h/2}" text-anchor="middle" fill="var(--ink-mute)" font-size="11">No data</text></svg>`;
+    }
+    let minV = Infinity, maxV = -Infinity;
+    for (const p of points) {
+      if (p.value < minV) minV = p.value;
+      if (p.value > maxV) maxV = p.value;
+    }
+    if (minV === maxV) { minV -= 1; maxV += 1; }
+    // Pad ranges 10% above and below for visual breathing room
+    const range = maxV - minV;
+    const yMin = minV - range * 0.1;
+    const yMax = maxV + range * 0.1;
+    const stepX = innerW / Math.max(1, points.length - 1);
+    const pts = points.map((p, i) => {
+      const x = padL + i * stepX;
+      const y = padT + innerH - ((p.value - yMin) / (yMax - yMin)) * innerH;
+      return { x, y, value: p.value, label: p.label };
+    });
+    // Zero line if range spans zero
+    let zeroLine = '';
+    if (yMin < 0 && yMax > 0) {
+      const zy = padT + innerH - ((0 - yMin) / (yMax - yMin)) * innerH;
+      zeroLine = `<line x1="${padL}" y1="${zy.toFixed(1)}" x2="${w - padR}" y2="${zy.toFixed(1)}" stroke="var(--ink-mute)" stroke-width="0.6" stroke-dasharray="3 3"/>`;
+    }
+    const pathD = pts.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' ');
+    const dots = pts.map(p => `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${p.value >= 0 ? 'var(--gain)' : 'var(--loss)'}" stroke="var(--paper)" stroke-width="1.5"/>`).join('');
+    const xLabels = pts.map(p => `<text x="${p.x.toFixed(1)}" y="${h - 12}" text-anchor="middle" font-size="10" fill="var(--ink-mute)">${escapeHtml(p.label)}</text>`).join('');
+    // Y-axis ticks
+    const yTicks = [];
+    for (let t = 0; t <= 4; t++) {
+      const v = yMax - (t / 4) * (yMax - yMin);
+      const y = padT + (innerH * t) / 4;
+      yTicks.push(`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="var(--line-soft)" stroke-width="0.5"/>`);
+      yTicks.push(`<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--ink-mute)">${fmt(v)}</text>`);
+    }
+    return `<svg viewBox="0 0 ${w} ${h}" class="insights-line-svg" role="img" aria-label="Net profit trend">
+      ${yTicks.join('')}
+      ${zeroLine}
+      <path d="${pathD}" fill="none" stroke="var(--accent)" stroke-width="2"/>
+      ${dots}
+      ${xLabels}
+    </svg>`;
+  }
+
+  // Daily heatmap: last N days as a calendar-grid heatmap. Each day
+  // is a small square colored by net activity that day (gain = green,
+  // loss = red, intensity proportional to magnitude relative to the
+  // period's max-abs net).
+  function insightsHeatmapSVG(dailyNets) {
+    // dailyNets: [{ date: 'YYYY-MM-DD', net: number }]
+    if (!dailyNets.length) {
+      return `<svg viewBox="0 0 720 110" class="insights-heatmap-svg"><text x="360" y="55" text-anchor="middle" fill="var(--ink-mute)" font-size="11">No daily activity</text></svg>`;
+    }
+    const cellSize = 14, gap = 3;
+    const totalCols = Math.ceil(dailyNets.length / 7);
+    const w = Math.max(720, totalCols * (cellSize + gap) + 60);
+    const h = 7 * (cellSize + gap) + 30;
+    let maxAbs = 0;
+    for (const d of dailyNets) {
+      const a = Math.abs(d.net);
+      if (a > maxAbs) maxAbs = a;
+    }
+    if (maxAbs === 0) maxAbs = 1;
+    const cells = [];
+    // Render reverse-chronological (most recent on the right)
+    for (let i = 0; i < dailyNets.length; i++) {
+      const d = dailyNets[i];
+      const col = Math.floor(i / 7);
+      const row = i % 7;
+      const x = 30 + col * (cellSize + gap);
+      const y = 12 + row * (cellSize + gap);
+      let color = 'var(--surface-2)';
+      if (d.net > 0) {
+        const intensity = Math.min(1, Math.abs(d.net) / maxAbs);
+        const alpha = 0.15 + intensity * 0.7;
+        color = `rgba(46, 110, 55, ${alpha})`;
+      } else if (d.net < 0) {
+        const intensity = Math.min(1, Math.abs(d.net) / maxAbs);
+        const alpha = 0.15 + intensity * 0.7;
+        color = `rgba(168, 53, 31, ${alpha})`;
+      }
+      cells.push(`<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" fill="${color}" rx="2" stroke="var(--line)" stroke-width="0.4"><title>${escapeHtml(d.date)}: ${d.net >= 0 ? '+' : '−'}${fmt(Math.abs(d.net))}</title></rect>`);
+    }
+    // Day-of-week labels (Mon, Wed, Fri only to keep readable)
+    const dowLabels = ['Mon', 'Wed', 'Fri'];
+    const dowYs = [1, 3, 5];
+    const labels = dowLabels.map((lbl, i) => {
+      const y = 12 + dowYs[i] * (cellSize + gap) + cellSize - 2;
+      return `<text x="22" y="${y}" text-anchor="end" font-size="9" fill="var(--ink-mute)">${lbl}</text>`;
+    });
+    return `<svg viewBox="0 0 ${w} ${h}" class="insights-heatmap-svg" role="img" aria-label="Daily activity heatmap">
+      ${labels.join('')}
+      ${cells.join('')}
+    </svg>`;
+  }
+
+  function renderInsightsView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) {
+      root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>';
+      return;
+    }
+    if (!canSeeAudit(biz.id)) {
+      root.innerHTML = `
+        <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">Insights</h1></div></div>
+        <div class="empty">
+          <div class="empty-headline">No access</div>
+          <div>Insights are visible to the business owner, managers, and viewers.</div>
+        </div>`;
+      return;
+    }
+    const cur = currencyDisplay(biz.currency);
+    const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+    const hiddenAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && a.hidden).map(a => a.id)
+    );
+    const pred = insightsPredicate();
+    // Working entry set (filtered by insights period, excluding hidden accounts)
+    const periodEntries = data.entries.filter(e =>
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e)
+    );
+    // ALL entries for the biz (lifetime — used for last-12-months chart + trend
+    // line + top-10 lifetime list regardless of current period selector).
+    const allEntries = data.entries.filter(e =>
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId)
+    );
+    // ===== Summary KPIs (current period) =====
+    let cashIn = 0, cashOut = 0, biggestEntry = null;
+    for (const e of periodEntries) {
+      const amt = entryAmount(e);
+      if (e.type === 'in') cashIn += amt; else cashOut += amt;
+      if (!biggestEntry || amt > biggestEntry._amt) biggestEntry = { ...e, _amt: amt };
+    }
+    const netProfit = cashIn - cashOut;
+    const entriesCount = periodEntries.length;
+    const avgEntry = entriesCount ? (cashIn + cashOut) / entriesCount : 0;
+    // ===== Previous-period comparison =====
+    // For comparison: use the immediately preceding window of the same length.
+    // For 'all' mode → no previous (just label "n/a"). For 'current' → previous
+    // calendar month. For 'month' → previous calendar month. For 'range' →
+    // a window of the same length immediately before from.
+    let prevIn = 0, prevOut = 0;
+    let prevLabel = '';
+    if (__insightsPeriod.mode === 'current' || __insightsPeriod.mode === 'month') {
+      const monthKeyStr = __insightsPeriod.mode === 'current'
+        ? today().slice(0, 7)
+        : __insightsPeriod.monthKey;
+      const [y, m] = monthKeyStr.split('-').map(Number);
+      const prevDate = new Date(y, m - 2, 1);
+      const prevKey = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`;
+      prevLabel = new Date(prevDate.getFullYear(), prevDate.getMonth(), 1).toLocaleString('default', { month: 'short', year: 'numeric' });
+      for (const e of allEntries) {
+        if (!e.date || e.date.slice(0, 7) !== prevKey) continue;
+        const amt = entryAmount(e);
+        if (e.type === 'in') prevIn += amt; else prevOut += amt;
+      }
+    } else if (__insightsPeriod.mode === 'range') {
+      const fromD = new Date(__insightsPeriod.from);
+      const toD = new Date(__insightsPeriod.to);
+      const dayMs = 24 * 3600 * 1000;
+      const len = Math.round((toD - fromD) / dayMs) + 1;
+      const prevTo = new Date(fromD.getTime() - dayMs);
+      const prevFrom = new Date(prevTo.getTime() - (len - 1) * dayMs);
+      const fmtD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const pfS = fmtD(prevFrom), ptS = fmtD(prevTo);
+      prevLabel = `${pfS} → ${ptS}`;
+      for (const e of allEntries) {
+        if (!e.date || e.date < pfS || e.date > ptS) continue;
+        const amt = entryAmount(e);
+        if (e.type === 'in') prevIn += amt; else prevOut += amt;
+      }
+    }
+    const prevNet = prevIn - prevOut;
+    const havePrev = prevLabel !== '';
+    function pctChangeFn(curr, prev) {
+      if (!prev) return null;
+      return ((curr - prev) / Math.abs(prev)) * 100;
+    }
+    const inPct = havePrev ? pctChangeFn(cashIn, prevIn) : null;
+    const outPct = havePrev ? pctChangeFn(cashOut, prevOut) : null;
+    const netPct = havePrev ? pctChangeFn(netProfit, prevNet) : null;
+    function paceTag(pct) {
+      if (pct == null) return '<span class="forecast-pace-muted">—</span>';
+      const cls = pct >= 0 ? 'up' : 'down';
+      const sign = pct >= 0 ? '+' : '';
+      return `<span class="forecast-pace ${cls}">${sign}${pct.toFixed(0)}% vs prev</span>`;
+    }
+    // ===== Period bar =====
+    const periodBar = `
+      <div class="insights-period-bar">
+        <div class="insights-period-buttons">
+          <span class="insights-period-label">Period</span>
+          <button class="${__insightsPeriod.mode === 'all' ? 'active' : ''}" onclick="setInsightsPeriod('all')">All time</button>
+          <button class="${__insightsPeriod.mode === 'current' ? 'active' : ''}" onclick="setInsightsPeriod('current')">This month</button>
+          <button class="${(__insightsPeriod.mode === 'month' || __insightsPeriod.mode === 'range') ? 'active' : ''}" onclick="openInsightsPeriodPicker()">Custom…</button>
+        </div>
+        <div class="insights-period-current">${escapeHtml(insightsPeriodLabel())}</div>
+      </div>`;
+    // ===== KPI grid =====
+    const kpis = `
+      <div class="insights-kpis">
+        <div class="insights-kpi">
+          <div class="insights-kpi-label">Cash in</div>
+          <div class="insights-kpi-value pos">${cur} ${fmt(cashIn)}</div>
+          <div class="insights-kpi-sub">${paceTag(inPct)}</div>
+        </div>
+        <div class="insights-kpi">
+          <div class="insights-kpi-label">Cash out</div>
+          <div class="insights-kpi-value neg">${cur} ${fmt(cashOut)}</div>
+          <div class="insights-kpi-sub">${paceTag(outPct)}</div>
+        </div>
+        <div class="insights-kpi">
+          <div class="insights-kpi-label">Net profit</div>
+          <div class="insights-kpi-value ${netProfit >= 0 ? 'pos' : 'neg'}">${cur} ${netProfit >= 0 ? '' : '−'}${fmt(Math.abs(netProfit))}</div>
+          <div class="insights-kpi-sub">${paceTag(netPct)}</div>
+        </div>
+        <div class="insights-kpi">
+          <div class="insights-kpi-label">Entries</div>
+          <div class="insights-kpi-value">${entriesCount}</div>
+          <div class="insights-kpi-sub">Avg ${cur} ${fmt(avgEntry)}</div>
+        </div>
+      </div>`;
+    // ===== Top biggest cards =====
+    // Biggest party (most net activity in or out)
+    const partyTotals = new Map();
+    for (const e of periodEntries) {
+      const key = e.partyId || ('name:' + (e.party || '').toLowerCase());
+      if (!partyTotals.has(key)) partyTotals.set(key, { name: e.party || '—', inSum: 0, outSum: 0, count: 0 });
+      const t = partyTotals.get(key);
+      const amt = entryAmount(e);
+      if (e.type === 'in') t.inSum += amt;
+      else t.outSum += amt;
+      t.count++;
+    }
+    const biggestParty = [...partyTotals.values()].sort((a, b) => (b.inSum + b.outSum) - (a.inSum + a.outSum))[0];
+    // Biggest expense (period)
+    let biggestExpense = null;
+    for (const x of data.auditExpenses) {
+      if (x.businessId !== biz.id) continue;
+      if (!pred({ date: x.date || (x.month ? x.month + '-01' : '') })) continue;
+      const amt = Number(x.amount) || 0;
+      if (!biggestExpense || amt > biggestExpense._amt) biggestExpense = { ...x, _amt: amt };
+    }
+    const biggestCards = `
+      <div class="insights-biggest-row">
+        <div class="insights-biggest-card">
+          <div class="insights-biggest-label">Biggest entry</div>
+          ${biggestEntry ? `
+            <div class="insights-biggest-value ${biggestEntry.type === 'in' ? 'pos' : 'neg'}">${cur} ${biggestEntry.type === 'in' ? '+' : '−'}${fmt(biggestEntry._amt)}</div>
+            <div class="insights-biggest-sub">${escapeHtml(biggestEntry.party || biggestEntry.note || '—')} · ${escapeHtml(biggestEntry.date || '')}</div>
+          ` : '<div class="insights-biggest-empty">No entries.</div>'}
+        </div>
+        <div class="insights-biggest-card">
+          <div class="insights-biggest-label">Top party</div>
+          ${biggestParty ? `
+            <div class="insights-biggest-value">${escapeHtml(biggestParty.name)}</div>
+            <div class="insights-biggest-sub">${cur} ${fmt(biggestParty.inSum + biggestParty.outSum)} across ${biggestParty.count} ${biggestParty.count === 1 ? 'entry' : 'entries'}</div>
+          ` : '<div class="insights-biggest-empty">No parties.</div>'}
+        </div>
+        <div class="insights-biggest-card">
+          <div class="insights-biggest-label">Biggest expense</div>
+          ${biggestExpense ? `
+            <div class="insights-biggest-value neg">${cur} −${fmt(biggestExpense._amt)}</div>
+            <div class="insights-biggest-sub">${escapeHtml(biggestExpense.description || '—')} · ${escapeHtml(biggestExpense.date || biggestExpense.month || '')}</div>
+          ` : '<div class="insights-biggest-empty">No expenses.</div>'}
+        </div>
+      </div>`;
+    // ===== Best / Worst day for the period =====
+    const dailyMap = new Map(); // date → { in, out }
+    for (const e of periodEntries) {
+      if (!e.date) continue;
+      if (!dailyMap.has(e.date)) dailyMap.set(e.date, { in: 0, out: 0 });
+      const d = dailyMap.get(e.date);
+      const amt = entryAmount(e);
+      if (e.type === 'in') d.in += amt; else d.out += amt;
+    }
+    let bestDay = null, worstDay = null;
+    for (const [date, d] of dailyMap.entries()) {
+      const net = d.in - d.out;
+      if (!bestDay || net > bestDay.net) bestDay = { date, net, in: d.in, out: d.out };
+      if (!worstDay || net < worstDay.net) worstDay = { date, net, in: d.in, out: d.out };
+    }
+    function dayCardHTMLInline(day, cls) {
+      if (!day) return '';
+      const weekday = new Date(day.date + 'T00:00:00').toLocaleDateString('default', { weekday: 'long' });
+      const label = cls === 'best' ? 'Best day' : 'Worst day';
+      const accent = cls === 'best' ? 'forecast-best-day' : 'forecast-worst-day';
+      return `<div class="forecast-day-card ${accent}">
+        <div class="forecast-day-card-head">
+          <div class="forecast-day-card-label">${label}</div>
+          <div class="forecast-day-card-date">
+            <span class="forecast-day-weekday">${escapeHtml(weekday)}</span>
+            <span class="forecast-day-ymd">${escapeHtml(day.date)}</span>
+          </div>
+        </div>
+        <div class="forecast-day-card-stats">
+          <div class="forecast-day-stat"><span class="forecast-day-stat-label">Cash in</span><span class="forecast-day-stat-val pos">${cur} ${fmt(day.in)}</span></div>
+          <div class="forecast-day-stat"><span class="forecast-day-stat-label">Cash out</span><span class="forecast-day-stat-val neg">${cur} ${fmt(day.out)}</span></div>
+          <div class="forecast-day-stat"><span class="forecast-day-stat-label">Net profit</span><span class="forecast-day-stat-val ${day.net >= 0 ? 'pos' : 'neg'}">${cur} ${day.net >= 0 ? '+' : '−'}${fmt(Math.abs(day.net))}</span></div>
+        </div>
+      </div>`;
+    }
+    const haveBoth = bestDay && worstDay && bestDay.date !== worstDay.date;
+    const bestWorstSection = (bestDay && haveBoth)
+      ? `<div class="forecast-day-cards">${dayCardHTMLInline(bestDay, 'best')}${dayCardHTMLInline(worstDay, 'worst')}</div>`
+      : (bestDay ? `<div class="forecast-day-cards">${dayCardHTMLInline(bestDay, 'best')}</div>` : '');
+    // ===== 12-month bar + trend (uses lifetime data, not period) =====
+    const monthBuckets = new Map();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleString('default', { month: 'short' });
+      monthBuckets.set(key, { key, label, in: 0, out: 0 });
+    }
+    for (const e of allEntries) {
+      if (!e.date) continue;
+      const k = e.date.slice(0, 7);
+      if (!monthBuckets.has(k)) continue;
+      const amt = entryAmount(e);
+      const b = monthBuckets.get(k);
+      if (e.type === 'in') b.in += amt; else b.out += amt;
+    }
+    const monthsArr = [...monthBuckets.values()];
+    const barChartHTML = `
+      <div class="insights-chart-wrap">
+        <div class="insights-chart-head">
+          <h3 class="insights-chart-title">Cash flow by month <span class="insights-chart-sub">— last 12 months</span></h3>
+          <div class="insights-chart-legend">
+            <span><span class="fc-swatch fc-swatch-in"></span> Cash in</span>
+            <span><span class="fc-swatch fc-swatch-out"></span> Cash out</span>
+          </div>
+        </div>
+        ${insightsPairedBarSVG(monthsArr, cur)}
+      </div>`;
+    const trendPoints = monthsArr.map(m => ({ label: m.label, value: m.in - m.out }));
+    const trendChartHTML = `
+      <div class="insights-chart-wrap">
+        <div class="insights-chart-head">
+          <h3 class="insights-chart-title">Net profit trend <span class="insights-chart-sub">— last 12 months</span></h3>
+        </div>
+        ${insightsLineSVG(trendPoints)}
+      </div>`;
+    // ===== Pies =====
+    function pieFromMap(map, opts) {
+      // Build top-N + Other slices. map is Map<string, number>.
+      const arr = [...map.entries()].sort((a, b) => b[1] - a[1]);
+      const top = arr.slice(0, 7);
+      const restSum = arr.slice(7).reduce((s, x) => s + x[1], 0);
+      const slices = top.map((e, i) => ({
+        label: e[0] || '—',
+        value: e[1],
+        color: __insightsPalette[i % __insightsPalette.length],
+      }));
+      if (restSum > 0) {
+        slices.push({ label: 'Other', value: restSum, color: __insightsPalette[7] });
+      }
+      const total = slices.reduce((s, x) => s + x.value, 0);
+      const legendRows = slices.map(s => {
+        const pct = total ? ((s.value / total) * 100).toFixed(1) : '0.0';
+        return `<div class="insights-legend-row">
+          <span class="insights-legend-swatch" style="background:${s.color}"></span>
+          <span class="insights-legend-label">${escapeHtml(s.label)}</span>
+          <span class="insights-legend-pct">${pct}%</span>
+          <span class="insights-legend-val">${cur} ${fmt(s.value)}</span>
+        </div>`;
+      }).join('');
+      return `
+        <div class="insights-pie-card">
+          <h3 class="insights-pie-title">${escapeHtml(opts.title)}</h3>
+          <div class="insights-pie-body">
+            ${insightsPieSVG(slices, { label: opts.title })}
+            <div class="insights-pie-legend">${legendRows || '<div class="insights-pie-empty">No data</div>'}</div>
+          </div>
+        </div>`;
+    }
+    // By party (period)
+    const partyMap = new Map();
+    for (const [k, t] of partyTotals.entries()) {
+      partyMap.set(t.name, (partyMap.get(t.name) || 0) + t.inSum + t.outSum);
+    }
+    // By category (period, sums in+out)
+    const categoryMap = new Map();
+    for (const e of periodEntries) {
+      const k = (e.category || '—');
+      categoryMap.set(k, (categoryMap.get(k) || 0) + entryAmount(e));
+    }
+    // By account (period)
+    const accountMap = new Map();
+    const acctById = new Map(data.cashAccounts.map(a => [a.id, a]));
+    for (const e of periodEntries) {
+      const acc = acctById.get(e.accountId);
+      const name = acc ? acc.name : '—';
+      accountMap.set(name, (accountMap.get(name) || 0) + entryAmount(e));
+    }
+    // By expense category (period)
+    const expenseMap = new Map();
+    for (const x of data.auditExpenses) {
+      if (x.businessId !== biz.id) continue;
+      if (!pred({ date: x.date || (x.month ? x.month + '-01' : '') })) continue;
+      const k = (x.description || '—');
+      expenseMap.set(k, (expenseMap.get(k) || 0) + (Number(x.amount) || 0));
+    }
+    const pies = `
+      <div class="insights-pies-grid">
+        ${pieFromMap(partyMap, { title: 'By Party' })}
+        ${pieFromMap(categoryMap, { title: 'By Category' })}
+        ${pieFromMap(accountMap, { title: 'By Account' })}
+        ${pieFromMap(expenseMap, { title: 'By Expense' })}
+      </div>`;
+    // ===== Top 10 parties (lifetime) =====
+    const lifetimePartyTotals = new Map();
+    for (const e of allEntries) {
+      const key = e.partyId || ('name:' + (e.party || '').toLowerCase());
+      if (!lifetimePartyTotals.has(key)) lifetimePartyTotals.set(key, { name: e.party || '—', inSum: 0, outSum: 0, count: 0 });
+      const t = lifetimePartyTotals.get(key);
+      const amt = entryAmount(e);
+      if (e.type === 'in') t.inSum += amt; else t.outSum += amt;
+      t.count++;
+    }
+    const top10 = [...lifetimePartyTotals.values()]
+      .map(t => ({ ...t, total: t.inSum + t.outSum, net: t.inSum - t.outSum }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10);
+    const top10HTML = top10.length ? `
+      <div class="insights-section">
+        <h3 class="insights-section-title">Top 10 parties <span class="insights-chart-sub">— lifetime</span></h3>
+        <div class="insights-top10">
+          ${top10.map((p, i) => `<div class="insights-top10-row">
+            <span class="insights-top10-rank">${i + 1}</span>
+            <span class="insights-top10-name">${escapeHtml(p.name)}</span>
+            <span class="insights-top10-count">${p.count} ${p.count === 1 ? 'entry' : 'entries'}</span>
+            <span class="insights-top10-in pos">${cur} ${fmt(p.inSum)}</span>
+            <span class="insights-top10-out neg">${cur} ${fmt(p.outSum)}</span>
+            <span class="insights-top10-net ${p.net >= 0 ? 'pos' : 'neg'}">${cur} ${p.net >= 0 ? '' : '−'}${fmt(Math.abs(p.net))}</span>
+          </div>`).join('')}
+        </div>
+      </div>` : '';
+    // ===== Daily heatmap (last 12 weeks ≈ 84 days) =====
+    const heatmapDays = [];
+    const heatStart = new Date(); heatStart.setDate(heatStart.getDate() - 83);
+    // Aggregate net per day across allEntries
+    const allDailyMap = new Map();
+    for (const e of allEntries) {
+      if (!e.date) continue;
+      if (!allDailyMap.has(e.date)) allDailyMap.set(e.date, { in: 0, out: 0 });
+      const d = allDailyMap.get(e.date);
+      const amt = entryAmount(e);
+      if (e.type === 'in') d.in += amt; else d.out += amt;
+    }
+    for (let i = 0; i < 84; i++) {
+      const d = new Date(heatStart);
+      d.setDate(heatStart.getDate() + i);
+      const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const day = allDailyMap.get(ymd) || { in: 0, out: 0 };
+      heatmapDays.push({ date: ymd, net: day.in - day.out });
+    }
+    const heatmapHTML = `
+      <div class="insights-section">
+        <h3 class="insights-section-title">Daily activity heatmap <span class="insights-chart-sub">— last 12 weeks</span></h3>
+        <p class="insights-section-help">Each square is a day. Green = net positive, red = net negative. Hover to see the value.</p>
+        ${insightsHeatmapSVG(heatmapDays)}
+      </div>`;
+    // ===== Week-over-week (last 4 weeks) =====
+    const weekBuckets = [];
+    for (let w = 3; w >= 0; w--) {
+      const end = new Date();
+      end.setDate(end.getDate() - w * 7);
+      const start = new Date(end);
+      start.setDate(end.getDate() - 6);
+      const fmtD = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const f = fmtD(start), t = fmtD(end);
+      let wIn = 0, wOut = 0;
+      for (const e of allEntries) {
+        if (!e.date || e.date < f || e.date > t) continue;
+        const amt = entryAmount(e);
+        if (e.type === 'in') wIn += amt; else wOut += amt;
+      }
+      const label = w === 0 ? 'This week' : (w === 1 ? '1 wk ago' : `${w} wks ago`);
+      weekBuckets.push({ label, in: wIn, out: wOut, net: wIn - wOut });
+    }
+    const wowHTML = `
+      <div class="insights-section">
+        <h3 class="insights-section-title">Week over week <span class="insights-chart-sub">— last 4 weeks</span></h3>
+        <div class="insights-wow-grid">
+          ${weekBuckets.map((b, i) => {
+            const prev = i > 0 ? weekBuckets[i - 1] : null;
+            const pct = prev && prev.net ? ((b.net - prev.net) / Math.abs(prev.net)) * 100 : null;
+            return `<div class="insights-wow-cell">
+              <div class="insights-wow-label">${escapeHtml(b.label)}</div>
+              <div class="insights-wow-net ${b.net >= 0 ? 'pos' : 'neg'}">${cur} ${b.net >= 0 ? '+' : '−'}${fmt(Math.abs(b.net))}</div>
+              <div class="insights-wow-flow">in ${cur} ${fmt(b.in)} · out ${cur} ${fmt(b.out)}</div>
+              ${pct != null ? `<div class="insights-wow-pct ${pct >= 0 ? 'pos' : 'neg'}">${pct >= 0 ? '+' : ''}${pct.toFixed(0)}% vs prev</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    root.innerHTML = `
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · insights</div>
+          <h1 class="page-title">Business Insights</h1>
+        </div>
+        <div class="page-actions">
+          ${printIconButton()}
+        </div>
+      </div>
+
+      ${periodBar}
+      ${kpis}
+      ${biggestCards}
+      ${bestWorstSection}
+      ${barChartHTML}
+      ${trendChartHTML}
+      ${pies}
+      ${top10HTML}
+      ${heatmapHTML}
+      ${wowHTML}
     `;
   }
 
@@ -8246,14 +9863,17 @@
       ? `<div class="audit-exp-empty">No expenses logged for ${escapeHtml(rangeLabel)} yet.</div>`
       : groupList.map(renderGroupCard).join('');
 
-    // Add row — Description, Quantity (optional), Amount, Date.
+    // Add row — Description, Quantity (optional), Amount, Date, Note (optional).
     // Typing an existing name auto-merges via addAuditExpense: each
     // submission creates a new row but the list view groups them.
+    // v56: added optional "Note" field for free-form context on each
+    // individual addition (e.g. "Rent — paid in advance").
     const addRow = canEditExpenses ? `<div class="audit-exp-add audit-exp-add-qty">
         <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
         <input type="number" id="mAuditQty" placeholder="Qty (optional)" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
         <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
         <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
+        <input type="text" id="mAuditNote" maxlength="500" placeholder="Note (optional)" class="audit-exp-add-note" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
         <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
       </div>` : '';
 
@@ -8266,9 +9886,7 @@
           <h1 class="page-title">Expenses</h1>
         </div>
         <div class="page-actions">
-          <button class="icon-btn-light" onclick="printPage()" title="Print or save as PDF" aria-label="Print or save as PDF">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-          </button>
+          ${printIconButton()}
           ${exportIconButton('expenses')}
         </div>
       </div>
@@ -8321,14 +9939,17 @@
     const qtyTotal = rows.reduce((s, x) => s + (x.qty != null ? Number(x.qty) : 0), 0);
     const list = rows.map(x => {
       const qtyCell = x.qty != null ? `<span class="exp-hist-qty">qty ${fmt(x.qty)}</span>` : '';
+      // v56: optional note shown under qty in muted text. If both qty
+      // and note exist, qty appears first then note on its own line.
+      const noteCell = x.note ? `<div class="exp-hist-note">${escapeHtml(x.note)}</div>` : '';
       const actions = canEdit ? `
         <div class="exp-hist-actions">
           <button class="icon-btn-light" onclick="editAuditExpense('${jsAttr(x.id)}')" title="Edit"><svg width="13" height="13"><use href="#ico-edit"/></svg></button>
-          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}'); setTimeout(()=>closeModal(),250);" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteAuditExpense('${jsAttr(x.id)}')" title="Delete"><svg width="13" height="13"><use href="#ico-trash"/></svg></button>
         </div>` : '';
       return `<div class="exp-hist-row">
         <div class="exp-hist-date">${escapeHtml(expenseDate(x))}</div>
-        <div class="exp-hist-body">${qtyCell}</div>
+        <div class="exp-hist-body">${qtyCell}${noteCell}</div>
         <div class="exp-hist-amt">${cur} ${fmt(x.amount)}</div>
         ${actions}
       </div>`;
@@ -8397,6 +10018,7 @@
           <h1 class="page-title">${escapeHtml(acc.name)}</h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('account:' + acc.id) : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="renameAccountFlow('${acc.id}')">Rename</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="moveAccountToGroup('${acc.id}')">Move</button>` : ''}
@@ -8420,13 +10042,31 @@
     const partyLabel = e.type === 'in' ? 'From' : 'To';
     // Date+time + edited badge — same pattern as renderEntryRow.
     const _timeStr = formatEntryTime(e.createdAt);
-    const dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    // v57: same back-dated indicator as renderEntryRow — see comment there.
+    let dateLine;
+    if (e.createdAt) {
+      const _created = new Date(e.createdAt);
+      const _createdYmd = `${_created.getFullYear()}-${String(_created.getMonth() + 1).padStart(2, '0')}-${String(_created.getDate()).padStart(2, '0')}`;
+      const _sameDay = !e.date || _createdYmd === e.date;
+      if (_sameDay) {
+        dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+      } else {
+        dateLine = `${e.date}<span class="entry-added"> · added ${escapeHtml(_createdYmd)}${_timeStr ? ' ' + escapeHtml(_timeStr) : ''}</span>`;
+      }
+    } else {
+      dateLine = _timeStr ? `${e.date} · ${escapeHtml(_timeStr)}` : e.date;
+    }
     const _editedAtLabel = entryEditedLabel(e);
     const editedBadge = _editedAtLabel
       ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editedAtLabel)}</span>`
       : '';
+    // v56 status classes — see renderEntryRow for design notes.
+    const isEdited = !!_editedAtLabel;
+    const isPastDate = e.date && e.date < today();
+    const statusCls = isEdited ? ' entry-row-edited'
+      : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
-      return `<div class="entry-row entry-${e.type}">
+      return `<div class="entry-row entry-${e.type}${statusCls}">
         <div class="entry-date">${dateLine} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -8444,7 +10084,7 @@
         </div>
       </div>`;
     }
-    return `<div class="entry-row entry-${e.type}">
+    return `<div class="entry-row entry-${e.type}${statusCls}">
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -8573,6 +10213,8 @@
     }
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
+    if (view !== 'accounts') __acctTransfersExpanded = false;
+    if (view !== 'insights') __insightsPeriod = { mode: 'all' };
     saveSession(); closeDrawer();
     __renderResetScroll = true; // new tab → land at the top
     renderAll();
@@ -8787,6 +10429,13 @@
       if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can transfer.'); return; }
       modal.innerHTML = transferModal();
       setTimeout(() => document.getElementById('mTrFrom')?.focus(), 50);
+    }
+    else if (kind === 'expenseEdit') {
+      modal.innerHTML = expenseEditModalHTML();
+      setTimeout(() => document.getElementById('mExpEditDesc')?.focus(), 50);
+    }
+    else if (kind === 'insightsPeriod') {
+      modal.innerHTML = insightsPeriodModal();
     }
     else if (kind === 'privacy') { modal.innerHTML = privacyModal(); }
     else if (kind === 'userGuide') { modal.innerHTML = userGuideModal(); }
@@ -10471,6 +12120,7 @@
           <h1 class="page-title">Snapshot</h1>
         </div>
         <div class="page-actions">
+          ${printIconButton()}
           ${all.length && canExport(biz.id) ? exportIconButton('snapshot') : ''}
           ${canManage ? `<button class="btn btn-accent btn-sm" onclick="openQuickLookAddModal()">+ Add entry</button>` : ''}
         </div>
@@ -10855,8 +12505,15 @@
     const importantCards = important.map(a => {
       const editedTag = (a.updatedAt && a.createdAt && a.updatedAt > a.createdAt + 5000) ? ' · edited' : '';
       const time = relativeTime(a.createdAt) || '';
+      // v59: same reaction chip + double-tap as the dedicated page.
+      // The banner only ever shows important announcements, but the
+      // react UX is identical so users learn it once.
+      const reactChip = announcementReactionChipHTML(a.id);
       return `
-        <div class="announcement announcement-important">
+        <div class="announcement announcement-important"
+             ondblclick="toggleAnnouncementReaction('${jsAttr(a.id)}')"
+             ontouchstart="annTouchStart(event,'${jsAttr(a.id)}')"
+             ontouchend="annTouchEnd(event,'${jsAttr(a.id)}')">
           <svg class="announcement-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
           <div class="announcement-body">
             <div class="announcement-meta">
@@ -10865,6 +12522,10 @@
               <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
             </div>
             <div class="announcement-text">${escapeHtml(a.body)}</div>
+            <div class="announcement-footer">
+              ${reactChip}
+              <span class="announcement-react-hint">Double-tap to ♥</span>
+            </div>
           </div>
           ${isOwner ? `
             <div class="announcement-actions">
@@ -10883,6 +12544,143 @@
 
   // Modal state for announcement edit flow.
   let __announcementEditingId = null;
+
+  // ===== v59: announcement unread tracking + reactions =====
+  //
+  // Read tracking: we store per-user per-biz the lastReadAt timestamp
+  // (max createdAt of the announcements at the time the user last
+  // viewed the announcements page). Anything created AFTER that
+  // timestamp is unread.
+  //
+  // Storage shape:
+  //   localStorage['hisabs_announcement_reads_v1'] = {
+  //     "<userId>": {
+  //       "<businessId>": <lastReadAtEpoch>
+  //     }
+  //   }
+  //
+  // Why a timestamp instead of a per-announcement read flag?
+  // Simpler model, simpler storage, and matches what the user wants
+  // — opening the page = "I've seen everything up to now." Edits to
+  // an existing announcement don't reset its read state, only new
+  // posts do.
+  //
+  // Reactions: similar shape but per-announcement-id with the set of
+  // user IDs who reacted. Local-only for v59; cross-device sync needs
+  // a cloud table (deferred to v60).
+  //   localStorage['hisabs_announcement_reactions_v1'] = {
+  //     "<announcementId>": [<userId>, <userId>, ...]
+  //   }
+  // We use a simple array of userIds for the reactors so we can
+  // quickly check "did *I* react?" and show a count chip with the
+  // user list as a tooltip.
+  const __ANNOUNCEMENT_READS_KEY = 'hisabs_announcement_reads_v1';
+  const __ANNOUNCEMENT_REACTIONS_KEY = 'hisabs_announcement_reactions_v1';
+
+  function loadReadMap() {
+    try {
+      const raw = localStorage.getItem(__ANNOUNCEMENT_READS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) { return {}; }
+  }
+  function saveReadMap(m) {
+    try { localStorage.setItem(__ANNOUNCEMENT_READS_KEY, JSON.stringify(m)); } catch (_) {}
+  }
+  function getLastReadAt(bizId) {
+    if (!session.userId || !bizId) return 0;
+    const m = loadReadMap();
+    return (m[session.userId] && m[session.userId][bizId]) || 0;
+  }
+  function markAnnouncementsReadFor(bizId) {
+    if (!session.userId || !bizId) return;
+    const items = (data.announcements || []).filter(a => a.businessId === bizId);
+    if (!items.length) return;
+    const maxCreatedAt = items.reduce((m, a) => Math.max(m, a.createdAt || 0), 0);
+    if (!maxCreatedAt) return;
+    const m = loadReadMap();
+    if (!m[session.userId]) m[session.userId] = {};
+    // Only advance the high-water mark — never go backwards.
+    if ((m[session.userId][bizId] || 0) < maxCreatedAt) {
+      m[session.userId][bizId] = maxCreatedAt;
+      saveReadMap(m);
+    }
+  }
+  function countUnreadAnnouncements(bizId) {
+    const lastRead = getLastReadAt(bizId);
+    const items = (data.announcements || []).filter(a => a.businessId === bizId);
+    return items.filter(a => (a.createdAt || 0) > lastRead).length;
+  }
+  // Reactions storage
+  function loadReactions() {
+    try {
+      const raw = localStorage.getItem(__ANNOUNCEMENT_REACTIONS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) { return {}; }
+  }
+  function saveReactions(r) {
+    try { localStorage.setItem(__ANNOUNCEMENT_REACTIONS_KEY, JSON.stringify(r)); } catch (_) {}
+  }
+  function getAnnouncementReactionCount(annId) {
+    const r = loadReactions();
+    return (r[annId] || []).length;
+  }
+  function currentUserReacted(annId) {
+    if (!session.userId) return false;
+    const r = loadReactions();
+    return (r[annId] || []).includes(session.userId);
+  }
+  // Double-tap handler: toggles the current user's reaction on an
+  // announcement. If they're already in the reactor list, remove;
+  // otherwise add. Visual update is patched-in-place to avoid a
+  // full re-render (so the user's scroll position is preserved).
+  function toggleAnnouncementReaction(annId) {
+    if (!session.userId) { toast('Sign in to react.'); return; }
+    const r = loadReactions();
+    if (!r[annId]) r[annId] = [];
+    const idx = r[annId].indexOf(session.userId);
+    if (idx >= 0) {
+      r[annId].splice(idx, 1);
+      if (r[annId].length === 0) delete r[annId];
+    } else {
+      r[annId].push(session.userId);
+    }
+    saveReactions(r);
+    // Patch the reaction chip(s) in place. Multiple chips may exist
+    // for the same announcement (sidebar + manage page) so update all.
+    const chips = document.querySelectorAll(`[data-react-for="${annId}"]`);
+    const count = (r[annId] || []).length;
+    const reacted = (r[annId] || []).includes(session.userId);
+    for (const chip of chips) {
+      chip.dataset.reacted = reacted ? '1' : '0';
+      chip.querySelector('.announcement-react-count').textContent = count > 0 ? String(count) : '';
+      chip.classList.toggle('reacted', reacted);
+      chip.classList.toggle('has-count', count > 0);
+    }
+    // Brief heart-pop animation on the chip that was just toggled
+    const myChip = document.querySelector(`[data-react-for="${annId}"]`);
+    if (myChip) {
+      myChip.classList.add('react-pulse');
+      setTimeout(() => myChip.classList.remove('react-pulse'), 400);
+    }
+  }
+  // Helper: render the heart chip + double-tap binding HTML for an
+  // announcement card. Returns the chip element + a script-free
+  // double-click + double-tap handler on the card itself.
+  function announcementReactionChipHTML(annId) {
+    const count = getAnnouncementReactionCount(annId);
+    const reacted = currentUserReacted(annId);
+    return `<button
+      class="announcement-react-chip ${reacted ? 'reacted' : ''} ${count > 0 ? 'has-count' : ''}"
+      data-react-for="${escapeHtml(annId)}"
+      data-reacted="${reacted ? '1' : '0'}"
+      onclick="event.stopPropagation();toggleAnnouncementReaction('${jsAttr(annId)}')"
+      title="${reacted ? 'You reacted — double-tap card or click to remove' : 'Double-tap card or click to react'}"
+      aria-label="Toggle reaction">
+      <span class="announcement-react-heart">♥</span>
+      <span class="announcement-react-count">${count > 0 ? count : ''}</span>
+    </button>`;
+  }
+
   // Sidebar-tab version of the announcements view. Anyone with read
   // access to the business can see this; owner gets edit/delete +
   // post button.
@@ -10892,6 +12690,7 @@
     const role = roleFor(biz.id);
     if (!role) { root.innerHTML = '<div class="empty"><div class="empty-headline">No access.</div></div>'; return; }
     const isOwner = role === 'owner';
+    const lastReadAt = getLastReadAt(biz.id);
     const items = (data.announcements || [])
       .filter(a => a.businessId === biz.id)
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -10901,8 +12700,19 @@
       const tag = a.important
         ? '<span class="announcement-important-tag">Important</span>'
         : '';
+      // v59: unread highlight ring for newly posted items
+      const isUnread = (a.createdAt || 0) > lastReadAt;
+      // v59: ondblclick (desktop) + custom touch handler (mobile) for
+      // double-tap reactions. The touch handler uses a 350ms window
+      // for two taps, with movement < 12px between them so a scroll
+      // doesn't accidentally fire it.
+      const reactChip = announcementReactionChipHTML(a.id);
       return `
-        <div class="announcement ${a.important ? 'announcement-important' : ''}" style="margin-bottom:0.6rem;">
+        <div class="announcement ${a.important ? 'announcement-important' : ''} ${isUnread ? 'announcement-unread' : ''}"
+             style="margin-bottom:0.6rem;"
+             ondblclick="toggleAnnouncementReaction('${jsAttr(a.id)}')"
+             ontouchstart="annTouchStart(event,'${jsAttr(a.id)}')"
+             ontouchend="annTouchEnd(event,'${jsAttr(a.id)}')">
           <svg class="announcement-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             ${a.important
               ? '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>'
@@ -10912,9 +12722,14 @@
             <div class="announcement-meta">
               <span class="announcement-author">${escapeHtml(a.authorName || 'Owner')}</span>
               ${tag}
+              ${isUnread ? '<span class="announcement-new-tag">New</span>' : ''}
               <span class="announcement-time">${escapeHtml(time)}${editedTag}</span>
             </div>
             <div class="announcement-text">${escapeHtml(a.body)}</div>
+            <div class="announcement-footer">
+              ${reactChip}
+              <span class="announcement-react-hint">Double-tap to ♥</span>
+            </div>
           </div>
           ${isOwner ? `
             <div class="announcement-actions">
@@ -10931,9 +12746,47 @@
         </div>
         ${isOwner ? `<div class="page-actions"><button class="btn btn-sm btn-accent" onclick="openAnnouncementPostModal()">+ Post announcement</button></div>` : ''}
       </div>
-      <p style="color:var(--ink-mute);font-size:0.85rem;margin-bottom:1rem;max-width:42rem;">Every announcement for this business. Important ones also surface on the entries page with a warning icon.</p>
+      <p style="color:var(--ink-mute);font-size:0.85rem;margin-bottom:1rem;max-width:42rem;">Every announcement for this business. Important ones also surface on the entries page with a warning icon. Double-tap (or click the ♥) to react.</p>
       <div>${list}</div>
     `;
+    // After rendering, mark everything visible as read. We do this
+    // after the DOM is in place so the "New" tags + unread ring are
+    // still visible on this render; the badge in the sidebar will
+    // clear on the next renderAll() pass.
+    markAnnouncementsReadFor(biz.id);
+    // Trigger a sidebar refresh so the badge clears immediately.
+    try { renderSidebarNav(); } catch (_) {}
+  }
+
+  // ===== Touch-based double-tap detector =====
+  // ondblclick works on desktop, but mobile browsers don't fire it
+  // reliably (especially with delays from synthetic-click handling).
+  // We track touch start/end times per announcement card and treat
+  // two taps within 350ms with movement < 12px as a double-tap.
+  let __annLastTap = { id: null, ts: 0, x: 0, y: 0 };
+  function annTouchStart(ev, annId) {
+    // Don't interfere with taps inside the action buttons
+    if (ev.target.closest('.announcement-actions') ||
+        ev.target.closest('.announcement-react-chip')) return;
+  }
+  function annTouchEnd(ev, annId) {
+    if (ev.target.closest('.announcement-actions') ||
+        ev.target.closest('.announcement-react-chip')) return;
+    const t = ev.changedTouches && ev.changedTouches[0];
+    if (!t) return;
+    const now = Date.now();
+    const dx = Math.abs(t.clientX - __annLastTap.x);
+    const dy = Math.abs(t.clientY - __annLastTap.y);
+    if (__annLastTap.id === annId
+        && (now - __annLastTap.ts) < 350
+        && dx < 12 && dy < 12) {
+      // Double-tap detected
+      ev.preventDefault();
+      toggleAnnouncementReaction(annId);
+      __annLastTap = { id: null, ts: 0, x: 0, y: 0 };
+      return;
+    }
+    __annLastTap = { id: annId, ts: now, x: t.clientX, y: t.clientY };
   }
 
   function openAnnouncementPostModal() {
@@ -11537,9 +13390,15 @@
       if (e.type === 'in') bucket.inSum += amt;
       else bucket.outSum += amt;
     }
+    // Map internal role names to display labels. v56: 'staff' →
+    // 'Team' everywhere user-facing, including exports.
+    const roleLabel = (r) => {
+      const map = { owner: 'Owner', manager: 'Manager', staff: 'Team', viewer: 'Viewer' };
+      return map[r] || r || '';
+    };
     const rows = [...byKey.values()].map(r => [
       r.name,
-      r.role || '',
+      roleLabel(r.role),
       r.login || '',
       String(r.count),
       r.inSum.toFixed(2),
@@ -11626,6 +13485,85 @@
     toast(`Showing ${from} → ${to}.`);
   }
 
+  // ===== Insights period picker — own copy of the picker that writes
+  // to __insightsPeriod (not session.period). Same UX as the main
+  // picker but isolated so users' main-page filter isn't disturbed.
+  let __insightsPickerMode = 'month';
+  let __insightsPickerYear = new Date().getFullYear();
+  function insightsPeriodModal() {
+    const p = __insightsPeriod || { mode: 'all' };
+    __insightsPickerMode = p.mode === 'range' ? 'range' : 'month';
+    __insightsPickerYear = p.mode === 'month' ? parseInt(p.monthKey.split('-')[0]) : new Date().getFullYear();
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Custom period · Insights</h2>
+      <p class="modal-sub">Pick a month, or a custom date range.</p>
+      <div class="period-picker-tabs">
+        <button class="${__insightsPickerMode === 'month' ? 'active' : ''}" onclick="insightsSwitchPickerMode('month')">By Month</button>
+        <button class="${__insightsPickerMode === 'range' ? 'active' : ''}" onclick="insightsSwitchPickerMode('range')">Date Range</button>
+      </div>
+      <div id="insightsPickerBody">${insightsRenderPickerBody()}</div>
+    `;
+  }
+  function insightsSwitchPickerMode(mode) {
+    __insightsPickerMode = mode;
+    document.querySelectorAll('.period-picker-tabs button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.period-picker-tabs button')[mode === 'month' ? 0 : 1].classList.add('active');
+    document.getElementById('insightsPickerBody').innerHTML = insightsRenderPickerBody();
+  }
+  function insightsRenderPickerBody() {
+    return __insightsPickerMode === 'month' ? insightsRenderMonthPicker() : insightsRenderRangePicker();
+  }
+  function insightsRenderMonthPicker() {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const activeKey = __insightsPeriod.mode === 'month' ? __insightsPeriod.monthKey : '';
+    const cells = months.map((m, i) => {
+      const key = `${__insightsPickerYear}-${String(i+1).padStart(2, '0')}`;
+      return `<button class="month-grid-item ${key === activeKey ? 'active' : ''}" onclick="insightsPickMonth('${key}')">${m}</button>`;
+    }).join('');
+    return `
+      <div class="year-nav">
+        <button onclick="insightsChangeYear(-1)">‹</button>
+        <span class="year-nav-label">${__insightsPickerYear}</span>
+        <button onclick="insightsChangeYear(1)">›</button>
+      </div>
+      <div class="month-grid">${cells}</div>
+      <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
+    `;
+  }
+  function insightsChangeYear(d) {
+    __insightsPickerYear += d;
+    document.getElementById('insightsPickerBody').innerHTML = insightsRenderPickerBody();
+  }
+  function insightsPickMonth(key) {
+    setInsightsPeriod({ mode: 'month', monthKey: key });
+    closeModal();
+  }
+  function insightsRenderRangePicker() {
+    const p = __insightsPeriod;
+    const from = p.mode === 'range' ? p.from : today();
+    const to = p.mode === 'range' ? p.to : today();
+    return `
+      <div class="form-grid">
+        <div class="form-row">
+          <div class="input-wrap"><label>From</label><input type="date" id="mInsightsFromDate" value="${from}"></div>
+          <div class="input-wrap"><label>To</label><input type="date" id="mInsightsToDate" value="${to}"></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-accent" onclick="insightsApplyRange()">Apply range</button>
+        </div>
+      </div>`;
+  }
+  function insightsApplyRange() {
+    const from = document.getElementById('mInsightsFromDate').value;
+    const to = document.getElementById('mInsightsToDate').value;
+    if (!from || !to) { toast('Pick both dates.'); return; }
+    if (from > to) { toast('"From" must be on or before "To".'); return; }
+    setInsightsPeriod({ mode: 'range', from, to });
+    closeModal();
+  }
+
   // SETTINGS
   // Which settings tab is currently shown. Default 'profile'.
   let __settingsTab = 'profile';
@@ -11633,6 +13571,16 @@
   let __partiesSearch = '';
   let __categoriesSearch = '';
   let __accountsSearch = '';
+  // Recent-transfers panel default shows 4 (set by DEFAULT_LIMIT in
+  // renderAccountsView); user can expand with the "View more" toggle.
+  // State is module-level so it survives re-renders within the
+  // session, and resets to false (collapsed) on page navigation away.
+  let __acctTransfersExpanded = false;
+  function toggleAcctTransfersExpanded() {
+    __acctTransfersExpanded = !__acctTransfersExpanded;
+    const root = document.getElementById('mainContent');
+    if (root) renderAccountsView(root);
+  }
   // Whether the Hidden accounts section on the Accounts tab is expanded.
   // In-memory only; resets when the page reloads. Default collapsed so the
   // Accounts view stays clean for users with closed accounts.
@@ -12027,20 +13975,26 @@
       </div>`;
   }
 
-  // Per-business settings modal uses three tabs to keep the modal
-  // scannable: Identity & Books, Operations (categories, accounts,
-  // parties), and Backup & Danger. Module-level so the user's pick
-  // survives re-renders inside the same modal open; reset whenever
-  // the modal opens fresh.
+  // Per-business settings modal — single page since v56. Operations
+  // (categories, accounts, parties) were removed because each has
+  // its own page where reorder + add/edit/delete already work. The
+  // Backup & Restore section was removed because Profile → Settings
+  // → Data handles per-business and full backups in one place, so
+  // duplicating it here just made the modal noisy.
+  //
+  // What's left: business identity (name, currency, team-totals
+  // toggle), book list, transfer ownership (owner-only), delete biz
+  // (owner-only). The __bizSettingsTab module-level state is kept
+  // because some legacy openBizSettings callers reset it; it just
+  // doesn't gate visible UI anymore.
   let __bizSettingsTab = 'identity';
   function switchBizSettingsTab(t, bizId) {
-    __bizSettingsTab = t;
+    // Legacy entry-point kept so any inline onclick from older HTML
+    // doesn't throw. Always renders Identity now.
+    __bizSettingsTab = 'identity';
     const slot = document.getElementById('bizSettingsBody');
     if (!slot) return;
     slot.innerHTML = bizSettingsBody(bizId);
-    // Re-wire drag-to-reorder lists on whichever tab is now visible
-    // (cats/accts only exist on the Operations tab).
-    setTimeout(() => wireBizSettingsReorder(bizId), 0);
   }
 
   function bizSettingsBody(bizId) {
@@ -12050,21 +14004,12 @@
     const isOwner = biz.ownerId === u.id;
     const role = roleFor(biz.id);
     const canManage = role === 'owner' || role === 'manager';
-    const tab = __bizSettingsTab || 'identity';
-    const tabBar = `
-      <div class="settings-tabs" role="tablist">
-        <button class="settings-tab ${tab === 'identity' ? 'active' : ''}" onclick="switchBizSettingsTab('identity','${jsAttr(biz.id)}')">Identity &amp; Books</button>
-        <button class="settings-tab ${tab === 'ops' ? 'active' : ''}" onclick="switchBizSettingsTab('ops','${jsAttr(biz.id)}')">Operations</button>
-        ${isOwner ? `<button class="settings-tab ${tab === 'backup' ? 'active' : ''}" onclick="switchBizSettingsTab('backup','${jsAttr(biz.id)}')">Backup &amp; Danger</button>` : ''}
-      </div>`;
-    let body;
-    if (tab === 'ops') body = bizSettingsOpsTab(biz, canManage);
-    else if (tab === 'backup' && isOwner) body = bizSettingsBackupTab(biz);
-    else body = bizSettingsIdentityTab(biz, isOwner, canManage);
-    return tabBar + body;
+    return bizSettingsIdentityTab(biz, isOwner, canManage);
   }
 
-  // Tab 1 — Business identity + the books that live under it.
+  // Single page now: identity + books + (owner-only) transfer
+  // ownership + delete. No tabs. Operations and Backup were removed
+  // in v56.
   function bizSettingsIdentityTab(biz, isOwner, canManage) {
     const booksOfBiz = data.books.filter(b => b.businessId === biz.id);
     return `
@@ -12100,111 +14045,11 @@
           </li>`).join('')}
         </ul>
       </div>` : ''}
-    `;
-  }
 
-  // Tab 2 — Operations: categories, accounts, and parties. These are
-  // the day-to-day data taxonomy users grow over time, grouped here
-  // because they're all "what kinds of things does this business
-  // deal in" rather than identity or danger-zone work.
-  function bizSettingsOpsTab(biz, canManage) {
-    const cats = bySortOrder(data.categories.filter(c => c.businessId === biz.id));
-    const catChips = cats.length
-      ? (canManage
-          ? `<div class="reorder-list" id="reorderCats_${biz.id}">${cats.map(c => `<div class="reorder-row" data-id="${c.id}">
-              <span class="drag-handle" title="Drag to reorder">${dragHandleIcon()}</span>
-              <span class="reorder-row-name">${escapeHtml(c.name)}</span>
-              <button class="icon-btn-light" onclick="renameCategoryByIdFromBizSettings('${c.id}', '${biz.id}')" title="Rename" aria-label="Rename ${escapeHtml(c.name)}"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>
-              <button class="icon-btn-light" onclick="deleteCategory('${c.id}')" title="Remove" aria-label="Remove ${escapeHtml(c.name)}"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
-            </div>`).join('')}</div>`
-          : cats.map(c => `<span class="chip">${escapeHtml(c.name)}</span>`).join(''))
-      : '<span class="chip-empty">No categories yet.</span>';
-    const accs = bySortOrder(data.cashAccounts.filter(a => a.businessId === biz.id));
-    const groups = data.accountGroups.filter(g => g.businessId === biz.id).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
-    const accGroupsHTML = groups.length
-      ? groups.map(g => {
-          const inGroup = accs.filter(a => a.groupId === g.id);
-          const accRowList = inGroup.length
-            ? (canManage
-                ? `<div class="reorder-list" id="reorderAccs_${g.id}">${inGroup.map(a => `<div class="reorder-row" data-id="${a.id}">
-                    <span class="drag-handle" title="Drag to reorder">${dragHandleIcon()}</span>
-                    <span class="reorder-row-name">${escapeHtml(a.name)}</span>
-                    <button class="icon-btn-light" onclick="renameAccountFlow('${a.id}')" title="Rename" aria-label="Rename account"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>
-                    ${accs.length > 1 ? `<button class="icon-btn-light" onclick="deleteAccountFromSettings('${a.id}')" title="Remove" aria-label="Remove account"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
-                  </div>`).join('')}</div>`
-                : inGroup.map(a => `<span class="chip">${escapeHtml(a.name)}</span>`).join(''))
-            : '<span class="chip-empty">No accounts.</span>';
-          return `<div class="setting-acct-group">
-            <div class="setting-acct-group-head">
-              <span class="setting-acct-group-icon">${accountKindIcon(g.kind)}</span>
-              <span class="setting-acct-group-name">${escapeHtml(g.name)}</span>
-              ${canManage ? `<button class="icon-btn-light" onclick="renameGroup('${g.id}')" title="Rename" aria-label="Rename group"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>` : ''}
-              ${canManage && groups.length > 1 ? `<button class="icon-btn-light" onclick="deleteGroup('${g.id}')" title="Delete" aria-label="Delete group"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>` : ''}
-            </div>
-            ${canManage ? accRowList : `<div class="chips">${accRowList}</div>`}
-          </div>`;
-        }).join('')
-      : '<span class="chip-empty">No groups yet.</span>';
-
-    // Parties — same business-scoped CRUD as the Parties page, but
-    // mounted here so users have one place for "biz setup". Showing
-    // first 30 with a tip to use the Parties page for full search.
-    const parties = bySortOrder(data.parties.filter(p => p.businessId === biz.id));
-    const PARTY_PREVIEW_LIMIT = 30;
-    const partiesShown = parties.slice(0, PARTY_PREVIEW_LIMIT);
-    const partyOverflow = parties.length - partiesShown.length;
-    const partiesList = parties.length
-      ? `<ul class="biz-parties-list">${partiesShown.map(p => `
-          <li class="biz-parties-row">
-            <span class="biz-parties-name">${escapeHtml(p.name)}${p.kind ? `<span class="biz-parties-kind">${escapeHtml(p.kind)}</span>` : ''}</span>
-            ${canManage ? `<span style="display:inline-flex;gap:0.25rem;">
-              <button class="icon-btn-light" onclick="renameParty('${jsAttr(p.id)}')" title="Rename"><svg width="12" height="12"><use href="#ico-edit"/></svg></button>
-              <button class="icon-btn-light" onclick="deletePartyFromBizSettings('${jsAttr(p.id)}','${jsAttr(biz.id)}')" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
-            </span>` : ''}
-          </li>`).join('')}</ul>
-          ${partyOverflow > 0 ? `<p style="font-size:0.75rem;color:var(--ink-mute);margin-top:0.4rem;">+${partyOverflow} more — use the <a onclick="closeModal();switchView('parties');" style="cursor:pointer;text-decoration:underline;">Parties page</a> to search and browse all.</p>` : ''}`
-      : '<span class="chip-empty">No parties yet.</span>';
-
-    return `
-      <div class="settings-section">
-        <h3 class="settings-heading">Categories</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Used when adding entries. ${canManage ? 'Owner and managers can add or remove.' : 'Only the owner or manager can change these.'}</p>
-        <div class="chips">${catChips}</div>
-        ${canManage ? `<div style="display:flex;gap:0.5rem;">
-          <input type="text" id="setNewCat" maxlength="120" placeholder="Add category…" style="flex:1;padding:0.55rem 0.75rem;font-size:0.9rem;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCategoryToBiz('${biz.id}');}">
-          <button class="btn btn-sm" onclick="addCategoryToBiz('${biz.id}')">Add</button>
-        </div>` : ''}
-      </div>
-
-      <div class="settings-section">
-        <h3 class="settings-heading">Accounts</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Money buckets grouped by kind. ${canManage ? 'You can add new categories and accounts.' : 'Only the owner or manager can change these.'}</p>
-        <div class="setting-acct-groups">${accGroupsHTML}</div>
-        ${canManage ? `<div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.75rem;">
-          <button class="btn btn-sm btn-ghost" onclick="closeModal();selectBiz('${biz.id}');openModal('accountGroup')">+ New category</button>
-          <button class="btn btn-sm" onclick="closeModal();selectBiz('${biz.id}');openModal('account')">+ New account</button>
-        </div>` : ''}
-      </div>
-
-      <div class="settings-section">
-        <h3 class="settings-heading">Parties <span class="page-title-count" style="margin-left:0.3rem;">${parties.length}</span></h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">The people you do business with. ${canManage ? 'Created automatically when you type a name on an entry — manage them here.' : 'Only the owner or manager can add new parties from here.'}</p>
-        ${partiesList}
-        ${canManage ? `<div style="display:flex;gap:0.5rem;margin-top:0.75rem;">
-          <button class="btn btn-sm" onclick="closeModal();selectBiz('${biz.id}');openModal('party')">+ Add party</button>
-        </div>` : ''}
-      </div>
-    `;
-  }
-
-  // Tab 3 — Backup & Danger. Owner-only (the tab itself doesn't
-  // render for non-owners, but defensively keep the role guards in
-  // each action handler too).
-  function bizSettingsBackupTab(biz) {
-    return `
+      ${isOwner ? `
       <div class="settings-section">
         <h3 class="settings-heading">Backup &amp; restore (this business)</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Download a JSON file of this business's data, or restore from a previous backup.</p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Download a JSON file of this business's data, or restore from a previous backup file.</p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-sm" onclick="exportBusinessFull('${biz.id}')">Backup everything</button>
           <button class="btn btn-sm btn-ghost" onclick="exportBusinessMeta('${biz.id}')">Categories, accounts, parties only</button>
@@ -12223,51 +14068,10 @@
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Deleting this business removes all its books, entries, parties, categories, and accounts. Cannot be undone.</p>
         <button class="btn btn-sm btn-danger-outline" onclick="deleteBusinessAction('${biz.id}')">Delete this business</button>
-      </div>
+      </div>` : ''}
     `;
   }
 
-  // Helper used by both openBizSettings and switchBizSettingsTab so
-  // the drag-reorder wiring is identical on first open and on tab
-  // switches. Safe to call when the Operations tab isn't visible —
-  // the lookups just return null.
-  function wireBizSettingsReorder(bizId) {
-    const catList = document.getElementById('reorderCats_' + bizId);
-    if (catList) {
-      enableDragReorder(catList, ids => {
-        applyReorder(data.categories.filter(c => c.businessId === bizId), ids);
-      });
-    }
-    const groups = data.accountGroups.filter(g => g.businessId === bizId);
-    groups.forEach(g => {
-      const list = document.getElementById('reorderAccs_' + g.id);
-      if (list) {
-        enableDragReorder(list, ids => {
-          applyReorder(data.cashAccounts.filter(a => a.groupId === g.id), ids);
-        });
-      }
-    });
-  }
-
-  // Delete a party from the business-settings Operations tab. Same
-  // confirm flow as the main Parties page; on confirm, rerenders the
-  // Operations tab in place rather than a full renderAll so the
-  // modal stays open on the right tab.
-  async function deletePartyFromBizSettings(partyId, bizId) {
-    const p = data.parties.find(x => x.id === partyId);
-    if (!p) return;
-    if (!canManageOps(bizId)) { toast('Only the owner or manager can remove parties.'); return; }
-    const count = data.entries.filter(e => e.partyId === partyId).length;
-    const msg = count > 0
-      ? `Remove "${p.name}"? They appear on ${count} ${count === 1 ? 'entry' : 'entries'} — those entries keep the name as plain text, but the party record itself goes away.`
-      : `Remove "${p.name}"? They have no entries yet.`;
-    if (!(await uiConfirm(msg, { destructive: true, confirmLabel: 'Remove' }))) return;
-    data.parties = data.parties.filter(x => x.id !== partyId);
-    saveData();
-    // Refresh just the modal body so the user stays in their tab.
-    switchBizSettingsTab('ops', bizId);
-    toast('Party removed.');
-  }
 
   // ================================================================
   // LEAVE BUSINESS (for non-owners)
@@ -12560,9 +14364,8 @@
     fcBtn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     modal.appendChild(fcBtn);
     _showModalBackdrop();
-    // Wire drag-to-reorder for categories and per-group accounts on
-    // initial open. Re-wired on every tab switch via switchBizSettingsTab.
-    setTimeout(() => wireBizSettingsReorder(bizId), 0);
+    // Operations tab removed in v56 — reorder lives on the actual
+    // Categories / Accounts pages. Nothing extra to wire here.
   }
 
   function appearanceTabHTML() {
@@ -13860,11 +15663,20 @@
   function showBackupToast(idx) {
     const wrap = document.getElementById('toast');
     if (!wrap) return;
-    wrap.innerHTML = `<span style="display:inline-flex;align-items:center;gap:0.5rem;font-size:0.78rem;">Auto-backup ready · <button class="btn btn-sm" style="padding:0.25rem 0.55rem;font-size:0.7rem;" onclick="downloadAutoBackup(${idx});this.parentElement.parentElement.classList.remove('show');">Download</button></span>`;
+    // v57: two-line message — primary "Auto Backup completed" reads
+    // as a confirmation; smaller "Download from settings" tells the
+    // user where to grab the file. Tapping the small text opens
+    // Settings → Data which has the Auto-backups list. The toast
+    // self-dismisses; we don't put a Download button in the toast
+    // itself any more because users said the inline button was easy
+    // to miss (3-second window) and they preferred a calm reminder
+    // pointing to a stable location they could revisit later.
+    wrap.innerHTML = `<span style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:0.15rem;">
+      <span style="font-size:0.85rem;font-weight:600;">Auto Backup completed</span>
+      <button class="hisabs-backup-toast-link" onclick="pickSettingsTab('data');this.closest('#toast').classList.remove('show');" style="background:none;border:none;padding:0;font-size:0.7rem;color:var(--ink-mute);text-decoration:underline;cursor:pointer;font-family:inherit;">Download from settings</button>
+    </span>`;
     wrap.classList.add('show');
-    // Short visible window so the auto-backup notice doesn't linger
-    // on screen the way it used to (12s felt like a banner).
-    setTimeout(() => wrap.classList.remove('show'), 3000);
+    setTimeout(() => wrap.classList.remove('show'), 3500);
   }
   // Start the auto-backup timer once the user is signed in
   let __autoBackupTimer = null;
@@ -14513,6 +16325,8 @@
       exportAuditDashboard(format);
     } else if (target === 'forecast') {
       exportForecastDashboard(format);
+    } else if (target === 'distribution') {
+      exportDistributionDashboard(format);
     } else if (target === 'expenses') {
       exportExpensesDashboard(format);
     } else if (target === 'snapshot') {
@@ -14916,14 +16730,15 @@
   }
 
   // Forecast export — captures the current month's projections + the
-  // last-month comparison. Owner-only (same gate as the forecast view).
-  // PDF and CSV both produce the same breakdown table the page shows;
-  // PDF additionally includes the insight summary at the top.
+  // last-month comparison. Same role gate as the forecast view —
+  // owner, manager, viewer (not staff). PDF and CSV both produce the
+  // same breakdown table the page shows; PDF additionally includes
+  // the insight summary at the top.
   function exportForecastDashboard(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
-    if (roleFor(biz.id) !== 'owner') {
-      toast('Only the owner can export the forecast.');
+    if (!canSeeAudit(biz.id)) {
+      toast('No access.');
       return;
     }
     const cur = biz.currency || 'NPR';
@@ -15008,6 +16823,87 @@
       rows: allRows,
       filename: `forecast_${biz.name}_${monthKeyStr}`,
       columnAlign: { 1: 'right', 2: 'right', 3: 'right', 4: 'right' },
+    };
+    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+  }
+
+  // Distribution export — owner-only. Captures the current distribution
+  // state (Amount + salary rows + share rows + remaining + totals) in
+  // the active currency. Mirrors the page math so the export matches
+  // exactly what the user sees on screen.
+  function exportDistributionDashboard(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') {
+      toast('Only the owner can export distribution.');
+      return;
+    }
+    // Use the live __split / __dist state — Distribution view always
+    // hydrates these on render, so they're current when the user
+    // opens the export from there. (Don't recompute from scratch — we
+    // want to export exactly what the user is looking at.)
+    const bizCur = biz.currency || 'NPR';
+    const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
+    const displayCur = hasChangedCurrency ? __splitCurrency : bizCur;
+    const conversionRate = hasChangedCurrency ? __splitRate : 1;
+    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    const firstPortionDisp = firstPortionBiz * conversionRate;
+    // Section B totals
+    let totalSalary = 0, totalAdj = 0, totalFinal = 0;
+    const salaryRows = __distSalaries.map(r => {
+      const signedAdj = r.adjustmentType === 'addition' ? r.adjustmentAmount : -r.adjustmentAmount;
+      const final = r.salary + signedAdj;
+      totalSalary += r.salary;
+      totalAdj += signedAdj;
+      totalFinal += final;
+      return [
+        r.name || '—',
+        r.salary.toFixed(2),
+        r.adjustmentType === 'addition' ? `+${r.adjustmentAmount.toFixed(2)}` : `−${r.adjustmentAmount.toFixed(2)}`,
+        final.toFixed(2),
+      ];
+    });
+    const remaining = firstPortionDisp - totalFinal;
+    // Section C
+    let totalSharePct = 0, totalShareAmount = 0;
+    const shareRows = __distShares.map(r => {
+      const amt = (r.pct / 100) * remaining;
+      totalSharePct += r.pct;
+      totalShareAmount += amt;
+      return [r.name || '—', `${r.pct}%`, amt.toFixed(2)];
+    });
+    // Build a row-set: header rows, then salaries, then totals, then shares
+    // PDF/CSV table uses fixed columns. We use the WIDEST schema (4 cols)
+    // and pad share rows with blanks. First column is the label/name.
+    const rows = [];
+    rows.push(['— Amount —', '', '', '']);
+    rows.push([`${__splitPct}% of Net profit`, `${displayCur} ${firstPortionDisp.toFixed(2)}`, '', hasChangedCurrency ? `${bizCur} ${firstPortionBiz.toFixed(2)}` : '']);
+    rows.push(['', '', '', '']);
+    rows.push(['— Team Salaries —', 'Salary', 'Adjustment', 'Final']);
+    salaryRows.forEach(r => rows.push(r));
+    if (__distSalaries.length) {
+      rows.push(['', '', '', '']);
+      rows.push(['Total salary', totalSalary.toFixed(2), '', '']);
+      rows.push(['Total adjustment', '', (totalAdj >= 0 ? '+' : '−') + Math.abs(totalAdj).toFixed(2), '']);
+      rows.push(['Total final paid', '', '', totalFinal.toFixed(2)]);
+    }
+    rows.push(['', '', '', '']);
+    rows.push(['Remaining (after salaries)', '', '', remaining.toFixed(2)]);
+    rows.push(['', '', '', '']);
+    rows.push(['— Profit Shares —', '%', 'Amount', '']);
+    shareRows.forEach(r => rows.push([r[0], r[1], r[2], '']));
+    if (__distShares.length) {
+      rows.push(['', '', '', '']);
+      rows.push(['Total %', `${totalSharePct}%`, '', '']);
+      rows.push(['Total share amount', '', totalShareAmount.toFixed(2), '']);
+    }
+    const opts = {
+      title: `Distribution — ${biz.name}`,
+      subtitle: `${displayCur}${hasChangedCurrency ? ` (rate ${__splitRate} per 1 ${bizCur})` : ''} · Generated ${today()}`,
+      columns: ['Item', 'Col 1', 'Col 2', 'Col 3'],
+      rows,
+      filename: `distribution_${biz.name.replace(/[^\w]+/g, '_')}`,
+      columnAlign: { 1: 'right', 2: 'right', 3: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
@@ -17168,6 +19064,8 @@
         // qty is optional. null/undefined → not stored. Numeric when
         // present (could be fractional, e.g. 1.5 kg).
         qty: (r.qty === null || r.qty === undefined || r.qty === '') ? null : Number(r.qty),
+        // v56: free-form per-row note. Null when empty/missing.
+        note: r.note || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -17176,6 +19074,7 @@
         description: r.label || '',
         amount: Number(r.amount),
         qty: (r.qty === null || r.qty === undefined) ? null : Number(r.qty),
+        note: r.note || undefined,
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
       }),
     },
