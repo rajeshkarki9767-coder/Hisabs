@@ -9,7 +9,8 @@
   enlarge.
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#f5f1e8">
+<meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1b18" media="(prefers-color-scheme: dark)">
 <title>Hisabs — your cash, in order</title>
 <!-- F8: SEO meta description. F9: Open Graph tags so shared links show
      a readable card on chat apps and social. Image is the existing PWA
@@ -728,11 +729,81 @@
   .activity-verb-edit { background: rgba(216,151,60,0.18); color: #8b5a16; }
   .activity-row-when { font-size: 0.72rem; color: var(--ink-mute); margin-left: auto; }
   .activity-row-desc { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.55; word-break: break-word; }
+  .activity-row-delete {
+    flex-shrink: 0; background: transparent; border: 1px solid transparent;
+    color: var(--ink-mute); cursor: pointer; padding: 0.15rem 0.4rem;
+    border-radius: 4px; font-size: 1.1rem; line-height: 1;
+    transition: color 0.12s, background 0.12s, border-color 0.12s;
+  }
+  .activity-row-delete:hover { color: var(--loss); background: rgba(168,53,31,0.08); border-color: rgba(168,53,31,0.18); }
+  .activity-row-delete:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .activity-filter-bar { margin-bottom: 0.75rem; }
+  .activity-filter-chips {
+    display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;
+    padding: 0.25rem 0;
+  }
+  .activity-filter-chip {
+    background: var(--paper); border: 1px solid var(--line);
+    border-radius: 14px; padding: 0.25rem 0.7rem; font-size: 0.78rem;
+    color: var(--ink-soft); cursor: pointer; display: inline-flex;
+    align-items: center; gap: 0.35rem; transition: all 0.12s;
+    font-family: inherit;
+  }
+  .activity-filter-chip:hover { background: var(--surface-1); border-color: var(--ink-mute); }
+  .activity-filter-chip.is-active {
+    background: var(--ink); color: var(--paper); border-color: var(--ink);
+  }
+  .activity-filter-chip.is-active .activity-filter-count {
+    background: rgba(255,255,255,0.18); color: var(--paper);
+  }
+  .activity-filter-count {
+    background: var(--paper-deep); color: var(--ink-mute);
+    border-radius: 8px; padding: 0 0.4rem; font-size: 0.68rem; font-weight: 600;
+    font-variant-numeric: tabular-nums; min-width: 1.2em; text-align: center;
+  }
+  /* Print mode for the activity log. Hide all app chrome, show only
+     the page-title + filter bar + log rows. Page-action buttons are
+     hidden too since they shouldn't appear on paper. */
+  @media print {
+    body.printing-activity * { visibility: hidden; }
+    body.printing-activity .page-header,
+    body.printing-activity .page-header *,
+    body.printing-activity .page-sub,
+    body.printing-activity .activity-filter-bar,
+    body.printing-activity .activity-filter-bar *,
+    body.printing-activity .activity-log-list,
+    body.printing-activity .activity-log-list * { visibility: visible; }
+    body.printing-activity .page-actions { display: none !important; }
+    body.printing-activity .activity-row-delete { display: none !important; }
+    body.printing-activity .page-header,
+    body.printing-activity .page-sub,
+    body.printing-activity .activity-filter-bar,
+    body.printing-activity .activity-log-list {
+      position: relative; left: 0; top: 0; width: 100%;
+    }
+    body.printing-activity .activity-log-list {
+      gap: 0.4rem;
+    }
+    body.printing-activity .activity-row {
+      page-break-inside: avoid;
+      border: 1px solid #ccc;
+      box-shadow: none;
+    }
+    body.printing-activity .activity-filter-chip {
+      background: transparent !important;
+      color: #000 !important;
+      border-color: #999 !important;
+    }
+    body.printing-activity .activity-filter-chip:not(.is-active) {
+      display: none;
+    }
+  }
   @media (max-width: 600px) {
     .activity-row { padding: 0.6rem 0.7rem; gap: 0.6rem; }
     .activity-row-avatar { width: 28px; height: 28px; font-size: 0.68rem; }
     .activity-row-when { margin-left: 0; width: 100%; }
     .activity-row-head { gap: 0.35rem; }
+    .activity-row-delete { padding: 0.1rem 0.35rem; font-size: 1rem; }
   }
   .search-result-icon { flex-shrink: 0; width: 24px; height: 24px; display: grid; place-items: center; color: var(--ink-mute); }
   .search-result-body { flex: 1; min-width: 0; }
@@ -1940,6 +2011,42 @@
   }
   /* Chart detail modal — list of entries that contributed to the
      clicked element. Compact, scrollable, no horizontal overflow. */
+  .chart-detail-summary {
+    background: var(--surface-1);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r);
+    padding: 0.6rem 0.85rem;
+    margin: 0.75rem 0 0.55rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .chart-detail-summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.75rem;
+  }
+  .chart-detail-summary-label {
+    font-size: 0.75rem;
+    color: var(--ink-mute);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .chart-detail-summary-val {
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    font-variant-numeric: tabular-nums;
+  }
+  .chart-detail-summary-val.pos { color: var(--gain); }
+  .chart-detail-summary-val.neg { color: var(--loss); }
+  .chart-detail-expand {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.78rem;
+    color: var(--accent);
+  }
   .chart-detail-list {
     max-height: 50vh;
     overflow-y: auto;
@@ -1982,6 +2089,15 @@
   }
   .fc-bar-in { fill: var(--gain); }
   .fc-bar-out { fill: var(--loss); }
+  .fc-bar.fc-bar-pos { fill: var(--gain); }
+  .fc-bar.fc-bar-neg { fill: var(--loss); }
+  .fc-bar.fc-bar-last { fill: var(--ink-mute); }
+  .fc-swatch-current { background: var(--gain); }
+  .fc-swatch-currentneg { background: var(--loss); }
+  .fc-swatch-last { background: var(--ink-mute); opacity: 0.55; }
+  .forecast-section-sub-inline { font-size: 0.75rem; font-weight: 400; color: var(--ink-mute); }
+  .forecast-chart-legend { display: flex; gap: 0.85rem; align-items: center; font-size: 0.72rem; color: var(--ink-mute); margin-bottom: 0.35rem; }
+  .forecast-chart-legend .fc-swatch { width: 10px; height: 10px; display: inline-block; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
   .fc-grid { stroke: var(--line-soft); stroke-width: 0.6; }
   .fc-today { stroke: var(--accent); stroke-width: 1.2; stroke-dasharray: 3 3; }
   .fc-today-label {
@@ -2108,7 +2224,15 @@
     .forecast-row-avg { display: none; }
   }
   @media (max-width: 480px) {
-    .forecast-insights { grid-template-columns: 1fr; gap: 0.5rem; }
+    /* Forecast on mobile: keep 2-col KPI grid so the user sees two
+       metrics per row (cash in / cash out, projected profit / runway,
+       etc) — matches the Insights view's mobile design. */
+    .forecast-insights { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .forecast-insight-card { padding: 0.55rem 0.65rem; }
+    .forecast-insight-label { font-size: 0.62rem; }
+    .forecast-insight-value { font-size: 1.05rem; }
+    .forecast-insight-sub { font-size: 0.62rem; }
+    .forecast-method-card { padding: 0.55rem 0.65rem; }
     .forecast-month-banner { flex-direction: column; align-items: flex-start; gap: 0.2rem; }
     .audit-forecast-cta { margin: 0.3rem 0 0.5rem; }
   }
@@ -2210,6 +2334,7 @@
     color: var(--ink); margin: 0;
   }
   .insights-chart-sub { font-size: 0.72rem; color: var(--ink-mute); font-weight: 400; }
+  .insights-chart-note { font-size: 0.72rem; color: var(--ink-mute); margin: 0.5rem 0 0; font-style: italic; }
   .insights-chart-legend { display: flex; gap: 0.85rem; font-size: 0.72rem; color: var(--ink-soft); }
   .insights-bar-svg, .insights-line-svg { width: 100%; height: auto; max-width: 100%; }
   /* Generic section wrap (top 10, heatmap, WoW) */
@@ -2534,11 +2659,35 @@
     .insights-top10-row > :nth-child(4) { display: none; }
   }
   @media (max-width: 600px) {
-    .insights-kpis { grid-template-columns: 1fr; }
-    .insights-mini-kpis { grid-template-columns: 1fr; }
-    .insights-wow-grid { grid-template-columns: 1fr; }
-    .insights-wow-headline { grid-template-columns: 1fr; }
-    .insights-wow-trend { grid-template-columns: repeat(2, 1fr); }
+    /* Mobile: 2-column grids for all KPI/data cards. Designed to:
+       - show two pieces of data per row for efficient screen use
+       - keep cards readable with the slightly compressed text below
+       - match the desktop pattern that mobile previously broke into 1-col */
+    .insights-kpis { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-mini-kpis { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-biggest-row { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-growth-grid { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-monthly-grid { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-wow-grid { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-wow-headline { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    .insights-wow-trend { grid-template-columns: repeat(2, 1fr); gap: 0.4rem; }
+    /* Slightly compress card internals so two-per-row fits comfortably */
+    .insights-kpi { padding: 0.55rem 0.65rem; }
+    .insights-kpi-label { font-size: 0.62rem; }
+    .insights-kpi-value { font-size: 1.05rem; }
+    .insights-kpi-sub { font-size: 0.62rem; }
+    .insights-mini-kpi { padding: 0.45rem 0.55rem; }
+    .insights-mini-kpi-label { font-size: 0.6rem; }
+    .insights-mini-kpi-value { font-size: 0.95rem; }
+    .insights-mini-kpi-sub { font-size: 0.58rem; }
+    .insights-biggest-card { padding: 0.55rem 0.65rem; }
+    .insights-biggest-label { font-size: 0.62rem; }
+    .insights-biggest-value { font-size: 0.88rem; }
+    .insights-biggest-sub { font-size: 0.62rem; }
+    .insights-growth-card { padding: 0.55rem 0.6rem; }
+    .insights-monthly-card { padding: 0.5rem 0.6rem; }
+    .insights-monthly-card .insights-monthly-month { font-size: 0.65rem; }
+    .insights-monthly-card .insights-monthly-net { font-size: 0.95rem; }
     .insights-dow-grid { gap: 0.25rem; }
     .insights-dow-cell { padding: 0.4rem 0.2rem 0.35rem; }
     .insights-dow-bar-wrap { width: 14px; height: 55px; }
@@ -4181,8 +4330,15 @@
     const t = ['auto', 'light', 'dark'].includes(theme) ? theme : 'auto';
     const c = color || getColor();
     document.documentElement.setAttribute('data-theme', t);
-    localStorage.setItem(THEME_KEY, t);
-    localStorage.setItem(COLOR_KEY, c);
+    // Storage writes are wrapped — quota-exceeded throws synchronously
+    // and would otherwise propagate up through applyTheme (which runs
+    // on init AND on every theme change). The theme still applies via
+    // the data attribute above, the user just won't have the preference
+    // remembered across reloads.
+    try {
+      localStorage.setItem(THEME_KEY, t);
+      localStorage.setItem(COLOR_KEY, c);
+    } catch (_) { /* quota exceeded — DOM theme still applied */ }
     const isDark = t === 'dark' || (t === 'auto' && window.matchMedia?.('(prefers-color-scheme: dark)').matches);
     // Resolve the accent hex
     let accentHex;
@@ -4219,8 +4375,11 @@
     // Mobile chrome bar — tint with the PAGE background, not the sidebar.
     // Otherwise on phone browsers the address-bar shows as a dark strip above
     // the page (the sidebar is dark even in light mode by design).
-    const meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute('content', p.paper);
+    // Update every meta theme-color tag (we ship a light + dark pair with
+    // media queries for first-paint correctness; runtime overrides them
+    // all with the resolved colour for the active theme).
+    const metas = document.querySelectorAll('meta[name="theme-color"]');
+    metas.forEach(m => m.setAttribute('content', p.paper));
   }
   // Apply theme immediately on load (before app render to prevent flash)
   applyTheme(getTheme(), getColor());
@@ -4355,9 +4514,12 @@
     const oldAcc = localStorage.getItem('ledger_accounts_v4');
     const oldData = localStorage.getItem('ledger_data_v4');
     const oldSess = localStorage.getItem('ledger_session_v4');
-    if (oldAcc) localStorage.setItem(ACCOUNTS_KEY, oldAcc);
-    if (oldData) localStorage.setItem(DATA_KEY, oldData);
-    if (oldSess) localStorage.setItem(SESSION_KEY, oldSess);
+    // Each write wrapped — a quota-exceeded mid-migration shouldn't
+    // hard-crash the app boot. The v4 data stays as fallback if a write
+    // fails; the user just sees the old data until storage clears.
+    try { if (oldAcc) localStorage.setItem(ACCOUNTS_KEY, oldAcc); } catch (_) {}
+    try { if (oldData) localStorage.setItem(DATA_KEY, oldData); } catch (_) {}
+    try { if (oldSess) localStorage.setItem(SESSION_KEY, oldSess); } catch (_) {}
   }
   migrateFromV4();
 
@@ -5669,6 +5831,35 @@
     // F5: Drain any leftover push triggers from a previous offline post.
     // Delay slightly to let auth fully restore before we try the call.
     setTimeout(() => { try { flushPushTriggerQueue(); } catch (_) {} }, 2000);
+    // PWA shortcut handler. Manifest shortcuts use URL params:
+    //   ?action=new-entry  → open the new-entry modal
+    //   ?view=<view-id>    → switch to that view
+    // Once handled, strip those params from history so a reload doesn't
+    // re-fire the action. We keep ?source=pwa so the analytics value
+    // (if any) survives.
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get('action');
+      const view = params.get('view');
+      let handled = false;
+      if (view && ['entries','parties','categories','accounts','expenses','audit','forecast','insights','quickLook','staff','activity'].includes(view)) {
+        switchView(view);
+        handled = true;
+      }
+      if (action === 'new-entry' && session.activeBookId) {
+        // Defer so any pending render completes first.
+        setTimeout(() => { try { openModal('entry'); } catch (_) {} }, 80);
+        handled = true;
+      }
+      if (handled) {
+        params.delete('action');
+        params.delete('view');
+        const newUrl = window.location.pathname
+          + (params.toString() ? '?' + params.toString() : '')
+          + window.location.hash;
+        try { window.history.replaceState(null, '', newUrl); } catch (_) {}
+      }
+    } catch (_) { /* defensive — shortcut handling must not crash boot */ }
   }
 
   // ================================================================
@@ -6488,14 +6679,16 @@
       if (typeF !== 'all' && e.type !== typeF) return false;
       if (search) {
         // Build the haystack: note + category + party (existing
-        // searchable fields), plus the word "edited" and a
-        // YYYY-MM-DD timestamp if the entry was meaningfully edited.
-        // That way typing "edited" surfaces edited entries, and
-        // typing a date like "2026-05-14" matches entries edited
-        // on that day.
+        // searchable fields), plus "edited"/"added" tokens with their
+        // YYYY-MM-DD timestamps so typing those words surfaces the
+        // matching subset. E.g. "edited 2026-05-14" matches entries
+        // edited on that day; "added 2026-05-14" matches new entries
+        // created on that day.
         const _editLabel = entryEditedLabel(e);
         const editedToken = _editLabel ? `edited ${_editLabel}` : '';
-        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${editedToken}`.toLowerCase();
+        const _addLabel = entryAddedLabel(e);
+        const addedToken = _addLabel ? `added ${_addLabel}` : 'added';
+        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${editedToken} ${addedToken}`.toLowerCase();
         if (!hay.includes(search)) return false;
       }
       if (__entryFilter.partyId && e.partyId !== __entryFilter.partyId) return false;
@@ -6746,10 +6939,21 @@
       if (sameDay)     return timeStr ? `${safeDate} · ${escapeHtml(timeStr)}` : safeDate;
       return `${safeDate}<span class="entry-added"> · added ${escapeHtml(createdYmd)}${timeStr ? ' ' + escapeHtml(timeStr) : ''}</span>`;
     }
-    // stacked (default)
+    // stacked (default — desktop). Two lines:
+    //   line 1: the picked date (prominent)
+    //   line 2: when the entry was actually added — always labelled
+    //           "added" so the user knows what they're looking at.
+    //           If the entry was added on the same day the user picked,
+    //           we just show "added HH:MM". If the entry was back-dated,
+    //           we show "added YYYY-MM-DD HH:MM" so the full add-time is
+    //           visible.
     const dateBlock = `<div class="entry-date-main">${safeDate}</div>`;
-    if (!e.createdAt) return timeStr ? `${dateBlock}<div class="entry-added entry-date-sub">${escapeHtml(timeStr)}</div>` : dateBlock;
-    if (sameDay)      return timeStr ? `${dateBlock}<div class="entry-added entry-date-sub">${escapeHtml(timeStr)}</div>` : dateBlock;
+    if (!e.createdAt) return dateBlock;
+    if (sameDay) {
+      return timeStr
+        ? `${dateBlock}<div class="entry-added entry-date-sub">added ${escapeHtml(timeStr)}</div>`
+        : dateBlock;
+    }
     return `${dateBlock}<div class="entry-added entry-date-sub">added ${escapeHtml(createdYmd)}${timeStr ? ' ' + escapeHtml(timeStr) : ''}</div>`;
   }
 
@@ -6778,11 +6982,17 @@
       : '';
     // v56: color-coded backgrounds for at-a-glance scanning.
     //   .entry-row-edited   — entry was edited after creation (yellow tint)
-    //   .entry-row-pastdate — entry's date is older than today (blue tint)
+    //   .entry-row-pastdate — entry was back-dated when created (blue tint)
     // Edited wins over past-date when both apply, since "this was
     // changed" is the more important signal.
+    //
+    // The past-date tint is computed against the entry's creation day,
+    // NOT today. This matters: if you add an entry today (May 16) for
+    // today, it stays default-coloured forever — even when "today"
+    // moves on to May 17. Only entries whose picked date was already
+    // older than their creation day at the moment of saving get the tint.
     const isEdited = !!editedAtLabel;
-    const isPastDate = e.date && e.date < today();
+    const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
     const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
@@ -7118,7 +7328,7 @@
       : '';
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
-    const isPastDate = e.date && e.date < today();
+    const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
@@ -7386,7 +7596,7 @@
       : '';
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
-    const isPastDate = e.date && e.date < today();
+    const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
@@ -9217,7 +9427,10 @@
     // Walk entries once to gather what we need:
     //   - per-day MTD: { 'YYYY-MM-DD': { in, out } }
     //   - last month totals: { in, out }
+    //   - last month per-day: same shape as mtdByDay, for the new
+    //     daily comparison chart added in this revision
     const mtdByDay = new Map(); // day-of-month (1..todayDay) → { in, out }
+    const lastMonthByDay = new Map(); // day-of-month (1..lastMonthDays) → { in, out }
     let mtdIn = 0, mtdOut = 0;
     let lastIn = 0, lastOut = 0;
     for (const e of data.entries) {
@@ -9232,8 +9445,11 @@
         if (e.type === 'in') { bucket.in += amt; mtdIn += amt; }
         else { bucket.out += amt; mtdOut += amt; }
       } else if (monthOfEntry === lastMonthKey) {
-        if (e.type === 'in') lastIn += amt;
-        else lastOut += amt;
+        const d = Number(e.date.slice(8, 10));
+        let bucket = lastMonthByDay.get(d);
+        if (!bucket) { bucket = { in: 0, out: 0 }; lastMonthByDay.set(d, bucket); }
+        if (e.type === 'in') { bucket.in += amt; lastIn += amt; }
+        else { bucket.out += amt; lastOut += amt; }
       }
     }
 
@@ -9532,7 +9748,7 @@
             <span class="forecast-day-stat-val neg">${cur} ${fmt(day.out)}</span>
           </div>
           <div class="forecast-day-stat">
-            <span class="forecast-day-stat-label">Net profit</span>
+            <span class="forecast-day-stat-label">Cash profit</span>
             <span class="forecast-day-stat-val ${isPositive ? 'pos' : 'neg'}">${cur} ${isPositive ? '+' : '−'}${fmt(Math.abs(day.net))}</span>
           </div>
         </div>
@@ -9720,8 +9936,8 @@
     const maxAbs6 = Math.max(1, ...last6MonthsNet.map(m => Math.abs(m.net)));
     const sixMonthHTML = `
       <div class="forecast-section">
-        <h3 class="forecast-section-title">6-month net profit trend</h3>
-        <p class="forecast-section-sub">Net profit (cash in − cash out − expenses) by month. Current month is the projection above; the rest are actuals.</p>
+        <h3 class="forecast-section-title">6-month operating profit trend</h3>
+        <p class="forecast-section-sub">Operating profit (cash in − cash out − expenses, before tax) by month. Current month is the projection above; the rest are actuals.</p>
         <div class="forecast-6m-grid">
           ${last6MonthsNet.map(m => {
             const pct = (Math.abs(m.net) / maxAbs6) * 100;
@@ -9740,7 +9956,7 @@
     const methodsHTML = `
       <div class="forecast-section">
         <h3 class="forecast-section-title">Projection methods compared</h3>
-        <p class="forecast-section-sub">Three different ways to forecast ${escapeHtml(monthName)}'s net profit. When they agree, confidence is high. When they disagree, the truth is probably between them.</p>
+        <p class="forecast-section-sub">Three different ways to forecast ${escapeHtml(monthName)}'s operating profit. When they agree, confidence is high. When they disagree, the truth is probably between them.</p>
         <div class="forecast-methods-grid">
           ${projCard('Linear MTD', 'Per-day avg × days in month', m1)}
           ${projCard('Weighted moving avg', '50% last month + 30% prior + 20% before', m2)}
@@ -9752,7 +9968,107 @@
         ${runwayCard()}
         ${breakEvenCard()}
       </div>`;
-    const forecastV64Expansions = `${sixMonthHTML}${methodsHTML}${extraKpisHTML}`;
+    // ===== Daily comparison: this month vs same day last month =====
+    // Paired bars for each day-of-month 1..max(daysInMonth, lastMonthDays).
+    // Each pair shows: current-month net (cash in − cash out) on top,
+    // last-month net underneath. Days past today have no current bar
+    // (we don't know the future). Days past lastMonthDays show no
+    // comparison bar. A subtle "today" marker highlights the current day.
+    const dcChartW = 800, dcChartH = 260;
+    const dcPadL = 50, dcPadR = 15, dcPadT = 20, dcPadB = 38;
+    const dcInnerW = dcChartW - dcPadL - dcPadR;
+    const dcInnerH = dcChartH - dcPadT - dcPadB;
+    const dcMaxDays = Math.max(daysInMonth, lastMonthDays);
+    // Compute net per day for both months
+    const dcCurNets = [];
+    const dcLastNets = [];
+    let dcMaxAbs = 0;
+    for (let d = 1; d <= dcMaxDays; d++) {
+      // Current month: null if past today (no data yet) or past month end
+      let curNet = null;
+      if (d <= todayDay && d <= daysInMonth) {
+        const b = mtdByDay.get(d);
+        curNet = b ? (b.in - b.out) : 0;
+      }
+      dcCurNets.push(curNet);
+      // Last month: null if past last month's days
+      let lastNet = null;
+      if (d <= lastMonthDays) {
+        const b = lastMonthByDay.get(d);
+        lastNet = b ? (b.in - b.out) : 0;
+      }
+      dcLastNets.push(lastNet);
+      if (curNet !== null && Math.abs(curNet) > dcMaxAbs) dcMaxAbs = Math.abs(curNet);
+      if (lastNet !== null && Math.abs(lastNet) > dcMaxAbs) dcMaxAbs = Math.abs(lastNet);
+    }
+    const dcAxisMax = dcMaxAbs > 0 ? dcMaxAbs * 1.08 : 100;
+    // Zero line in the middle of the chart (split positive/negative)
+    const dcZeroY = dcPadT + dcInnerH / 2;
+    const dcHalfH = dcInnerH / 2;
+    const dcDayWidth = dcInnerW / dcMaxDays;
+    const dcBarPair = dcDayWidth * 0.78; // total width of a day's bar pair
+    const dcBarW = dcBarPair / 2.2; // each individual bar
+    const dcBars = [];
+    const dcXLabels = [];
+    for (let d = 1; d <= dcMaxDays; d++) {
+      const xCenter = dcPadL + (d - 0.5) * dcDayWidth;
+      const xCur = xCenter - dcBarW - 0.5;
+      const xLast = xCenter + 0.5;
+      const cur = dcCurNets[d - 1];
+      const last = dcLastNets[d - 1];
+      // Current-month bar (accent color)
+      if (cur !== null && cur !== 0) {
+        const h = Math.abs(cur) / dcAxisMax * dcHalfH;
+        const y = cur >= 0 ? (dcZeroY - h) : dcZeroY;
+        const cls = cur >= 0 ? 'pos' : 'neg';
+        const payload = JSON.stringify({ kind: 'monthIn', monthKey: monthKeyStr, value: cur, label: `${escapeHtml(monthName)} ${d}` });
+        dcBars.push(`<rect class="fc-bar fc-bar-${cls}" x="${xCur.toFixed(1)}" y="${y.toFixed(1)}" width="${dcBarW.toFixed(1)}" height="${h.toFixed(1)}" data-chart-detail='${escapeHtml(payload)}'><title>${escapeHtml(monthName)} ${d}: ${cur >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(cur))}</title></rect>`);
+      }
+      // Last-month bar (muted)
+      if (last !== null && last !== 0) {
+        const h = Math.abs(last) / dcAxisMax * dcHalfH;
+        const y = last >= 0 ? (dcZeroY - h) : dcZeroY;
+        dcBars.push(`<rect class="fc-bar fc-bar-last" x="${xLast.toFixed(1)}" y="${y.toFixed(1)}" width="${dcBarW.toFixed(1)}" height="${h.toFixed(1)}" opacity="0.55"><title>last month day ${d}: ${last >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(last))}</title></rect>`);
+      }
+      // X-axis labels every 5 days + first + last
+      if (d === 1 || d === dcMaxDays || d % 5 === 0) {
+        dcXLabels.push(`<text class="fc-xlabel" x="${xCenter.toFixed(1)}" y="${(dcChartH - dcPadB + 14).toFixed(1)}" text-anchor="middle">${d}</text>`);
+      }
+    }
+    // Today marker line
+    const dcTodayX = dcPadL + (todayDay - 0.5) * dcDayWidth;
+    const dcTodayMarker = `
+      <line class="fc-today" x1="${dcTodayX.toFixed(1)}" y1="${dcPadT}" x2="${dcTodayX.toFixed(1)}" y2="${dcPadT + dcInnerH}" />
+      <text class="fc-today-label" x="${dcTodayX.toFixed(1)}" y="${(dcPadT - 6).toFixed(1)}" text-anchor="middle">Today</text>
+    `;
+    const dcZeroAxis = `<line x1="${dcPadL}" y1="${dcZeroY.toFixed(1)}" x2="${(dcChartW - dcPadR).toFixed(1)}" y2="${dcZeroY.toFixed(1)}" stroke="var(--line)" stroke-width="0.8" />`;
+    // Y-axis ticks (+axisMax at top, 0 in middle, -axisMax at bottom)
+    const dcYLabels = `
+      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcPadT + 4).toFixed(1)}" text-anchor="end">+${fmt(dcAxisMax)}</text>
+      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcZeroY + 3).toFixed(1)}" text-anchor="end">0</text>
+      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcPadT + dcInnerH + 4).toFixed(1)}" text-anchor="end">−${fmt(dcAxisMax)}</text>
+    `;
+    const _haveDcData = dcCurNets.some(v => v !== null && v !== 0) || dcLastNets.some(v => v !== null && v !== 0);
+    const _curMonthLabel = new Date(yyyy, mm - 1, 1).toLocaleString('default', { month: 'long' });
+    const _lastMonthLabel = new Date(lyyyy, lmm - 1, 1).toLocaleString('default', { month: 'long' });
+    const dailyCompareHTML = _haveDcData ? `
+      <div class="forecast-section">
+        <h3 class="forecast-section-title">Daily comparison <span class="forecast-section-sub-inline">— ${escapeHtml(_curMonthLabel)} vs ${escapeHtml(_lastMonthLabel)}</span></h3>
+        <p class="forecast-section-sub">Net per day (cash in − cash out). Current month stops at today; last month shows the whole month for comparison.</p>
+        <div class="forecast-chart-legend">
+          <span><span class="fc-swatch fc-swatch-current"></span> ${escapeHtml(_curMonthLabel)} (profit days)</span>
+          <span><span class="fc-swatch fc-swatch-currentneg"></span> ${escapeHtml(_curMonthLabel)} (loss days)</span>
+          <span><span class="fc-swatch fc-swatch-last"></span> ${escapeHtml(_lastMonthLabel)}</span>
+        </div>
+        <svg class="forecast-chart" viewBox="0 0 ${dcChartW} ${dcChartH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit comparison">
+          ${dcZeroAxis}
+          ${dcBars.join('')}
+          ${dcTodayMarker}
+          ${dcXLabels.join('')}
+          ${dcYLabels}
+        </svg>
+      </div>` : '';
+    const forecastV64Expansions = `${sixMonthHTML}${methodsHTML}${extraKpisHTML}${dailyCompareHTML}`;
 
     root.innerHTML = `
       <div class="page-header">
@@ -10153,6 +10469,7 @@
     }
     const firstDate = new Date(sortedDates[0] + 'T00:00:00');
     const lastDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
+    const todayYmd = today();
     // Walk Mon-Sun columns from the Monday of firstDate's week through
     // the Sunday of lastDate's week. JS weekday: 0=Sun..6=Sat. We
     // want Mon=row 0, Sun=row 6.
@@ -10164,13 +10481,16 @@
     const dayMs = 24 * 60 * 60 * 1000;
     const totalDays = Math.round((gridEnd - gridStart) / dayMs) + 1;
     const totalCols = Math.ceil(totalDays / 7);
-    const cellSize = 22, gap = 3;
-    const padL = 36, padT = 32;            // room for weekday labels + month banner
+    // Visual upgrade: bigger cells, more rounded, more breathing room.
+    const cellSize = 26, gap = 4;
+    const padL = 42, padT = 42;            // room for weekday labels + month banner
+    const padB = 52; // room for legend at bottom (swatches + label row + descender)
     const w = Math.max(720, padL + totalCols * (cellSize + gap) + 8);
-    const h = padT + 7 * (cellSize + gap) + 12;
+    const h = padT + 7 * (cellSize + gap) + padB;
     const cells = [];
     const monthBanners = [];
-    let lastMonth = -1;
+    let lastMonthIdx = -1;
+    let lastMonthBannerX = -1;
     for (let col = 0; col < totalCols; col++) {
       for (let row = 0; row < 7; row++) {
         const idx = col * 7 + row;
@@ -10179,35 +10499,56 @@
         if (cellDate > lastDate) continue;
         const ymd = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
         const dayOfMonth = cellDate.getDate();
+        const isWeekend = row >= 5; // Sat/Sun
+        const isToday = ymd === todayYmd;
         const x = padL + col * (cellSize + gap);
         const y = padT + row * (cellSize + gap);
         // Month banner: render once per calendar month at top of the
         // column where the 1st falls. Skip overlap if the 1st is in
-        // a previously banner'd month.
-        if (dayOfMonth === 1 || (col === 0 && row === 0 && cellDate.getMonth() !== lastMonth)) {
+        // a previously banner'd month, or if the new banner would
+        // overlap visually with the previous one.
+        if (dayOfMonth === 1 || (col === 0 && row === 0 && cellDate.getMonth() !== lastMonthIdx)) {
           const monthName = cellDate.toLocaleString('default', { month: 'short' });
-          monthBanners.push(
-            `<text x="${(x + cellSize / 2).toFixed(1)}" y="${(padT - 14).toFixed(1)}"
-                  text-anchor="middle" font-size="10" font-weight="600"
-                  fill="var(--ink-mute)" letter-spacing="0.06em">${escapeHtml(monthName.toUpperCase())}</text>`
-          );
-          lastMonth = cellDate.getMonth();
+          const bannerX = x + cellSize / 2;
+          if (bannerX - lastMonthBannerX > 32) {
+            monthBanners.push(
+              `<text x="${bannerX.toFixed(1)}" y="${(padT - 22).toFixed(1)}"
+                    text-anchor="middle" font-size="10" font-weight="700"
+                    fill="var(--ink)" letter-spacing="0.09em">${escapeHtml(monthName.toUpperCase())}</text>
+               <line x1="${(x - 1).toFixed(1)}" y1="${(padT - 12).toFixed(1)}" x2="${(x - 1).toFixed(1)}" y2="${(padT + 7 * (cellSize + gap) - gap).toFixed(1)}"
+                    stroke="var(--line-soft)" stroke-width="0.7" stroke-dasharray="2 3" />`
+            );
+            lastMonthBannerX = bannerX;
+          }
+          lastMonthIdx = cellDate.getMonth();
         }
         const d = byDate.get(ymd);
         const net = d ? d.net : 0;
-        let color = 'var(--paper-deep)';
+        const intensity = Math.min(1, Math.abs(net) / maxAbs);
+        // Color: improved gradient — softer at low intensity, more
+        // vibrant at high. Empty cells get a faint tint on weekends so
+        // the eye separates work-week patterns.
+        let color, strokeColor = 'var(--line)', strokeWidth = 0.6;
         if (net > 0) {
-          const intensity = Math.min(1, Math.abs(net) / maxAbs);
-          const alpha = 0.15 + intensity * 0.7;
-          color = `rgba(46, 110, 55, ${alpha})`;
+          // Green: pale → saturated. Curve makes mid-range pop.
+          const t = Math.pow(intensity, 0.7);
+          const alpha = 0.12 + t * 0.78;
+          color = `rgba(46, 110, 55, ${alpha.toFixed(3)})`;
         } else if (net < 0) {
-          const intensity = Math.min(1, Math.abs(net) / maxAbs);
-          const alpha = 0.15 + intensity * 0.7;
-          color = `rgba(168, 53, 31, ${alpha})`;
+          // Red: same curve.
+          const t = Math.pow(intensity, 0.7);
+          const alpha = 0.12 + t * 0.78;
+          color = `rgba(168, 53, 31, ${alpha.toFixed(3)})`;
+        } else {
+          color = isWeekend ? 'var(--surface-1)' : 'var(--paper-deep)';
+        }
+        // Today: stronger border, accent colour.
+        if (isToday) {
+          strokeColor = 'var(--accent)';
+          strokeWidth = 1.6;
         }
         // Text colour: dark for muted cells, white for saturated.
-        const intensity = Math.min(1, Math.abs(net) / maxAbs);
-        const textColour = (net !== 0 && intensity > 0.5) ? 'var(--paper)' : 'var(--ink-soft)';
+        const textColour = (net !== 0 && intensity > 0.55) ? 'var(--paper)' : 'var(--ink-soft)';
         const titleText = d
           ? `${cellDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}: ${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}`
           : `${cellDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}: no activity`;
@@ -10217,9 +10558,9 @@
         cells.push(
           `<g class="heatmap-cell" data-chart-detail='${escapeHtml(detail)}'>
             <title>${escapeHtml(titleText)}</title>
-            <rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" fill="${color}" rx="3" stroke="var(--line)" stroke-width="0.5"/>
-            <text x="${(x + cellSize / 2).toFixed(1)}" y="${(y + cellSize / 2 + 3.5).toFixed(1)}"
-                  text-anchor="middle" font-size="10" fill="${textColour}"
+            <rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" fill="${color}" rx="5" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
+            <text x="${(x + cellSize / 2).toFixed(1)}" y="${(y + cellSize / 2 + 3.8).toFixed(1)}"
+                  text-anchor="middle" font-size="11" font-weight="${isToday ? '700' : '500'}" fill="${textColour}"
                   pointer-events="none">${dayOfMonth}</text>
           </g>`
         );
@@ -10228,14 +10569,58 @@
     // Weekday labels (left edge). Mon-Sun.
     const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const dowLabels = dow.map((lbl, i) => {
-      const y = padT + i * (cellSize + gap) + cellSize / 2 + 3.5;
-      return `<text x="${(padL - 8).toFixed(1)}" y="${y.toFixed(1)}"
-                    text-anchor="end" font-size="10" fill="var(--ink-mute)">${lbl}</text>`;
+      const y = padT + i * (cellSize + gap) + cellSize / 2 + 3.8;
+      const isWk = i >= 5;
+      return `<text x="${(padL - 10).toFixed(1)}" y="${y.toFixed(1)}"
+                    text-anchor="end" font-size="10" font-weight="${isWk ? '600' : '500'}"
+                    fill="var(--ink-mute)" letter-spacing="0.02em">${lbl}</text>`;
     });
+    // Legend at the bottom: a compact gradient from low → high (both
+    // hues), and a "Today" indicator with the accent ring.
+    const legendY = padT + 7 * (cellSize + gap) + 14;
+    const legendBoxes = [];
+    // Net loss gradient (right→left becomes left→right red-to-mid)
+    for (let i = 0; i < 5; i++) {
+      const t = Math.pow(i / 4, 0.7);
+      const alpha = 0.12 + t * 0.78;
+      legendBoxes.push(
+        `<rect x="${(padL + (4 - i) * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
+              fill="rgba(168, 53, 31, ${alpha.toFixed(3)})" stroke="var(--line)" stroke-width="0.5"/>`
+      );
+    }
+    // Mid blank
+    legendBoxes.push(
+      `<rect x="${(padL + 5 * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
+            fill="var(--paper-deep)" stroke="var(--line)" stroke-width="0.5"/>`
+    );
+    // Gain gradient
+    for (let i = 0; i < 5; i++) {
+      const t = Math.pow(i / 4, 0.7);
+      const alpha = 0.12 + t * 0.78;
+      legendBoxes.push(
+        `<rect x="${(padL + (6 + i) * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
+              fill="rgba(46, 110, 55, ${alpha.toFixed(3)})" stroke="var(--line)" stroke-width="0.5"/>`
+      );
+    }
+    const legendLabels = `
+      <text x="${(padL).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" letter-spacing="0.04em">LOSS</text>
+      <text x="${(padL + 5 * 14 + 6).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" text-anchor="middle">0</text>
+      <text x="${(padL + 10 * 14 + 12).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" text-anchor="end" letter-spacing="0.04em">PROFIT</text>
+    `;
+    // "Today" indicator on the right of the legend
+    const todayIndX = padL + 11 * 14 + 24;
+    const todayInd = `
+      <rect x="${todayIndX}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
+            fill="var(--paper-deep)" stroke="var(--accent)" stroke-width="1.6"/>
+      <text x="${todayIndX + 18}" y="${(legendY + 9).toFixed(1)}" font-size="9" fill="var(--ink-mute)" letter-spacing="0.04em">TODAY</text>
+    `;
     return `<svg viewBox="0 0 ${w} ${h}" class="insights-heatmap-svg insights-chart-interactive" role="img" aria-label="Daily activity heatmap">
       ${monthBanners.join('')}
       ${dowLabels.join('')}
       ${cells.join('')}
+      ${legendBoxes.join('')}
+      ${legendLabels}
+      ${todayInd}
     </svg>`;
   }
 
@@ -10365,7 +10750,9 @@
         </div>
       </div>`;
     // ===== Top biggest cards =====
-    // Top category (most cash activity in or out across period entries)
+    // Top category — most profitable (net in − out, descending). A
+    // pure-expense category like "Rent" naturally falls to the bottom
+    // since it contributes only outflow.
     const categoryTotals = new Map();
     for (const e of periodEntries) {
       const catKey = (e.category || '').trim() || '— Uncategorised';
@@ -10377,9 +10764,15 @@
       if (e.type === 'in') t.inSum += amt; else t.outSum += amt;
       t.count++;
     }
-    const topCategory = [...categoryTotals.values()]
-      .sort((a, b) => (b.inSum + b.outSum) - (a.inSum + a.outSum))[0];
-    // Top party (most net activity in or out)
+    // Only rank categories that have positive profit; if every category
+    // is a money-loser, fall through to "No profitable category."
+    const profitableCategories = [...categoryTotals.values()]
+      .map(c => ({ ...c, net: c.inSum - c.outSum }))
+      .filter(c => c.net > 0)
+      .sort((a, b) => b.net - a.net);
+    const topCategory = profitableCategories[0] || null;
+    // Top party — most profitable (net in − out, descending). Same rule:
+    // a pure-supplier party (we only pay them) doesn't rank as "top".
     const partyTotals = new Map();
     for (const e of periodEntries) {
       const key = e.partyId || ('name:' + (e.party || '').toLowerCase());
@@ -10390,7 +10783,11 @@
       else t.outSum += amt;
       t.count++;
     }
-    const biggestParty = [...partyTotals.values()].sort((a, b) => (b.inSum + b.outSum) - (a.inSum + a.outSum))[0];
+    const profitableParties = [...partyTotals.values()]
+      .map(p => ({ ...p, net: p.inSum - p.outSum }))
+      .filter(p => p.net > 0)
+      .sort((a, b) => b.net - a.net);
+    const biggestParty = profitableParties[0] || null;
     // Biggest expense (period)
     let biggestExpense = null;
     for (const x of data.auditExpenses) {
@@ -10405,15 +10802,15 @@
           <div class="insights-biggest-label">Top category</div>
           ${topCategory ? `
             <div class="insights-biggest-value">${escapeHtml(topCategory.name)}</div>
-            <div class="insights-biggest-sub">${cur} ${fmt(topCategory.inSum + topCategory.outSum)} across ${topCategory.count} ${topCategory.count === 1 ? 'entry' : 'entries'}</div>
-          ` : '<div class="insights-biggest-empty">No entries.</div>'}
+            <div class="insights-biggest-sub">Profit ${cur} +${fmt(topCategory.net)} · ${topCategory.count} ${topCategory.count === 1 ? 'entry' : 'entries'}</div>
+          ` : '<div class="insights-biggest-empty">No profitable category in this period.</div>'}
         </div>
         <div class="insights-biggest-card">
           <div class="insights-biggest-label">Top party</div>
           ${biggestParty ? `
             <div class="insights-biggest-value">${escapeHtml(biggestParty.name)}</div>
-            <div class="insights-biggest-sub">${cur} ${fmt(biggestParty.inSum + biggestParty.outSum)} across ${biggestParty.count} ${biggestParty.count === 1 ? 'entry' : 'entries'}</div>
-          ` : '<div class="insights-biggest-empty">No parties.</div>'}
+            <div class="insights-biggest-sub">Profit ${cur} +${fmt(biggestParty.net)} · ${biggestParty.count} ${biggestParty.count === 1 ? 'entry' : 'entries'}</div>
+          ` : '<div class="insights-biggest-empty">No profitable party in this period.</div>'}
         </div>
         <div class="insights-biggest-card">
           <div class="insights-biggest-label">Biggest expense</div>
@@ -10454,7 +10851,7 @@
         <div class="forecast-day-card-stats">
           <div class="forecast-day-stat"><span class="forecast-day-stat-label">Cash in</span><span class="forecast-day-stat-val pos">${cur} ${fmt(day.in)}</span></div>
           <div class="forecast-day-stat"><span class="forecast-day-stat-label">Cash out</span><span class="forecast-day-stat-val neg">${cur} ${fmt(day.out)}</span></div>
-          <div class="forecast-day-stat"><span class="forecast-day-stat-label">Net profit</span><span class="forecast-day-stat-val ${day.net >= 0 ? 'pos' : 'neg'}">${cur} ${day.net >= 0 ? '+' : '−'}${fmt(Math.abs(day.net))}</span></div>
+          <div class="forecast-day-stat"><span class="forecast-day-stat-label">Cash profit</span><span class="forecast-day-stat-val ${day.net >= 0 ? 'pos' : 'neg'}">${cur} ${day.net >= 0 ? '+' : '−'}${fmt(Math.abs(day.net))}</span></div>
         </div>
       </div>`;
     }
@@ -10643,6 +11040,79 @@
         </div>
         ${insightsLineSVG(trendPoints, trendComparison)}
       </div>`;
+    // ===== Daily net profit — this month vs last month =====
+    // Two lines on the same axis. Each line is cumulative net profit
+    // (running sum of cash in − cash out) per day-of-month. Same-day
+    // comparison: day 14 of this month vs day 14 of last month. Last
+    // month's series is shown to the same day index as it has data,
+    // then extended with nulls so the line stops cleanly at month's end.
+    const _now = new Date();
+    const _curYM = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}`;
+    const _lastDate = new Date(_now.getFullYear(), _now.getMonth() - 1, 1);
+    const _lastYM = `${_lastDate.getFullYear()}-${String(_lastDate.getMonth() + 1).padStart(2, '0')}`;
+    const _daysInCurMonth = new Date(_now.getFullYear(), _now.getMonth() + 1, 0).getDate();
+    const _daysInLastMonth = new Date(_now.getFullYear(), _now.getMonth(), 0).getDate();
+    const _maxDays = Math.max(_daysInCurMonth, _daysInLastMonth);
+    // Bucket day → {in, out} for each month
+    const _curByDay = new Map();
+    const _lastByDay = new Map();
+    for (const e of allEntries) {
+      const ymd = e.date || '';
+      if (ymd.length !== 10) continue;
+      const ym = ymd.slice(0, 7);
+      const day = parseInt(ymd.slice(8, 10), 10);
+      if (!Number.isFinite(day)) continue;
+      const amt = entryAmount(e);
+      if (ym === _curYM) {
+        const b = _curByDay.get(day) || { in: 0, out: 0 };
+        if (e.type === 'in') b.in += amt; else b.out += amt;
+        _curByDay.set(day, b);
+      } else if (ym === _lastYM) {
+        const b = _lastByDay.get(day) || { in: 0, out: 0 };
+        if (e.type === 'in') b.in += amt; else b.out += amt;
+        _lastByDay.set(day, b);
+      }
+    }
+    // Build cumulative arrays. Past-today current-month points get
+    // null (no future data), so the line stops at today.
+    const _todayDOM = _curYM === today().slice(0, 7) ? _now.getDate() : _daysInCurMonth;
+    const _curCumPoints = [];
+    let _curCum = 0;
+    for (let d = 1; d <= _maxDays; d++) {
+      if (d > _daysInCurMonth) { _curCumPoints.push({ label: `${d}`, value: null }); continue; }
+      const b = _curByDay.get(d) || { in: 0, out: 0 };
+      _curCum += (b.in - b.out);
+      if (d > _todayDOM) {
+        _curCumPoints.push({ label: `${d}`, value: null });
+      } else {
+        _curCumPoints.push({ label: `${d}`, value: _curCum, dayOfMonth: d, monthKey: _curYM });
+      }
+    }
+    const _lastCumPoints = [];
+    let _lastCum = 0;
+    for (let d = 1; d <= _maxDays; d++) {
+      if (d > _daysInLastMonth) { _lastCumPoints.push({ label: `${d}`, value: null }); continue; }
+      const b = _lastByDay.get(d) || { in: 0, out: 0 };
+      _lastCum += (b.in - b.out);
+      _lastCumPoints.push({ label: `${d}`, value: _lastCum });
+    }
+    // Only show this chart if we have any meaningful data
+    const _haveCurData = _curCumPoints.some(p => p.value !== null && p.value !== 0);
+    const _haveLastData = _lastCumPoints.some(p => p.value !== null && p.value !== 0);
+    const _curMonthName = _now.toLocaleString('default', { month: 'long' });
+    const _lastMonthName = _lastDate.toLocaleString('default', { month: 'long' });
+    const dailyTrendChartHTML = (_haveCurData || _haveLastData) ? `
+      <div class="insights-chart-wrap">
+        <div class="insights-chart-head">
+          <h3 class="insights-chart-title">Daily net profit <span class="insights-chart-sub">— ${escapeHtml(_curMonthName)} vs ${escapeHtml(_lastMonthName)}</span></h3>
+          ${_haveLastData ? `<div class="insights-chart-legend">
+            <span><span class="trend-swatch trend-swatch-current"></span> ${escapeHtml(_curMonthName)}</span>
+            <span><span class="trend-swatch trend-swatch-last"></span> ${escapeHtml(_lastMonthName)}</span>
+          </div>` : ''}
+        </div>
+        ${insightsLineSVG(_curCumPoints, _haveLastData ? { label: _lastMonthName, points: _lastCumPoints } : null)}
+        <p class="insights-chart-note">Running total of cash in − cash out per day. ${escapeHtml(_curMonthName)} stops at today.</p>
+      </div>` : '';
     // ===== Party rankings (period-filtered, default This month) =====
     // v62: replaces the four pie charts AND the previous Top-10-by-
     // total-activity list. Pies didn't scale when a business has many
@@ -11062,6 +11532,7 @@
       ${dailyCashFlowHTML}
       ${barChartHTML}
       ${trendChartHTML}
+      ${dailyTrendChartHTML}
       ${dowHTML}
       ${top10HTML}
       ${heatmapHTML}
@@ -11110,19 +11581,213 @@
           <h1 class="page-title">Activity</h1>
         </div>
         <div class="page-actions">
-          <button class="btn btn-sm btn-ghost" onclick="loadBizActivityLog()">Refresh</button>
+          <button class="btn btn-sm btn-ghost" onclick="loadBizActivityLog()" id="actLogRefreshBtn">Refresh</button>
+          <button class="btn btn-sm btn-ghost" onclick="printActivityLog()" id="actLogPrintBtn">Print</button>
+          <button class="btn btn-sm btn-danger-outline" onclick="clearAllActivityLog()" id="actLogClearAllBtn">Clear all</button>
         </div>
       </div>
-      <p class="page-sub" style="margin:0 0 1rem;color:var(--ink-mute);font-size:0.85rem;">
+      <p class="page-sub" style="margin:0 0 0.65rem;color:var(--ink-mute);font-size:0.85rem;">
         Every time someone on your team edits or deletes an entry, the change is recorded here with the full before-and-after detail.
         Use this to spot suspicious patterns and verify what changed.
       </p>
+      <div class="activity-filter-bar" id="activityFilterBar"></div>
       <div id="activityLogList" class="activity-log-list">
         <p style="color:var(--ink-mute);font-size:0.85rem;">Loading…</p>
       </div>
     `;
     // Defer the network fetch so the layout renders first.
     setTimeout(() => loadBizActivityLog(), 0);
+  }
+
+  // Print just the activity log table. Uses a temporary class on
+  // <body> that the print stylesheet keys off, so the rest of the
+  // app's chrome (sidebar, page header, etc) is hidden during print.
+  function printActivityLog() {
+    document.body.classList.add('printing-activity');
+    // After the print dialog closes, remove the class. afterprint is
+    // unreliable on some browsers — also clear it on a short timeout
+    // so we never leave the body in a stuck state.
+    const cleanup = () => {
+      document.body.classList.remove('printing-activity');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(cleanup, 30000); // safety net
+    setTimeout(() => window.print(), 60);
+  }
+
+  // Per-business filter: { biz.id → user_id-string-or-'all' }. Lets the
+  // owner toggle between "all activity" and the activity of a specific
+  // team member without re-fetching from the server.
+  let __activityFilterMember = 'all';
+  // Cached rows so the filter can re-render the list client-side.
+  let __activityFilterRows = [];
+  let __activityFilterIdToName = null;
+
+  function setActivityFilter(memberId) {
+    __activityFilterMember = memberId || 'all';
+    renderActivityFilterBar();
+    renderActivityList();
+  }
+
+  function renderActivityFilterBar() {
+    const bar = document.getElementById('activityFilterBar');
+    if (!bar) return;
+    if (!__activityFilterRows || !__activityFilterRows.length || !__activityFilterIdToName) {
+      bar.innerHTML = '';
+      return;
+    }
+    // Count by user
+    const counts = new Map();
+    for (const r of __activityFilterRows) {
+      counts.set(r.user_id, (counts.get(r.user_id) || 0) + 1);
+    }
+    const members = [...counts.entries()].map(([uid, count]) => ({
+      uid, name: __activityFilterIdToName.get(uid) || 'Team member', count,
+    })).sort((a, b) => b.count - a.count);
+    const chips = [
+      `<button class="activity-filter-chip ${__activityFilterMember === 'all' ? 'is-active' : ''}"
+        onclick="setActivityFilter('all')">All <span class="activity-filter-count">${__activityFilterRows.length}</span></button>`,
+      ...members.map(m =>
+        `<button class="activity-filter-chip ${__activityFilterMember === m.uid ? 'is-active' : ''}"
+          onclick="setActivityFilter('${jsAttr(m.uid)}')">${escapeHtml(m.name)} <span class="activity-filter-count">${m.count}</span></button>`
+      ),
+    ].join('');
+    bar.innerHTML = `<div class="activity-filter-chips">${chips}</div>`;
+  }
+
+  function renderActivityList() {
+    const el = document.getElementById('activityLogList');
+    if (!el || !__activityFilterIdToName) return;
+    const rows = __activityFilterMember === 'all'
+      ? __activityFilterRows
+      : __activityFilterRows.filter(r => r.user_id === __activityFilterMember);
+    if (!rows.length) {
+      el.innerHTML = `<p style="color:var(--ink-mute);font-size:0.85rem;">No activity for the selected filter.</p>`;
+      return;
+    }
+    const html = rows.map(r => {
+      const who = __activityFilterIdToName.get(r.user_id) || 'Team member';
+      const initials = who.split(' ').filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?';
+      const verb = r.event_type === 'entry_deleted'
+        ? '<span class="activity-row-verb activity-verb-delete">deleted an entry</span>'
+        : '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
+      const when = relativeTime(r.occurred_at);
+      const whenAbsolute = new Date(r.occurred_at).toLocaleString();
+      const safeRowId = jsAttr(r.id || '');
+      return `
+        <div class="activity-row" data-activity-row-id="${safeRowId}">
+          <div class="activity-row-avatar">${escapeHtml(initials)}</div>
+          <div class="activity-row-body">
+            <div class="activity-row-head">
+              <span class="activity-row-who">${escapeHtml(who)}</span>
+              ${verb}
+              <span class="activity-row-when" title="${escapeHtml(whenAbsolute)}">${escapeHtml(when)}</span>
+            </div>
+            <div class="activity-row-desc">${escapeHtml(r.description || '(no details)')}</div>
+          </div>
+          <button class="activity-row-delete" title="Delete this entry"
+                  aria-label="Delete this activity entry"
+                  onclick="deleteActivityLogRow('${safeRowId}')">×</button>
+        </div>`;
+    }).join('');
+    el.innerHTML = html;
+  }
+
+  // Delete a single activity row. Owner-only (the activity view itself
+  // is owner-gated; the SQL policy enforces the same). Optimistic UI:
+  // remove the row from the DOM first, then issue the delete. If the
+  // server rejects we re-fetch the whole log so the UI is honest about
+  // what's actually there.
+  async function deleteActivityLogRow(rowId) {
+    if (!rowId) return;
+    if (!(await uiConfirm('Delete this activity log entry?', {
+      destructive: true, confirmLabel: 'Delete',
+    }))) return;
+    // Harden the selector — rowId is a UUID from the DB in practice,
+    // but using CSS.escape (with a manual fallback for older browsers)
+    // means we can't be tripped up by an unusual id value.
+    const escSel = (typeof CSS !== 'undefined' && CSS.escape)
+      ? CSS.escape(String(rowId))
+      : String(rowId).replace(/["\\]/g, '\\$&');
+    const node = document.querySelector(`[data-activity-row-id="${escSel}"]`);
+    if (node) node.style.opacity = '0.4';
+    try {
+      const { error } = await sb()
+        .from('app_audit_log')
+        .delete()
+        .eq('id', rowId);
+      if (error) {
+        toast('Could not delete: ' + (error.message || 'unknown error'));
+        if (node) node.style.opacity = '';
+        await loadBizActivityLog();
+        return;
+      }
+      if (node) node.remove();
+      // Drop the row from the cached array so the filter bar counts
+      // stay accurate, and re-render the filter bar to reflect this.
+      __activityFilterRows = __activityFilterRows.filter(r => r.id !== rowId);
+      renderActivityFilterBar();
+      // If we just removed the last row of the filtered view OR the
+      // last row overall, re-render the empty state. The cached rows
+      // are the source of truth here.
+      if (__activityFilterRows.length === 0) {
+        const list = document.getElementById('activityLogList');
+        if (list) list.innerHTML = `<p style="color:var(--ink-mute);font-size:0.85rem;">No edits or deletes yet — your team's record is clean.</p>`;
+      } else {
+        // Re-render the filtered view in case the current filter is
+        // now empty (we removed the last row for the selected member).
+        renderActivityList();
+      }
+    } catch (e) {
+      toast('Network error — try again.');
+      if (node) node.style.opacity = '';
+      await loadBizActivityLog();
+    }
+  }
+
+  // Wipe all activity log rows for the current business. Two-step
+  // confirm — first a destructive confirm, then a typed-name match
+  // against the business name. Once accepted, the rows are deleted in
+  // one Supabase delete-by-business_id call. There's no undo.
+  async function clearAllActivityLog() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Owner only.'); return; }
+    if (!(await uiConfirm(
+      `Clear the entire activity log for ${biz.name}?\n\nEvery edit and delete recorded so far will be permanently removed. New activity will continue to be recorded going forward. This cannot be undone.`,
+      { title: 'Clear activity log', destructive: true, confirmLabel: 'Continue' }
+    ))) return;
+    const typed = await uiPrompt(`Type "${biz.name}" to confirm:`, '', {
+      title: 'Confirm clear',
+      submitLabel: 'Clear all',
+      placeholder: biz.name,
+    });
+    if (typed == null) return;
+    if (typed.trim() !== biz.name) {
+      toast(`Name didn't match — activity log not cleared.`);
+      return;
+    }
+    const btn = document.getElementById('actLogClearAllBtn');
+    if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
+    try {
+      const { error } = await sb()
+        .from('app_audit_log')
+        .delete()
+        .eq('business_id', biz.id)
+        .in('event_type', ['entry_edited', 'entry_deleted']);
+      if (error) {
+        toast('Could not clear: ' + (error.message || 'unknown error'));
+        if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
+        return;
+      }
+      toast('Activity log cleared.');
+      await loadBizActivityLog();
+    } catch (e) {
+      toast('Network error — try again.');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
+    }
   }
 
   // Fetch + render rows. Called by renderActivityView and the Refresh
@@ -11156,6 +11821,11 @@
       }
       if (!rows || !rows.length) {
         el.innerHTML = `<p style="color:var(--ink-mute);font-size:0.85rem;">No edits or deletes yet — your team's record is clean.</p>`;
+        __activityFilterRows = [];
+        __activityFilterIdToName = null;
+        __activityFilterMember = 'all';
+        const bar = document.getElementById('activityFilterBar');
+        if (bar) bar.innerHTML = '';
         return;
       }
       // Build a user_id → display-name map. Owner's id matches the
@@ -11170,28 +11840,17 @@
           || 'Team member';
         idToName.set(m.userId, name);
       }
-      const html = rows.map(r => {
-        const who = idToName.get(r.user_id) || 'Team member';
-        const initials = who.split(' ').filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?';
-        const verb = r.event_type === 'entry_deleted'
-          ? '<span class="activity-row-verb activity-verb-delete">deleted an entry</span>'
-          : '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
-        const when = relativeTime(r.occurred_at);
-        const whenAbsolute = new Date(r.occurred_at).toLocaleString();
-        return `
-          <div class="activity-row">
-            <div class="activity-row-avatar">${escapeHtml(initials)}</div>
-            <div class="activity-row-body">
-              <div class="activity-row-head">
-                <span class="activity-row-who">${escapeHtml(who)}</span>
-                ${verb}
-                <span class="activity-row-when" title="${escapeHtml(whenAbsolute)}">${escapeHtml(when)}</span>
-              </div>
-              <div class="activity-row-desc">${escapeHtml(r.description || '(no details)')}</div>
-            </div>
-          </div>`;
-      }).join('');
-      el.innerHTML = html;
+      // Store for filter-by-member + per-row delete
+      __activityFilterRows = rows;
+      __activityFilterIdToName = idToName;
+      // If the filter is set to a user with no rows after refresh, drop
+      // back to 'all' so the user isn't staring at an empty list.
+      if (__activityFilterMember !== 'all'
+          && !rows.some(r => r.user_id === __activityFilterMember)) {
+        __activityFilterMember = 'all';
+      }
+      renderActivityFilterBar();
+      renderActivityList();
     } catch (e) {
       el.innerHTML = `<p style="color:var(--ink-mute);font-size:0.85rem;">Network error: ${escapeHtml(e?.message || String(e))}</p>`;
     }
@@ -11470,7 +12129,7 @@
       : '';
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
-    const isPastDate = e.date && e.date < today();
+    const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
     if (isMobile) {
@@ -11622,7 +12281,13 @@
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
     if (view !== 'accounts') __acctTransfersExpanded = false;
-    if (view !== 'insights') __insightsPeriod = { mode: 'all' };
+    // When leaving insights, reset both period filters back to default
+    // (This month). Previously this reset to 'all' which is why the
+    // view appeared to default to All time on every return visit.
+    if (view !== 'insights') {
+      __insightsPeriod = { mode: 'current' };
+      __top10Period = { mode: 'current' };
+    }
     saveSession(); closeDrawer();
     __renderResetScroll = true; // new tab → land at the top
     renderAll();
@@ -12661,28 +13326,24 @@
   // ================================================================
   // v65: MOBILE GESTURES on entry rows
   // ================================================================
-  // Two gestures, both touch-only so desktop click behaviour is
-  // untouched:
+  // One touch gesture, intentionally minimal:
   //   • long-press (550ms, finger barely moves) → context menu with
-  //     Edit/Delete buttons. Useful when both actions are needed but
-  //     the user doesn't remember which swipe direction does what.
-  //   • swipe-left (>70px horizontal, <30px vertical) → delete action.
-  //     Confirm modal protects against accidents.
-  //   • swipe-right (>70px horizontal, <30px vertical) → edit action.
+  //     Edit/Delete buttons. Touch-only — desktop click behaviour is
+  //     untouched.
   // The handler treats the gesture as committed only on touchend so a
   // user mid-gesture can still abort by moving vertically (which fires
   // the cancel logic — we honour the user's scroll intent).
   //
   // Permissions: editEntry/deleteEntry both call canEditEntry; the
-  // gesture wires straight through to those, so non-owner viewers
-  // can't accidentally delete other people's entries via swipe — the
-  // toast inside those helpers still fires.
+  // context menu wires straight through to those, so non-owner viewers
+  // can't accidentally delete other people's entries — the toast inside
+  // those helpers still fires.
   //
   // Disabled when a modal is open (touchend in a modal shouldn't
   // trigger a row gesture underneath).
   const __GESTURE_LONG_PRESS_MS = 550;
-  const __GESTURE_SWIPE_THRESH = 70;
   const __GESTURE_VERT_CANCEL = 30;
+  const __GESTURE_HORIZ_CANCEL = 12; // a press should be still — even modest horizontal travel cancels.
   let __gestureState = null; // { rowEl, entryId, startX, startY, t, longPressTimer, fired }
   function __cancelGesture() {
     if (!__gestureState) return;
@@ -12724,57 +13385,19 @@
     const t = ev.touches[0];
     const dx = t.clientX - __gestureState.startX;
     const dy = t.clientY - __gestureState.startY;
-    // If the finger has moved vertically beyond the cancel threshold,
-    // the user is scrolling — abort all gesture logic so the scroll
-    // proceeds naturally.
-    if (Math.abs(dy) > __GESTURE_VERT_CANCEL) {
+    // Cancel on any meaningful movement — vertical for scroll intent,
+    // or horizontal beyond a small dead-zone (a press should be still).
+    if (Math.abs(dy) > __GESTURE_VERT_CANCEL || Math.abs(dx) > __GESTURE_HORIZ_CANCEL) {
       __cancelGesture();
-      return;
-    }
-    // Any horizontal movement at all cancels the long-press timer.
-    // It's a press, not a drag.
-    if (Math.abs(dx) > 6 && __gestureState.longPressTimer) {
-      clearTimeout(__gestureState.longPressTimer);
-      __gestureState.longPressTimer = null;
-      // Subtle visual feedback during the swipe: translate the row a
-      // bit so the user sees the gesture being recognised. Clamp to
-      // the threshold so the translation doesn't run off-screen.
-      const clamped = Math.max(-__GESTURE_SWIPE_THRESH * 1.4, Math.min(__GESTURE_SWIPE_THRESH * 1.4, dx));
-      __gestureState.rowEl.style.transform = `translateX(${clamped.toFixed(1)}px)`;
-      __gestureState.rowEl.style.transition = '';
     }
   }, { passive: true });
-  document.addEventListener('touchend', (ev) => {
-    if (!__gestureState) return;
-    const dx = (ev.changedTouches[0]?.clientX || 0) - __gestureState.startX;
-    const dy = (ev.changedTouches[0]?.clientY || 0) - __gestureState.startY;
-    const row = __gestureState.rowEl;
-    const eid = __gestureState.entryId;
-    const fired = __gestureState.fired;
+  document.addEventListener('touchend', () => {
+    // Long-press already fired (or didn't) by now. Touchend just cleans
+    // up state — no directional swipe action.
     __cancelGesture();
-    // Reset visual transform with a brief snap-back animation.
-    if (row) {
-      row.style.transition = 'transform 0.16s ease';
-      row.style.transform = '';
-      setTimeout(() => { if (row) row.style.transition = ''; }, 200);
-    }
-    if (fired === 'long') return; // long-press already handled
-    if (Math.abs(dy) > __GESTURE_VERT_CANCEL) return;
-    if (Math.abs(dx) < __GESTURE_SWIPE_THRESH) return;
-    // Crossed the swipe threshold horizontally with little vertical
-    // movement — fire the directional action.
-    if (dx < 0) {
-      // Swipe left → delete.
-      deleteEntry(eid);
-    } else {
-      // Swipe right → edit.
-      editEntry(eid);
-    }
   }, { passive: true });
   document.addEventListener('touchcancel', () => {
-    const row = __gestureState?.rowEl;
     __cancelGesture();
-    if (row) { row.style.transition = 'transform 0.16s ease'; row.style.transform = ''; }
   }, { passive: true });
 
   // Context menu shown after a long-press on a row. Two buttons:
@@ -12804,7 +13427,7 @@
       </div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
     `;
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
   }
 
   // v62: chart interactivity — single delegated click handler covers
@@ -12888,6 +13511,42 @@
     const matches = data.entries.filter(e =>
       bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && matchFn(e)
     ).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    // Compute summary stats for the brief view. Total = sum of matched
+    // entries with correct sign by type. inSum/outSum let us show a
+    // tiny breakdown without listing every row.
+    let inSum = 0, outSum = 0;
+    for (const e of matches) {
+      const amt = entryAmount(e);
+      if (e.type === 'in') inSum += amt;
+      else outSum += amt;
+    }
+    const net = inSum - outSum;
+    const netSign = net >= 0 ? '+' : '−';
+    const netCls = net >= 0 ? 'pos' : 'neg';
+    // Brief summary view — total amount(s) and entry count. The full
+    // entry list is hidden by default behind a "Show entries" button,
+    // since the click is usually just "how much was that bar?" and a
+    // long scrolling list distracts. The button reveals matches inline.
+    const briefHTML = `
+      <div class="chart-detail-summary">
+        <div class="chart-detail-summary-row">
+          <span class="chart-detail-summary-label">Total</span>
+          <span class="chart-detail-summary-val ${netCls}">${netSign} ${cur} ${fmt(Math.abs(net))}</span>
+        </div>
+        ${inSum > 0 ? `<div class="chart-detail-summary-row">
+          <span class="chart-detail-summary-label">Cash in</span>
+          <span class="chart-detail-summary-val pos">${cur} ${fmt(inSum)}</span>
+        </div>` : ''}
+        ${outSum > 0 ? `<div class="chart-detail-summary-row">
+          <span class="chart-detail-summary-label">Cash out</span>
+          <span class="chart-detail-summary-val neg">${cur} ${fmt(outSum)}</span>
+        </div>` : ''}
+        <div class="chart-detail-summary-row">
+          <span class="chart-detail-summary-label">Entries</span>
+          <span class="chart-detail-summary-val">${matches.length}</span>
+        </div>
+      </div>
+    `;
     const rowsHTML = matches.length
       ? matches.slice(0, 100).map(e => {
           const sign = e.type === 'in' ? '+' : '−';
@@ -12915,11 +13574,23 @@
       <div class="modal-handle"></div>
       <h2 class="modal-title">${escapeHtml(title)}</h2>
       ${subtitle ? `<p class="modal-sub">${escapeHtml(subtitle)}</p>` : ''}
-      <div class="chart-detail-list">${rowsHTML}</div>
-      ${moreNote}
+      ${briefHTML}
+      ${matches.length > 0 ? `<button class="btn btn-ghost btn-sm chart-detail-expand" id="chartDetailExpandBtn" onclick="(function(){
+        const list = document.getElementById('chartDetailList');
+        const btn = document.getElementById('chartDetailExpandBtn');
+        if (!list || !btn) return;
+        const showing = list.style.display !== 'none';
+        list.style.display = showing ? 'none' : 'block';
+        btn.textContent = showing ? 'Show entries' : 'Hide entries';
+      })()">Show entries</button>` : ''}
+      <div id="chartDetailList" class="chart-detail-list" style="display:none;">${rowsHTML}${moreNote}</div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
-    document.getElementById('modalBackdrop').classList.add('active');
+    // Route through the helper so the scroll-lock captures the current
+    // scrollY and the unlock restores it on close. Adding .active
+    // directly here (as the original code did) skipped the lock and
+    // closing snapped the page to the top — the "back" glitch.
+    _showModalBackdrop();
   }
 
   function saveEntry() {
@@ -13869,9 +14540,33 @@
     saveData(); refreshStaffSurface(); toast("Invite sent.");
   }
   async function removeStaff(id) {
-    if (!(await uiConfirm('Remove this team member?', { destructive: true, confirmLabel: 'Remove' }))) return;
+    // Two-step confirm. Removing a teammate is destructive — they lose
+    // access to the business and to any work they did on it (the entries
+    // they created stay, attributed to them, but they can't see them
+    // anymore). One-tap removal was too easy to do by accident, so:
+    //   Step 1: a normal destructive confirm.
+    //   Step 2: type the member's name (or email if name is empty) to
+    //           prove you mean it.
+    const member = data.members.find(m => m.id === id);
+    if (!member) return;
+    const label = (member.displayName || member.name || member.email || 'this member').trim();
+    if (!(await uiConfirm(
+      `Remove ${label} from this business?\n\n${label} will lose access immediately. Any entries they've already added stay in the books, attributed to them, but they won't be able to view or edit anything.`,
+      { title: 'Remove team member', destructive: true, confirmLabel: 'Continue' }
+    ))) return;
+    const expected = label;
+    const typed = await uiPrompt(`Type "${expected}" to confirm removal:`, '', {
+      title: 'Confirm removal',
+      submitLabel: 'Remove',
+      placeholder: expected,
+    });
+    if (typed == null) return; // cancelled
+    if (typed.trim() !== expected) {
+      toast(`Name didn't match — nothing was removed.`);
+      return;
+    }
     data.members = data.members.filter(m => m.id !== id);
-    saveData(); refreshStaffSurface(); toast('Removed.');
+    saveData(); refreshStaffSurface(); toast(`${label} removed.`);
   }
   // Re-render whichever surface is showing the staff list — full-page view
   // (session.view === 'staff') or the legacy modal. The modal is still kept
@@ -14772,7 +15467,7 @@
       </div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
     `;
-    document.getElementById('modalBackdrop').classList.add('active');
+    _showModalBackdrop();
   }
 
   // ===== Touch-based double-tap detector =====
@@ -15938,8 +16633,6 @@
         <h3>Touch gestures on entry rows</h3>
         <ul>
           <li><strong>Long-press</strong> a row → context menu with Edit and Delete.</li>
-          <li><strong>Swipe right</strong> → open the edit screen.</li>
-          <li><strong>Swipe left</strong> → delete the entry (with confirmation).</li>
         </ul>
         <p>Vertical scrolling always takes priority — if you start scrolling vertically, the gesture cancels automatically.</p>
 
@@ -16307,6 +17000,19 @@
           <button class="btn btn-sm btn-ghost" onclick="restoreBusinessPrompt()">Restore from file…</button>
         </div>
         <input type="file" id="restoreFile" accept="application/json,.json" style="display:none;" onchange="restoreBusinessFromFile(event)">
+      </div>
+
+      <div class="settings-section">
+        <h3 class="settings-heading">Storage cleanup</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Delete the <strong>entries</strong> from one specific month. Useful when a business has accumulated months or years of data and you want to free up space. Parties, categories, accounts, transfers, audit log, and expenses are kept — only the entries from the chosen month are removed.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;">
+          <div class="input-wrap" style="flex:1;min-width:170px;">
+            <label for="cleanupMonth_${biz.id}">Month to clear</label>
+            <input type="month" id="cleanupMonth_${biz.id}" max="${escapeHtml(today().slice(0,7))}">
+          </div>
+          <button class="btn btn-sm btn-danger-outline" onclick="cleanupMonthEntries('${biz.id}')">Delete entries for that month</button>
+        </div>
+        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.55rem;">This cannot be undone. A confirmation will show how many entries are about to be removed.</p>
       </div>
 
       <div class="settings-section">
@@ -16998,6 +17704,99 @@
     saveData(); saveSession(); renderAll();
     openBizSettings(book.businessId);
     toast('Book deleted.');
+  }
+  // Delete all entries from the given business that fall in the given
+  // month. Designed for owners who want to clean up old data when the
+  // log gets unwieldy (a year+ of entries can be tens of thousands of
+  // rows, which slows down both the client and Supabase row reads).
+  //
+  // Scope: ENTRIES ONLY. Parties, categories, accounts, expenses, the
+  // audit log, and announcements are untouched. Internal transfers
+  // whose paired entries land in the deleted month are also reversed
+  // (orphan transfer records would otherwise show in the transfers
+  // view with broken references).
+  //
+  // Permissions: owner only. The UI button is owner-only too, but we
+  // re-check here so callers can't bypass via the console.
+  async function cleanupMonthEntries(bizId) {
+    const biz = data.businesses.find(b => b.id === bizId);
+    if (!biz) return;
+    if (roleFor(biz.id) !== 'owner') { toast('Owner only.'); return; }
+    const monthInput = document.getElementById(`cleanupMonth_${bizId}`);
+    const monthKey = (monthInput?.value || '').trim();
+    if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
+      toast('Pick a month to clear.');
+      return;
+    }
+    // Refuse to clear the current month — too easy to mistype, and the
+    // user is almost certainly looking at it. They can navigate to
+    // last month and clear that instead if they really need to.
+    if (monthKey === today().slice(0, 7)) {
+      toast(`Pick a past month — the current month can't be cleared from here.`);
+      return;
+    }
+    // Count what's about to be deleted so the confirm message is honest.
+    const bookIds = new Set(data.books.filter(b => b.businessId === bizId).map(b => b.id));
+    const matchedEntries = data.entries.filter(e =>
+      bookIds.has(e.bookId) && (e.date || '').slice(0, 7) === monthKey
+    );
+    const entryCount = matchedEntries.length;
+    if (entryCount === 0) {
+      toast(`No entries found in ${monthKey} for this business.`);
+      return;
+    }
+    // Find transfers whose paired entries are in the target month.
+    // A transfer keeps the list of its entry ids in entryIds; we
+    // reverse the transfer whenever any of its children are about to
+    // disappear, so the transfers view stays consistent.
+    const matchedEntryIds = new Set(matchedEntries.map(e => e.id));
+    const affectedTransfers = (data.transfers || []).filter(t =>
+      t.businessId === bizId && Array.isArray(t.entryIds) && t.entryIds.some(eid => matchedEntryIds.has(eid))
+    );
+    // Human-friendly month label for confirm prompts.
+    const [yy, mm] = monthKey.split('-').map(Number);
+    const monthLabel = new Date(yy, mm - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    // Step 1: destructive confirm with the count.
+    const transferBit = affectedTransfers.length
+      ? `\n\n${affectedTransfers.length} internal transfer${affectedTransfers.length === 1 ? '' : 's'} from this month will also be reversed, since their paired entries are being removed.`
+      : '';
+    if (!(await uiConfirm(
+      `Delete every entry from ${monthLabel}?\n\n${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} will be permanently removed.${transferBit}\n\nParties, categories, accounts, expenses, and the audit log are kept. This cannot be undone — back up first if you may want to recover.`,
+      { title: 'Clear month', destructive: true, confirmLabel: 'Continue' }
+    ))) return;
+    // Step 2: type the business name to commit.
+    const typed = await uiPrompt(
+      `Type "${biz.name}" to confirm clearing ${monthLabel}:`,
+      '',
+      { title: 'Confirm month clear', submitLabel: 'Delete entries', placeholder: biz.name }
+    );
+    if (typed == null) return;
+    if (typed.trim() !== biz.name) {
+      toast(`Name didn't match — nothing was deleted.`);
+      return;
+    }
+    // Apply locally. Pull the doomed-entry ids into a Set for O(1) test,
+    // then filter both data.entries and data.transfers in one pass each.
+    // The sync engine observes data mutations + saveData and pushes
+    // deletions to the cloud automatically (same path as the single-entry
+    // delete in deleteEntry above).
+    const doomedIds = new Set(matchedEntries.map(e => e.id));
+    const doomedTransferIds = new Set(affectedTransfers.map(t => t.id));
+    data.entries = data.entries.filter(e => !doomedIds.has(e.id));
+    if (data.transfers) {
+      data.transfers = data.transfers.filter(t => !doomedTransferIds.has(t.id));
+    }
+    saveData();
+    renderAll();
+    toast(`Deleted ${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} from ${monthLabel}.`);
+    // Audit log entry — useful for paranoid owners who want to know
+    // when bulk operations happened. Best-effort; don't await.
+    logAuditEvent(
+      'entries_month_cleared',
+      `Cleared ${entryCount} entr${entryCount === 1 ? 'y' : 'ies'} from ${monthLabel}`,
+      { business_id: bizId, month: monthKey, entries_removed: entryCount, transfers_removed: affectedTransfers.length },
+      bizId
+    ).catch(() => {});
   }
   async function deleteBusinessAction(bizId) {
     const biz = data.businesses.find(b => b.id === bizId);
@@ -18073,6 +18872,36 @@
       + String(d.getDate()).padStart(2, '0');
     const timePart = formatEntryTime(entry.editedAt);
     return timePart ? `${datePart} · ${timePart}` : datePart;
+  }
+
+  // Same as entryEditedLabel but for createdAt. Used by the entries-list
+  // search to surface "added" or "added 2026-05-14" queries — symmetric
+  // with the existing "edited" search.
+  function entryAddedLabel(entry) {
+    if (!entry || !entry.createdAt) return '';
+    const d = new Date(entry.createdAt);
+    if (isNaN(d.getTime())) return '';
+    const datePart = d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+    const timePart = formatEntryTime(entry.createdAt);
+    return timePart ? `${datePart} · ${timePart}` : datePart;
+  }
+
+  // True if the entry was back-dated when it was created — i.e. the
+  // picked date (e.date) is earlier than the day the user pressed
+  // Save (derived from e.createdAt). This is a state-at-creation
+  // property: an entry tagged for today stays default-coloured
+  // forever, even after "today" moves on. Drives the .entry-row-pastdate
+  // tint in renderEntryRow and related render paths.
+  function isEntryBackdated(entry) {
+    if (!entry || !entry.date || !entry.createdAt) return false;
+    const cd = new Date(entry.createdAt);
+    if (isNaN(cd.getTime())) return false;
+    const cYmd = cd.getFullYear() + '-'
+      + String(cd.getMonth() + 1).padStart(2, '0') + '-'
+      + String(cd.getDate()).padStart(2, '0');
+    return entry.date < cYmd;
   }
 
   // Cached after the first failure so we don't keep retrying a function
@@ -21655,67 +22484,6 @@
       return false;
     }
   }
-
-
-  // Manual cloud backup. Writes the full `data` blob to the user's `backups`
-  // row. RLS enforces that they can only read/write their own rows. We try
-  // upsert first (needs a UNIQUE constraint on (user_id, label)); if the
-  // schema doesn't support that, fall back to delete-then-insert. Either
-  // way the user ends up with one rolling snapshot per (user_id, label).
-  async function cloudBackup() {
-    const u = me();
-    if (!u || !u.cloud) { toast('Sign in with a cloud account first.'); return; }
-    let toastShown = false;
-    try {
-      const { data: { user }, error: userErr } = await sb().auth.getUser();
-      if (userErr || !user) { toast('Cloud session expired. Sign in again.'); return; }
-      const payload = {
-        kind: 'hisabs.full',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        user: safeUser(),
-        data,
-      };
-      const row = {
-        user_id: user.id,
-        label: 'latest',
-        payload,
-        updated_at: new Date().toISOString(),
-      };
-      // First try: upsert with the unique constraint hint. If the constraint
-      // exists, this is one round trip and overwrites the previous row.
-      let { error } = await sb().from('backups').upsert(row, { onConflict: 'user_id,label' });
-      if (error) {
-        // Two known failure modes:
-        //  - 42P10: no unique constraint matching ON CONFLICT spec
-        //  - 42703: column "label" does not exist (older table without it)
-        // For both, fall back: delete any existing 'latest' row, then insert.
-        // This is two round trips but doesn't require schema knowledge.
-        const code = error.code || '';
-        if (code === '42P10' || code === '42703' || /label|conflict/i.test(error.message || '')) {
-          console.warn('Upsert failed (' + code + '), falling back to delete+insert. Original error:', error.message);
-          // Best-effort delete — if the column doesn't exist this also fails,
-          // and we move on (the insert will create a new row).
-          try { await sb().from('backups').delete().eq('user_id', user.id).eq('label', 'latest'); } catch (_) {}
-          const insertRes = await sb().from('backups').insert(row);
-          if (insertRes.error) {
-            // Try insert without the label column (oldest schema)
-            const { label: _omit, ...rowNoLabel } = row;
-            const r2 = await sb().from('backups').insert(rowNoLabel);
-            if (r2.error) { toast('Cloud backup failed: ' + r2.error.message); toastShown = true; return; }
-          }
-        } else {
-          toast('Cloud backup failed: ' + error.message);
-          toastShown = true;
-          return;
-        }
-      }
-      toast('Backup saved to cloud.');
-    } catch (e) {
-      if (!toastShown) toast('Network error: ' + e.message);
-    }
-  }
-
   // Cloud diagnostic: pokes Supabase to verify the SDK loaded, auth session
   // is intact, and the `backups` table is readable. Surfaces specific errors
   // so deployment problems are easy to triage.
@@ -21783,69 +22551,6 @@
       lines.push('  → run SUPABASE_STAGE1.sql in your Supabase SQL editor.');
     }
     await uiAlert(lines.join('\n'), { title: 'Cloud diagnostic' });
-  }
-
-  async function cloudRestore() {
-    const u = me();
-    if (!u || !u.cloud) { toast('Sign in with a cloud account first.'); return; }
-    if (!(await uiConfirm('Replace ALL local data with your latest cloud backup? This cannot be undone.', { destructive: true, confirmLabel: 'Replace all' }))) return;
-    try {
-      // Try to read the 'latest' row first. If the `label` column doesn't
-      // exist (older schema), the query errors with 42703 and we fall back
-      // to just the most recent payload.
-      let rows = null;
-      const tryWithLabel = await sb().from('backups')
-        .select('payload, updated_at')
-        .eq('label', 'latest')
-        .order('updated_at', { ascending: false })
-        .limit(1);
-      if (tryWithLabel.error) {
-        const code = tryWithLabel.error.code || '';
-        if (code === '42703' || /label/i.test(tryWithLabel.error.message || '')) {
-          console.warn('Restore fallback (no label column):', tryWithLabel.error.message);
-          const r2 = await sb().from('backups')
-            .select('payload, updated_at')
-            .order('updated_at', { ascending: false })
-            .limit(1);
-          if (r2.error) { toast('Cloud restore failed: ' + r2.error.message); return; }
-          rows = r2.data;
-        } else {
-          toast('Cloud restore failed: ' + tryWithLabel.error.message);
-          return;
-        }
-      } else {
-        rows = tryWithLabel.data;
-      }
-      if (!rows || !rows.length) { toast('No cloud backup found yet. Use Backup to cloud first.'); return; }
-      const p = rows[0].payload;
-      if (!p || p.kind !== 'hisabs.full' || !p.data || typeof p.data !== 'object') {
-        toast('Cloud backup looks malformed. Try a fresh backup.');
-        return;
-      }
-      const arr = v => Array.isArray(v) ? v : [];
-      data = {
-        businesses: arr(p.data.businesses),
-        books: arr(p.data.books),
-        entries: arr(p.data.entries),
-        members: arr(p.data.members),
-        parties: arr(p.data.parties),
-        categories: arr(p.data.categories),
-        cashAccounts: arr(p.data.cashAccounts),
-        accountGroups: arr(p.data.accountGroups),
-        auditExpenses: arr(p.data.auditExpenses),
-        quickLook: arr(p.data.quickLook),
-        announcements: arr(p.data.announcements),
-      };
-      // Reassign business ownership to the current cloud user (in case the
-      // backup was taken on another device with a different local id pre-migration).
-      const meNow = me();
-      if (meNow) data.businesses.forEach(b => { b.ownerId = meNow.id; });
-      saveData();
-      toast('Restored. Refreshing…');
-      setTimeout(() => location.reload(), 800);
-    } catch (e) {
-      toast('Network error: ' + e.message);
-    }
   }
 
   // ================================================================

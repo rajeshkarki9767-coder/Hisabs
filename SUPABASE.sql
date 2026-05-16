@@ -948,9 +948,18 @@ create policy app_audit_log_select on public.app_audit_log
 drop policy if exists app_audit_log_insert on public.app_audit_log;
 create policy app_audit_log_insert on public.app_audit_log
   for insert with check (user_id = auth.uid());
--- Intentionally NO update or delete policies — rows are immutable
--- and cannot be removed by users. Admin can clean up via Dashboard
--- if needed (service_role bypasses RLS).
+-- Delete: only the business owner can remove rows from their own
+-- business's activity log. Used by the in-app "Clear all" + per-row
+-- delete buttons (owner-only UI). Same gate as the SELECT-for-owner
+-- branch, so the owner can manage their own log. A non-owner cannot
+-- remove anything — not even their own rows — so no one can cover
+-- tracks. (Anonymous / unauthenticated callers are blocked by the
+-- function gate inside user_owns_business.)
+drop policy if exists app_audit_log_delete on public.app_audit_log;
+create policy app_audit_log_delete on public.app_audit_log
+  for delete using (
+    business_id is not null and public.user_owns_business(business_id)
+  );
 
 -- ----------------------------------------------------------------
 -- 6. Grants

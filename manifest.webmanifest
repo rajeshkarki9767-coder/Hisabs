@@ -40,6 +40,22 @@
       "purpose": "maskable"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "New entry",
+      "short_name": "Add entry",
+      "description": "Quickly add a cash-in or cash-out entry to the active book",
+      "url": "./?source=pwa&action=new-entry",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    },
+    {
+      "name": "Insights",
+      "short_name": "Insights",
+      "description": "Open the business insights dashboard",
+      "url": "./?source=pwa&view=insights",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ],
   "screenshots": [
     {
       "src": "screenshots/01-entries-mobile.png",
