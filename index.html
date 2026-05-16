@@ -50,6 +50,7 @@
     --ink-soft: #4a4239;
     --ink-mute: #8a8275;
     --accent: #b8482a;
+    --accent-readable: #b8482a;
     --accent-soft: #d96c4a;
     --gain: #2e5d3a;
     --gain-soft: #4a8157;
@@ -155,7 +156,7 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-ghost { background: transparent; color: var(--ink); }
   .btn-ghost:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
-  .btn-accent { background: var(--accent); border-color: var(--accent); color: #f5f1e8; }
+  .btn-accent { background: var(--accent); border-color: var(--accent-readable); color: #f5f1e8; }
   .btn-accent:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-soft); color: #f5f1e8; }
   .btn-sm { padding: 0.42rem 0.85rem; font-size: 0.72rem; border-radius: var(--r-sm); }
   /* Icon-only ghost button used by the per-view export trigger and any
@@ -195,7 +196,7 @@
     font-family: var(--font-sans); font-size: 0.92rem;
     transition: border-color 0.12s;
   }
-  .combo input.combo-input:focus { outline: none; border-color: var(--accent); }
+  .combo input.combo-input:focus { outline: none; border-color: var(--accent-readable); }
   .combo input.combo-input::placeholder { color: var(--ink-mute); }
   .combo .combo-chevron {
     position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
@@ -235,7 +236,7 @@
      match natural reading rhythm, accent-colored so the eye finds it
      after the user touches the date picker. */
   .date-relative-hint {
-    color: var(--accent); font-weight: 600; letter-spacing: 0.03em;
+    color: var(--accent-readable); font-weight: 600; letter-spacing: 0.03em;
     text-transform: none; margin-left: 0.45rem; font-size: 0.6rem;
   }
   .input-wrap.input-error input, .input-wrap.input-error select, .input-wrap.input-error textarea,
@@ -423,14 +424,14 @@
      small, muted — doesn't compete with the Sign in button below. */
   .auth-forgot { margin-top: -0.35rem; text-align: right; font-size: 0.72rem; }
   .auth-forgot a { color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-  .auth-forgot a:hover { color: var(--accent); }
+  .auth-forgot a:hover { color: var(--accent-readable); }
   .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 1rem; border: 1.5px solid var(--line); border-radius: var(--r); overflow: hidden; }
   .auth-tab { padding: 0.55rem; background: transparent; border: none; cursor: pointer; font-size: 0.72rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.09em; transition: all 0.12s; font-weight: 500; }
   .auth-tab.active { background: var(--ink); color: var(--paper); }
   .auth-hint { margin-top: 0.7rem; text-align: center; font-size: 0.72rem; color: var(--ink-mute); line-height: 1.55; }
   .auth-footer { margin-top: 1.1rem; padding-top: 0.85rem; border-top: 1px solid var(--line-soft); text-align: center; font-size: 0.7rem; color: var(--ink-mute); display: flex; justify-content: center; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
   .auth-footer a { color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
-  .auth-footer a:hover { color: var(--accent); }
+  .auth-footer a:hover { color: var(--accent-readable); }
   .auth-footer-dot { color: var(--ink-mute); }
   .auth-footer-version { color: var(--ink-mute); }
   /* Long-form content (privacy, user guide) — readable column inside the modal */
@@ -453,7 +454,7 @@
   .doc-body .doc-toc-title { font-family: var(--font-serif); font-size: 0.85rem; font-weight: 600; color: var(--ink); margin-bottom: 0.45rem; text-transform: uppercase; letter-spacing: 0.04em; }
   .doc-body .doc-toc ul { margin: 0; padding-left: 1.05rem; columns: 2; column-gap: 1.5rem; }
   .doc-body .doc-toc li { margin-bottom: 0.2rem; break-inside: avoid; }
-  .doc-body .doc-toc a { color: var(--accent); text-decoration: none; font-size: 0.83rem; }
+  .doc-body .doc-toc a { color: var(--accent-readable); text-decoration: none; font-size: 0.83rem; }
   .doc-body .doc-toc a:hover { text-decoration: underline; }
   .doc-body .doc-callout { background: var(--surface-1); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--r-sm); padding: 0.65rem 0.85rem; margin: 0.7rem 0 0.9rem; font-size: 0.84rem; }
   .doc-body .doc-callout-title { font-weight: 600; color: var(--ink); margin-bottom: 0.2rem; }
@@ -496,7 +497,7 @@
   .g-account-info { flex: 1; min-width: 0; }
   .g-account-name { font-weight: 500; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .g-account-email { font-size: 0.72rem; color: var(--ink-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .auth-decoration { position: absolute; z-index: 1; font-family: var(--font-sans); font-size: 22rem; line-height: 1; color: var(--accent); opacity: 0.05; user-select: none; pointer-events: none; top: 50%; right: -6rem; transform: translateY(-50%); }
+  .auth-decoration { position: absolute; z-index: 1; font-family: var(--font-sans); font-size: 22rem; line-height: 1; color: var(--accent-readable); opacity: 0.05; user-select: none; pointer-events: none; top: 50%; right: -6rem; transform: translateY(-50%); }
 
   /* ============ APP SHELL ============ */
   .app { display: none; min-height: 100vh; position: relative; z-index: 2; }
@@ -699,7 +700,7 @@
   .date-strip-search { flex: 1; max-width: 480px; position: relative; }
   .date-strip-search .search-input-wrap { position: relative; }
   .date-strip-search input { width: 100%; padding: 0.4rem 0.65rem 0.4rem 1.85rem; font-size: 0.78rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink); font-family: var(--font-sans); }
-  .date-strip-search input:focus { outline: none; border-color: var(--accent); }
+  .date-strip-search input:focus { outline: none; border-color: var(--accent-readable); }
   .date-strip-search input::placeholder { color: var(--ink-mute); }
   .date-strip-search-icon { position: absolute; left: 0.55rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
 
@@ -727,6 +728,7 @@
   .activity-row-verb { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 3px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
   .activity-verb-delete { background: rgba(168,53,31,0.12); color: var(--loss); }
   .activity-verb-edit { background: rgba(216,151,60,0.18); color: #8b5a16; }
+  .activity-verb-backdated { background: var(--paper-deep); color: var(--accent-readable); border-color: var(--accent-soft); }
   .activity-row-when { font-size: 0.72rem; color: var(--ink-mute); margin-left: auto; }
   .activity-row-desc { font-size: 0.82rem; color: var(--ink-soft); line-height: 1.55; word-break: break-word; }
   .activity-row-delete {
@@ -797,6 +799,52 @@
     body.printing-activity .activity-filter-chip:not(.is-active) {
       display: none;
     }
+    /* v68: member-activity print case — show ONLY the modal content,
+       hide everything else. Modal contains the header (member name +
+       period), totals, and the row list. */
+    body.printing-member-activity * { visibility: hidden; }
+    body.printing-member-activity #modalContent,
+    body.printing-member-activity #modalContent * { visibility: visible; }
+    body.printing-member-activity .modal-overlay { background: white !important; box-shadow: none !important; }
+    body.printing-member-activity #modalContent {
+      position: absolute; left: 0; top: 0; width: 100%;
+      max-width: none; max-height: none;
+      box-shadow: none; border-radius: 0; padding: 0.5in;
+      background: white !important; color: #000 !important;
+    }
+    body.printing-member-activity .modal-actions,
+    body.printing-member-activity .modal-handle { display: none !important; }
+    body.printing-member-activity .member-activity-row {
+      page-break-inside: avoid;
+      border: 1px solid #ccc;
+      background: white !important;
+    }
+    body.printing-member-activity .entry-cat {
+      background: transparent !important;
+      border-color: #999 !important;
+      color: #000 !important;
+    }
+    /* v69: team-activity leaderboard print — show only the page header
+       and the leaderboard section, hide sidebar/period selector/export
+       buttons. */
+    body.printing-team-activity * { visibility: hidden; }
+    body.printing-team-activity .page-header,
+    body.printing-team-activity .page-header *,
+    body.printing-team-activity .settings-section,
+    body.printing-team-activity .settings-section * { visibility: visible; }
+    body.printing-team-activity .page-actions,
+    body.printing-team-activity .settings-section > div:first-child > div:last-child,
+    body.printing-team-activity .period-bar,
+    body.printing-team-activity .staff-tabs { display: none !important; }
+    body.printing-team-activity .page-header,
+    body.printing-team-activity .settings-section {
+      position: relative; left: 0; top: 0; width: 100%;
+    }
+    body.printing-team-activity .lb-row {
+      page-break-inside: avoid;
+      border: 1px solid #ccc;
+      background: white !important;
+    }
   }
   @media (max-width: 600px) {
     .activity-row { padding: 0.6rem 0.7rem; gap: 0.6rem; }
@@ -822,7 +870,7 @@
   .search-overlay-head { padding: 0.75rem; border-bottom: 1px solid var(--line); display: flex; gap: 0.5rem; align-items: center; flex-shrink: 0; }
   .search-overlay-input-wrap { flex: 1; position: relative; }
   .search-overlay-input-wrap input { width: 100%; padding: 0.6rem 0.65rem 0.6rem 2rem; font-size: 1rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink); }
-  .search-overlay-input-wrap input:focus { outline: none; border-color: var(--accent); }
+  .search-overlay-input-wrap input:focus { outline: none; border-color: var(--accent-readable); }
   .search-overlay-icon { position: absolute; left: 0.6rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
   .search-overlay-close { background: transparent; border: 1px solid var(--line); color: var(--ink); padding: 0.5rem 0.75rem; cursor: pointer; border-radius: var(--r-sm); font-size: 0.82rem; flex-shrink: 0; }
   .search-overlay-body { flex: 1; overflow-y: auto; }
@@ -900,9 +948,9 @@
      (~1100px) don't trigger horizontal overflow. This block does
      not affect mobile (≤880px: card layout) or tablet (881-1024px:
      separate override below). */
-  .entries-head { display: grid; grid-template-columns: 90px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
+  .entries-head { display: grid; grid-template-columns: 120px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
   .entries-head .col-amount, .entries-head .col-balance { text-align: right; }
-  .entry-row { display: grid; grid-template-columns: 90px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
+  .entry-row { display: grid; grid-template-columns: 120px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
   /* CSS grid items default to min-width:auto which respects intrinsic
      content size. A long category name, party name, or book name in
      any cell would expand its track and shove neighboring columns
@@ -938,9 +986,12 @@
   /* v60: stacked entry-date layout for desktop. .entry-date-main is the
      picked date (prominent), .entry-date-sub is either the entry's time
      (same-day) or the full "added <date> <time>" line (back-dated).
-     Each renders as its own flex-row inside the .entry-date column. */
+     Each renders as its own flex-row inside the .entry-date column.
+     v68: NEVER truncate the added-on line — earlier nowrap+ellipsis
+     caused "added 2026-05-..." cutoff. Allow wrap so the full
+     date+time is always readable. */
   .entry-date-main { font-size: 0.78rem; color: var(--ink-soft); line-height: 1.25; }
-  .entry-date-sub  { font-size: 0.68rem; line-height: 1.3; margin-top: 0.12rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry-date-sub  { font-size: 0.68rem; line-height: 1.3; margin-top: 0.12rem; overflow-wrap: anywhere; }
   .entry-desc { min-width: 0; }
   .entry-note { font-size: 0.85rem; color: var(--ink); margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entry-party { font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; cursor: pointer; min-width: 0; }
@@ -965,8 +1016,8 @@
   .entry-cat-click { cursor: pointer; transition: all 0.12s; }
   .entry-cat-click:hover { border-color: var(--ink); color: var(--ink); }
   .entry-chip-row { display: flex; flex-wrap: wrap; gap: 0.25rem; margin-top: 0.15rem; min-width: 0; }
-  .entry-acct-chip { background: transparent; border-color: var(--accent-soft); color: var(--accent); }
-  .entry-acct-chip:hover { border-color: var(--accent); background: var(--paper-deep); color: var(--accent); }
+  .entry-acct-chip { background: transparent; border-color: var(--accent-soft); color: var(--accent-readable); }
+  .entry-acct-chip:hover { border-color: var(--accent-readable); background: var(--paper-deep); color: var(--accent-readable); }
   /* "by Rajesh · edited 5m ago" — the entire line. nowrap on the
      outer .entry-by would clip the edited badge on narrow screens.
      Allow normal wrapping; inner spans (.entry-by-name plus the
@@ -1001,14 +1052,14 @@
 
   .empty { padding: 3rem 1.5rem; text-align: center; color: var(--ink-mute); max-width: 440px; margin: 0 auto; }
   .empty-headline { font-family: var(--font-sans); font-size: 0.98rem; font-weight: 600; color: var(--ink); margin-bottom: 0.3rem; }
-  .empty-illustration { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 1rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent); border-radius: 50%; }
-  .empty a { color: var(--accent); cursor: pointer; text-decoration: underline; }
+  .empty-illustration { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 1rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: 50%; }
+  .empty a { color: var(--accent-readable); cursor: pointer; text-decoration: underline; }
 
   /* Search input for parties/categories/accounts views */
   .entity-search-wrap { position: relative; margin-bottom: 1rem; }
   .entity-search-icon { position: absolute; left: 0.85rem; top: 50%; transform: translateY(-50%); color: var(--ink-mute); pointer-events: none; }
   .entity-search-input { width: 100%; padding: 0.65rem 2.5rem 0.65rem 2.4rem; background: var(--surface-1); border: 1.5px solid var(--line); font: inherit; font-size: 0.9rem; color: var(--ink); transition: border-color 0.15s; }
-  .entity-search-input:focus { outline: none; border-color: var(--accent); }
+  .entity-search-input:focus { outline: none; border-color: var(--accent-readable); }
   .entity-search-clear { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%); background: transparent; border: none; cursor: pointer; color: var(--ink-mute); padding: 0.35rem; display: inline-grid; place-items: center; }
   .entity-search-clear:hover { color: var(--ink); }
 
@@ -1115,16 +1166,16 @@
     background: var(--paper); color: var(--ink); font-family: var(--font-sans);
     font-size: 0.82rem; cursor: pointer; transition: border-color 0.12s, background 0.12s;
   }
-  .announcement-view-link:hover { border-color: var(--accent); background: var(--paper-deep); }
+  .announcement-view-link:hover { border-color: var(--accent-readable); background: var(--paper-deep); }
   .announcement-view-count {
     background: var(--accent); color: var(--paper); font-size: 0.7rem;
     font-weight: 600; padding: 0.05rem 0.4rem; border-radius: 999px;
     margin-left: 0.3rem;
   }
-  .announcement-icon { color: var(--accent); flex-shrink: 0; margin-top: 0.05rem; }
+  .announcement-icon { color: var(--accent-readable); flex-shrink: 0; margin-top: 0.05rem; }
   .announcement-body { flex: 1; min-width: 0; }
   .announcement-meta { font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.04em; text-transform: uppercase; font-weight: 600; margin-bottom: 0.3rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-  .announcement-author { color: var(--accent); }
+  .announcement-author { color: var(--accent-readable); }
   .announcement-time { color: var(--ink-mute); }
   .announcement-text { font-size: 0.92rem; line-height: 1.5; color: var(--ink); white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere; }
   .announcement-actions { display: flex; gap: 0.2rem; flex-shrink: 0; opacity: 0; transition: opacity 0.12s; }
@@ -1134,7 +1185,7 @@
   .announcement-action-btn:hover { background: var(--surface-2); color: var(--ink); }
   .announcement-action-btn.danger:hover { color: var(--loss); }
   .announcement-post-btn { background: transparent; border: 1px dashed var(--line); color: var(--ink-mute); padding: 0.65rem 0.85rem; border-radius: var(--r); cursor: pointer; font-size: 0.85rem; text-align: left; transition: border-color 0.12s, color 0.12s; display: flex; align-items: center; gap: 0.5rem; width: 100%; }
-  .announcement-post-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .announcement-post-btn:hover { border-color: var(--accent-readable); color: var(--accent-readable); }
   /* v59: unread-state ring + "New" pill + reaction footer */
   .announcement.announcement-unread {
     box-shadow: 0 0 0 2px var(--accent-soft, rgba(168, 53, 31, 0.18)), 0 1px 0 rgba(168, 53, 31, 0.06);
@@ -1213,7 +1264,7 @@
     margin-left: auto;
   }
   .announcement-receipts-btn:hover {
-    border-color: var(--accent); color: var(--ink);
+    border-color: var(--accent-readable); color: var(--ink);
     background: var(--paper-deep);
   }
   .announcement-receipts-text { line-height: 1; }
@@ -1309,8 +1360,8 @@
   .audit-q-group { flex: 1; display: flex; gap: 0.3rem; align-items: center; justify-content: center; padding: 0 0.5rem; }
   .audit-q-year { font-family: var(--font-mono); font-size: 0.85rem; color: var(--ink-soft); margin-right: 0.4rem; }
   .audit-q-btn { background: transparent; border: 1px solid var(--line); padding: 0.3rem 0.7rem; font-size: 0.78rem; cursor: pointer; border-radius: var(--r-sm); color: var(--ink-mute); font-family: var(--font-sans); font-weight: 500; }
-  .audit-q-btn:hover { border-color: var(--accent); color: var(--accent); }
-  .audit-q-btn.active { background: var(--accent); border-color: var(--accent); color: var(--paper); }
+  .audit-q-btn:hover { border-color: var(--accent-readable); color: var(--accent-readable); }
+  .audit-q-btn.active { background: var(--accent); border-color: var(--accent-readable); color: var(--paper); }
   /* Month grouping in Expenses view when in quarter/year mode */
   .audit-exp-month-group { margin-bottom: 1rem; }
   .audit-exp-month-group:last-child { margin-bottom: 0; }
@@ -1327,7 +1378,7 @@
 
   .audit-month-bar { display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.75rem; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r); margin-bottom: 0.85rem; }
   .audit-month-nav { background: transparent; border: 1px solid var(--line); width: 28px; height: 28px; display: grid; place-items: center; cursor: pointer; color: var(--ink-soft); border-radius: var(--r-sm); }
-  .audit-month-nav:hover { border-color: var(--accent); color: var(--accent); }
+  .audit-month-nav:hover { border-color: var(--accent-readable); color: var(--accent-readable); }
   .audit-month-current { font-family: var(--font-serif); font-size: 0.98rem; font-weight: 600; padding: 0 0.4rem; flex: 1; text-align: center; color: var(--ink); }
   /* Net profit hero card at the top of Audit. Bordered prominent — the
      headline number you came here to see. Income minus the expense rollup
@@ -1452,7 +1503,7 @@
     background: transparent;
     border: none;
     border-top: 1px dashed var(--line-soft);
-    color: var(--accent);
+    color: var(--accent-readable);
     font-size: 0.75rem;
     font-weight: 500;
     cursor: pointer;
@@ -1927,7 +1978,7 @@
     border-radius: var(--r-sm); padding: 0.55rem 0.45rem;
   }
   .forecast-6m-cell.is-current {
-    border-color: var(--accent);
+    border-color: var(--accent-readable);
     box-shadow: 0 0 0 2px rgba(73,116,168,0.08);
   }
   .forecast-6m-bar-wrap {
@@ -2045,7 +2096,7 @@
   .chart-detail-expand {
     margin: 0.25rem 0 0.5rem;
     font-size: 0.78rem;
-    color: var(--accent);
+    color: var(--accent-readable);
   }
   .chart-detail-list {
     max-height: 50vh;
@@ -2295,10 +2346,10 @@
   .insights-kpi-value.pos { color: var(--gain); }
   .insights-kpi-value.neg { color: var(--loss); }
   .insights-kpi-sub { font-size: 0.7rem; color: var(--ink-mute); }
-  /* "Biggest" row — 3 small cards across */
+  /* "Biggest" row — 4 small cards across */
   .insights-biggest-row {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 0.75rem;
     margin-bottom: 0.95rem;
   }
@@ -2334,6 +2385,7 @@
     color: var(--ink); margin: 0;
   }
   .insights-chart-sub { font-size: 0.72rem; color: var(--ink-mute); font-weight: 400; }
+  .insights-chart-help { font-size: 0.7rem; color: var(--ink-mute); margin: 0.1rem 0 0.5rem; }
   .insights-chart-note { font-size: 0.72rem; color: var(--ink-mute); margin: 0.5rem 0 0; font-style: italic; }
   .insights-chart-legend { display: flex; gap: 0.85rem; font-size: 0.72rem; color: var(--ink-soft); }
   .insights-bar-svg, .insights-line-svg { width: 100%; height: auto; max-width: 100%; }
@@ -2422,7 +2474,7 @@
     cursor: pointer; transition: all 0.12s;
   }
   .insights-ranking-toggle:hover {
-    border-color: var(--accent); color: var(--ink); background: var(--paper-deep);
+    border-color: var(--accent-readable); color: var(--ink); background: var(--paper-deep);
   }
   /* Heatmap */
   .insights-heatmap-svg { width: 100%; height: auto; max-width: 100%; }
@@ -2554,7 +2606,7 @@
   }
   .insights-dow-cell.is-busiest {
     background: var(--paper);
-    border-color: var(--accent);
+    border-color: var(--accent-readable);
   }
   .insights-dow-label {
     font-size: 0.65rem; font-weight: 600; color: var(--ink-soft);
@@ -2571,12 +2623,30 @@
     min-height: 2px;
   }
   .insights-dow-cell.is-busiest .insights-dow-bar { background: var(--gain); }
+  /* Negative bars (loss days in the Net profit DOW grid) use the loss
+     palette so the chart's encoding stays consistent: red = bad. */
+  .insights-dow-bar-neg { background: var(--loss) !important; }
+  .insights-dow-cell.is-negative .insights-dow-val.neg { color: var(--loss); }
   .insights-dow-val {
     font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
     color: var(--ink); text-align: center; line-height: 1.1;
   }
+  .insights-dow-val.neg { color: var(--loss); }
   .insights-dow-sub {
     font-size: 0.58rem; color: var(--ink-mute); margin-top: 0.15rem;
+  }
+  /* v68: three side-by-side DOW patterns. Each block has its own
+     title + subtitle (busiest/heaviest/most-profitable) and its own
+     7-cell grid. Stack vertically on every screen size — they're
+     dense enough that side-by-side would crush them. */
+  .insights-dow-block { margin-bottom: 0.9rem; }
+  .insights-dow-block:last-child { margin-bottom: 0; }
+  .insights-dow-block-title {
+    font-size: 0.78rem; font-weight: 600; color: var(--ink);
+    margin-bottom: 0.4rem;
+  }
+  .insights-dow-block-sub {
+    font-weight: 400; color: var(--ink-mute); font-size: 0.72rem;
   }
   /* v63: WoW headline cards — same row layout as primary KPIs but
      each card pairs current week + last week + delta pill. */
@@ -2735,7 +2805,7 @@
     width: 100%;
   }
   .party-cat-row:hover { background: var(--surface-3); border-color: var(--line); }
-  .party-cat-row.active { background: var(--accent-bg, rgba(176, 70, 50, 0.08)); border-color: var(--accent); }
+  .party-cat-row.active { background: var(--accent-bg, rgba(176, 70, 50, 0.08)); border-color: var(--accent-readable); }
   .party-cat-name { font-size: 0.85rem; font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .party-cat-stats { display: flex; gap: 0.85rem; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
   .party-cat-in { color: var(--gain); min-width: 60px; text-align: right; }
@@ -3009,7 +3079,7 @@
   .party-card-name { font-family: var(--font-sans); font-size: 0.92rem; font-weight: 600; margin-bottom: 0.1rem; word-break: break-word; color: var(--ink); letter-spacing: -0.005em; padding-right: 3rem; }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
-  .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent); border-radius: var(--r-sm); }
+  .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
 
   /* Grouped accounts view */
   .account-groups { display: flex; flex-direction: column; gap: 1.1rem; }
@@ -3020,7 +3090,7 @@
     border-bottom: 1px solid var(--line);
   }
   .account-group-title { display: flex; align-items: center; gap: 0.55rem; flex: 1 1 auto; min-width: 0; }
-  .account-group-icon { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent); border-radius: var(--r-sm); }
+  .account-group-icon { display: grid; place-items: center; width: 26px; height: 26px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
   .account-group-name { font-family: var(--font-sans); font-size: 0.95rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.005em; }
   .account-group-meta { font-size: 0.65rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; }
   .account-group-actions { display: flex; align-items: center; gap: 0.3rem; flex-shrink: 0; }
@@ -3028,7 +3098,7 @@
   .account-group-balance.positive { color: var(--gain); }
   .account-group-balance.negative { color: var(--loss); }
   .account-group-empty { padding: 0.95rem; text-align: center; color: var(--ink-mute); font-size: 0.8rem; border: 1px dashed var(--line); border-radius: var(--r); }
-  .account-group-empty a { color: var(--accent); cursor: pointer; text-decoration: underline; font-style: normal; }
+  .account-group-empty a { color: var(--accent-readable); cursor: pointer; text-decoration: underline; font-style: normal; }
   .account-mini-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; }
   .account-mini-card { padding: 0.7rem 0.85rem; }
   .account-mini-card .party-card-name { font-size: 0.92rem; margin-bottom: 0.05rem; }
@@ -3043,7 +3113,7 @@
   /* Settings → Accounts grouped chips */
   .setting-acct-groups { display: flex; flex-direction: column; gap: 0.65rem; margin-bottom: 0.4rem; }
   .setting-acct-group-head { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; }
-  .setting-acct-group-icon { display: grid; place-items: center; width: 20px; height: 20px; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent); border-radius: var(--r-sm); }
+  .setting-acct-group-icon { display: grid; place-items: center; width: 20px; height: 20px; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
   .setting-acct-group-icon svg { width: 11px; height: 11px; }
   .setting-acct-group-name { font-weight: 500; font-size: 0.82rem; color: var(--ink); flex: 1; }
   /* Parties list inside the business-settings Operations tab. Same
@@ -3134,20 +3204,27 @@
   .settings-tabs { display: flex; gap: 0.1rem; margin: 0.35rem 0 0.95rem; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
   .settings-tab { padding: 0.5rem 0.8rem; background: transparent; border: none; cursor: pointer; font-size: 0.78rem; color: var(--ink-mute); font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.12s; white-space: nowrap; margin-bottom: -1px; }
   .settings-tab:hover { color: var(--ink); }
-  .settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .settings-tab.active { color: var(--accent-readable); border-bottom-color: var(--accent-readable); font-weight: 600; }
   /* v60: business-settings tabs — same visual language as the
      profile-settings tabs above so the user has one consistent mental
      model for tabbed modal navigation. */
   .biz-settings-tabs { display: flex; gap: 0.1rem; margin: 0 0 0.95rem; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
   .biz-settings-tab { padding: 0.5rem 0.8rem; background: transparent; border: none; cursor: pointer; font-size: 0.78rem; color: var(--ink-mute); font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.12s; white-space: nowrap; margin-bottom: -1px; }
   .biz-settings-tab:hover { color: var(--ink); }
-  .biz-settings-tab.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .biz-settings-tab.active { color: var(--accent-readable); border-bottom-color: var(--accent-readable); font-weight: 600; }
   .settings-tab-body { min-height: 200px; }
+  /* v68: staff page tabs — Team & access vs Activity by team member.
+     Mirrors the look of settings-tabs so users have one consistent
+     mental model for tabbed navigation across the app. */
+  .staff-tabs { display: flex; gap: 0.1rem; margin: 0.35rem 0 1.25rem; border-bottom: 1px solid var(--line-soft); overflow-x: auto; }
+  .staff-tab { padding: 0.6rem 1rem; background: transparent; border: none; cursor: pointer; font-size: 0.85rem; color: var(--ink-mute); font-weight: 500; border-bottom: 2px solid transparent; transition: all 0.12s; white-space: nowrap; margin-bottom: -1px; }
+  .staff-tab:hover { color: var(--ink); }
+  .staff-tab.is-active { color: var(--accent-readable); border-bottom-color: var(--accent-readable); font-weight: 600; }
 
   .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(85px, 1fr)); gap: 0.4rem; }
   .color-swatch { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.35rem; padding: 0.55rem 0.4rem; background: var(--paper-deep); border: 1.5px solid var(--line); cursor: pointer; transition: all 0.12s; font-family: inherit; border-radius: var(--r-sm); }
   .color-swatch:hover { border-color: var(--ink-soft); }
-  .color-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+  .color-swatch.active { border-color: var(--accent-readable); box-shadow: 0 0 0 2px var(--accent-soft); }
   .color-swatch-dot { display: block; width: 24px; height: 24px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); }
   .color-swatch-label { font-size: 0.66rem; color: var(--ink-soft); text-align: center; }
 
@@ -3808,6 +3885,10 @@
       <polyline points="3 6 5 6 21 6"/>
       <path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/>
     </symbol>
+    <symbol id="ico-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </symbol>
   </defs>
 </svg>
 
@@ -4258,12 +4339,19 @@
   // Paper/ink stay close to the original warm-paper aesthetic but tinted very
   // slightly toward the accent hue so the whole thing feels of-a-piece.
   function buildPalette(accentHex, mode) {
-    const [h, s] = hexToHsl(accentHex);
+    const [h, s, l] = hexToHsl(accentHex);
     const isDark = mode === 'dark';
     // Slightly desaturate paper so it feels like paper, not a wash of color.
     const paperSat = Math.min(s, 0.18);
     const inkSat = Math.min(s, 0.12);
     if (isDark) {
+      // In dark mode the page background is near-black, so a dark accent
+      // (e.g. "Black", "Navy") used as a foreground color would be invisible.
+      // accentReadable falls back to a lightened tint of the accent when the
+      // raw accent is too dark to read against the dark page.
+      const accentReadable = l < 0.35
+        ? hslStr(h, Math.min(s, 0.6), 0.72)
+        : accentHex;
       return {
         paper:       hslStr(h, paperSat * 0.4, 0.09),
         paperDeep:   hslStr(h, paperSat * 0.4, 0.11),
@@ -4273,6 +4361,7 @@
         line:        hslStr(h, paperSat * 0.3, 0.20),
         lineSoft:    hslStr(h, paperSat * 0.3, 0.14),
         accent:      accentHex,
+        accentReadable,
         accentSoft:  hslStr(h, Math.min(s, 0.7), 0.65),
         gain:        '#6fa67a',
         gainSoft:    '#8cbf95',
@@ -4303,6 +4392,12 @@
       line:        hslStr(h, paperSat * 0.6, 0.78),
       lineSoft:    hslStr(h, paperSat * 0.6, 0.88),
       accent:      accentHex,
+      // In light mode the page background is cream, so a very light accent
+      // (e.g. pastel custom color) would be invisible. accentReadable darkens
+      // it when the raw accent is too light to read against the cream page.
+      accentReadable: l > 0.7
+        ? hslStr(h, Math.min(s, 0.7), 0.28)
+        : accentHex,
       accentSoft:  hslStr(h, Math.min(s, 0.7), 0.55),
       gain:        '#2e5d3a',
       gainSoft:    '#4a8157',
@@ -4357,6 +4452,7 @@
     root.setProperty('--line', p.line);
     root.setProperty('--line-soft', p.lineSoft);
     root.setProperty('--accent', p.accent);
+    root.setProperty('--accent-readable', p.accentReadable);
     root.setProperty('--accent-soft', p.accentSoft);
     root.setProperty('--gain', p.gain);
     root.setProperty('--gain-soft', p.gainSoft);
@@ -6400,7 +6496,7 @@
       const u = me();
       root.innerHTML = `
         <div class="empty" style="padding:3rem 1rem;text-align:center;">
-          <div class="empty-illustration" style="margin:0 auto 1rem;color:var(--accent);">
+          <div class="empty-illustration" style="margin:0 auto 1rem;color:var(--accent-readable);">
             <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
           </div>
           <h1 class="empty-headline" style="font-size:1.5rem;margin-bottom:0.5rem;">Welcome${u ? ', ' + escapeHtml(u.name.split(' ')[0]) : ''}.</h1>
@@ -6633,10 +6729,14 @@
     </div>`;
   }
 
-  // Chunked rendering: render the first ENTRY_PAGE_SIZE entries immediately, then
-  // append more as the user scrolls. With 500+ entries the difference is ~150ms
-  // sync work → ~30ms per chunk.
-  const ENTRY_PAGE_SIZE = 100;
+  // Chunked rendering: show ENTRY_PAGE_SIZE entries by default, then
+  // an explicit "Show more" button rather than auto-scroll-load.
+  // Explicit clicks give the user a clear sense of how much data they
+  // have and prevent runaway memory on enormous books.
+  const ENTRY_PAGE_SIZE = 200;
+  // Track how many entries are currently shown so the "Show more"
+  // button can paginate without re-running the filter from scratch.
+  let __entriesShown = ENTRY_PAGE_SIZE;
   let __entryRenderObserver = null;
 
   function renderEntriesList() {
@@ -6721,50 +6821,53 @@
       return;
     }
 
-    // First page renders synchronously; rest lazy-load on scroll
-    const firstPage = entries.slice(0, ENTRY_PAGE_SIZE);
-    const remaining = entries.slice(ENTRY_PAGE_SIZE);
-    const sentinel = remaining.length ? `<div id="entryListSentinel" data-remaining="${remaining.length}" style="padding:1rem;text-align:center;color:var(--ink-mute);font-size:0.85rem;">Loading more (${remaining.length} remaining)…</div>` : '';
+    // Render only the first __entriesShown entries; rest behind a
+    // "Show more" button. The full filtered set is cached so pagination
+    // is O(1) — no re-filtering on each click.
+    __entriesShownCache = entries;
+    if (__entriesShown > entries.length) __entriesShown = ENTRY_PAGE_SIZE;
+    const shownEntries = entries.slice(0, __entriesShown);
+    const remainingCount = entries.length - shownEntries.length;
+    const moreBtn = remainingCount > 0
+      ? `<div id="entryListMoreWrap" style="padding:1rem 0.5rem;text-align:center;">
+          <button class="btn btn-sm" onclick="showMoreEntries()">Show next ${Math.min(ENTRY_PAGE_SIZE, remainingCount)} of ${remainingCount} remaining</button>
+          <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--ink-mute);">Showing ${shownEntries.length} of ${entries.length}</div>
+        </div>`
+      : (entries.length > ENTRY_PAGE_SIZE
+        ? `<div style="padding:0.7rem;text-align:center;font-size:0.72rem;color:var(--ink-mute);">All ${entries.length} entries shown.</div>`
+        : '');
     // Pre-build the accountId→record map ONCE for this entire render. Previously
     // each entry row did its own .find() over data.cashAccounts, which was
     // O(entries × accounts) per render.
     const accountMap = buildAccountMap();
-    list.innerHTML = firstPage.map(e => renderEntryRow(e, isMobile, accountMap)).join('') + sentinel;
+    list.innerHTML = shownEntries.map(e => renderEntryRow(e, isMobile, accountMap)).join('') + moreBtn;
 
-    // Disconnect any previous observer to avoid leaks across renders
+    // Disconnect any previous observer (no longer used for entries but
+    // defensive — may have been left from an earlier render path).
     if (__entryRenderObserver) { __entryRenderObserver.disconnect(); __entryRenderObserver = null; }
-
-    if (remaining.length) {
-      // Stash the remaining list on the sentinel so the observer callback doesn't close over stale data
-      const sentinelEl = document.getElementById('entryListSentinel');
-      const tail = remaining;
-      let appended = 0;
-      __entryRenderObserver = new IntersectionObserver((entries) => {
-        if (!entries.some(e => e.isIntersecting)) return;
-        const chunkSize = ENTRY_PAGE_SIZE;
-        const chunk = tail.slice(appended, appended + chunkSize);
-        if (!chunk.length) return;
-        // Insert chunk before the sentinel, then move the sentinel to the end
-        const frag = document.createElement('template');
-        frag.innerHTML = chunk.map(e => renderEntryRow(e, isMobile, accountMap)).join('');
-        sentinelEl.parentNode.insertBefore(frag.content, sentinelEl);
-        appended += chunk.length;
-        const left = tail.length - appended;
-        if (left <= 0) {
-          sentinelEl.remove();
-          __entryRenderObserver.disconnect();
-          __entryRenderObserver = null;
-        } else {
-          sentinelEl.textContent = `Loading more (${left} remaining)…`;
-        }
-      }, { rootMargin: '300px' });
-      __entryRenderObserver.observe(sentinelEl);
-    }
+  }
+  // Cached filtered entries so the Show More button doesn't re-filter.
+  let __entriesShownCache = [];
+  // Reveal the next page of entries. Increments __entriesShown by
+  // ENTRY_PAGE_SIZE and re-renders the entries view. Cheap because
+  // we kept the filtered array around.
+  function showMoreEntries() {
+    __entriesShown += ENTRY_PAGE_SIZE;
+    renderEntriesList();
+    // Scroll the newly revealed batch into view smoothly so the user
+    // doesn't have to hunt for where the list continued.
+    requestAnimationFrame(() => {
+      const list = document.getElementById('entriesList');
+      const moreBtn = document.getElementById('entryListMoreWrap');
+      if (moreBtn) moreBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      else if (list) list.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
   }
   function clearAllEntryFilters() {
     __entryFilter = { partyId: null, category: null, accountId: null };
     const s = document.getElementById('searchInput'); if (s) s.value = '';
     const t = document.getElementById('filterType'); if (t) t.value = 'all';
+    __entriesShown = ENTRY_PAGE_SIZE; // reset pagination on filter clear
     renderEntriesList();
   }
 
@@ -7331,12 +7434,19 @@
     const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
+    // v68: account chip on every drill-down row — users couldn't tell
+    // which account each transaction moved through before.
+    const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
         <div class="entry-date">${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
-          ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+          <div class="entry-chip-row">
+            ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+            ${acctChip}
+          </div>
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
@@ -7353,7 +7463,10 @@
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
-        ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+        <div class="entry-chip-row">
+          ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+          ${acctChip}
+        </div>
       </div>
       <div style="font-size:0.82rem;color:var(--ink-soft);">${escapeHtml(e._bookName)}</div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
@@ -7599,12 +7712,16 @@
     const isPastDate = isEntryBackdated(e);
     const statusCls = isEdited ? ' entry-row-edited'
       : (isPastDate ? ' entry-row-pastdate' : '');
+    // v68: account chip on category drill-down rows
+    const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
         <div class="entry-date">${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
+          ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
         <div class="entry-card-footer">
@@ -7621,6 +7738,7 @@
       <div class="entry-date">${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
+        ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
       </div>
       <div style="font-size:0.82rem;color:var(--ink-soft);">
         ${e.party ? `<div>${escapeHtml(e.party)}</div>` : ''}
@@ -9554,8 +9672,8 @@
           <div class="forecast-insight-sub">${paceTag(inPaceVsLast)}</div>
         </div>
         <div class="forecast-insight-card">
-          <div class="forecast-insight-label">Projected net profit</div>
-          <div class="forecast-insight-value ${projNetProfit >= 0 ? 'pos' : 'neg'}">${cur} ${projNetProfit >= 0 ? '' : '−'}${fmt(Math.abs(projNetProfit))}</div>
+          <div class="forecast-insight-label">Projected operating profit <span style="font-weight:400;color:var(--ink-mute);font-size:0.75em;">(before tax)</span></div>
+          <div class="forecast-insight-value ${projOperatingProfit >= 0 ? 'pos' : 'neg'}">${cur} ${projOperatingProfit >= 0 ? '' : '−'}${fmt(Math.abs(projOperatingProfit))}</div>
           <div class="forecast-insight-sub">${paceTag(profitPaceVsLast)}</div>
         </div>
       </div>
@@ -10079,7 +10197,6 @@
         <div class="page-actions">
           ${printIconButton()}
           ${exportIconButton('forecast')}
-          <button class="btn btn-sm btn-ghost" onclick="switchView('audit')">← Back to Audit</button>
         </div>
       </div>
 
@@ -10788,6 +10905,14 @@
       .filter(p => p.net > 0)
       .sort((a, b) => b.net - a.net);
     const biggestParty = profitableParties[0] || null;
+    // Top loss party — same data, opposite sign. A party we paid more
+    // to than we received from. Useful for spotting suppliers or
+    // refund-heavy customers eating into margins.
+    const lossParties = [...partyTotals.values()]
+      .map(p => ({ ...p, net: p.inSum - p.outSum }))
+      .filter(p => p.net < 0)
+      .sort((a, b) => a.net - b.net);
+    const biggestLossParty = lossParties[0] || null;
     // Biggest expense (period)
     let biggestExpense = null;
     for (const x of data.auditExpenses) {
@@ -10811,6 +10936,13 @@
             <div class="insights-biggest-value">${escapeHtml(biggestParty.name)}</div>
             <div class="insights-biggest-sub">Profit ${cur} +${fmt(biggestParty.net)} · ${biggestParty.count} ${biggestParty.count === 1 ? 'entry' : 'entries'}</div>
           ` : '<div class="insights-biggest-empty">No profitable party in this period.</div>'}
+        </div>
+        <div class="insights-biggest-card">
+          <div class="insights-biggest-label">Top loss party</div>
+          ${biggestLossParty ? `
+            <div class="insights-biggest-value neg">${escapeHtml(biggestLossParty.name)}</div>
+            <div class="insights-biggest-sub">Loss ${cur} −${fmt(Math.abs(biggestLossParty.net))} · ${biggestLossParty.count} ${biggestLossParty.count === 1 ? 'entry' : 'entries'}</div>
+          ` : '<div class="insights-biggest-empty">No party with a net loss in this period.</div>'}
         </div>
         <div class="insights-biggest-card">
           <div class="insights-biggest-label">Biggest expense</div>
@@ -10963,13 +11095,15 @@
     for (let d = 1; d <= _daysInMonth; d++) {
       const b = _mtdByDay.get(d) || { in: 0, out: 0 };
       const xStart = _padL + (d - 1) * _dayWidth + _barGap;
+      const _dateStr = `${_monthKeyStr}-${String(d).padStart(2, '0')}`;
+      const _payload = JSON.stringify({ kind: 'day', date: _dateStr });
       if (b.in > 0) {
         const hh = (b.in / _yMaxDaily) * _innerH;
-        _dailyBars.push(`<rect class="fc-bar-in" x="${xStart.toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1"/>`);
+        _dailyBars.push(`<rect class="fc-bar-in" x="${xStart.toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: in ${cur} ${fmt(b.in)}${b.out > 0 ? ' · out ' + cur + ' ' + fmt(b.out) : ''}</title></rect>`);
       }
       if (b.out > 0) {
         const hh = (b.out / _yMaxDaily) * _innerH;
-        _dailyBars.push(`<rect class="fc-bar-out" x="${(xStart + _barWidth + _barGap).toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1"/>`);
+        _dailyBars.push(`<rect class="fc-bar-out" x="${(xStart + _barWidth + _barGap).toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: out ${cur} ${fmt(b.out)}${b.in > 0 ? ' · in ' + cur + ' ' + fmt(b.in) : ''}</title></rect>`);
       }
     }
     const _dailyXLabels = [];
@@ -10991,6 +11125,73 @@
       _dailyYLabels.push(`<line class="fc-grid" x1="${_padL}" y1="${y.toFixed(1)}" x2="${_chartW - _padR}" y2="${y.toFixed(1)}" />`);
       _dailyYLabels.push(`<text class="fc-ylabel" x="${_padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end">${fmt(val)}</text>`);
     }
+    // v68: Daily Net Profit bar chart — single bar per day showing net
+    // cash flow (in − out). Profit days render green above the zero
+    // line, loss days render red below. Same month and clickable
+    // bars as the cash flow chart, just collapsed to a net view so
+    // the user can spot trend at a glance.
+    const _netH = 220, _netInnerH = _netH - _padT - _padB;
+    let _netMax = 0;
+    for (let d = 1; d <= _daysInMonth; d++) {
+      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
+      const net = b.in - b.out;
+      if (Math.abs(net) > _netMax) _netMax = Math.abs(net);
+    }
+    if (_netMax === 0) _netMax = 1;
+    const _netYMax = _niceCeil(_netMax);
+    const _netZeroY = _padT + _netInnerH / 2;
+    const _netHalfH = _netInnerH / 2;
+    const _netBarW = Math.max(2, _dayWidth - _barGap * 2);
+    const _netBars = [];
+    for (let d = 1; d <= _daysInMonth; d++) {
+      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
+      const net = b.in - b.out;
+      if (net === 0) continue;
+      const xStart = _padL + (d - 1) * _dayWidth + _barGap;
+      const h = Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
+      const y = net >= 0 ? (_netZeroY - h) : _netZeroY;
+      const cls = net >= 0 ? 'fc-bar-pos' : 'fc-bar-neg';
+      const _dateStr = `${_monthKeyStr}-${String(d).padStart(2, '0')}`;
+      const _payload = JSON.stringify({ kind: 'day', date: _dateStr });
+      const sign = net >= 0 ? '+' : '−';
+      _netBars.push(`<rect class="fc-bar ${cls}" x="${xStart.toFixed(1)}" y="${y.toFixed(1)}" width="${_netBarW.toFixed(1)}" height="${h.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: ${sign}${cur} ${fmt(Math.abs(net))} (in ${fmt(b.in)} − out ${fmt(b.out)})</title></rect>`);
+    }
+    const _netXLabels = [];
+    for (let d = 1; d <= _daysInMonth; d++) {
+      if (d === 1 || d % 5 === 0 || d === _daysInMonth) {
+        const x = _padL + (d - 0.5) * _dayWidth;
+        _netXLabels.push(`<text class="fc-xlabel" x="${x.toFixed(1)}" y="${_netH - 18}" text-anchor="middle">${d}</text>`);
+      }
+    }
+    const _netTodayMarker = `
+      <line class="fc-today" x1="${_todayX.toFixed(1)}" y1="${_padT}" x2="${_todayX.toFixed(1)}" y2="${_padT + _netInnerH}" />
+      <text class="fc-today-label" x="${_todayX.toFixed(1)}" y="${_padT - 6}" text-anchor="middle">Today</text>
+    `;
+    const _netZeroAxis = `<line x1="${_padL}" y1="${_netZeroY.toFixed(1)}" x2="${(_chartW - _padR).toFixed(1)}" y2="${_netZeroY.toFixed(1)}" stroke="var(--line)" stroke-width="0.8" />`;
+    const _netYLabels = `
+      <text class="fc-ylabel" x="${(_padL - 6).toFixed(1)}" y="${(_padT + 4).toFixed(1)}" text-anchor="end">+${fmt(_netYMax)}</text>
+      <text class="fc-ylabel" x="${(_padL - 6).toFixed(1)}" y="${(_netZeroY + 4).toFixed(1)}" text-anchor="end">0</text>
+      <text class="fc-ylabel" x="${(_padL - 6).toFixed(1)}" y="${(_padT + _netInnerH + 4).toFixed(1)}" text-anchor="end">−${fmt(_netYMax)}</text>
+    `;
+    const dailyNetProfitHTML = `
+      <div class="insights-chart-wrap">
+        <div class="insights-chart-head">
+          <h3 class="insights-chart-title">Daily net profit <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span></h3>
+          <div class="insights-chart-legend">
+            <span><span class="fc-swatch fc-swatch-current"></span> Profit day</span>
+            <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
+          </div>
+        </div>
+        <p class="insights-chart-help">Tap any bar to see the day's entries.</p>
+        <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
+          ${_netZeroAxis}
+          ${_netBars.join('')}
+          ${_netTodayMarker}
+          ${_netXLabels.join('')}
+          ${_netYLabels}
+        </svg>
+      </div>`;
+
     const dailyCashFlowHTML = `
       <div class="insights-chart-wrap">
         <div class="insights-chart-head">
@@ -11000,6 +11201,7 @@
             <span><span class="fc-swatch fc-swatch-out"></span> Cash out</span>
           </div>
         </div>
+        <p class="insights-chart-help">Tap any bar to see the day's entries.</p>
         <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_chartH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily cash in and cash out for ${escapeHtml(_dailyMonthName)}">
           ${_dailyYLabels.join('')}
           ${_dailyBars.join('')}
@@ -11471,44 +11673,78 @@
         </div>
       </div>`;
 
-    // v63: Day-of-week patterns — which days does the business do
-    // most volume? Useful for staffing decisions, marketing, etc.
-    // Sum (in + out) per weekday across allEntries.
+    // v63/v68: Day-of-week patterns — which weekday brings in the
+    // most cash, which has the heaviest outflow, and which is the
+    // most profitable on net. Three side-by-side mini-charts so the
+    // owner can spot patterns specific to each dimension at a glance.
     const dowNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const dowTotals = [0, 0, 0, 0, 0, 0, 0]; // sum |in| + |out|
+    const dowIn     = [0, 0, 0, 0, 0, 0, 0]; // cash in per day
+    const dowOut    = [0, 0, 0, 0, 0, 0, 0]; // cash out per day
     const dowCounts = [0, 0, 0, 0, 0, 0, 0];
     for (const e of allEntries) {
       if (!e.date) continue;
       const d = new Date(e.date + 'T00:00:00');
       const dow = d.getDay();
-      dowTotals[dow] += entryAmount(e);
+      const amt = entryAmount(e);
+      if (e.type === 'in') dowIn[dow] += amt; else dowOut[dow] += amt;
       dowCounts[dow]++;
     }
-    const dowMax = Math.max(...dowTotals, 1);
+    const dowNet = dowIn.map((v, i) => v - dowOut[i]);
+    const dowInMax = Math.max(...dowIn, 1);
+    const dowOutMax = Math.max(...dowOut, 1);
+    const dowNetAbsMax = Math.max(...dowNet.map(Math.abs), 1);
     // Reorder so Mon-Sun visually (matching the heatmap conventions).
     const dowOrder = [1, 2, 3, 4, 5, 6, 0];
-    let busiestIdx = 0, busiestVal = -1;
-    for (const i of dowOrder) {
-      if (dowTotals[i] > busiestVal) { busiestVal = dowTotals[i]; busiestIdx = i; }
+    function argmax(arr) {
+      let bi = dowOrder[0], bv = -Infinity;
+      for (const i of dowOrder) {
+        if (arr[i] > bv) { bv = arr[i]; bi = i; }
+      }
+      return bi;
+    }
+    const busiestInIdx = argmax(dowIn);
+    const heaviestOutIdx = argmax(dowOut);
+    const mostProfitableIdx = argmax(dowNet);
+    function dowGrid(values, maxVal, highlightIdx, opts = {}) {
+      // opts.signed: true → render losses red (height clamped, label shows sign)
+      return `
+        <div class="insights-dow-grid">
+          ${dowOrder.map(i => {
+            const v = values[i];
+            const isHighlight = i === highlightIdx;
+            const pct = (Math.abs(v) / maxVal) * 100;
+            const negative = opts.signed && v < 0;
+            const barCls = negative ? 'insights-dow-bar insights-dow-bar-neg' : 'insights-dow-bar';
+            const valLabel = opts.signed
+              ? `${v >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(v))}`
+              : `${cur} ${fmt(v)}`;
+            return `
+              <div class="insights-dow-cell ${isHighlight ? 'is-busiest' : ''} ${negative ? 'is-negative' : ''}">
+                <div class="insights-dow-label">${dowNames[i]}</div>
+                <div class="insights-dow-bar-wrap">
+                  <div class="${barCls}" style="height:${pct.toFixed(1)}%"></div>
+                </div>
+                <div class="insights-dow-val ${negative ? 'neg' : ''}">${valLabel}</div>
+                <div class="insights-dow-sub">${dowCounts[i]} ${dowCounts[i] === 1 ? 'entry' : 'entries'}</div>
+              </div>`;
+          }).join('')}
+        </div>`;
     }
     const dowHTML = `
       <div class="insights-section">
         <h3 class="insights-section-title">Day-of-week patterns</h3>
-        <p class="insights-section-sub">Which days move the most money. Busiest day: <strong>${escapeHtml(dowNames[busiestIdx])}</strong> with ${cur} ${fmt(busiestVal)} across ${dowCounts[busiestIdx]} ${dowCounts[busiestIdx] === 1 ? 'entry' : 'entries'}.</p>
-        <div class="insights-dow-grid">
-          ${dowOrder.map(i => {
-            const pct = (dowTotals[i] / dowMax) * 100;
-            const isBusiest = i === busiestIdx;
-            return `
-              <div class="insights-dow-cell ${isBusiest ? 'is-busiest' : ''}">
-                <div class="insights-dow-label">${dowNames[i]}</div>
-                <div class="insights-dow-bar-wrap">
-                  <div class="insights-dow-bar" style="height:${pct.toFixed(1)}%"></div>
-                </div>
-                <div class="insights-dow-val">${cur} ${fmt(dowTotals[i])}</div>
-                <div class="insights-dow-sub">${dowCounts[i]} ${dowCounts[i] === 1 ? 'entry' : 'entries'}</div>
-              </div>`;
-          }).join('')}
+        <p class="insights-section-sub">Which weekday does the most volume, sees the most outflow, and turns the biggest profit. Three views, one period.</p>
+        <div class="insights-dow-block">
+          <div class="insights-dow-block-title">Cash in <span class="insights-dow-block-sub">— busiest: <strong>${escapeHtml(dowNames[busiestInIdx])}</strong></span></div>
+          ${dowGrid(dowIn, dowInMax, busiestInIdx)}
+        </div>
+        <div class="insights-dow-block">
+          <div class="insights-dow-block-title">Cash out <span class="insights-dow-block-sub">— heaviest: <strong>${escapeHtml(dowNames[heaviestOutIdx])}</strong></span></div>
+          ${dowGrid(dowOut, dowOutMax, heaviestOutIdx, { highlightAsLoss: true })}
+        </div>
+        <div class="insights-dow-block">
+          <div class="insights-dow-block-title">Net profit <span class="insights-dow-block-sub">— most profitable: <strong>${escapeHtml(dowNames[mostProfitableIdx])}</strong></span></div>
+          ${dowGrid(dowNet, dowNetAbsMax, mostProfitableIdx, { signed: true })}
         </div>
       </div>`;
     root.innerHTML = `
@@ -11529,6 +11765,7 @@
       ${bestWorstSection}
       ${growthHTML}
       ${monthlyCompareHTML}
+      ${dailyNetProfitHTML}
       ${dailyCashFlowHTML}
       ${barChartHTML}
       ${trendChartHTML}
@@ -11669,9 +11906,16 @@
     const html = rows.map(r => {
       const who = __activityFilterIdToName.get(r.user_id) || 'Team member';
       const initials = who.split(' ').filter(Boolean).map(s => s[0]).slice(0, 2).join('').toUpperCase() || '?';
-      const verb = r.event_type === 'entry_deleted'
-        ? '<span class="activity-row-verb activity-verb-delete">deleted an entry</span>'
-        : '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
+      let verb;
+      if (r.event_type === 'entry_deleted') {
+        verb = '<span class="activity-row-verb activity-verb-delete">deleted an entry</span>';
+      } else if (r.event_type === 'entry_backdated') {
+        verb = '<span class="activity-row-verb activity-verb-backdated">added a backdated entry</span>';
+      } else if (r.event_type === 'entry_forwarddated') {
+        verb = '<span class="activity-row-verb activity-verb-backdated">added a forward-dated entry</span>';
+      } else {
+        verb = '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
+      }
       const when = relativeTime(r.occurred_at);
       const whenAbsolute = new Date(r.occurred_at).toLocaleString();
       const safeRowId = jsAttr(r.id || '');
@@ -11775,7 +12019,7 @@
         .from('app_audit_log')
         .delete()
         .eq('business_id', biz.id)
-        .in('event_type', ['entry_edited', 'entry_deleted']);
+        .in('event_type', ['entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated']);
       if (error) {
         toast('Could not clear: ' + (error.message || 'unknown error'));
         if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
@@ -11804,7 +12048,7 @@
         .from('app_audit_log')
         .select('id, user_id, event_type, description, metadata, occurred_at')
         .eq('business_id', biz.id)
-        .in('event_type', ['entry_edited', 'entry_deleted'])
+        .in('event_type', ['entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated'])
         .order('occurred_at', { ascending: false })
         .limit(200);
       if (error) {
@@ -13400,10 +13644,10 @@
     __cancelGesture();
   }, { passive: true });
 
-  // Context menu shown after a long-press on a row. Two buttons:
-  // Edit and Delete. Modal-style so the user can dismiss with the
-  // backdrop. Uses the same canEditEntry permission gate as the
-  // inline buttons.
+  // Context menu shown after a long-press on a row. Three actions:
+  // View, Edit, Delete. Modal-style so the user can dismiss with the
+  // backdrop. Uses canEditEntry for Edit/Delete; View is always
+  // available since it just shows existing data.
   function openEntryContextMenu(entryId) {
     const e = data.entries.find(x => x.id === entryId);
     if (!e) return;
@@ -13415,6 +13659,10 @@
       <h2 class="modal-title">Entry actions</h2>
       <p class="modal-sub">${escapeHtml(formatEntryAudit(e).slice(0, 80))}…</p>
       <div style="display:flex;flex-direction:column;gap:0.55rem;margin:0.8rem 0;">
+        <button class="btn" onclick="closeModal();viewEntryDetails('${jsAttr(entryId)}')">
+          <svg width="14" height="14" style="vertical-align:-2px;margin-right:0.45rem;"><use href="#ico-eye"/></svg>
+          View details
+        </button>
         <button class="btn" onclick="closeModal();editEntry('${jsAttr(entryId)}')" ${canEdit ? '' : 'disabled'}>
           <svg width="14" height="14" style="vertical-align:-2px;margin-right:0.45rem;"><use href="#ico-edit"/></svg>
           Edit entry
@@ -13426,6 +13674,75 @@
         ${!canEdit ? '<p style="font-size:0.72rem;color:var(--ink-mute);">You can only modify entries you created.</p>' : ''}
       </div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
+    `;
+    _showModalBackdrop();
+  }
+
+  // Read-only entry detail view — shows every field on a single entry,
+  // including who created it, when (with full date+time), what was edited
+  // and when, whether the entry is backdated (entered on a different day
+  // than its accounting date). Reused from the long-press "View details"
+  // and clickable in places where you just want to inspect, not edit.
+  function viewEntryDetails(entryId) {
+    const e = data.entries.find(x => x.id === entryId);
+    if (!e) { toast('Entry not found.'); return; }
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    const cur = biz ? currencyDisplay(biz.currency) : '';
+    const acct = data.cashAccounts.find(a => a.id === e.accountId);
+    const acctName = acct ? acct.name : (e.account || '—');
+    const party = e.partyId ? data.parties.find(p => p.id === e.partyId) : null;
+    const partyName = party ? party.name : (e.party || '—');
+    const createdAt = e.createdAt ? new Date(e.createdAt) : null;
+    const editedAt = e.editedAt ? new Date(e.editedAt) : null;
+    const backdated = isEntryBackdated(e);
+    const fmtDateTime = (d) => {
+      if (!d || isNaN(d.getTime())) return '—';
+      const date = d.toLocaleDateString('default', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+      const time = d.toLocaleTimeString('default', { hour: 'numeric', minute: '2-digit' });
+      return `${date}, ${time}`;
+    };
+    const fmtDate = (s) => {
+      if (!s) return '—';
+      const d = new Date(s + 'T00:00:00');
+      return d.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    };
+    const typeLabel = e.type === 'in' ? 'Cash in' : 'Cash out';
+    const sign = e.type === 'in' ? '+' : '−';
+    const amountColor = e.type === 'in' ? 'var(--gain)' : 'var(--loss)';
+    const rows = [
+      ['Amount',     `<span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:${amountColor};">${sign} ${cur} ${fmt(Math.abs(Number(e.amount) || 0))}</span>`],
+      ['Type',       escapeHtml(typeLabel)],
+      [e.type === 'in' ? 'From' : 'To', escapeHtml(partyName)],
+      ['Account',    escapeHtml(acctName)],
+      ['Category',   escapeHtml(e.category || '—')],
+      ['Date',       escapeHtml(fmtDate(e.date)) + (backdated ? ' <span style="color:var(--accent-readable);font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-left:0.4rem;">Backdated</span>' : '')],
+      ['Note',       e.note ? escapeHtml(e.note) : '<span style="color:var(--ink-mute);">—</span>'],
+      ['Created by', escapeHtml(e.createdByName || '—')],
+      ['Added',      escapeHtml(fmtDateTime(createdAt))],
+    ];
+    if (editedAt) {
+      rows.push(['Last edited', escapeHtml(fmtDateTime(editedAt)) + (e.editedByName ? ' <span style="color:var(--ink-mute);">by ' + escapeHtml(e.editedByName) + '</span>' : '')]);
+    }
+    const canEdit = canEditEntry(e);
+    const modal = document.getElementById('modalContent');
+    if (!modal) return;
+    modal.innerHTML = `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Entry details</h2>
+      <p class="modal-sub">Full record for this entry.</p>
+      <dl style="display:grid;grid-template-columns:max-content 1fr;column-gap:1rem;row-gap:0.55rem;margin:0.9rem 0 1rem;font-size:0.86rem;">
+        ${rows.map(([k, v]) => `
+          <dt style="color:var(--ink-mute);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;padding-top:0.18rem;white-space:nowrap;">${escapeHtml(k)}</dt>
+          <dd style="margin:0;color:var(--ink);word-break:break-word;">${v}</dd>
+        `).join('')}
+      </dl>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Close</button>
+        ${canEdit ? `<button class="btn" onclick="closeModal();editEntry('${jsAttr(entryId)}')">
+          <svg width="14" height="14" style="vertical-align:-2px;margin-right:0.4rem;"><use href="#ico-edit"/></svg>
+          Edit
+        </button>` : ''}
+      </div>
     `;
     _showModalBackdrop();
   }
@@ -13707,7 +14024,7 @@
       toast('Entry updated.');
     } else {
       const newDate = document.getElementById('mDate').value || today();
-      data.entries.push({
+      const newEntry = {
         id: uid(), bookId: session.activeBookId,
         type: document.getElementById('mType').value, amount: amt, date: newDate,
         party: partyText, partyId: partyId || undefined,
@@ -13715,7 +14032,27 @@
         category: catValue,
         note,
         createdAt: Date.now(), createdBy: u.id, createdByName: u.name,
-      });
+      };
+      data.entries.push(newEntry);
+      // Backdated / forward-dated audit log. Compares entry date to
+      // today (creation day). If they differ, owners need to know — a
+      // staff member backdating entries is a fraud red flag, and even
+      // owners themselves benefit from a record of when they did it.
+      const todayYmd = today();
+      if (newDate !== todayYmd) {
+        const book = data.books.find(b => b.id === session.activeBookId);
+        const bizId = book ? book.businessId : null;
+        if (bizId) {
+          const dir = newDate < todayYmd ? 'backdated' : 'forward-dated';
+          const desc = `${dir.charAt(0).toUpperCase() + dir.slice(1)}: ${formatEntryAudit(newEntry)} (dated ${newDate}, added on ${todayYmd})`;
+          logAuditEvent(
+            'entry_' + (newDate < todayYmd ? 'backdated' : 'forwarddated'),
+            desc,
+            { entry_id: newEntry.id, book_id: session.activeBookId, entry_date: newDate, added_on: todayYmd },
+            bizId
+          ).catch(() => {});
+        }
+      }
       const newMonth = monthKey(newDate);
       const todayMonth = today().slice(0, 7);
       if (newMonth !== todayMonth && session.period.mode === 'current') {
@@ -14401,7 +14738,7 @@
               <div class="user-avatar" style="background:var(--accent-soft);opacity:${m.status === 'accepted' ? 1 : 0.5};">${displayName[0].toUpperCase()}</div>
               <div>
                 <div style="font-weight:500;">${escapeHtml(displayName)}</div>
-                <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined ' + (m.respondedAt || '') : 'joined ' + (m.respondedAt || m.addedAt)}</div>
+                <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined' + (m.respondedAt ? ' ' + m.respondedAt : '') : 'joined' + (m.respondedAt || m.addedAt ? ' ' + (m.respondedAt || m.addedAt) : '')}</div>
               </div>
             </div>
             <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
@@ -15384,14 +15721,34 @@
         // The buttons just keep their default "Read receipts" label.
         return;
       }
-      // Aggregate per-announcement.
+      // Aggregate per-announcement, but ONLY for current accepted team
+      // members of the announcement's business. The previous code
+      // counted EVERY viewer — owner-who-wrote-it, ex-team-members
+      // whose accounts had been removed — which inflated the count
+      // and didn't match the per-person list shown in the modal.
       const summary = new Map();
-      for (const id of annIds) summary.set(id, { viewedBy: new Set(), reactedBy: new Set() });
+      // Build per-announcement allowed-user-id set: members who are
+      // currently accepted in the same business as that announcement.
+      const annAllowed = new Map(); // annId -> Set<userId>
+      for (const annId of annIds) {
+        const ann = (data.announcements || []).find(a => a.id === annId);
+        if (!ann) { annAllowed.set(annId, new Set()); continue; }
+        const allowed = new Set();
+        for (const m of data.members) {
+          if (m.businessId === ann.businessId && m.status === 'accepted' && m.userId) {
+            allowed.add(m.userId);
+          }
+        }
+        annAllowed.set(annId, allowed);
+        summary.set(annId, { viewedBy: new Set(), reactedBy: new Set() });
+      }
       for (const r of (rows || [])) {
         const s = summary.get(r.announcement_id);
-        if (!s) continue;
-        if (r.user_id) s.viewedBy.add(r.user_id);
-        if (r.reacted_at && r.user_id) s.reactedBy.add(r.user_id);
+        const allowed = annAllowed.get(r.announcement_id);
+        if (!s || !allowed) continue;
+        if (!r.user_id || !allowed.has(r.user_id)) continue;
+        s.viewedBy.add(r.user_id);
+        if (r.reacted_at) s.reactedBy.add(r.user_id);
       }
       // Persist + paint.
       for (const [id, s] of summary.entries()) {
@@ -15399,7 +15756,16 @@
         const btn = document.getElementById(`annReceipts_${id}`);
         if (btn) {
           const txt = btn.querySelector('.announcement-receipts-text');
-          if (txt) txt.textContent = `${s.viewedBy.size} seen · ${s.reactedBy.size} reacted`;
+          if (txt) {
+            // Find total team member count for context — "3 of 5 seen"
+            // is more useful than just "3 seen".
+            const total = annAllowed.get(id)?.size || 0;
+            if (total === 0) {
+              txt.textContent = 'Read receipts';
+            } else {
+              txt.textContent = `${s.viewedBy.size}/${total} seen · ${s.reactedBy.size} reacted`;
+            }
+          }
         }
       }
     } catch (e) {
@@ -15616,15 +15982,56 @@
     // members, which only the owner can do.
     if (roleFor(biz.id) !== 'owner') { session.view = 'entries'; saveSession(); renderAll(); return; }
     const u = me();
-    const staff = data.members.filter(m => m.businessId === session.activeBizId);
-    const ownerInitial = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    // v68: tabbed layout — Team roster + invite on tab 1, leaderboard
+    // (Activity by team member) on tab 2. Tab state persists in
+    // session.staffTab so navigating away and back keeps the user
+    // where they were. Default to 'team' for new sessions.
+    if (session.staffTab !== 'activity') session.staffTab = 'team';
+    const tab = session.staffTab;
+    const tabBar = `
+      <div class="staff-tabs">
+        <button class="staff-tab ${tab === 'team' ? 'is-active' : ''}" onclick="setStaffTab('team')">
+          Team &amp; access
+        </button>
+        <button class="staff-tab ${tab === 'activity' ? 'is-active' : ''}" onclick="setStaffTab('activity')">
+          Activity by team member
+        </button>
+      </div>`;
+    const pageTitle = tab === 'activity' ? 'Activity by team member' : 'Team &amp; access';
+    const pageEyebrow = tab === 'activity'
+      ? `${escapeHtml(biz.name)} · team activity`
+      : `${escapeHtml(biz.name)} · management`;
+    let body;
+    if (tab === 'activity') {
+      body = renderTeamLeaderboard(biz, u) || '<p style="color:var(--ink-mute);padding:1rem;">No team activity for this period yet — invite someone or wait for entries to be added.</p>';
+    } else {
+      body = renderTeamAccessTab(biz, u);
+    }
     root.innerHTML = `
       <div class="page-header">
         <div class="page-title-wrap">
-          <div class="page-eyebrow">${escapeHtml(biz.name)} · management</div>
-          <h1 class="page-title">Team &amp; access</h1>
+          <div class="page-eyebrow">${pageEyebrow}</div>
+          <h1 class="page-title">${pageTitle}</h1>
         </div>
       </div>
+      ${tabBar}
+      ${body}
+    `;
+  }
+
+  // Switch between Team and Activity tabs in the staff view.
+  function setStaffTab(t) {
+    session.staffTab = t === 'activity' ? 'activity' : 'team';
+    saveSession();
+    renderAll();
+  }
+
+  // The "Team & access" tab content — roster, invite form, owner card.
+  // Split out of renderStaffView so the tabbed layout stays readable.
+  function renderTeamAccessTab(biz, u) {
+    const staff = data.members.filter(m => m.businessId === biz.id);
+    const ownerInitial = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    return `
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;max-width:42rem;">People who can work in <strong>${escapeHtml(biz.name)}</strong>. Add a phone or email; the person signs up with the same one and accepts your invite — they only join after accepting.</p>
       <div class="staff-grid" style="margin-bottom:1.5rem;">
         <div class="staff-row">
@@ -15639,9 +16046,6 @@
         </div>
         ${staff.map(m => {
           const linked = accounts.find(a => a.login === m.userLogin);
-          // Prefer the displayName captured on the member row (set by
-          // the invitee on accept + updated on rename) before falling
-          // back to a locally-cached account or the bare email.
           const displayName = m.displayName || linked?.name || m.userLogin;
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
@@ -15651,7 +16055,7 @@
               <div class="user-avatar" style="background:var(--accent-soft);opacity:${m.status === 'accepted' ? 1 : 0.5};">${escapeHtml(displayName[0].toUpperCase())}</div>
               <div>
                 <div style="font-weight:500;">${escapeHtml(displayName)}</div>
-                <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined ' + (m.respondedAt || '') : 'joined ' + (m.respondedAt || m.addedAt)}</div>
+                <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined' + (m.respondedAt ? ' ' + m.respondedAt : '') : 'joined' + (m.respondedAt || m.addedAt ? ' ' + (m.respondedAt || m.addedAt) : '')}</div>
               </div>
             </div>
             <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
@@ -15677,7 +16081,6 @@
           <button class="btn btn-accent" onclick="addStaff()">Send invite</button>
         </div>
       </div>
-      ${renderTeamLeaderboard(biz, u)}
     `;
   }
   // Owner-only leaderboard: per-member entry counts, cash in/out, net.
@@ -15839,6 +16242,7 @@
             <p style="font-size:0.85rem;color:var(--ink-mute);margin:0;">Who entered what during <strong>${escapeHtml(periodLabel)}</strong>. Hidden accounts are excluded from these totals (same as the Entries view). Tap a row to view that person's entries.</p>
           </div>
           <div style="display:flex;gap:0.4rem;flex-shrink:0;">
+            <button class="btn btn-sm btn-ghost" onclick="printTeamActivity()" title="Print">Print</button>
             <button class="btn btn-sm btn-ghost" onclick="exportTeamActivity('pdf')" title="Export as PDF" aria-label="Export team activity as PDF">PDF</button>
             <button class="btn btn-sm btn-ghost" onclick="exportTeamActivity('csv')" title="Export as CSV" aria-label="Export team activity as CSV">CSV</button>
           </div>
@@ -15914,14 +16318,31 @@
           const acctName = a ? a.name : '—';
           const noteLine = e.note ? `<div style="font-size:0.8rem;color:var(--ink-soft);margin-top:0.15rem;">${escapeHtml(e.note)}</div>` : '';
           const partyLine = e.party ? `<div style="font-size:0.72rem;color:var(--ink-mute);">${e.type === 'in' ? 'From' : 'To'} ${escapeHtml(e.party)}</div>` : '';
-          return `<div class="member-activity-row">
-            <div class="member-activity-date">${escapeHtml(e.date || '')}</div>
+          // v68: bring this row up to parity with the main entry rows —
+          // show date+time of when the entry was added, plus the edited
+          // badge with full timestamp tooltip, plus the row tint when
+          // the entry is backdated. Owners auditing team activity need
+          // ALL of these signals, not just date and amount.
+          const dateLine = entryDateLine(e, 'inline');
+          const _editLabel = entryEditedLabel(e);
+          const editedBadge = _editLabel
+            ? ` · <span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(_editLabel)}</span>`
+            : '';
+          const isPastDate = isEntryBackdated(e);
+          const rowCls = _editLabel ? 'member-activity-row entry-row-edited'
+            : (isPastDate ? 'member-activity-row entry-row-pastdate'
+            : 'member-activity-row');
+          return `<div class="${rowCls}">
+            <div class="member-activity-date">
+              ${escapeHtml(e.date || '')}
+              <div style="font-size:0.65rem;color:var(--ink-mute);font-weight:400;margin-top:0.2rem;">${dateLine}${editedBadge}</div>
+            </div>
             <div class="member-activity-body">
               ${partyLine}
               ${noteLine}
               <div class="member-activity-tags">
                 ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
-                <span class="entry-cat">${escapeHtml(acctName)}</span>
+                <span class="entry-cat entry-acct-chip">${escapeHtml(acctName)}</span>
               </div>
             </div>
             <div class="member-activity-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${cur} ${fmt(entryAmount(e))}</div>
@@ -15947,14 +16368,36 @@
           <div class="member-activity-stat-val ${net >= 0 ? 'in' : 'out'}">${cur} ${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}</div>
         </div>
       </div>
-      <div class="member-activity-list">${list}</div>
+      <div class="member-activity-list" id="memberActivityListPrint">${list}</div>
       <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="printMemberActivity('${jsAttr(memberName)}','${jsAttr(periodLabel)}')">Print</button>
         <button class="btn btn-ghost" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','csv')">Export CSV</button>
         <button class="btn btn-ghost" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')">Export PDF</button>
         <button class="btn" onclick="closeModal()">Done</button>
       </div>
     `;
     _showModalBackdrop();
+  }
+
+  // Print the member activity modal — applies a body class so the
+  // print stylesheet hides sidebar/chrome and shows the modal content
+  // full-width. Restored on afterprint.
+  function printMemberActivity(memberName, periodLabel) {
+    document.body.classList.add('printing-member-activity');
+    // Stash the member name + period in DOM so the print header reads
+    // correctly. Set as data attrs on a known node; CSS uses ::before
+    // to surface them.
+    const modal = document.getElementById('modalContent');
+    if (modal) {
+      modal.setAttribute('data-print-title', `Entries by ${memberName}`);
+      modal.setAttribute('data-print-sub', periodLabel);
+    }
+    const cleanup = () => {
+      document.body.classList.remove('printing-member-activity');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    try { window.print(); } catch (_) { cleanup(); }
   }
 
   function exportMemberActivity(bucketKey, memberName, kind) {
@@ -15988,6 +16431,18 @@
   }
 
   // Export the whole Activity-by-team-member leaderboard.
+  // Print the Activity-by-team-member leaderboard. Applies a body class
+  // so the print stylesheet hides the sidebar, period selector, and
+  // export buttons — only the leaderboard rows + header remain.
+  function printTeamActivity() {
+    document.body.classList.add('printing-team-activity');
+    const cleanup = () => {
+      document.body.classList.remove('printing-team-activity');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
+    try { window.print(); } catch (_) { cleanup(); }
+  }
   function exportTeamActivity(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
@@ -16264,6 +16719,7 @@
   function setEntryFilter(field, value) {
     __entryFilter = { partyId: null, category: null, accountId: null };
     __entryFilter[field] = value;
+    __entriesShown = ENTRY_PAGE_SIZE; // reset pagination on filter change
     renderEntriesList();
     // Re-render the active filter banner above the list
     renderEntryFilterBanner();
@@ -18400,7 +18856,7 @@
       }
       const safeBizId = jsAttr(biz.id);
       return `
-      <div class="install-card" data-backup-reminder-biz="${escapeHtml(biz.id)}" style="border-left-color:var(--accent);">
+      <div class="install-card" data-backup-reminder-biz="${escapeHtml(biz.id)}" style="border-left-color:var(--accent-readable);">
         <svg class="install-card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
         <div class="install-card-body">
           <div class="install-card-title">Time to back up ${escapeHtml(biz.name)}</div>
