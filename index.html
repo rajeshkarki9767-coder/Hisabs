@@ -799,18 +799,29 @@
     body.printing-activity .activity-filter-chip:not(.is-active) {
       display: none;
     }
-    /* v68: member-activity print case — show ONLY the modal content,
-       hide everything else. Modal contains the header (member name +
-       period), totals, and the row list. */
-    body.printing-member-activity * { visibility: hidden; }
-    body.printing-member-activity #modalContent,
-    body.printing-member-activity #modalContent * { visibility: visible; }
-    body.printing-member-activity .modal-overlay { background: white !important; box-shadow: none !important; }
-    body.printing-member-activity #modalContent {
-      position: absolute; left: 0; top: 0; width: 100%;
-      max-width: none; max-height: none;
-      box-shadow: none; border-radius: 0; padding: 0.5in;
+    /* v68/v69: member-activity print — uses display:none/block instead
+       of visibility:hidden/visible. Reason: visibility-based hiding kept
+       the modal's parent .modal-backdrop in flex layout, which had
+       position:fixed + inset:0 + max-height:90vh + overflow-y:auto on
+       its child .modal. On paper, the printer rendered only the
+       viewport-sized clipped region, leaving the page blank or
+       truncated. display:none cleanly removes everything else from the
+       page flow; the modal then renders top-down with all rows visible. */
+    body.printing-member-activity > *:not(.modal-backdrop) { display: none !important; }
+    body.printing-member-activity .modal-backdrop {
+      position: static !important; display: block !important;
+      padding: 0 !important; background: white !important;
+      backdrop-filter: none !important;
+      overflow: visible !important;
+      animation: none !important;
+    }
+    body.printing-member-activity .modal {
+      position: static !important; max-width: none !important;
+      width: 100% !important; max-height: none !important;
+      overflow: visible !important; box-shadow: none !important;
+      border-radius: 0 !important; padding: 0.5in !important;
       background: white !important; color: #000 !important;
+      animation: none !important; margin: 0 !important;
     }
     body.printing-member-activity .modal-actions,
     body.printing-member-activity .modal-handle { display: none !important; }
@@ -818,33 +829,43 @@
       page-break-inside: avoid;
       border: 1px solid #ccc;
       background: white !important;
+      color: #000 !important;
+    }
+    body.printing-member-activity .member-activity-row * {
+      color: #000 !important;
     }
     body.printing-member-activity .entry-cat {
       background: transparent !important;
       border-color: #999 !important;
       color: #000 !important;
     }
-    /* v69: team-activity leaderboard print — show only the page header
-       and the leaderboard section, hide sidebar/period selector/export
-       buttons. */
-    body.printing-team-activity * { visibility: hidden; }
-    body.printing-team-activity .page-header,
-    body.printing-team-activity .page-header *,
-    body.printing-team-activity .settings-section,
-    body.printing-team-activity .settings-section * { visibility: visible; }
+    body.printing-member-activity .member-activity-amount.in { color: #2e5d3a !important; }
+    body.printing-member-activity .member-activity-amount.out { color: #a8351f !important; }
+    /* v69: team-activity leaderboard print — display:none everything
+       except the page-header + the leaderboard section. Uses the same
+       pattern as member-activity above: display:none cleanly drops
+       siblings from the page flow so the printable area is just what
+       we want. */
+    body.printing-team-activity .sidebar,
+    body.printing-team-activity .topbar,
+    body.printing-team-activity .fab,
+    body.printing-team-activity .fab-container,
+    body.printing-team-activity .modal-backdrop:not(.active),
     body.printing-team-activity .page-actions,
-    body.printing-team-activity .settings-section > div:first-child > div:last-child,
     body.printing-team-activity .period-bar,
-    body.printing-team-activity .staff-tabs { display: none !important; }
-    body.printing-team-activity .page-header,
-    body.printing-team-activity .settings-section {
-      position: relative; left: 0; top: 0; width: 100%;
-    }
+    body.printing-team-activity .staff-tabs,
+    body.printing-team-activity .lb-controls,
+    body.printing-team-activity #appShell > *:not(.app-main) { display: none !important; }
+    body.printing-team-activity .app-main { padding: 0 !important; }
     body.printing-team-activity .lb-row {
       page-break-inside: avoid;
       border: 1px solid #ccc;
       background: white !important;
+      color: #000 !important;
     }
+    body.printing-team-activity .lb-row * { color: #000 !important; }
+    body.printing-team-activity .lb-amount.in { color: #2e5d3a !important; }
+    body.printing-team-activity .lb-amount.out { color: #a8351f !important; }
   }
   @media (max-width: 600px) {
     .activity-row { padding: 0.6rem 0.7rem; gap: 0.6rem; }
@@ -2145,7 +2166,6 @@
   .fc-bar.fc-bar-last { fill: var(--ink-mute); }
   .fc-swatch-current { background: var(--gain); }
   .fc-swatch-currentneg { background: var(--loss); }
-  .fc-swatch-last { background: var(--ink-mute); opacity: 0.55; }
   .forecast-section-sub-inline { font-size: 0.75rem; font-weight: 400; color: var(--ink-mute); }
   .forecast-chart-legend { display: flex; gap: 0.85rem; align-items: center; font-size: 0.72rem; color: var(--ink-mute); margin-bottom: 0.35rem; }
   .forecast-chart-legend .fc-swatch { width: 10px; height: 10px; display: inline-block; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
@@ -2591,63 +2611,91 @@
   }
   .insights-monthly-row .pos { color: var(--gain); }
   .insights-monthly-row .neg { color: var(--loss); }
-  /* v63: Day-of-week patterns — 7-cell horizontal bar chart with
-     each weekday as a column. The bar fills bottom-up to its share
-     of the busiest day. Busiest cell gets an accent stripe. */
+  /* v63/v69: Day-of-week patterns — unified per-day cell layout.
+     Each weekday is one cell; inside the cell sit three side-by-side
+     mini-bars (Cash in = green, Cash out = red, Profit = accent),
+     each with a small label and value underneath. This lets the user
+     compare all three dimensions on one row per day instead of
+     scanning three separate grids. */
   .insights-dow-grid {
     display: grid; grid-template-columns: repeat(7, 1fr);
     gap: 0.45rem; margin-top: 0.4rem;
   }
   .insights-dow-cell {
     background: var(--paper-deep); border: 1px solid var(--line-soft);
-    border-radius: var(--r-sm); padding: 0.55rem 0.45rem 0.5rem;
+    border-radius: var(--r-sm); padding: 0.55rem 0.3rem 0.5rem;
     display: flex; flex-direction: column; align-items: center;
     min-width: 0;
   }
-  .insights-dow-cell.is-busiest {
+  .insights-dow-cell.is-best {
     background: var(--paper);
     border-color: var(--accent-readable);
   }
   .insights-dow-label {
     font-size: 0.65rem; font-weight: 600; color: var(--ink-soft);
-    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;
+    text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;
   }
-  .insights-dow-bar-wrap {
-    width: 18px; height: 70px; position: relative; background: var(--line-soft);
-    border-radius: 2px; overflow: hidden; margin-bottom: 0.4rem;
+  /* Three mini-bars side-by-side inside each weekday cell. */
+  .insights-dow-bars {
+    display: flex; gap: 3px; align-items: flex-end;
+    height: 70px; width: 100%; justify-content: center;
+    margin-bottom: 0.35rem;
   }
-  .insights-dow-bar {
+  .insights-dow-mini-wrap {
+    width: 12px; height: 100%; position: relative;
+    background: var(--line-soft); border-radius: 2px; overflow: hidden;
+  }
+  .insights-dow-mini-bar {
     position: absolute; left: 0; right: 0; bottom: 0;
-    background: var(--accent); border-radius: 2px 2px 0 0;
+    border-radius: 2px 2px 0 0;
     transition: height 0.3s ease;
     min-height: 2px;
   }
-  .insights-dow-cell.is-busiest .insights-dow-bar { background: var(--gain); }
-  /* Negative bars (loss days in the Net profit DOW grid) use the loss
-     palette so the chart's encoding stays consistent: red = bad. */
-  .insights-dow-bar-neg { background: var(--loss) !important; }
-  .insights-dow-cell.is-negative .insights-dow-val.neg { color: var(--loss); }
-  .insights-dow-val {
-    font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
-    color: var(--ink); text-align: center; line-height: 1.1;
+  .insights-dow-mini-bar.bar-in { background: var(--gain); }
+  .insights-dow-mini-bar.bar-out { background: var(--loss); }
+  .insights-dow-mini-bar.bar-profit { background: var(--accent); }
+  /* For profit-loss days we shift the bar to render below mid-line.
+     The wrap stays the same; the bar is anchored at top instead of
+     bottom to show a downward bar (used inline via style). */
+  .insights-dow-mini-bar.is-negative { background: var(--loss); }
+  /* Per-day numbers under the bars, one row per metric. Tight font
+     and tabular-nums so columns line up. */
+  .insights-dow-stats {
+    display: flex; flex-direction: column; gap: 0.1rem;
+    width: 100%; font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
-  .insights-dow-val.neg { color: var(--loss); }
+  .insights-dow-stat {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.25rem; font-size: 0.6rem; line-height: 1.2;
+  }
+  .insights-dow-stat-dot {
+    flex-shrink: 0; width: 6px; height: 6px; border-radius: 1px;
+  }
+  .insights-dow-stat-dot.dot-in { background: var(--gain); }
+  .insights-dow-stat-dot.dot-out { background: var(--loss); }
+  .insights-dow-stat-dot.dot-profit { background: var(--accent); }
+  .insights-dow-stat-val {
+    font-weight: 600; color: var(--ink); flex: 1; text-align: right;
+    min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  }
+  .insights-dow-stat-val.neg { color: var(--loss); }
   .insights-dow-sub {
-    font-size: 0.58rem; color: var(--ink-mute); margin-top: 0.15rem;
+    font-size: 0.58rem; color: var(--ink-mute); margin-top: 0.25rem;
   }
-  /* v68: three side-by-side DOW patterns. Each block has its own
-     title + subtitle (busiest/heaviest/most-profitable) and its own
-     7-cell grid. Stack vertically on every screen size — they're
-     dense enough that side-by-side would crush them. */
-  .insights-dow-block { margin-bottom: 0.9rem; }
-  .insights-dow-block:last-child { margin-bottom: 0; }
-  .insights-dow-block-title {
-    font-size: 0.78rem; font-weight: 600; color: var(--ink);
-    margin-bottom: 0.4rem;
+  /* Legend bar above the grid, showing what each color means. */
+  .insights-dow-legend {
+    display: flex; gap: 0.85rem; align-items: center;
+    font-size: 0.72rem; color: var(--ink-mute);
+    margin-bottom: 0.5rem; flex-wrap: wrap;
   }
-  .insights-dow-block-sub {
-    font-weight: 400; color: var(--ink-mute); font-size: 0.72rem;
+  .insights-dow-legend-swatch {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 2px; margin-right: 0.3rem; vertical-align: middle;
   }
+  .insights-dow-legend-swatch.bar-in { background: var(--gain); }
+  .insights-dow-legend-swatch.bar-out { background: var(--loss); }
+  .insights-dow-legend-swatch.bar-profit { background: var(--accent); }
   /* v63: WoW headline cards — same row layout as primary KPIs but
      each card pairs current week + last week + delta pill. */
   .insights-wow-headline {
@@ -10086,107 +10134,9 @@
         ${runwayCard()}
         ${breakEvenCard()}
       </div>`;
-    // ===== Daily comparison: this month vs same day last month =====
-    // Paired bars for each day-of-month 1..max(daysInMonth, lastMonthDays).
-    // Each pair shows: current-month net (cash in − cash out) on top,
-    // last-month net underneath. Days past today have no current bar
-    // (we don't know the future). Days past lastMonthDays show no
-    // comparison bar. A subtle "today" marker highlights the current day.
-    const dcChartW = 800, dcChartH = 260;
-    const dcPadL = 50, dcPadR = 15, dcPadT = 20, dcPadB = 38;
-    const dcInnerW = dcChartW - dcPadL - dcPadR;
-    const dcInnerH = dcChartH - dcPadT - dcPadB;
-    const dcMaxDays = Math.max(daysInMonth, lastMonthDays);
-    // Compute net per day for both months
-    const dcCurNets = [];
-    const dcLastNets = [];
-    let dcMaxAbs = 0;
-    for (let d = 1; d <= dcMaxDays; d++) {
-      // Current month: null if past today (no data yet) or past month end
-      let curNet = null;
-      if (d <= todayDay && d <= daysInMonth) {
-        const b = mtdByDay.get(d);
-        curNet = b ? (b.in - b.out) : 0;
-      }
-      dcCurNets.push(curNet);
-      // Last month: null if past last month's days
-      let lastNet = null;
-      if (d <= lastMonthDays) {
-        const b = lastMonthByDay.get(d);
-        lastNet = b ? (b.in - b.out) : 0;
-      }
-      dcLastNets.push(lastNet);
-      if (curNet !== null && Math.abs(curNet) > dcMaxAbs) dcMaxAbs = Math.abs(curNet);
-      if (lastNet !== null && Math.abs(lastNet) > dcMaxAbs) dcMaxAbs = Math.abs(lastNet);
-    }
-    const dcAxisMax = dcMaxAbs > 0 ? dcMaxAbs * 1.08 : 100;
-    // Zero line in the middle of the chart (split positive/negative)
-    const dcZeroY = dcPadT + dcInnerH / 2;
-    const dcHalfH = dcInnerH / 2;
-    const dcDayWidth = dcInnerW / dcMaxDays;
-    const dcBarPair = dcDayWidth * 0.78; // total width of a day's bar pair
-    const dcBarW = dcBarPair / 2.2; // each individual bar
-    const dcBars = [];
-    const dcXLabels = [];
-    for (let d = 1; d <= dcMaxDays; d++) {
-      const xCenter = dcPadL + (d - 0.5) * dcDayWidth;
-      const xCur = xCenter - dcBarW - 0.5;
-      const xLast = xCenter + 0.5;
-      const cur = dcCurNets[d - 1];
-      const last = dcLastNets[d - 1];
-      // Current-month bar (accent color)
-      if (cur !== null && cur !== 0) {
-        const h = Math.abs(cur) / dcAxisMax * dcHalfH;
-        const y = cur >= 0 ? (dcZeroY - h) : dcZeroY;
-        const cls = cur >= 0 ? 'pos' : 'neg';
-        const payload = JSON.stringify({ kind: 'monthIn', monthKey: monthKeyStr, value: cur, label: `${escapeHtml(monthName)} ${d}` });
-        dcBars.push(`<rect class="fc-bar fc-bar-${cls}" x="${xCur.toFixed(1)}" y="${y.toFixed(1)}" width="${dcBarW.toFixed(1)}" height="${h.toFixed(1)}" data-chart-detail='${escapeHtml(payload)}'><title>${escapeHtml(monthName)} ${d}: ${cur >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(cur))}</title></rect>`);
-      }
-      // Last-month bar (muted)
-      if (last !== null && last !== 0) {
-        const h = Math.abs(last) / dcAxisMax * dcHalfH;
-        const y = last >= 0 ? (dcZeroY - h) : dcZeroY;
-        dcBars.push(`<rect class="fc-bar fc-bar-last" x="${xLast.toFixed(1)}" y="${y.toFixed(1)}" width="${dcBarW.toFixed(1)}" height="${h.toFixed(1)}" opacity="0.55"><title>last month day ${d}: ${last >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(last))}</title></rect>`);
-      }
-      // X-axis labels every 5 days + first + last
-      if (d === 1 || d === dcMaxDays || d % 5 === 0) {
-        dcXLabels.push(`<text class="fc-xlabel" x="${xCenter.toFixed(1)}" y="${(dcChartH - dcPadB + 14).toFixed(1)}" text-anchor="middle">${d}</text>`);
-      }
-    }
-    // Today marker line
-    const dcTodayX = dcPadL + (todayDay - 0.5) * dcDayWidth;
-    const dcTodayMarker = `
-      <line class="fc-today" x1="${dcTodayX.toFixed(1)}" y1="${dcPadT}" x2="${dcTodayX.toFixed(1)}" y2="${dcPadT + dcInnerH}" />
-      <text class="fc-today-label" x="${dcTodayX.toFixed(1)}" y="${(dcPadT - 6).toFixed(1)}" text-anchor="middle">Today</text>
-    `;
-    const dcZeroAxis = `<line x1="${dcPadL}" y1="${dcZeroY.toFixed(1)}" x2="${(dcChartW - dcPadR).toFixed(1)}" y2="${dcZeroY.toFixed(1)}" stroke="var(--line)" stroke-width="0.8" />`;
-    // Y-axis ticks (+axisMax at top, 0 in middle, -axisMax at bottom)
-    const dcYLabels = `
-      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcPadT + 4).toFixed(1)}" text-anchor="end">+${fmt(dcAxisMax)}</text>
-      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcZeroY + 3).toFixed(1)}" text-anchor="end">0</text>
-      <text class="fc-ylabel" x="${(dcPadL - 6).toFixed(1)}" y="${(dcPadT + dcInnerH + 4).toFixed(1)}" text-anchor="end">−${fmt(dcAxisMax)}</text>
-    `;
-    const _haveDcData = dcCurNets.some(v => v !== null && v !== 0) || dcLastNets.some(v => v !== null && v !== 0);
-    const _curMonthLabel = new Date(yyyy, mm - 1, 1).toLocaleString('default', { month: 'long' });
-    const _lastMonthLabel = new Date(lyyyy, lmm - 1, 1).toLocaleString('default', { month: 'long' });
-    const dailyCompareHTML = _haveDcData ? `
-      <div class="forecast-section">
-        <h3 class="forecast-section-title">Daily comparison <span class="forecast-section-sub-inline">— ${escapeHtml(_curMonthLabel)} vs ${escapeHtml(_lastMonthLabel)}</span></h3>
-        <p class="forecast-section-sub">Net per day (cash in − cash out). Current month stops at today; last month shows the whole month for comparison.</p>
-        <div class="forecast-chart-legend">
-          <span><span class="fc-swatch fc-swatch-current"></span> ${escapeHtml(_curMonthLabel)} (profit days)</span>
-          <span><span class="fc-swatch fc-swatch-currentneg"></span> ${escapeHtml(_curMonthLabel)} (loss days)</span>
-          <span><span class="fc-swatch fc-swatch-last"></span> ${escapeHtml(_lastMonthLabel)}</span>
-        </div>
-        <svg class="forecast-chart" viewBox="0 0 ${dcChartW} ${dcChartH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit comparison">
-          ${dcZeroAxis}
-          ${dcBars.join('')}
-          ${dcTodayMarker}
-          ${dcXLabels.join('')}
-          ${dcYLabels}
-        </svg>
-      </div>` : '';
-    const forecastV64Expansions = `${sixMonthHTML}${methodsHTML}${extraKpisHTML}${dailyCompareHTML}`;
+    // v69: Daily comparison chart removed — Insights already has a
+    // Daily net profit chart that covers the same ground better.
+    const forecastV64Expansions = `${sixMonthHTML}${methodsHTML}${extraKpisHTML}`;
 
     root.innerHTML = `
       <div class="page-header">
@@ -11702,49 +11652,58 @@
       }
       return bi;
     }
-    const busiestInIdx = argmax(dowIn);
-    const heaviestOutIdx = argmax(dowOut);
     const mostProfitableIdx = argmax(dowNet);
-    function dowGrid(values, maxVal, highlightIdx, opts = {}) {
-      // opts.signed: true → render losses red (height clamped, label shows sign)
-      return `
-        <div class="insights-dow-grid">
-          ${dowOrder.map(i => {
-            const v = values[i];
-            const isHighlight = i === highlightIdx;
-            const pct = (Math.abs(v) / maxVal) * 100;
-            const negative = opts.signed && v < 0;
-            const barCls = negative ? 'insights-dow-bar insights-dow-bar-neg' : 'insights-dow-bar';
-            const valLabel = opts.signed
-              ? `${v >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(v))}`
-              : `${cur} ${fmt(v)}`;
-            return `
-              <div class="insights-dow-cell ${isHighlight ? 'is-busiest' : ''} ${negative ? 'is-negative' : ''}">
-                <div class="insights-dow-label">${dowNames[i]}</div>
-                <div class="insights-dow-bar-wrap">
-                  <div class="${barCls}" style="height:${pct.toFixed(1)}%"></div>
-                </div>
-                <div class="insights-dow-val ${negative ? 'neg' : ''}">${valLabel}</div>
-                <div class="insights-dow-sub">${dowCounts[i]} ${dowCounts[i] === 1 ? 'entry' : 'entries'}</div>
-              </div>`;
-          }).join('')}
-        </div>`;
+    // Unified bar-height scale per metric. Each mini-bar's height
+    // within its day is its share of that metric's busiest day.
+    // Profit bars use a shared positive/negative scale so the visual
+    // size reflects magnitude, with red applied for loss days.
+    function dowMiniBar(value, maxVal, kind, signed = false) {
+      const absVal = Math.abs(value);
+      const pct = maxVal > 0 ? (absVal / maxVal) * 100 : 0;
+      const negative = signed && value < 0;
+      const cls = negative ? 'insights-dow-mini-bar bar-out is-negative'
+                : `insights-dow-mini-bar bar-${kind}`;
+      return `<div class="insights-dow-mini-wrap"><div class="${cls}" style="height:${pct.toFixed(1)}%"></div></div>`;
     }
     const dowHTML = `
       <div class="insights-section">
         <h3 class="insights-section-title">Day-of-week patterns</h3>
-        <p class="insights-section-sub">Which weekday does the most volume, sees the most outflow, and turns the biggest profit. Three views, one period.</p>
-        <div class="insights-dow-block">
-          <div class="insights-dow-block-title">Cash in <span class="insights-dow-block-sub">— busiest: <strong>${escapeHtml(dowNames[busiestInIdx])}</strong></span></div>
-          ${dowGrid(dowIn, dowInMax, busiestInIdx)}
+        <p class="insights-section-sub">Cash in, cash out, and operating profit by weekday. Most-profitable day highlighted. Most profitable: <strong>${escapeHtml(dowNames[mostProfitableIdx])}</strong>.</p>
+        <div class="insights-dow-legend">
+          <span><span class="insights-dow-legend-swatch bar-in"></span>Cash in</span>
+          <span><span class="insights-dow-legend-swatch bar-out"></span>Cash out</span>
+          <span><span class="insights-dow-legend-swatch bar-profit"></span>Operating profit</span>
         </div>
-        <div class="insights-dow-block">
-          <div class="insights-dow-block-title">Cash out <span class="insights-dow-block-sub">— heaviest: <strong>${escapeHtml(dowNames[heaviestOutIdx])}</strong></span></div>
-          ${dowGrid(dowOut, dowOutMax, heaviestOutIdx, { highlightAsLoss: true })}
-        </div>
-        <div class="insights-dow-block">
-          <div class="insights-dow-block-title">Net profit <span class="insights-dow-block-sub">— most profitable: <strong>${escapeHtml(dowNames[mostProfitableIdx])}</strong></span></div>
-          ${dowGrid(dowNet, dowNetAbsMax, mostProfitableIdx, { signed: true })}
+        <div class="insights-dow-grid">
+          ${dowOrder.map(i => {
+            const isBest = i === mostProfitableIdx;
+            const profit = dowNet[i];
+            const profitNeg = profit < 0;
+            return `
+              <div class="insights-dow-cell ${isBest ? 'is-best' : ''}">
+                <div class="insights-dow-label">${dowNames[i]}</div>
+                <div class="insights-dow-bars">
+                  ${dowMiniBar(dowIn[i], dowInMax, 'in')}
+                  ${dowMiniBar(dowOut[i], dowOutMax, 'out')}
+                  ${dowMiniBar(profit, dowNetAbsMax, 'profit', true)}
+                </div>
+                <div class="insights-dow-stats">
+                  <div class="insights-dow-stat">
+                    <span class="insights-dow-stat-dot dot-in"></span>
+                    <span class="insights-dow-stat-val">${fmt(dowIn[i])}</span>
+                  </div>
+                  <div class="insights-dow-stat">
+                    <span class="insights-dow-stat-dot dot-out"></span>
+                    <span class="insights-dow-stat-val">${fmt(dowOut[i])}</span>
+                  </div>
+                  <div class="insights-dow-stat">
+                    <span class="insights-dow-stat-dot dot-profit"></span>
+                    <span class="insights-dow-stat-val ${profitNeg ? 'neg' : ''}">${profitNeg ? '−' : ''}${fmt(Math.abs(profit))}</span>
+                  </div>
+                </div>
+                <div class="insights-dow-sub">${dowCounts[i]} ${dowCounts[i] === 1 ? 'entry' : 'entries'}</div>
+              </div>`;
+          }).join('')}
         </div>
       </div>`;
     root.innerHTML = `
