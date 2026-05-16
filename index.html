@@ -170,6 +170,15 @@
   .btn-accent { background: var(--accent); border-color: var(--accent-readable); color: #f5f1e8; }
   .btn-accent:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-soft); color: #f5f1e8; }
   .btn-sm { padding: 0.42rem 0.85rem; font-size: 0.72rem; border-radius: var(--r-sm); }
+  /* Icon-only square button: used for Print / PDF / CSV actions where
+     the icon glyph alone represents the action. Hover state uses the
+     same paper-deep background as regular ghost buttons. */
+  .btn-icon-only {
+    padding: 0.42rem 0.5rem !important; min-width: 32px;
+    display: inline-flex; align-items: center; justify-content: center;
+    line-height: 0;
+  }
+  .btn-icon-only svg { display: block; }
   /* Icon-only ghost button used by the per-view export trigger and any
      future single-icon page-header actions. Keeps the same border/hover
      treatment as `.btn-sm.btn-ghost` but with square padding. */
@@ -434,6 +443,11 @@
   /* Forgot-password link, just under the password field. Right-aligned,
      small, muted — doesn't compete with the Sign in button below. */
   .auth-forgot { margin-top: -0.35rem; text-align: right; font-size: 0.72rem; }
+  .auth-terms { margin: 0.25rem 0 0.15rem; font-size: 0.78rem; line-height: 1.45; color: var(--ink-soft); }
+  .auth-terms-row { display: flex; align-items: flex-start; gap: 0.55rem; cursor: pointer; }
+  .auth-terms-row input[type="checkbox"] { margin-top: 0.2rem; flex-shrink: 0; cursor: pointer; width: 16px; height: 16px; }
+  .auth-terms-row a { color: var(--accent); text-decoration: underline; cursor: pointer; }
+  .auth-terms-row a:hover { opacity: 0.8; }
   .auth-forgot a { color: var(--ink-soft); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
   .auth-forgot a:hover { color: var(--accent-readable); }
   .auth-tabs { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 1rem; border: 1.5px solid var(--line); border-radius: var(--r); overflow: hidden; }
@@ -819,20 +833,33 @@
        truncated. display:none cleanly removes everything else from the
        page flow; the modal then renders top-down with all rows visible. */
     body.printing-member-activity > *:not(.modal-backdrop) { display: none !important; }
+    body.printing-member-activity,
+    body.printing-member-activity html {
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
     body.printing-member-activity .modal-backdrop {
       position: static !important; display: block !important;
       padding: 0 !important; background: white !important;
       backdrop-filter: none !important;
       overflow: visible !important;
       animation: none !important;
+      height: auto !important;
+      max-height: none !important;
+      align-items: flex-start !important;
     }
     body.printing-member-activity .modal {
       position: static !important; max-width: none !important;
-      width: 100% !important; max-height: none !important;
+      width: 100% !important;
+      height: auto !important;
+      max-height: none !important;
+      min-height: 0 !important;
       overflow: visible !important; box-shadow: none !important;
       border-radius: 0 !important; padding: 0.5in !important;
       background: white !important; color: #000 !important;
       animation: none !important; margin: 0 !important;
+      transform: none !important;
     }
     body.printing-member-activity .modal-actions,
     body.printing-member-activity .modal-handle { display: none !important; }
@@ -1011,7 +1038,44 @@
   .entry-row.entry-row-pastdate:hover {
     background: rgba(73, 116, 168, 0.14);
   }
-  .entry-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); }
+  /* v72: front-dated (future date) — purple tint, distinct from
+     backdated (blue) so users can tell scheduled-future from
+     entered-late at a glance. */
+  .entry-row.entry-row-futuredate {
+    background: rgba(149, 102, 175, 0.10);
+  }
+  .entry-row.entry-row-futuredate:hover {
+    background: rgba(149, 102, 175, 0.16);
+  }
+  /* v72: combination states — entry was both backdated AND edited
+     (teal), or frontdated AND edited (pink). Distinct from the
+     pure states so audit trails are unambiguous. */
+  .entry-row.entry-row-pastdate-edited {
+    background: rgba(60, 140, 140, 0.10);
+  }
+  .entry-row.entry-row-pastdate-edited:hover {
+    background: rgba(60, 140, 140, 0.16);
+  }
+  .entry-row.entry-row-futuredate-edited {
+    background: rgba(200, 110, 150, 0.10);
+  }
+  .entry-row.entry-row-futuredate-edited:hover {
+    background: rgba(200, 110, 150, 0.16);
+  }
+  /* Status dot — small colored circle pinned to the top-right of the
+     row, color-coded to match the row tint so the user can scan a
+     long list visually at a glance. Empty rows get no dot. */
+  .entry-status-dot {
+    display: inline-block; width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 0 0 1.5px var(--paper);
+  }
+  .entry-status-dot.dot-edit       { background: #d9a735; }
+  .entry-status-dot.dot-back       { background: #4974a8; }
+  .entry-status-dot.dot-front      { background: #9566af; }
+  .entry-status-dot.dot-back-edit  { background: #3c8c8c; }
+  .entry-status-dot.dot-front-edit { background: #c86e96; }
+  .entry-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 0.4rem; flex-wrap: wrap; }
   /* v57: when a back-dated entry shows "· added <today>" suffix, make
      it visually secondary so the picked date stays prominent. */
   .entry-added { color: var(--ink-mute); font-style: italic; }
@@ -2035,6 +2099,35 @@
     text-align: center;
   }
   .forecast-6m-val.pos { color: var(--gain); }
+  /* Below-line value strip for 6-month trend. Replaces the old bar grid. */
+  .forecast-6m-strip {
+    display: grid; grid-template-columns: repeat(6, 1fr);
+    gap: 0.4rem; margin-top: 0.3rem;
+  }
+  .forecast-6m-strip-cell {
+    text-align: center; padding: 0.4rem 0.25rem;
+    background: var(--paper-deep); border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm); min-width: 0;
+  }
+  .forecast-6m-strip-cell.is-current {
+    border-color: var(--accent-readable);
+    background: var(--paper);
+  }
+  .forecast-6m-strip-label {
+    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em;
+    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.2rem;
+  }
+  .forecast-6m-strip-val {
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .forecast-6m-strip-val.pos { color: var(--gain); }
+  .forecast-6m-strip-val.neg { color: var(--loss); }
+  @media (max-width: 600px) {
+    .forecast-6m-strip-label { font-size: 0.55rem; }
+    .forecast-6m-strip-val { font-size: 0.68rem; }
+  }
   .forecast-6m-val.neg { color: var(--loss); }
   .forecast-methods-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -2646,33 +2739,8 @@
     font-size: 0.65rem; font-weight: 600; color: var(--ink-soft);
     text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem;
   }
-  /* Three mini-bars side-by-side inside each weekday cell. */
-  .insights-dow-bars {
-    display: flex; gap: 3px; align-items: flex-end;
-    height: 70px; width: 100%; justify-content: center;
-    margin-bottom: 0.35rem;
-  }
-  .insights-dow-mini-wrap {
-    width: 12px; height: 100%; position: relative;
-    background: transparent;
-    border-bottom: 1px solid var(--line);
-  }
-  .insights-dow-mini-bar {
-    position: absolute; left: 0; right: 0; bottom: 0;
-    border-radius: 2px 2px 0 0;
-    transition: height 0.3s ease;
-  }
-  /* Only show a min-height visible nub when the value is non-zero. */
-  .insights-dow-mini-bar.has-value { min-height: 2px; }
-  .insights-dow-mini-bar.bar-in { background: var(--chart-cash-in); }
-  .insights-dow-mini-bar.bar-out { background: var(--chart-cash-out); }
-  .insights-dow-mini-bar.bar-profit { background: var(--chart-profit); }
-  /* For profit-loss days we shift the bar to render below mid-line.
-     The wrap stays the same; the bar is anchored at top instead of
-     bottom to show a downward bar (used inline via style). */
-  .insights-dow-mini-bar.is-negative { background: var(--chart-cash-out); }
-  /* Per-day numbers under the bars, one row per metric. Tight font
-     and tabular-nums so columns line up. */
+  /* Per-day numbers, one row per metric. Tight font and tabular-nums
+     so columns line up. */
   .insights-dow-stats {
     display: flex; flex-direction: column; gap: 0.1rem;
     width: 100%; font-family: var(--font-mono);
@@ -3202,7 +3270,7 @@
   .party-detail-back:hover { border-color: var(--ink); }
 
   /* MODAL */
-  .modal-backdrop { position: fixed; inset: 0; background: var(--modal-overlay); backdrop-filter: blur(8px); z-index: 200; display: none; align-items: center; justify-content: center; padding: 1.5rem; animation: fade 0.2s; overflow-y: auto; }
+  .modal-backdrop { position: fixed; inset: 0; background: var(--modal-overlay); backdrop-filter: blur(8px); z-index: 250; display: none; align-items: center; justify-content: center; padding: 1.5rem; animation: fade 0.2s; overflow-y: auto; }
   .modal-backdrop.active { display: flex; }
   @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes rise { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
@@ -3846,8 +3914,24 @@
     .sync-badge, .install-prompt, .toast,
     .sidebar-toggle, button.icon-btn-light, button.icon-btn,
     .lb-row-clickable .lb-stat-label,
-    .split-calc, .help-card,
+    .help-card,
     .nav-badge, .invite-pill { display: none !important; }
+
+    /* v70: Split & Convert kept visible on print. Previously hidden
+       because it looked interactive; on paper the values are part
+       of the report. Hide only the input controls, keep the result
+       text so the math is preserved. */
+    .split-calc input { border-color: #ccc !important; background: white !important; color: #000 !important; }
+    .split-calc-result {
+      background: white !important; color: #000 !important;
+      border: 1px solid #ccc !important;
+      page-break-inside: avoid;
+    }
+    .split-calc, .split-calc-title, .split-calc-sub,
+    .split-calc-result-label, .split-calc-result-val {
+      color: #000 !important;
+      background: white !important;
+    }
 
     /* Expense group cards are content (not interactive in print).
        Strip the hover/click affordances but keep the data visible. */
@@ -3876,6 +3960,39 @@
       print-color-adjust: exact !important;
       page-break-inside: avoid;
     }
+
+    /* v72: force color rendering on every element that uses color to
+       convey meaning. Without print-color-adjust:exact, browsers strip
+       backgrounds + tinted colors for ink-saving, and the printed page
+       loses crucial cues (cash-in vs cash-out, profit vs loss, status
+       dots). This block makes the printout match the screen palette. */
+    .entry-row, .entry-amount, .entry-amount.in, .entry-amount.out,
+    .entry-status-dot,
+    .entry-row-edited, .entry-row-pastdate,
+    .entry-row-futuredate, .entry-row-pastdate-edited, .entry-row-futuredate-edited,
+    .insights-chart-wrap, .insights-dow-cell, .insights-dow-legend-swatch,
+    .insights-dow-stat-dot, .insights-dow-stat-val,
+    .fc-bar, .fc-bar-in, .fc-bar-out, .fc-bar-pos, .fc-bar-neg,
+    .fc-swatch, .fc-swatch-in, .fc-swatch-out,
+    .fc-swatch-current, .fc-swatch-currentneg,
+    .chart-bar, .chart-bar.in, .chart-bar.out,
+    .chart-legend-swatch, .chart-legend-swatch.in, .chart-legend-swatch.out,
+    .forecast-6m-strip-cell, .forecast-6m-strip-val,
+    .kpi-tile, .kpi-tile-value,
+    .insights-kpi, .insights-kpi-card, .insights-kpi-value,
+    .split-calc-result, .split-calc-result-val,
+    .line-point, .line-point-dot,
+    .stat, .stat.in, .stat.out,
+    rect.bar, rect.bar-in, rect.bar-out, rect.fc-bar,
+    circle, path[stroke] {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* Ensure entry amount color survives. The class-driven gain/loss
+       text colors get reset by some browsers' print stylesheets;
+       force them via explicit color. */
+    .entry-amount.in { color: #2e5d3a !important; }
+    .entry-amount.out { color: #a8351f !important; }
 
     /* Force the dark totals bars to actually print dark, not as
        empty outlined boxes. */
@@ -4006,6 +4123,12 @@
       </div>
       <div class="auth-forgot" id="forgotPwdWrap">
         <a onclick="forgotPasswordFlow()">Forgot password?</a>
+      </div>
+      <div class="auth-terms" id="authTermsWrap" style="display:none;">
+        <label class="auth-terms-row">
+          <input type="checkbox" id="authTerms" />
+          <span>I agree to the <a onclick="event.preventDefault();openModal('terms')">Terms &amp; Conditions</a> and <a onclick="event.preventDefault();openModal('privacy')">Privacy Policy</a>.</span>
+        </label>
       </div>
       <button type="submit" class="btn btn-accent" id="authSubmit">Sign in →</button>
     </form>
@@ -5019,6 +5142,25 @@
   // Returns a complete HTML button that opens the export chooser modal
   // for the given target (see openExportChooser).
   const EXPORT_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
+  // PDF icon — page with "PDF" letters glyph implied via the bottom band
+  const PDF_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>';
+  // CSV / spreadsheet icon — grid pattern
+  const CSV_ICON_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg>';
+  // Standalone print/PDF/CSV icon buttons reused across activity tabs
+  // and modals. Keep label-only via title + aria-label for screen
+  // readers; the visible button is a single glyph for compact UI.
+  function smPrintIcon(handler, label) {
+    label = label || 'Print or save as PDF';
+    return `<button class="btn btn-sm btn-ghost btn-icon-only" onclick="${handler}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>`;
+  }
+  function smPdfIcon(handler, label) {
+    label = label || 'Download PDF';
+    return `<button class="btn btn-sm btn-ghost btn-icon-only" onclick="${handler}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${PDF_ICON_SVG}</button>`;
+  }
+  function smCsvIcon(handler, label) {
+    label = label || 'Download CSV';
+    return `<button class="btn btn-sm btn-ghost btn-icon-only" onclick="${handler}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${CSV_ICON_SVG}</button>`;
+  }
   function exportIconButton(target) {
     return `<button class="btn-icon-ghost" onclick="openExportChooser('${target}')" title="Export" aria-label="Export">${EXPORT_ICON_SVG}</button>`;
   }
@@ -5047,9 +5189,31 @@
       if (document.getElementById('modalBackdrop')?.classList.contains('active')) {
         closeModal();
       }
-      // Tiny delay so the modal close completes before the print
-      // dialog snapshots the DOM.
-      setTimeout(() => window.print(), 50);
+      // Expand any chunked lists to their full size so the printout
+      // includes every row, not just the first page. The user is
+      // looking at "Show next 200" UI on screen, but on paper they
+      // expect a complete report. We snapshot the original page
+      // limit, expand to Infinity, re-render, print, then restore.
+      const prevEntriesShown = (typeof __entriesShown === 'number') ? __entriesShown : null;
+      let didExpand = false;
+      if (prevEntriesShown !== null && Array.isArray(__entriesShownCache) && __entriesShownCache.length > prevEntriesShown) {
+        __entriesShown = __entriesShownCache.length;
+        try { renderEntriesList(); didExpand = true; } catch (_) {}
+      }
+      // Tiny delay so the modal close + re-render complete before the
+      // print dialog snapshots the DOM.
+      setTimeout(() => {
+        try { window.print(); } catch (_) {}
+        // Restore the original page limit after the print dialog
+        // closes. We delay so the dialog has a chance to capture
+        // the DOM first.
+        setTimeout(() => {
+          if (didExpand && prevEntriesShown !== null) {
+            __entriesShown = prevEntriesShown;
+            try { renderEntriesList(); } catch (_) {}
+          }
+        }, 500);
+      }, 80);
     } catch (e) {
       console.warn('print() failed:', e);
       toast("Couldn't open print dialog.");
@@ -5311,31 +5475,50 @@
     try {
       const ctx = __entrySoundCtx;
       const now = ctx.currentTime;
-      // Two-voice harmonic chime. D5 = 587.33 Hz, A5 = 880 Hz.
-      // The fifth interval reads as warm and consonant — not alarm-like.
-      const freqs = [587.33, 880];
-      const totalDur = 1.8;
-      // Single gain envelope shared across the two oscillators so the
-      // overall amplitude shape is consistent.
-      const gain = ctx.createGain();
-      gain.connect(ctx.destination);
-      // ADSR shape: 35ms attack, ~1.8s exponential decay to silence.
-      // Peak is intentionally low (0.18) so the sound is soft, not
-      // jarring.
-      gain.gain.setValueAtTime(0, now);
-      gain.gain.linearRampToValueAtTime(0.18, now + 0.035);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + totalDur);
-      for (const f of freqs) {
+      // "Tudung" — a percussive two-tone hit, like a wooden mallet
+      // on a small drum. "TU" is a low, fast thump; "DUNG" is a
+      // higher resonant ring that decays over ~2 seconds. Together
+      // they fill 2.5 seconds with a satisfying "saved!" feedback.
+      // Higher peak gain (0.55) than before so it's clearly audible
+      // even with media volume not maxed out.
+      const totalDur = 2.5;
+
+      // Voice 1 — "TU": low thump, very short
+      const g1 = ctx.createGain();
+      g1.connect(ctx.destination);
+      g1.gain.setValueAtTime(0, now);
+      g1.gain.linearRampToValueAtTime(0.55, now + 0.01);
+      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(140, now);
+      osc1.frequency.exponentialRampToValueAtTime(90, now + 0.18);
+      osc1.connect(g1);
+      osc1.start(now);
+      osc1.stop(now + 0.25);
+
+      // Voice 2 — "DUNG": higher resonant ring, longer sustain
+      const dungStart = 0.18;
+      const g2 = ctx.createGain();
+      g2.connect(ctx.destination);
+      g2.gain.setValueAtTime(0, now + dungStart);
+      g2.gain.linearRampToValueAtTime(0.50, now + dungStart + 0.015);
+      g2.gain.exponentialRampToValueAtTime(0.0001, now + totalDur);
+      // Two partials for a slightly metallic body
+      [440, 660].forEach((f, i) => {
         const osc = ctx.createOscillator();
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(f, now);
-        osc.connect(gain);
-        osc.start(now);
+        osc.frequency.setValueAtTime(f, now + dungStart);
+        // Slight downward pitch bend feels more like a real strike
+        osc.frequency.exponentialRampToValueAtTime(f * 0.85, now + totalDur);
+        const partialGain = ctx.createGain();
+        partialGain.gain.value = i === 0 ? 1 : 0.45;
+        osc.connect(partialGain);
+        partialGain.connect(g2);
+        osc.start(now + dungStart);
         osc.stop(now + totalDur + 0.05);
-      }
+      });
     } catch (e) {
-      // Audio failed mid-play. Not worth bothering the user — they
-      // either won't notice or it's a system-level audio issue.
       console.warn('playEntrySound:', e?.message || e);
     }
   }
@@ -5686,6 +5869,11 @@
     // Forgot password is only meaningful when signing in.
     const forgot = document.getElementById('forgotPwdWrap');
     if (forgot) forgot.style.display = mode === 'signup' ? 'none' : 'block';
+    // Terms & conditions checkbox shown only on signup.
+    const terms = document.getElementById('authTermsWrap');
+    if (terms) terms.style.display = mode === 'signup' ? 'block' : 'none';
+    const termsBox = document.getElementById('authTerms');
+    if (termsBox && mode !== 'signup') termsBox.checked = false;
     // Hint to password managers: 'new-password' on signup so they offer to
     // generate; 'current-password' on signin so they autofill.
     const pwd = document.getElementById('authPwd');
@@ -6705,7 +6893,7 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" placeholder="Search notes, party, category…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}">
+          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}">
         </div>
         <select id="filterType" onchange="renderEntriesList()">
           <option value="all">All</option>
@@ -6841,11 +7029,15 @@
         return;
       }
     }
-    const search = document.getElementById('searchInput')?.value.toLowerCase() || '';
+    const search = document.getElementById('searchInput')?.value.toLowerCase().trim() || '';
     const typeF = document.getElementById('filterType')?.value || 'all';
     const isMobile = window.innerWidth <= 880;
-    // Defensive: sort by date then createdAt, coercing missing values so a
-    // corrupted entry (from a hand-edited restore) can't crash the sort.
+    // v72: Sort by createdAt DESC (most recently added first) — when
+    // yesterday's entry is added today, the user expects it to appear
+    // at the top, not buried below older entries from today. The old
+    // sort was by entry date which caused that confusion.
+    // We still need an ASC pass first to compute the running balance
+    // in chronological order, then reverse for display.
     let allBookEntries = data.entries.filter(e => e.bookId === session.activeBookId).sort((a, b) => {
       const ad = a.date || '', bd = b.date || '';
       if (ad !== bd) return ad < bd ? -1 : 1;
@@ -6853,28 +7045,57 @@
     });
     let bal = 0;
     allBookEntries = allBookEntries.map(e => {
-      // Coerce amount so a corrupted entry doesn't poison every later balance with NaN.
       const amt = Number(e.amount);
       bal += (e.type === 'in' ? (Number.isFinite(amt) ? amt : 0) : -(Number.isFinite(amt) ? amt : 0));
       return { ...e, _runBal: bal };
     });
 
+    // Re-sort for display: most recently created entries first.
+    // Within identical createdAt, fall back to entry date.
+    allBookEntries.sort((a, b) => {
+      const ac = a.createdAt || 0, bc = b.createdAt || 0;
+      if (ac !== bc) return bc - ac;
+      const ad = a.date || '', bd = b.date || '';
+      return ad < bd ? 1 : (ad > bd ? -1 : 0);
+    });
+
     const pred = periodPredicate();
     let entries = allBookEntries.filter(pred);
+    // Resolve account / by-name lookups once.
+    const acctById = new Map(data.cashAccounts.map(a => [a.id, a.name]));
+    const _today = today();
     entries = entries.filter(e => {
       if (typeF !== 'all' && e.type !== typeF) return false;
       if (search) {
-        // Build the haystack: note + category + party (existing
-        // searchable fields), plus "edited"/"added" tokens with their
-        // YYYY-MM-DD timestamps so typing those words surfaces the
-        // matching subset. E.g. "edited 2026-05-14" matches entries
-        // edited on that day; "added 2026-05-14" matches new entries
-        // created on that day.
+        // v72: comprehensive haystack — every meaningful field is
+        // searchable. The user can search by:
+        //   - note text, party name, category name
+        //   - account name (resolved from accountId)
+        //   - amount (1500, 1,500, or partial like 15)
+        //   - date (YYYY-MM-DD or just the YYYY or MM-DD substring)
+        //   - by-name (createdByName) — find entries by who made them
+        //   - 'edited' / 'edited 2026-05-14' tokens
+        //   - 'added' / 'added 2026-05-14' tokens
+        //   - 'backdated' — entry.date < createdAt date
+        //   - 'frontdated' / 'future' — entry.date > today
         const _editLabel = entryEditedLabel(e);
         const editedToken = _editLabel ? `edited ${_editLabel}` : '';
         const _addLabel = entryAddedLabel(e);
         const addedToken = _addLabel ? `added ${_addLabel}` : 'added';
-        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${editedToken} ${addedToken}`.toLowerCase();
+        const acctName = e.accountId ? (acctById.get(e.accountId) || '') : '';
+        const byName = e.createdByName || '';
+        const amountStr = String(e.amount || '');
+        const amountFmt = (typeof fmt === 'function' && Number.isFinite(Number(e.amount))) ? fmt(e.amount).replace(/,/g, '') : '';
+        const dateStr = e.date || '';
+        // Status tokens that aren't visible text but searchable
+        const isBackdated = isEntryBackdated(e);
+        const isFrontdated = dateStr && dateStr > _today;
+        const statusTokens = [
+          isBackdated ? 'backdated' : '',
+          isFrontdated ? 'frontdated future' : '',
+          _editLabel ? 'edited' : '',
+        ].join(' ');
+        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${acctName} ${byName} ${amountStr} ${amountFmt} ${dateStr} ${editedToken} ${addedToken} ${statusTokens}`.toLowerCase();
         if (!hay.includes(search)) return false;
       }
       if (__entryFilter.partyId && e.partyId !== __entryFilter.partyId) return false;
@@ -6885,7 +7106,7 @@
       if (__entryFilter.accountId && e.accountId !== __entryFilter.accountId) return false;
       return true;
     });
-    entries.reverse();
+    // No more .reverse() — we already sorted DESC above.
 
     // Render the filter banner above the list
     renderEntryFilterBanner();
@@ -7182,8 +7403,11 @@
     // older than their creation day at the moment of saving get the tint.
     const isEdited = !!editedAtLabel;
     const isPastDate = isEntryBackdated(e);
-    const statusCls = isEdited ? ' entry-row-edited'
-      : (isPastDate ? ' entry-row-pastdate' : '');
+    // v72: use unified status helper which handles backdated, frontdated,
+    // edited, and combos. Returns the row class + a dot color/key.
+    const _status = entryStatusInfo(e);
+    const statusCls = _status.cls ? ' ' + _status.cls : '';
+    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${escapeHtml(_status.label)}" aria-label="${escapeHtml(_status.label)}"></span>` : '';
     const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
@@ -7191,7 +7415,7 @@
     const acctChip = acct ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${dateLineMobile}</div>
+        <div class="entry-date">${statusDot}${dateLineMobile}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party" ${partyClick}><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -7215,7 +7439,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${dateLine}</div>
+      <div class="entry-date">${statusDot}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
@@ -7385,7 +7609,12 @@
     // filtered by the active category).
     const allEntries = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.partyId === party.id && pred(e))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => {
+        // v72: createdAt desc — recently added at top, regardless of entry date.
+        const ac = a.createdAt || 0, bc = b.createdAt || 0;
+        if (ac !== bc) return bc - ac;
+        return (b.date || '').localeCompare(a.date || '');
+      });
     const { inSum, outSum } = sumEntries(allEntries);
     const net = inSum - outSum;
     const isMobile = window.innerWidth <= 880;
@@ -7518,15 +7747,17 @@
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
     const isPastDate = isEntryBackdated(e);
-    const statusCls = isEdited ? ' entry-row-edited'
-      : (isPastDate ? ' entry-row-pastdate' : '');
+    // v72: unified status helper for backdated, frontdated, edited, combos.
+    const _status = entryStatusInfo(e);
+    const statusCls = _status.cls ? ' ' + _status.cls : '';
+    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
     // v68: account chip on every drill-down row — users couldn't tell
     // which account each transaction moved through before.
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
     const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           <div class="entry-chip-row">
@@ -7541,12 +7772,15 @@
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
         </div>
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${dateLine}</div>
+      <div class="entry-date">${statusDot}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
@@ -7560,6 +7794,9 @@
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
     </div>`;
@@ -7726,7 +7963,11 @@
       ? data.entries.filter(e => bookIds.includes(e.bookId) && !e.category && predCat(e))
       : data.entries.filter(e => bookIds.includes(e.bookId) && e.category === catName && predCat(e));
 
-    const entries = matches.slice().sort((a, b) => b.date.localeCompare(a.date));
+    const entries = matches.slice().sort((a, b) => {
+      const ac = a.createdAt || 0, bc = b.createdAt || 0;
+      if (ac !== bc) return bc - ac;
+      return (b.date || '').localeCompare(a.date || '');
+    });
     const { inSum, outSum } = sumEntries(entries);
     const net = inSum - outSum;
     const isMobile = window.innerWidth <= 880;
@@ -7796,14 +8037,16 @@
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
     const isPastDate = isEntryBackdated(e);
-    const statusCls = isEdited ? ' entry-row-edited'
-      : (isPastDate ? ' entry-row-pastdate' : '');
+    // v72: unified status helper for backdated, frontdated, edited, combos.
+    const _status = entryStatusInfo(e);
+    const statusCls = _status.cls ? ' ' + _status.cls : '';
+    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
     // v68: account chip on category drill-down rows
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
     const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -7816,12 +8059,15 @@
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
         </div>
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${dateLine}</div>
+      <div class="entry-date">${statusDot}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
@@ -7835,6 +8081,9 @@
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
     </div>`;
@@ -10136,23 +10385,26 @@
           <div class="forecast-insight-sub">Projected day this month when cash in catches up.</div>
         </div>`;
     }
-    // 6-month trend mini-bar — vertical bars per month, height-proportional.
-    const maxAbs6 = Math.max(1, ...last6MonthsNet.map(m => Math.abs(m.net)));
+    // 6-month trend line — line chart showing the trajectory of
+    // operating profit month-by-month. Each point is a month;
+    // connecting line shows trend. Current month is the projection.
+    const sixMonthPoints = last6MonthsNet.map(m => ({
+      label: m.label,
+      value: m.net,
+      isCurrent: m.isCurrent,
+    }));
     const sixMonthHTML = `
       <div class="forecast-section">
         <h3 class="forecast-section-title">6-month operating profit trend</h3>
         <p class="forecast-section-sub">Operating profit (cash in − cash out − expenses, before tax) by month. Current month is the projection above; the rest are actuals.</p>
-        <div class="forecast-6m-grid">
-          ${last6MonthsNet.map(m => {
-            const pct = (Math.abs(m.net) / maxAbs6) * 100;
-            const isPos = m.net >= 0;
+        ${insightsLineSVG(sixMonthPoints.map(p => ({ label: p.label, value: p.value })), null)}
+        <div class="forecast-6m-strip">
+          ${sixMonthPoints.map(m => {
+            const isPos = m.value >= 0;
             return `
-              <div class="forecast-6m-cell ${m.isCurrent ? 'is-current' : ''}">
-                <div class="forecast-6m-bar-wrap">
-                  <div class="forecast-6m-bar ${isPos ? 'pos' : 'neg'}" style="height:${pct.toFixed(1)}%"></div>
-                </div>
-                <div class="forecast-6m-label">${escapeHtml(m.label)}${m.isCurrent ? ' (proj)' : ''}</div>
-                <div class="forecast-6m-val ${isPos ? 'pos' : 'neg'}">${cur} ${isPos ? '' : '−'}${fmt(Math.abs(m.net))}</div>
+              <div class="forecast-6m-strip-cell ${m.isCurrent ? 'is-current' : ''}">
+                <div class="forecast-6m-strip-label">${escapeHtml(m.label)}${m.isCurrent ? ' (proj)' : ''}</div>
+                <div class="forecast-6m-strip-val ${isPos ? 'pos' : 'neg'}">${cur} ${isPos ? '' : '−'}${fmt(Math.abs(m.value))}</div>
               </div>`;
           }).join('')}
         </div>
@@ -10399,7 +10651,7 @@
           `<rect class="bar bar-in" data-chart-detail='${escapeHtml(detailIn)}'
                  x="${xStart.toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}"
                  width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"
-                 fill="var(--gain)" rx="1">
+                 fill="var(--chart-cash-in)" rx="1">
              <title>${escapeHtml(b.label)} — Cash in: ${cur} ${fmt(b.in)}</title>
            </rect>`
         );
@@ -10411,7 +10663,7 @@
           `<rect class="bar bar-out" data-chart-detail='${escapeHtml(detailOut)}'
                  x="${(xStart + barW + 2).toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}"
                  width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"
-                 fill="var(--loss)" rx="1">
+                 fill="var(--chart-cash-out)" rx="1">
              <title>${escapeHtml(b.label)} — Cash out: ${cur} ${fmt(b.out)}</title>
            </rect>`
         );
@@ -11084,14 +11336,18 @@
       const b = _mtdByDay.get(d) || { in: 0, out: 0 };
       const xStart = _padL + (d - 1) * _dayWidth + _barGap;
       const _dateStr = `${_monthKeyStr}-${String(d).padStart(2, '0')}`;
-      const _payload = JSON.stringify({ kind: 'day', date: _dateStr });
+      // v72: per-bar type filter — click cash-in bar to see only that
+      // day's cash-in entries; click cash-out bar to see only cash-out.
+      // Previously both bars opened the same all-entries day view.
+      const _payloadIn  = JSON.stringify({ kind: 'day', date: _dateStr, type: 'in',  value: b.in });
+      const _payloadOut = JSON.stringify({ kind: 'day', date: _dateStr, type: 'out', value: b.out });
       if (b.in > 0) {
         const hh = (b.in / _yMaxDaily) * _innerH;
-        _dailyBars.push(`<rect class="fc-bar-in" x="${xStart.toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: in ${cur} ${fmt(b.in)}${b.out > 0 ? ' · out ' + cur + ' ' + fmt(b.out) : ''}</title></rect>`);
+        _dailyBars.push(`<rect class="fc-bar-in" x="${xStart.toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payloadIn)}' style="cursor:pointer;"><title>${_dateStr}: in ${cur} ${fmt(b.in)}</title></rect>`);
       }
       if (b.out > 0) {
         const hh = (b.out / _yMaxDaily) * _innerH;
-        _dailyBars.push(`<rect class="fc-bar-out" x="${(xStart + _barWidth + _barGap).toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: out ${cur} ${fmt(b.out)}${b.in > 0 ? ' · in ' + cur + ' ' + fmt(b.in) : ''}</title></rect>`);
+        _dailyBars.push(`<rect class="fc-bar-out" x="${(xStart + _barWidth + _barGap).toFixed(1)}" y="${(_padT + _innerH - hh).toFixed(1)}" width="${_barWidth.toFixed(1)}" height="${hh.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payloadOut)}' style="cursor:pointer;"><title>${_dateStr}: out ${cur} ${fmt(b.out)}</title></rect>`);
       }
     }
     const _dailyXLabels = [];
@@ -11129,21 +11385,58 @@
     const _netYMax = _niceCeil(_netMax);
     const _netZeroY = _padT + _netInnerH / 2;
     const _netHalfH = _netInnerH / 2;
-    const _netBarW = Math.max(2, _dayWidth - _barGap * 2);
-    const _netBars = [];
+    // v72: Daily Net Profit — line chart instead of bars. Each day is
+    // a point; the line connects points so the user can see the trend
+    // shape. Points are clickable for day drill-down. Line goes above
+    // the zero axis for profit days, below for loss days.
+    const _netLinePts = [];
     for (let d = 1; d <= _daysInMonth; d++) {
       const b = _mtdByDay.get(d) || { in: 0, out: 0 };
       const net = b.in - b.out;
-      if (net === 0) continue;
-      const xStart = _padL + (d - 1) * _dayWidth + _barGap;
-      const h = Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
-      const y = net >= 0 ? (_netZeroY - h) : _netZeroY;
-      const cls = net >= 0 ? 'fc-bar-pos' : 'fc-bar-neg';
-      const _dateStr = `${_monthKeyStr}-${String(d).padStart(2, '0')}`;
-      const _payload = JSON.stringify({ kind: 'day', date: _dateStr });
-      const sign = net >= 0 ? '+' : '−';
-      _netBars.push(`<rect class="fc-bar ${cls}" x="${xStart.toFixed(1)}" y="${y.toFixed(1)}" width="${_netBarW.toFixed(1)}" height="${h.toFixed(1)}" rx="1" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;"><title>${_dateStr}: ${sign}${cur} ${fmt(Math.abs(net))} (in ${fmt(b.in)} − out ${fmt(b.out)})</title></rect>`);
+      const xStart = _padL + (d - 1) * _dayWidth + _dayWidth / 2;
+      // Clamp the y so a single huge spike doesn't blow up the chart.
+      const clampedY = _netZeroY - Math.sign(net) * Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
+      _netLinePts.push({
+        d, x: xStart, y: clampedY, net,
+        date: `${_monthKeyStr}-${String(d).padStart(2, '0')}`,
+        hasData: (b.in > 0 || b.out > 0),
+      });
     }
+    // Build the line path, breaking at days with no data (so we don't
+    // bridge a zero across empty days — keep the line honest).
+    const _netSegments = [];
+    let _curSeg = [];
+    for (const p of _netLinePts) {
+      if (!p.hasData) {
+        if (_curSeg.length) { _netSegments.push(_curSeg); _curSeg = []; }
+        continue;
+      }
+      _curSeg.push(p);
+    }
+    if (_curSeg.length) _netSegments.push(_curSeg);
+    const _netPathSegments = _netSegments
+      .filter(s => s.length >= 2)
+      .map(s => s.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' '))
+      .join(' ');
+    // The line itself — colored green by default; per-segment color
+    // would be overkill; users get the sign cue from the dot color.
+    const _netLine = _netPathSegments
+      ? `<path d="${_netPathSegments}" fill="none" stroke="var(--chart-profit)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+      : '';
+    // Per-day dots — green if profit, red if loss. Each is a clickable
+    // hit area for the day drill-down.
+    const _netDots = _netLinePts.filter(p => p.hasData).map(p => {
+      const _kindType = p.net >= 0 ? 'profit' : 'loss';
+      const _payload = JSON.stringify({ kind: 'day', date: p.date, type: _kindType, value: p.net });
+      const sign = p.net >= 0 ? '+' : '−';
+      const fill = p.net >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
+      return `<g class="line-point" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;">
+        <title>${p.date}: ${sign}${cur} ${fmt(Math.abs(p.net))}</title>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="transparent"/>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${fill}" stroke="var(--paper)" stroke-width="1.2"/>
+      </g>`;
+    });
+    const _netBars = [_netLine, ..._netDots];
     const _netXLabels = [];
     for (let d = 1; d <= _daysInMonth; d++) {
       if (d === 1 || d % 5 === 0 || d === _daysInMonth) {
@@ -11170,7 +11463,7 @@
             <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
           </div>
         </div>
-        <p class="insights-chart-help">Tap any bar to see the day's entries.</p>
+        <p class="insights-chart-help">Tap any point to see the day's entries.</p>
         <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
           ${_netZeroAxis}
           ${_netBars.join('')}
@@ -11678,9 +11971,6 @@
       dowCounts[dow]++;
     }
     const dowNet = dowIn.map((v, i) => v - dowOut[i]);
-    const dowInMax = Math.max(...dowIn, 1);
-    const dowOutMax = Math.max(...dowOut, 1);
-    const dowNetAbsMax = Math.max(...dowNet.map(Math.abs), 1);
     // Reorder so Mon-Sun visually (matching the heatmap conventions).
     const dowOrder = [1, 2, 3, 4, 5, 6, 0];
     function argmax(arr) {
@@ -11691,19 +11981,6 @@
       return bi;
     }
     const mostProfitableIdx = argmax(dowNet);
-    // Unified bar-height scale per metric. Each mini-bar's height
-    // within its day is its share of that metric's busiest day.
-    // Profit bars use a shared positive/negative scale so the visual
-    // size reflects magnitude, with red applied for loss days.
-    function dowMiniBar(value, maxVal, kind, signed = false) {
-      const absVal = Math.abs(value);
-      const pct = maxVal > 0 ? (absVal / maxVal) * 100 : 0;
-      const negative = signed && value < 0;
-      const hasValue = absVal > 0 ? ' has-value' : '';
-      const cls = negative ? `insights-dow-mini-bar bar-out is-negative${hasValue}`
-                : `insights-dow-mini-bar bar-${kind}${hasValue}`;
-      return `<div class="insights-dow-mini-wrap"><div class="${cls}" style="height:${pct.toFixed(1)}%"></div></div>`;
-    }
     const dowHTML = `
       <div class="insights-section">
         <h3 class="insights-section-title">Day-of-week patterns</h3>
@@ -11721,11 +11998,6 @@
             return `
               <div class="insights-dow-cell ${isBest ? 'is-best' : ''}">
                 <div class="insights-dow-label">${dowNames[i]}</div>
-                <div class="insights-dow-bars">
-                  ${dowMiniBar(dowIn[i], dowInMax, 'in')}
-                  ${dowMiniBar(dowOut[i], dowOutMax, 'out')}
-                  ${dowMiniBar(profit, dowNetAbsMax, 'profit', true)}
-                </div>
                 <div class="insights-dow-stats">
                   <div class="insights-dow-stat">
                     <span class="insights-dow-stat-dot dot-in"></span>
@@ -11817,7 +12089,7 @@
         </div>
         <div class="page-actions">
           <button class="btn btn-sm btn-ghost" onclick="loadBizActivityLog()" id="actLogRefreshBtn">Refresh</button>
-          <button class="btn btn-sm btn-ghost" onclick="printActivityLog()" id="actLogPrintBtn">Print</button>
+          <button class="btn btn-sm btn-ghost btn-icon-only" onclick="printActivityLog()" id="actLogPrintBtn" title="Print or save as PDF" aria-label="Print or save as PDF"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg></button>
           <button class="btn btn-sm btn-danger-outline" onclick="clearAllActivityLog()" id="actLogClearAllBtn">Clear all</button>
         </div>
       </div>
@@ -12302,7 +12574,11 @@
     const predAcc = periodPredicate();
     const entries = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.accountId === acc.id && predAcc(e))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .sort((a, b) => {
+        const ac = a.createdAt || 0, bc = b.createdAt || 0;
+        if (ac !== bc) return bc - ac;
+        return (b.date || '').localeCompare(a.date || '');
+      });
     const { inSum, outSum } = sumEntries(entries);
     const net = inSum - outSum;
     const isMobile = window.innerWidth <= 880;
@@ -12372,11 +12648,13 @@
     // v56 status classes — see renderEntryRow for design notes.
     const isEdited = !!_editedAtLabel;
     const isPastDate = isEntryBackdated(e);
-    const statusCls = isEdited ? ' entry-row-edited'
-      : (isPastDate ? ' entry-row-pastdate' : '');
+    // v72: unified status helper for backdated, frontdated, edited, combos.
+    const _status = entryStatusInfo(e);
+    const statusCls = _status.cls ? ' ' + _status.cls : '';
+    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -12389,12 +12667,15 @@
             <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
             </button>
+            <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
         </div>
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${dateLine}</div>
+      <div class="entry-date">${statusDot}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
@@ -12408,6 +12689,9 @@
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button class="entry-act-btn danger" onclick="deleteEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Delete">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
         </button>
       </div>
     </div>`;
@@ -12789,6 +13073,7 @@
       modal.innerHTML = insightsPeriodModal();
     }
     else if (kind === 'privacy') { modal.innerHTML = privacyModal(); }
+    else if (kind === 'terms') { modal.innerHTML = termsModal(); }
     else if (kind === 'userGuide') { modal.innerHTML = userGuideModal(); }
     else if (kind === 'quickLook') {
       modal.innerHTML = quickLookModalHTML();
@@ -13276,20 +13561,20 @@
           ${comboboxHTML('mParty', partyOptionsCombo, defaultPartyId, 'Type to search or pick a party…', false)}
           ${parties.length === 0 ? `<p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.3rem;">No parties yet. <a onclick="closeModal();switchView('parties');openModal('party');" style="cursor:pointer;text-decoration:underline;">Add one →</a></p>` : ''}
         </div>
+        <div class="input-wrap">
+          <label id="accountLabel">${t === 'in' ? 'Cash into' : 'Cash from'} <span class="req">*</span></label>
+          ${comboboxHTML('mAccount', acctOptionsCombo, defaultAccountId, 'Type to search or pick an account…', false)}
+        </div>
         <div class="form-row">
           <div class="input-wrap">
-            <label id="accountLabel">${t === 'in' ? 'Cash into' : 'Cash from'} <span class="req">*</span></label>
-            ${comboboxHTML('mAccount', acctOptionsCombo, defaultAccountId, 'Type to search or pick an account…', false)}
+            <label>Category <span class="req">*</span></label>
+            ${comboboxHTML('mCategory', catOptionsCombo, defaultCategoryName, 'Type to search or pick a category…', false)}
+            ${cats.length === 0 && (roleFor(biz.id) === 'owner' || roleFor(biz.id) === 'manager') ? `<p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.3rem;">No categories yet. <a onclick="closeModal();openBizSettings('${biz.id}')" style="cursor:pointer;text-decoration:underline;">Add some →</a></p>` : ''}
           </div>
           <div class="input-wrap">
             <label>Date <span class="req">*</span> <span id="mDateRelative" class="date-relative-hint"></span></label>
             <input type="date" id="mDate" value="${existing?.date || today()}" oninput="updateDateRelativeHint()" onchange="updateDateRelativeHint()">
           </div>
-        </div>
-        <div class="input-wrap">
-          <label>Category <span class="req">*</span></label>
-          ${comboboxHTML('mCategory', catOptionsCombo, defaultCategoryName, 'Type to search or pick a category…', false)}
-          ${cats.length === 0 && (roleFor(biz.id) === 'owner' || roleFor(biz.id) === 'manager') ? `<p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.3rem;">No categories yet. <a onclick="closeModal();openBizSettings('${biz.id}')" style="cursor:pointer;text-decoration:underline;">Add some →</a></p>` : ''}
         </div>
         <div class="input-wrap">
           <label>Description</label>
@@ -13399,18 +13684,23 @@
   function renderComboList(id, filter) {
     const { options, allowEmpty } = getComboOpts(id);
     const q = (filter || '').trim().toLowerCase();
-    // v60: prefix-match by word. The query must match the start of some
-    // word in the label (split on whitespace + common separators).
+    // v60/v72: prefix-match by word, with MULTI-WORD query support.
+    // Each query token must prefix-match some label token. So typing
+    // "highland w" matches "Highland Wholesale" because "highland"
+    // prefix-matches token[0] and "w" prefix-matches token[1].
     // Substring match was too loose — typing "ali" used to surface
     // unrelated entries like "Vitalik" or "Mali". Word-start matching
     // is what the user expects from a contact-style picker.
     function labelMatches(label) {
       if (!q) return true;
-      const tokens = String(label || '').toLowerCase().split(/[\s\-_,./()|]+/).filter(Boolean);
-      for (const tok of tokens) {
-        if (tok.startsWith(q)) return true;
+      const labelTokens = String(label || '').toLowerCase().split(/[\s\-_,./()|]+/).filter(Boolean);
+      const queryTokens = q.split(/\s+/).filter(Boolean);
+      for (const qtok of queryTokens) {
+        // Every query token must find a label token that starts with it.
+        const matched = labelTokens.some(lt => lt.startsWith(qtok));
+        if (!matched) return false;
       }
-      return false;
+      return true;
     }
     const filtered = q ? options.filter(o => labelMatches(o.label)) : options;
     const list = document.getElementById(id + '_list');
@@ -13789,11 +14079,25 @@
     let title = 'Detail';
     let subtitle = '';
     if (payload.kind === 'day' && payload.date) {
-      matchFn = (e) => e.date === payload.date;
+      // v72: optional type filter so clicking a cash-in bar only shows
+      // cash-in entries for that day, and same for cash-out / profit.
+      matchFn = (e) => e.date === payload.date
+        && (!payload.type || e.type === payload.type);
       const dt = new Date(payload.date + 'T00:00:00');
+      const weekday = dt.toLocaleDateString('default', { weekday: 'long' });
       title = dt.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-      const sign = payload.value >= 0 ? '+' : '−';
-      subtitle = `Net for the day: ${sign}${cur} ${fmt(Math.abs(payload.value || 0))}`;
+      if (payload.type === 'in') {
+        subtitle = `${weekday} · Cash in for the day: ${cur} ${fmt(payload.value || 0)}`;
+      } else if (payload.type === 'out') {
+        subtitle = `${weekday} · Cash out for the day: ${cur} ${fmt(payload.value || 0)}`;
+      } else if (payload.type === 'profit' || payload.type === 'loss') {
+        const sign = (payload.value || 0) >= 0 ? '+' : '−';
+        const label = (payload.value || 0) >= 0 ? 'Profit' : 'Loss';
+        subtitle = `${weekday} · ${label} for the day: ${sign}${cur} ${fmt(Math.abs(payload.value || 0))}`;
+      } else {
+        const sign = (payload.value || 0) >= 0 ? '+' : '−';
+        subtitle = `Net for the day: ${sign}${cur} ${fmt(Math.abs(payload.value || 0))}`;
+      }
     } else if (payload.kind === 'monthIn' && payload.monthKey) {
       const mk = payload.monthKey;
       matchFn = (e) => (e.date || '').slice(0, 7) === mk
@@ -16240,9 +16544,9 @@
             <p style="font-size:0.85rem;color:var(--ink-mute);margin:0;">Who entered what during <strong>${escapeHtml(periodLabel)}</strong>. Hidden accounts are excluded from these totals (same as the Entries view). Tap a row to view that person's entries.</p>
           </div>
           <div style="display:flex;gap:0.4rem;flex-shrink:0;">
-            <button class="btn btn-sm btn-ghost" onclick="printTeamActivity()" title="Print">Print</button>
-            <button class="btn btn-sm btn-ghost" onclick="exportTeamActivity('pdf')" title="Export as PDF" aria-label="Export team activity as PDF">PDF</button>
-            <button class="btn btn-sm btn-ghost" onclick="exportTeamActivity('csv')" title="Export as CSV" aria-label="Export team activity as CSV">CSV</button>
+            ${smPrintIcon('printTeamActivity()')}
+            ${smPdfIcon("exportTeamActivity('pdf')")}
+            ${smCsvIcon("exportTeamActivity('csv')")}
           </div>
         </div>
         ${renderPeriodBar()}
@@ -16290,8 +16594,10 @@
     return data.entries
       .filter(e => bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e) && filterFn(e))
       .sort((a, b) => {
-        if (a.date !== b.date) return (b.date || '').localeCompare(a.date || '');
-        return (b.createdAt || 0) - (a.createdAt || 0);
+        // v72: createdAt desc — recently added at top, regardless of entry date.
+        const ac = a.createdAt || 0, bc = b.createdAt || 0;
+        if (ac !== bc) return bc - ac;
+        return (b.date || '').localeCompare(a.date || '');
       });
   }
 
@@ -16368,9 +16674,9 @@
       </div>
       <div class="member-activity-list" id="memberActivityListPrint">${list}</div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="printMemberActivity('${jsAttr(memberName)}','${jsAttr(periodLabel)}')">Print</button>
-        <button class="btn btn-ghost" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','csv')">Export CSV</button>
-        <button class="btn btn-ghost" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')">Export PDF</button>
+        ${smPrintIcon(`printMemberActivity('${jsAttr(memberName)}','${jsAttr(periodLabel)}')`)}
+        ${smPdfIcon(`exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')`)}
+        ${smCsvIcon(`exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','csv')`)}
         <button class="btn" onclick="closeModal()">Done</button>
       </div>
     `;
@@ -16787,6 +17093,62 @@
       ${tabBar}
       <div class="settings-tab-body">${body}</div>
       <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>
+    `;
+  }
+
+  function termsModal() {
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Terms &amp; Conditions</h2>
+      <p class="modal-sub">The rules for using Hisabs, in plain language.</p>
+      <div class="settings-tab-body doc-body">
+        <p style="color:var(--ink-mute);font-size:0.8rem;">Last updated: ${today()}</p>
+
+        <h3>1. What Hisabs is</h3>
+        <p>Hisabs is a cloud-synced bookkeeping app for small businesses. You record cash coming in and going out, organise entries by party, category, and account, and view insights about your business. The app is provided as-is for your use.</p>
+
+        <h3>2. Your account</h3>
+        <p>You must provide a valid email to sign up. You're responsible for keeping your password safe. Don't share your account credentials with anyone you wouldn't share your books with. If you suspect your account is compromised, change your password immediately.</p>
+        <p>You must be at least 18 years old to use Hisabs.</p>
+
+        <h3>3. Your data is yours</h3>
+        <p>Everything you enter in Hisabs — businesses, entries, parties, categories, expenses — belongs to you. We do not sell, share, or use your business data for any purpose other than providing the service to you. You can export or delete all of it from inside the app at any time.</p>
+        <p>For details on how data is stored and protected, see the <a onclick="event.preventDefault();closeModal();setTimeout(()=>openModal('privacy'),50)">Privacy Policy</a>.</p>
+
+        <h3>4. Acceptable use</h3>
+        <p>Don't use Hisabs to:</p>
+        <ul>
+          <li>Store data you don't have the right to store (e.g. someone else's confidential records)</li>
+          <li>Attempt to break into other users' accounts or businesses</li>
+          <li>Send spam, malware, or malicious content via team invites or announcements</li>
+          <li>Reverse-engineer, scrape, or abuse the service in ways that affect other users</li>
+          <li>Use the app for any illegal purpose under your local laws</li>
+        </ul>
+        <p>We may suspend or delete accounts that violate these rules.</p>
+
+        <h3>5. Team members &amp; shared businesses</h3>
+        <p>When you invite a team member, they get access to entries in your business according to the role you grant (Team, Manager, etc.). You're responsible for what your team members do. If you remove a team member, their access ends immediately, but entries they previously created remain in the business.</p>
+
+        <h3>6. The service is provided "as is"</h3>
+        <p>Hisabs is provided without warranty of any kind. The app is built carefully and tested, but no software is bug-free. We do not guarantee that Hisabs will be available 100% of the time, that all features will work in every environment, or that data will never be lost. Make your own backups regularly using the Export feature.</p>
+        <p>To the maximum extent permitted by law, we are not liable for any indirect or consequential losses arising from your use of Hisabs (lost revenue, missed deadlines, business decisions made based on Hisabs reports, etc.). Your sole remedy if you're not satisfied is to stop using the app.</p>
+
+        <h3>7. Account deletion</h3>
+        <p>You can delete your account at any time from Settings → Data → Delete account. This permanently removes your sign-in record, businesses you own, and all data associated with them. This action cannot be undone — export anything you want to keep first.</p>
+        <p>We may delete accounts that have been inactive for over 24 months, after notifying you by email.</p>
+
+        <h3>8. Service changes</h3>
+        <p>We may update features, change pricing (if pricing is ever introduced), or discontinue the service. We'll notify you of significant changes via in-app announcements or email. If we ever shut down Hisabs, we'll give you reasonable time (at least 60 days) to export your data.</p>
+
+        <h3>9. Changes to these terms</h3>
+        <p>We may update these terms occasionally. The "Last updated" date at the top will reflect the most recent change. If changes materially affect you, we'll show an in-app notice before they take effect.</p>
+
+        <h3>10. Contact</h3>
+        <p>Questions about these terms? Reach out via the email address listed in the app's Settings page.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+      </div>
     `;
   }
 
@@ -17459,14 +17821,45 @@
       <div class="settings-section">
         <h3 class="settings-heading">Storage cleanup</h3>
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Delete the <strong>entries</strong> from one specific month. Useful when a business has accumulated months or years of data and you want to free up space. Parties, categories, accounts, transfers, audit log, and expenses are kept — only the entries from the chosen month are removed.</p>
-        <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;">
-          <div class="input-wrap" style="flex:1;min-width:170px;">
-            <label for="cleanupMonth_${biz.id}">Month to clear</label>
-            <input type="month" id="cleanupMonth_${biz.id}" max="${escapeHtml(today().slice(0,7))}">
-          </div>
-          <button class="btn btn-sm btn-danger-outline" onclick="cleanupMonthEntries('${biz.id}')">Delete entries for that month</button>
-        </div>
-        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.55rem;">This cannot be undone. A confirmation will show how many entries are about to be removed.</p>
+        ${(() => {
+          // Build the per-month entry count for this business, oldest first,
+          // excluding the current month (which can't be cleared from here).
+          const _bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+          const _currentMonth = today().slice(0, 7);
+          const _monthCounts = new Map();
+          for (const e of data.entries) {
+            if (!_bookIds.has(e.bookId)) continue;
+            const m = (e.date || '').slice(0, 7);
+            if (!/^\d{4}-\d{2}$/.test(m)) continue;
+            if (m === _currentMonth) continue;
+            _monthCounts.set(m, (_monthCounts.get(m) || 0) + 1);
+          }
+          const _monthOptions = [..._monthCounts.entries()]
+            .sort(([a], [b]) => a < b ? -1 : 1);
+          if (_monthOptions.length === 0) {
+            return `<p style="font-size:0.78rem;color:var(--ink-mute);background:var(--paper-deep);border:1px dashed var(--line);padding:0.7rem;border-radius:var(--r-sm);">No past months with entries yet. Once entries from previous months exist, they'll appear here for cleanup.</p>`;
+          }
+          // Friendly label: "May 2024 — 47 entries"
+          const _opts = _monthOptions.map(([key, count]) => {
+            const [y, m] = key.split('-').map(Number);
+            const label = new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+            const entryWord = count === 1 ? 'entry' : 'entries';
+            return `<option value="${escapeHtml(key)}">${escapeHtml(label)} — ${count} ${entryWord}</option>`;
+          }).join('');
+          return `
+            <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;">
+              <div class="input-wrap" style="flex:1;min-width:220px;">
+                <label for="cleanupMonth_${biz.id}">Month to clear</label>
+                <select id="cleanupMonth_${biz.id}">
+                  <option value="">— pick a month —</option>
+                  ${_opts}
+                </select>
+              </div>
+              <button class="btn btn-sm btn-danger-outline" onclick="cleanupMonthEntries('${biz.id}')">Delete entries for that month</button>
+            </div>
+            <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.55rem;">This cannot be undone. A confirmation will show how many entries are about to be removed. Months are listed oldest first — the natural cleanup order.</p>
+          `;
+        })()}
       </div>
 
       <div class="settings-section">
@@ -19353,9 +19746,35 @@
     const cd = new Date(entry.createdAt);
     if (isNaN(cd.getTime())) return false;
     const cYmd = cd.getFullYear() + '-'
-      + String(cd.getMonth() + 1).padStart(2, '0') + '-'
-      + String(cd.getDate()).padStart(2, '0');
+      + String(cd.getMonth() + 1).padStart(2, '0')
+      + '-' + String(cd.getDate()).padStart(2, '0');
     return entry.date < cYmd;
+  }
+  // v72: front-dated (future) entry — entry.date is after today.
+  // Distinct from backdated: backdated is date BEFORE createdAt (entered
+  // late); frontdated is date AFTER today (scheduled/future).
+  function isEntryFrontdated(entry) {
+    if (!entry || !entry.date) return false;
+    return entry.date > today();
+  }
+  // v72: unified per-entry status helper. Returns the row CSS class
+  // and a dot color, accounting for combos:
+  //   normal      → no class, no dot
+  //   edited      → entry-row-edited (yellow tint), yellow dot
+  //   backdated   → entry-row-pastdate (blue tint), blue dot
+  //   frontdated  → entry-row-futuredate (purple tint), purple dot
+  //   backdated + edited  → entry-row-pastdate-edited (teal-ish), teal dot
+  //   frontdated + edited → entry-row-futuredate-edited (pink), pink dot
+  function entryStatusInfo(e) {
+    const isEdited = !!entryEditedLabel(e);
+    const isBack = isEntryBackdated(e);
+    const isFront = isEntryFrontdated(e);
+    if (isBack && isEdited) return { cls: 'entry-row-pastdate-edited', dot: 'dot-back-edit', label: 'backdated · edited' };
+    if (isFront && isEdited) return { cls: 'entry-row-futuredate-edited', dot: 'dot-front-edit', label: 'future · edited' };
+    if (isBack) return { cls: 'entry-row-pastdate', dot: 'dot-back', label: 'backdated' };
+    if (isFront) return { cls: 'entry-row-futuredate', dot: 'dot-front', label: 'future date' };
+    if (isEdited) return { cls: 'entry-row-edited', dot: 'dot-edit', label: 'edited' };
+    return { cls: '', dot: '', label: '' };
   }
 
   // Cached after the first failure so we don't keep retrying a function
@@ -19940,9 +20359,16 @@
     doc.autoTable({
       head: [['Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
       body: rows, startY: 35,
-      headStyles: { fillColor: [26, 22, 18], textColor: 245 },
+      headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 7 },
-      columnStyles: { 5: { halign: 'right' }, 6: { halign: 'right' }, 7: { halign: 'right' } },
+      columnStyles: {
+        // v72: color-code amount columns so the printed PDF reads
+        // the same way as the screen — green for cash-in, red for
+        // cash-out. Helps owners glance at a long ledger.
+        5: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
+        6: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
+        7: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
+      },
       foot: [['', '', '', '', 'Totals', fmt(inSum, biz.currency), fmt(outSum, biz.currency), fmt(inSum - outSum, biz.currency), '']],
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
@@ -20061,11 +20487,21 @@
         columnStyles[Number(k)] = { halign: v };
       }
     }
+    // v72: optional per-column color (e.g. green for cash-in, red for
+    // cash-out). columnColors is { columnIndex: [r,g,b] }.
+    if (opts.columnColors) {
+      for (const [k, color] of Object.entries(opts.columnColors)) {
+        const idx = Number(k);
+        columnStyles[idx] = columnStyles[idx] || {};
+        columnStyles[idx].textColor = color;
+        columnStyles[idx].fontStyle = 'bold';
+      }
+    }
     doc.autoTable({
       head: [opts.columns],
       body: opts.rows,
       startY: opts.subtitle ? 33 : 27,
-      headStyles: { fillColor: [26, 22, 18], textColor: 245 },
+      headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
       columnStyles,
       foot: opts.totals ? [opts.totals] : undefined,
@@ -20923,6 +21359,13 @@
     if (!login.includes('@')) { toast('Use your email address (phone-only sign-in needs separate setup).'); return; }
     if (authMode_ === 'signup' && (!name || !name.trim())) { toast('Enter your name.'); return; }
     if (authMode_ === 'signup' && pwd.length < 8) { toast('Password must be at least 8 characters.'); return; }
+    if (authMode_ === 'signup') {
+      const termsBox = document.getElementById('authTerms');
+      if (!termsBox || !termsBox.checked) {
+        toast('Please accept the Terms & Conditions to continue.');
+        return;
+      }
+    }
     // Signup needs the password typed twice (matched). Defends against
     // typos when creating an account — a mistyped password would lock
     // them out of their data with no recovery short of email reset.
@@ -20968,6 +21411,11 @@
         });
         if (error) { toast('Sign up failed: ' + error.message); return; }
         if (!data.session) {
+          // Hide the splash before the alert so the alert is the
+          // only thing on screen. Without this, the splash (z-200,
+          // appended after body init) can visually compete with
+          // the modal even though we lifted the modal's z-index.
+          hideBootSplash(true);
           await uiAlert(`We sent a confirmation link to ${login}.\n\nOpen the email and click the link to finish creating your account, then come back and sign in.`, { title: 'Check your inbox' });
           setAuthMode('signin');
           return;
@@ -21858,54 +22306,45 @@
       if (ctx.state === 'suspended') {
         try { ctx.resume(); } catch (_) {}
       }
-      // Strong alarm pattern: alternating two-tone siren over 4
-      // seconds. Higher peak gain (0.30 vs old 0.15) and square-
-      // wave overtones for a harder, more attention-grabbing
-      // sound. The pattern is six beeps of ~600ms each (4 sec total),
-      // alternating 880Hz/660Hz like a smoke-detector "BEEP BEEP".
-      // Brief gaps between beeps make it feel urgent rather than
-      // continuous (continuous tones are easier to ignore).
+      // "Ding Ding" announcement bell — bright two-note pattern,
+      // 8 dings over 4 seconds, alternating high/low pitches like
+      // a classic doorbell/PA chime. Each ding has a sharp attack
+      // and bell-like decay (a few harmonic partials, not pure
+      // sine). High peak gain (0.55) for unmistakable presence.
       const now = ctx.currentTime;
-      const beepDur = 0.55;
-      const gap = 0.12;
-      const pattern = [
-        { freq: 880, start: 0.00 },
-        { freq: 660, start: beepDur + gap },
-        { freq: 880, start: (beepDur + gap) * 2 },
-        { freq: 660, start: (beepDur + gap) * 3 },
-        { freq: 880, start: (beepDur + gap) * 4 },
-        { freq: 660, start: (beepDur + gap) * 5 },
-      ];
-      for (const n of pattern) {
-        // Layered oscillators for a richer alarm timbre: a square
-        // wave for the body (loud, attention-grabbing harmonics)
-        // plus a sine an octave higher for brightness.
-        const oscA = ctx.createOscillator();
-        const oscB = ctx.createOscillator();
-        const gain = ctx.createGain();
-        oscA.type = 'square';
-        oscA.frequency.value = n.freq;
-        oscB.type = 'sine';
-        oscB.frequency.value = n.freq * 2;
-        // Envelope with a sharp attack and a sustain plateau so the
-        // beep is loud throughout its full duration, then a quick
-        // release. Peak gain 0.30 (twice the polite chime) without
-        // clipping the speakers.
-        gain.gain.setValueAtTime(0.0001, now + n.start);
-        gain.gain.exponentialRampToValueAtTime(0.30, now + n.start + 0.02);
-        gain.gain.setValueAtTime(0.30, now + n.start + beepDur - 0.06);
-        gain.gain.exponentialRampToValueAtTime(0.0001, now + n.start + beepDur);
-        oscA.connect(gain);
-        oscB.connect(gain);
-        gain.connect(ctx.destination);
-        oscA.start(now + n.start);
-        oscB.start(now + n.start);
-        oscA.stop(now + n.start + beepDur + 0.02);
-        oscB.stop(now + n.start + beepDur + 0.02);
+      const dingDur = 0.45;     // each "ding" is ~0.45s of audible ring
+      const dingGap = 0.05;     // small breath between dings
+      const stride = dingDur + dingGap; // 0.5s per ding → 8 dings in 4s
+      const dingCount = 8;
+      // Alternating high/low: DING-dong-DING-dong-DING-dong-DING-dong
+      const freqs = [880, 660];
+
+      for (let i = 0; i < dingCount; i++) {
+        const startT = now + i * stride;
+        const fundamental = freqs[i % 2];
+        // Bell timbre = fundamental + 2.76x partial (inharmonic, gives bell shimmer) + 5.4x partial
+        const partials = [
+          { mult: 1.00, gain: 0.55, decay: dingDur },
+          { mult: 2.76, gain: 0.22, decay: dingDur * 0.7 },
+          { mult: 5.40, gain: 0.10, decay: dingDur * 0.5 },
+        ];
+        for (const p of partials) {
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = fundamental * p.mult;
+          const gain = ctx.createGain();
+          // Sharp attack (5ms), exponential decay to silence
+          gain.gain.setValueAtTime(0, startT);
+          gain.gain.linearRampToValueAtTime(p.gain, startT + 0.005);
+          gain.gain.exponentialRampToValueAtTime(0.0001, startT + p.decay);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(startT);
+          osc.stop(startT + p.decay + 0.05);
+        }
       }
-      // Total runtime: 6 beeps × (0.55 + 0.12 gap) ≈ 4.02 sec.
-      // Close the context shortly after the last beep finishes.
-      const totalDur = (beepDur + gap) * 6;
+      // Total runtime: 8 × 0.5 = 4.0 sec exact.
+      const totalDur = dingCount * stride;
       return new Promise((resolve) => {
         setTimeout(() => {
           try { ctx.close(); } catch (_) {}
