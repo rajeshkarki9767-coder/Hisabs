@@ -55,6 +55,17 @@
     --gain: #2e5d3a;
     --gain-soft: #4a8157;
     --loss: #a8351f;
+    /* Chart-specific colors — the user-facing convention is:
+       blue = cash in, red = cash out, green = profit. These are
+       distinct from --gain/--loss (which are semantic for any
+       positive/negative amount display) so the chart encoding
+       stays consistent regardless of the rest of the UI. */
+    --chart-cash-in: #2b5f8a;
+    --chart-cash-in-soft: #4a82b0;
+    --chart-cash-out: #a8351f;
+    --chart-cash-out-soft: #c25742;
+    --chart-profit: #2e5d3a;
+    --chart-profit-soft: #4a8157;
     --line: #d4cdb8;
     --line-soft: #e4ddc8;
     --shadow: 0 1px 0 rgba(26,22,18,0.04), 0 8px 24px -8px rgba(26,22,18,0.12);
@@ -1353,8 +1364,8 @@
   .chart-legend { display: flex; align-items: center; gap: 1rem; padding: 0.7rem 0; font-size: 0.78rem; color: var(--ink-mute); flex-wrap: wrap; }
   .chart-legend-item { display: inline-flex; align-items: center; gap: 0.4rem; }
   .chart-legend-swatch { width: 12px; height: 8px; }
-  .chart-legend-swatch.in { background: var(--gain); }
-  .chart-legend-swatch.out { background: var(--loss); }
+  .chart-legend-swatch.in { background: var(--chart-cash-in); }
+  .chart-legend-swatch.out { background: var(--chart-cash-out); }
   .chart-legend-meta { margin-left: auto; font-size: 0.72rem; }
   .chart-grid { display: flex; flex-direction: column; gap: 0.4rem; }
   .chart-row { display: grid; grid-template-columns: 60px 1fr 140px; align-items: center; gap: 0.75rem; padding: 0.2rem 0; }
@@ -1364,8 +1375,8 @@
   .chart-bars { display: flex; flex-direction: column; gap: 0.18rem; min-width: 0; }
   .chart-bar-track { height: 10px; background: var(--paper-deep); position: relative; }
   .chart-bar { height: 100%; transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1); }
-  .chart-bar.in { background: var(--gain); }
-  .chart-bar.out { background: var(--loss); }
+  .chart-bar.in { background: var(--chart-cash-in); }
+  .chart-bar.out { background: var(--chart-cash-out); }
   .chart-row-vals { display: flex; flex-direction: column; gap: 0.18rem; text-align: right; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
   .chart-val.in { color: var(--gain); font-weight: 500; }
   .chart-val.out { color: var(--loss); font-weight: 500; }
@@ -1976,8 +1987,8 @@
   }
   .forecast-chart-legend > span { display: inline-flex; align-items: center; gap: 0.3rem; }
   .fc-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; }
-  .fc-swatch-in { background: var(--gain); }
-  .fc-swatch-out { background: var(--loss); }
+  .fc-swatch-in { background: var(--chart-cash-in); }
+  .fc-swatch-out { background: var(--chart-cash-out); }
   /* v64: forecast expansions. Section wrapper (reuses the look of
      .insights-section but scoped to forecast). 6-month trend grid
      (vertical bars in 6 cells). Methods grid (3 cards side-by-side). */
@@ -2012,8 +2023,8 @@
     border-radius: 2px 2px 0 0; min-height: 2px;
     transition: height 0.3s ease;
   }
-  .forecast-6m-bar.pos { background: var(--gain); }
-  .forecast-6m-bar.neg { background: var(--loss); }
+  .forecast-6m-bar.pos { background: var(--chart-profit); }
+  .forecast-6m-bar.neg { background: var(--chart-cash-out); }
   .forecast-6m-label {
     font-size: 0.7rem; font-weight: 600; color: var(--ink-soft);
     text-transform: uppercase; letter-spacing: 0.04em;
@@ -2159,13 +2170,13 @@
     width: 100%; height: auto; display: block;
     font-family: var(--font-mono);
   }
-  .fc-bar-in { fill: var(--gain); }
-  .fc-bar-out { fill: var(--loss); }
-  .fc-bar.fc-bar-pos { fill: var(--gain); }
-  .fc-bar.fc-bar-neg { fill: var(--loss); }
+  .fc-bar-in { fill: var(--chart-cash-in); }
+  .fc-bar-out { fill: var(--chart-cash-out); }
+  .fc-bar.fc-bar-pos { fill: var(--chart-profit); }
+  .fc-bar.fc-bar-neg { fill: var(--chart-cash-out); }
   .fc-bar.fc-bar-last { fill: var(--ink-mute); }
-  .fc-swatch-current { background: var(--gain); }
-  .fc-swatch-currentneg { background: var(--loss); }
+  .fc-swatch-current { background: var(--chart-profit); }
+  .fc-swatch-currentneg { background: var(--chart-cash-out); }
   .forecast-section-sub-inline { font-size: 0.75rem; font-weight: 400; color: var(--ink-mute); }
   .forecast-chart-legend { display: flex; gap: 0.85rem; align-items: center; font-size: 0.72rem; color: var(--ink-mute); margin-bottom: 0.35rem; }
   .forecast-chart-legend .fc-swatch { width: 10px; height: 10px; display: inline-block; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
@@ -2643,21 +2654,23 @@
   }
   .insights-dow-mini-wrap {
     width: 12px; height: 100%; position: relative;
-    background: var(--line-soft); border-radius: 2px; overflow: hidden;
+    background: transparent;
+    border-bottom: 1px solid var(--line);
   }
   .insights-dow-mini-bar {
     position: absolute; left: 0; right: 0; bottom: 0;
     border-radius: 2px 2px 0 0;
     transition: height 0.3s ease;
-    min-height: 2px;
   }
-  .insights-dow-mini-bar.bar-in { background: var(--gain); }
-  .insights-dow-mini-bar.bar-out { background: var(--loss); }
-  .insights-dow-mini-bar.bar-profit { background: var(--accent); }
+  /* Only show a min-height visible nub when the value is non-zero. */
+  .insights-dow-mini-bar.has-value { min-height: 2px; }
+  .insights-dow-mini-bar.bar-in { background: var(--chart-cash-in); }
+  .insights-dow-mini-bar.bar-out { background: var(--chart-cash-out); }
+  .insights-dow-mini-bar.bar-profit { background: var(--chart-profit); }
   /* For profit-loss days we shift the bar to render below mid-line.
      The wrap stays the same; the bar is anchored at top instead of
      bottom to show a downward bar (used inline via style). */
-  .insights-dow-mini-bar.is-negative { background: var(--loss); }
+  .insights-dow-mini-bar.is-negative { background: var(--chart-cash-out); }
   /* Per-day numbers under the bars, one row per metric. Tight font
      and tabular-nums so columns line up. */
   .insights-dow-stats {
@@ -2672,9 +2685,9 @@
   .insights-dow-stat-dot {
     flex-shrink: 0; width: 6px; height: 6px; border-radius: 1px;
   }
-  .insights-dow-stat-dot.dot-in { background: var(--gain); }
-  .insights-dow-stat-dot.dot-out { background: var(--loss); }
-  .insights-dow-stat-dot.dot-profit { background: var(--accent); }
+  .insights-dow-stat-dot.dot-in { background: var(--chart-cash-in); }
+  .insights-dow-stat-dot.dot-out { background: var(--chart-cash-out); }
+  .insights-dow-stat-dot.dot-profit { background: var(--chart-profit); }
   .insights-dow-stat-val {
     font-weight: 600; color: var(--ink); flex: 1; text-align: right;
     min-width: 0; overflow: hidden; text-overflow: ellipsis;
@@ -2693,9 +2706,9 @@
     display: inline-block; width: 10px; height: 10px;
     border-radius: 2px; margin-right: 0.3rem; vertical-align: middle;
   }
-  .insights-dow-legend-swatch.bar-in { background: var(--gain); }
-  .insights-dow-legend-swatch.bar-out { background: var(--loss); }
-  .insights-dow-legend-swatch.bar-profit { background: var(--accent); }
+  .insights-dow-legend-swatch.bar-in { background: var(--chart-cash-in); }
+  .insights-dow-legend-swatch.bar-out { background: var(--chart-cash-out); }
+  .insights-dow-legend-swatch.bar-profit { background: var(--chart-profit); }
   /* v63: WoW headline cards — same row layout as primary KPIs but
      each card pairs current week + last week + delta pill. */
   .insights-wow-headline {
@@ -2757,8 +2770,8 @@
     display: inline-block; width: 10px; height: 10px;
     border-radius: 2px; margin-right: 0.3rem; vertical-align: -1px;
   }
-  .fc-swatch-in { background: var(--gain); }
-  .fc-swatch-out { background: var(--loss); }
+  .fc-swatch-in { background: var(--chart-cash-in); }
+  .fc-swatch-out { background: var(--chart-cash-out); }
   /* Responsive */
   @media (max-width: 1024px) {
     .insights-kpis { grid-template-columns: repeat(2, 1fr); }
@@ -4414,6 +4427,14 @@
         gain:        '#6fa67a',
         gainSoft:    '#8cbf95',
         loss:        '#e07560',
+        // Dark-mode chart colors — lifted lightness so the bars are
+        // visible against the near-black page background.
+        chartCashIn:      '#5b8fbe',
+        chartCashInSoft:  '#7eaad0',
+        chartCashOut:     '#e07560',
+        chartCashOutSoft: '#ea8e7c',
+        chartProfit:      '#6fa67a',
+        chartProfitSoft:  '#8cbf95',
         // On-ink variants: --ink in DARK mode is near-white. The dark
         // bars on the audit page have a light-cream background, so the
         // gain/loss text inside needs to be DARK to pass contrast.
@@ -4450,6 +4471,14 @@
       gain:        '#2e5d3a',
       gainSoft:    '#4a8157',
       loss:        '#a8351f',
+      // Light-mode chart colors. Blue tuned to feel like ink on
+      // cream paper, not flashy. Red and green map onto loss/gain.
+      chartCashIn:      '#2b5f8a',
+      chartCashInSoft:  '#4a82b0',
+      chartCashOut:     '#a8351f',
+      chartCashOutSoft: '#c25742',
+      chartProfit:      '#2e5d3a',
+      chartProfitSoft:  '#4a8157',
       // On-ink variants: --ink in LIGHT mode is near-black. The dark
       // bars (.audit-balances-total, .acct-grand-total) need BRIGHT
       // text colors to pass WCAG AA contrast against the near-black
@@ -4507,6 +4536,15 @@
     root.setProperty('--loss', p.loss);
     root.setProperty('--gain-on-dark', p.gainOnDark);
     root.setProperty('--loss-on-dark', p.lossOnDark);
+    // Chart palette — blue (cash in), red (cash out), green (profit).
+    // Each has a "soft" lighter variant for highlights or secondary
+    // emphasis (e.g. legend swatches, hovered states).
+    root.setProperty('--chart-cash-in', p.chartCashIn);
+    root.setProperty('--chart-cash-in-soft', p.chartCashInSoft);
+    root.setProperty('--chart-cash-out', p.chartCashOut);
+    root.setProperty('--chart-cash-out-soft', p.chartCashOutSoft);
+    root.setProperty('--chart-profit', p.chartProfit);
+    root.setProperty('--chart-profit-soft', p.chartProfitSoft);
     root.setProperty('--sidebar-bg', p.sidebarBg);
     root.setProperty('--sidebar-text', p.sidebarText);
     root.setProperty('--modal-overlay', p.modalOverlay);
@@ -11661,8 +11699,9 @@
       const absVal = Math.abs(value);
       const pct = maxVal > 0 ? (absVal / maxVal) * 100 : 0;
       const negative = signed && value < 0;
-      const cls = negative ? 'insights-dow-mini-bar bar-out is-negative'
-                : `insights-dow-mini-bar bar-${kind}`;
+      const hasValue = absVal > 0 ? ' has-value' : '';
+      const cls = negative ? `insights-dow-mini-bar bar-out is-negative${hasValue}`
+                : `insights-dow-mini-bar bar-${kind}${hasValue}`;
       return `<div class="insights-dow-mini-wrap"><div class="${cls}" style="height:${pct.toFixed(1)}%"></div></div>`;
     }
     const dowHTML = `
