@@ -52,5 +52,8 @@
         { "key": "Access-Control-Allow-Origin", "value": "*" }
       ]
     }
+  ],
+  "crons": [
+    { "path": "/api/cron/digest", "schedule": "14 18 * * *" }
   ]
 }
