@@ -236,7 +236,25 @@
     background-repeat: no-repeat;
     background-position: right 0.5rem center;
   }
-  .party-sort-select:hover { border-color: var(--ink-soft); background-color: var(--paper-deep); }
+  .party-sort-select:hover {
+    /* v88: keep text + background stable on hover. The .btn-ghost
+       class on this element would otherwise flip text to white (paper)
+       on hover, and the native select dropdown opening causes rapid
+       hover on/off as the mouse moves into the OS-rendered dropdown,
+       producing a continuous black/white flicker. Stable colors here
+       eliminate the flicker. The border-color shift on hover is
+       enough affordance for an interactive control. */
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--ink) !important;
+    border-color: var(--ink-soft);
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  .party-sort-select:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
   /* v83: row that holds the Sort dropdown under the search box. Right-
      aligned so the dropdown sits flush with the right edge of the
      search input (small gap below the search box). */
@@ -1964,6 +1982,228 @@
   .split-calc-converted-hint { font-size: 0.72rem; color: var(--ink-mute); font-style: italic; padding: 0.4rem 0; margin: 0; }
 
   /* ============================================================
+     v88: multi-party Split & Convert
+     Live preview ("Name : Rajesh & Sabin · % : 40 and 60"), party
+     list with radio buttons for "use for Distribution", per-party
+     results, total %. Visually grouped so the relationship between
+     inputs (top) and computed lines (bottom) is clear.
+     ============================================================ */
+  .split-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: 0.7rem;
+  }
+  .split-preview-row { display: flex; gap: 0.85rem; align-items: baseline; }
+  .split-preview-key {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    font-weight: 600;
+    min-width: 50px;
+  }
+  .split-preview-val {
+    font-size: 0.95rem;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .split-preview-empty { font-size: 0.78rem; color: var(--ink-mute); font-style: italic; }
+  .split-parties { margin-top: 0.8rem; }
+  .split-parties-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+  .split-parties-title {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  .split-parties-empty {
+    padding: 0.7rem;
+    background: var(--paper-deep);
+    border: 1px dashed var(--line);
+    border-radius: var(--r-sm);
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    text-align: center;
+  }
+  .split-party-row {
+    display: grid;
+    grid-template-columns: 28px 1.4fr 100px 32px;
+    gap: 0.5rem;
+    align-items: end;
+    padding: 0.55rem 0.6rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    margin-bottom: 0.35rem;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .split-party-row.is-selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--paper-deep));
+  }
+  .split-party-radio {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding-bottom: 0.4rem;
+  }
+  .split-party-radio input { position: absolute; opacity: 0; }
+  .split-party-radio-dot {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--line);
+    border-radius: 50%;
+    background: var(--surface-1);
+    position: relative;
+    transition: border-color 120ms ease;
+  }
+  .split-party-row.is-selected .split-party-radio-dot { border-color: var(--accent); }
+  .split-party-radio-dot::after {
+    content: '';
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    transition: transform 120ms ease;
+  }
+  .split-party-row.is-selected .split-party-radio-dot::after { transform: translate(-50%, -50%) scale(1); }
+  .split-party-row input[type="text"],
+  .split-party-row input[type="number"] {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.82rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--ink);
+  }
+  .split-party-row input[type="number"] {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .split-parties-totals {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.5rem 0.6rem;
+    margin-top: 0.4rem;
+    border-top: 1px dashed var(--line);
+  }
+  .split-parties-total-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  .split-parties-total-val {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+  .split-parties-total-val small {
+    font-family: var(--font-sans);
+    font-weight: 400;
+    font-size: 0.7rem;
+    color: var(--ink-mute);
+    margin-left: 0.4rem;
+  }
+  .split-parties-total-val.over { color: var(--loss); }
+  .split-parties-total-val.under { color: var(--ink-mute); }
+  .split-parties-total-val.ok { color: var(--gain); }
+  .split-results {
+    margin-top: 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .split-result-row {
+    padding: 0.55rem 0.7rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: border-color 120ms ease, background 120ms ease;
+  }
+  .split-result-row.is-selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 5%, var(--surface-1));
+  }
+  .split-result-name {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 0.92rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+  .split-result-badge {
+    font-size: 0.6rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: var(--accent);
+    color: #f5f1e8;
+    padding: 0.12rem 0.45rem;
+    border-radius: var(--r-sm);
+    font-weight: 600;
+  }
+  .split-result-detail {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 0.85rem;
+  }
+  .split-result-pct { color: var(--ink-soft); }
+  .split-result-eq { color: var(--ink-mute); }
+  .split-result-amount.pos { color: var(--gain); font-weight: 600; }
+  .split-result-amount.neg { color: var(--loss); font-weight: 600; }
+  .split-result-conv {
+    color: var(--ink-soft);
+    border-left: 1px solid var(--line);
+    padding-left: 0.55rem;
+    margin-left: 0.1rem;
+  }
+  .split-result-empty {
+    padding: 0.6rem;
+    background: var(--paper-deep);
+    border: 1px dashed var(--line);
+    border-radius: var(--r-sm);
+    font-size: 0.78rem;
+    color: var(--ink-mute);
+    text-align: center;
+  }
+  @media (max-width: 600px) {
+    .split-party-row {
+      grid-template-columns: 28px 1fr 90px 32px;
+      gap: 0.4rem;
+    }
+    .split-calc-cur-row { grid-template-columns: 1fr 1fr; }
+    .split-result-detail { gap: 0.35rem; font-size: 0.82rem; }
+    .split-result-conv { padding-left: 0; border-left: none; margin-left: 0; }
+  }
+
+  /* ============================================================
      Distribution card on Audit page — sits below Split & convert.
      Three sections (A: first portion read-only, B: salaries with
      rows, C: profit shares with rows). Owner-only; persists per-biz.
@@ -2025,12 +2265,40 @@
     border-left: 4px solid var(--gain); /* green for profit allocation */
   }
   .dist-section-head {
-    display: flex; align-items: center; justify-content: space-between;
+    display: flex; align-items: flex-start; justify-content: space-between;
     margin-bottom: 0.55rem;
+    gap: 0.85rem;
   }
+  .dist-section-titles { flex: 1; min-width: 0; }
   .dist-section-title {
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.12em;
     color: var(--ink-mute); font-weight: 700;
+    display: flex; align-items: center; gap: 0.45rem;
+  }
+  /* v88: count badge sits next to the section title, like the
+     page-title-count chip on Parties / Categories / Entries. */
+  .dist-section-count {
+    display: inline-flex; align-items: center; justify-content: center;
+    min-width: 22px; padding: 0.05rem 0.4rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 9999px;
+    font-size: 0.65rem; font-weight: 600;
+    color: var(--ink-soft);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  /* v88: short explanation line under the section title, helps a
+     fresh user understand what each section does without poking. */
+  .dist-section-sub {
+    font-size: 0.7rem;
+    color: var(--ink-mute);
+    margin-top: 0.25rem;
+    line-height: 1.45;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    max-width: 65ch;
   }
   .dist-section-help { font-size: 0.7rem; color: var(--ink-mute); margin-top: 0.4rem; font-style: italic; }
   .dist-empty { font-size: 0.78rem; color: var(--ink-mute); padding: 0.6rem 0; font-style: italic; }
@@ -2067,6 +2335,50 @@
     padding: 0 0.25rem 0.3rem;
   }
   .dist-salary-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  /* v88: card wraps the grid row + note line so they read as one
+     unit. The grid row no longer needs its own background — the card
+     owns it. */
+  .dist-row-card {
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    padding: 0.4rem 0.4rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+  .dist-row-card .dist-salary-row,
+  .dist-row-card .dist-share-row {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+  }
+  .dist-row-note {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+    padding: 0.25rem 0.05rem 0;
+    border-top: 1px dashed var(--line);
+    padding-top: 0.4rem;
+  }
+  .dist-row-note-label {
+    font-size: 0.62rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  .dist-row-note input {
+    width: 100%;
+    padding: 0.4rem 0.55rem;
+    font-size: 0.82rem;
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    color: var(--ink);
+  }
+  .dist-row-note input::placeholder { color: var(--ink-mute); opacity: 0.7; }
   .dist-salary-row {
     padding: 0.4rem 0.25rem;
     background: var(--paper-deep);
@@ -2122,10 +2434,44 @@
   .dist-totals-row.dist-totals-final-row > span:last-child { font-weight: 700; font-size: 0.88rem; }
   .dist-total-adj.pos { color: var(--gain); }
   .dist-total-adj.neg { color: var(--loss); }
-  /* Remaining hero (below Section B) */
+  /* v88: dist-totals-card — clearer alternative to dist-totals. Three
+     padded rows with labels-on-left/values-on-right and a stronger
+     final-row treatment so users can see the bottom line at a glance. */
+  .dist-totals-card {
+    margin-top: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    display: flex; flex-direction: column; gap: 0.35rem;
+  }
+  .dist-totals-card-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    gap: 0.85rem; font-size: 0.8rem;
+  }
+  .dist-totals-card-label { color: var(--ink-soft); }
+  .dist-totals-card-val {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    color: var(--ink); font-weight: 500;
+  }
+  .dist-totals-card-row.dist-totals-card-final {
+    padding-top: 0.4rem;
+    border-top: 1px dashed var(--line);
+    margin-top: 0.15rem;
+  }
+  .dist-totals-card-row.dist-totals-card-final .dist-totals-card-label {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .dist-totals-card-row.dist-totals-card-final .dist-totals-card-val {
+    font-weight: 700;
+    font-size: 0.95rem;
+  }
+  /* Remaining hero (below Section B) — v88 has two-line text block on
+     the left + a big value on the right. */
   .dist-remaining-card {
     margin-top: 0.7rem;
-    padding: 0.7rem 0.95rem;
+    padding: 0.85rem 1rem;
     background: var(--gain-bg, rgba(46,110,55,0.10));
     border: 1.5px solid var(--gain);
     border-radius: var(--r);
@@ -2136,16 +2482,30 @@
     background: var(--loss-bg, rgba(168,53,31,0.10));
     border-color: var(--loss);
   }
+  .dist-remaining-text { display: flex; flex-direction: column; gap: 0.15rem; }
   .dist-remaining-label {
     font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.13em;
     color: var(--gain); font-weight: 700;
   }
-  .dist-remaining-card.neg .dist-remaining-label { color: var(--loss); }
-  .dist-remaining {
-    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 1.2rem; font-weight: 700; color: var(--gain);
+  .dist-remaining-sub {
+    font-size: 0.7rem; color: var(--ink-soft); font-weight: 400;
+    letter-spacing: 0;
   }
-  .dist-remaining-card.neg .dist-remaining, .dist-remaining.neg { color: var(--loss); }
+  .dist-remaining-card.neg .dist-remaining-label { color: var(--loss); }
+  .dist-remaining,
+  .dist-remaining-value {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 1.4rem; font-weight: 700; color: var(--gain);
+  }
+  .dist-remaining-card.neg .dist-remaining,
+  .dist-remaining-card.neg .dist-remaining-value,
+  .dist-remaining.neg { color: var(--loss); }
+  .dist-total-share-pct.over { color: var(--loss); }
+  .dist-total-share-pct.ok { color: var(--gain); }
+  @media (max-width: 600px) {
+    .dist-remaining-card { flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+    .dist-remaining-value, .dist-remaining { font-size: 1.2rem; }
+  }
   /* Section C — Share rows. 4-column grid on desktop; stacks on mobile. */
   .dist-share-header,
   .dist-share-row {
@@ -4270,13 +4630,31 @@
     .floating-btn, .floating-action,
     .fab, .fab-container,
     .page-actions, .audit-range-bar, .audit-range-mobile,
-    .period-bar, .toolbar, .audit-tax-btn,
+    .period-bar, .toolbar,
     .audit-exp-add, .audit-exp-actions,
     .sync-badge, .install-prompt, .toast,
     .sidebar-toggle, button.icon-btn-light, button.icon-btn,
     .lb-row-clickable .lb-stat-label,
     .help-card,
     .nav-badge, .invite-pill { display: none !important; }
+
+    /* v88: keep tax % visible in print. The .audit-tax-btn is an
+       interactive edit button (pencil icon + value); strip the button
+       chrome but keep the percent text visible in the printed PDF
+       so auditors and accountants reading the report know the rate. */
+    .audit-tax-btn {
+      background: transparent !important;
+      border: none !important;
+      padding: 0 !important;
+      color: #000 !important;
+      font: inherit !important;
+      cursor: default !important;
+    }
+    .audit-tax-btn svg { display: none !important; }
+    .audit-tax-readonly {
+      background: transparent !important;
+      color: #000 !important;
+    }
 
     /* v70: Split & Convert kept visible on print. Previously hidden
        because it looked interactive; on paper the values are part
@@ -5929,49 +6307,49 @@
     }
   }
 
-  // v83: Cash-IN — refined "cha-ching" cash register sound. Quick
-  // metallic attack tap (the "cha"), then a bright bell ring with
-  // sparkle (the "ching"). The ring uses a major chord stack
-  // (root + third + fifth) for a positive, celebratory feel.
-  // Total ~1.4s, peak gain 0.55.
+  // v88: Cash-IN — rebuilt to evoke a REAL cash register. Three voices:
+  //   1. "Ka" — deep wooden drawer thunk at t=0 (low-mid square decay)
+  //   2. "Ching" — bright single bell ring with inharmonic partials
+  //      (no major-chord stack, more like an actual brass bell)
+  //   3. Brief paper-money rustle at the end (filtered noise burst)
+  // Total ~1.2s, peak gain ~0.55. Closer to the cash-register sound
+  // most people associate with "money came in."
   function _playCashInSound(ctx) {
     const now = ctx.currentTime;
 
-    // Voice 1 — "cha" register tap. Brief metallic noise burst feel
-    // via a fast-decaying high-pitched square wave with bandpass
-    // shaping. Square has more harmonics than triangle so it reads
-    // as a percussive metal hit.
+    // Voice 1 — "Ka" drawer thunk. Low frequency square with fast
+    // decay through a lowpass filter, giving a wooden "thunk" feel
+    // rather than a metallic tap.
     {
       const g = ctx.createGain();
-      const bp = ctx.createBiquadFilter();
-      bp.type = 'bandpass';
-      bp.frequency.value = 2200;
-      bp.Q.value = 1.2;
-      bp.connect(ctx.destination);
-      g.connect(bp);
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 700;
+      lp.Q.value = 0.8;
+      lp.connect(ctx.destination);
+      g.connect(lp);
       g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.40, now + 0.003);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+      g.gain.linearRampToValueAtTime(0.50, now + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.12);
       const osc = ctx.createOscillator();
       osc.type = 'square';
-      osc.frequency.setValueAtTime(2200, now);
-      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.07);
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(90, now + 0.12);
       osc.connect(g);
       osc.start(now);
-      osc.stop(now + 0.09);
+      osc.stop(now + 0.14);
     }
 
-    // Voice 2 — "ching" bell ring. Three sine partials forming a
-    // C major chord (C5/E5/G5) plus an octave sparkle (C6). Bell-like
-    // envelope: instant attack, long exponential tail.
-    const ringStart = 0.04;
-    const ringDur = 1.4;
+    // Voice 2 — "Ching" bell ring. Single bell with three inharmonic
+    // partials (fundamental + 2.76× + 5.4×) — the classic struck-bell
+    // ratios from physics, NOT a major chord. Sounds more like a
+    // genuine cash-register bell than a synth chord stack.
+    const ringStart = 0.08;
+    const ringDur = 1.05;
     [
-      { freq: 523.25, level: 0.50, decay: ringDur },        // C5 root
-      { freq: 659.25, level: 0.32, decay: ringDur * 0.85 }, // E5 third
-      { freq: 783.99, level: 0.28, decay: ringDur * 0.85 }, // G5 fifth
-      { freq: 1046.5, level: 0.20, decay: ringDur * 0.55 }, // C6 sparkle
-      { freq: 1567.98, level: 0.10, decay: ringDur * 0.35 },// G6 high sparkle
+      { freq: 880,  level: 0.55, decay: ringDur },         // A5 fundamental
+      { freq: 2430, level: 0.22, decay: ringDur * 0.55 },  // 2.76× — bell partial
+      { freq: 4752, level: 0.10, decay: ringDur * 0.30 },  // 5.4× — sparkle partial
     ].forEach((p) => {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
@@ -5979,58 +6357,128 @@
       const g = ctx.createGain();
       g.connect(ctx.destination);
       g.gain.setValueAtTime(0, now + ringStart);
-      g.gain.linearRampToValueAtTime(p.level, now + ringStart + 0.008);
+      g.gain.linearRampToValueAtTime(p.level, now + ringStart + 0.005);
       g.gain.exponentialRampToValueAtTime(0.0001, now + ringStart + p.decay);
       osc.connect(g);
       osc.start(now + ringStart);
       osc.stop(now + ringStart + p.decay + 0.05);
     });
+
+    // Voice 3 — paper-money rustle. Filtered white noise burst at
+    // the tail, suggesting bills being placed/counted. Bandpass
+    // around 3kHz gives a "sshh" character without being harsh.
+    {
+      const rustleStart = 0.6;
+      const rustleDur = 0.35;
+      const bufLen = Math.floor(ctx.sampleRate * rustleDur);
+      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const ch = buf.getChannelData(0);
+      // Pink-ish noise — softer than white. Brownish drift gives the
+      // rustling a textured, paper-like quality.
+      let last = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const white = Math.random() * 2 - 1;
+        last = 0.95 * last + 0.05 * white;
+        ch[i] = last * 0.6 + white * 0.4;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 3200;
+      bp.Q.value = 1.4;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, now + rustleStart);
+      g.gain.linearRampToValueAtTime(0.18, now + rustleStart + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + rustleStart + rustleDur);
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      src.start(now + rustleStart);
+      src.stop(now + rustleStart + rustleDur + 0.05);
+    }
   }
 
-  // v83: Cash-OUT — CashApp-style notification ping. Bright bell tone
-  // with a quick descending whoosh underneath to imply money flowing
-  // away. Single concise event, not the multi-coin sequence of v80
-  // (less attention-grabbing since users don't celebrate cash-out).
-  // Total ~0.8s, peak gain 0.45.
+  // v88: Cash-OUT — rebuilt to feel like REAL money leaving. Three voices:
+  //   1. Paper-money rustle burst at t=0 (bills being counted out)
+  //   2. Descending tone (cash flowing away)
+  //   3. Soft drawer-close thud at the end
+  // No celebratory bell — paying out shouldn't feel rewarding.
+  // Total ~0.85s, peak gain ~0.45.
   function _playCashOutSound(ctx) {
     const now = ctx.currentTime;
 
-    // Voice 1 — main bell ping. E5 sine with one inharmonic partial
-    // for slight metallic edge.
-    [
-      { freq: 659.25, level: 0.45, decay: 0.6  }, // E5
-      { freq: 880.0,  level: 0.18, decay: 0.45 }, // A5 brighten
-      { freq: 1318.5, level: 0.10, decay: 0.30 }, // E6 sparkle
-    ].forEach((p) => {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(p.freq, now);
+    // Voice 1 — paper-money rustle burst. Filtered noise with a
+    // bandpass at 2.5 kHz gives the "sssh" of bills being slid.
+    {
+      const rustleDur = 0.30;
+      const bufLen = Math.floor(ctx.sampleRate * rustleDur);
+      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+      const ch = buf.getChannelData(0);
+      // Pink-ish noise for textured paper feel.
+      let last = 0;
+      for (let i = 0; i < bufLen; i++) {
+        const white = Math.random() * 2 - 1;
+        last = 0.92 * last + 0.08 * white;
+        ch[i] = last * 0.5 + white * 0.5;
+      }
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2500;
+      bp.Q.value = 1.0;
       const g = ctx.createGain();
-      g.connect(ctx.destination);
       g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(p.level, now + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
-      osc.connect(g);
-      osc.start(now);
-      osc.stop(now + p.decay + 0.05);
-    });
+      g.gain.linearRampToValueAtTime(0.32, now + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + rustleDur);
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(ctx.destination);
+      src.start(now);
+      src.stop(now + rustleDur + 0.05);
+    }
 
-    // Voice 2 — descending whoosh underneath, starting just after the
-    // ping. Sine sweeping from 600Hz down to 150Hz over 0.4s — the
-    // "money leaving" suggestion.
+    // Voice 2 — descending tone underneath the rustle. Sine sweeping
+    // from 520 Hz down to 130 Hz over 0.55s, suggesting the money's
+    // value departing.
     {
       const g = ctx.createGain();
       g.connect(ctx.destination);
-      g.gain.setValueAtTime(0, now + 0.05);
-      g.gain.linearRampToValueAtTime(0.18, now + 0.08);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      g.gain.setValueAtTime(0, now + 0.04);
+      g.gain.linearRampToValueAtTime(0.22, now + 0.10);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.55);
       const osc = ctx.createOscillator();
       osc.type = 'sine';
-      osc.frequency.setValueAtTime(600, now + 0.05);
-      osc.frequency.exponentialRampToValueAtTime(150, now + 0.45);
+      osc.frequency.setValueAtTime(520, now + 0.04);
+      osc.frequency.exponentialRampToValueAtTime(130, now + 0.55);
       osc.connect(g);
-      osc.start(now + 0.05);
-      osc.stop(now + 0.5);
+      osc.start(now + 0.04);
+      osc.stop(now + 0.6);
+    }
+
+    // Voice 3 — drawer-close thud at the end. Lowpass-filtered square
+    // around 80-60Hz, very brief decay. The "the drawer just closed
+    // on your money" feel.
+    {
+      const thudStart = 0.55;
+      const g = ctx.createGain();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 250;
+      lp.Q.value = 0.7;
+      lp.connect(ctx.destination);
+      g.connect(lp);
+      g.gain.setValueAtTime(0, now + thudStart);
+      g.gain.linearRampToValueAtTime(0.45, now + thudStart + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + thudStart + 0.18);
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(120, now + thudStart);
+      osc.frequency.exponentialRampToValueAtTime(60, now + thudStart + 0.18);
+      osc.connect(g);
+      osc.start(now + thudStart);
+      osc.stop(now + thudStart + 0.20);
     }
   }
 
@@ -6668,6 +7116,8 @@
     __splitRate = 0;
     __splitNetProfit = 0;
     __splitBusinessCurrency = '';
+    __splitParties = [];
+    __splitSelectedPartyId = '';
     document.getElementById('app').classList.remove('active');
     document.getElementById('authScreen').style.display = 'grid';
     document.getElementById('authForm').reset();
@@ -7374,6 +7824,13 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     const book = data.books.find(b => b.id === session.activeBookId);
     const role = session.activeBizId ? roleFor(session.activeBizId) : null;
+    // v88: total entries count for this book (both in + out, across
+    // ALL periods — gives a sense of how active the book is overall).
+    // Period-filtered counts are already shown by the cash-in / cash-out
+    // stat cards below.
+    const totalEntries = book
+      ? data.entries.filter(e => e.bookId === book.id).length
+      : 0;
     // Announcement quick-access icon. Owners jump to the manage page
     // (Management → Announcements), everyone else jumps to the read
     // page (Quick Look → Announcements). Hidden when no business is
@@ -7388,11 +7845,14 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>
       </button>`;
     }
+    const titleHtml = book
+      ? `${escapeHtml(book.name)}${totalEntries > 0 ? ` <span class="page-title-count" title="Total entries in this book (all time)">${totalEntries}</span>` : ''}`
+      : 'No book selected';
     return `
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz?.name || '—')} · book</div>
-          <h1 class="page-title">${book ? `${escapeHtml(book.name)}` : 'No book selected'}</h1>
+          <h1 class="page-title">${titleHtml}</h1>
         </div>
         <div class="page-actions">
           ${annButton}
@@ -8683,20 +9143,64 @@
   async function renameCategoryFlow(oldName) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = await uiPrompt('Rename category:', oldName, { title: 'Rename category', submitLabel: 'Rename' });
-    if (!newName || !newName.trim() || newName.trim() === oldName) return;
-    const trimmed = newName.trim();
-    if (data.categories.find(c => c.businessId === biz.id && c.name.toLowerCase() === trimmed.toLowerCase() && c.name !== oldName)) {
+    const cat = data.categories.find(c => c.businessId === biz.id && c.name === oldName);
+    if (!cat) return;
+    // v88: open a modal with both Name and Shortcut fields, mirroring
+    // the Business Settings flow. Previously this used uiPrompt which
+    // only let you edit the name; users expected the shortcut to be
+    // editable here too.
+    openModalRaw(`
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Edit category</h2>
+      <div class="form-grid">
+        <div class="input-wrap">
+          <label>Name</label>
+          <input type="text" id="mEditCatNameInline" maxlength="120" value="${escapeHtml(cat.name)}">
+        </div>
+        <div class="input-wrap">
+          <label>Shortcut <span style="color:var(--ink-mute);font-weight:400;">(optional)</span></label>
+          <input type="text" id="mEditCatShortcutInline" maxlength="20" value="${escapeHtml(cat.shortcut || '')}" placeholder="e.g. SB for Soyabean">
+          <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.2rem;">Used to search and auto-pick this category when entering an entry.</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-accent" onclick="submitCategoryEditInline('${jsAttr(cat.id)}')">Save</button>
+        </div>
+      </div>
+    `);
+    setTimeout(() => document.getElementById('mEditCatNameInline')?.focus(), 60);
+  }
+
+  // v88: handles the inline edit (from card menu / category detail page).
+  // Mirrors submitCategoryEdit but routes back to the right view
+  // (current view, not Business Settings).
+  function submitCategoryEditInline(catId) {
+    const cat = data.categories.find(c => c.id === catId);
+    if (!cat) return;
+    const newName = (document.getElementById('mEditCatNameInline')?.value || '').trim();
+    const newShortcut = (document.getElementById('mEditCatShortcutInline')?.value || '').trim();
+    if (!newName) { toast('Name cannot be blank.'); return; }
+    if (data.categories.find(c => c.businessId === cat.businessId && c.id !== catId && c.name.toLowerCase() === newName.toLowerCase())) {
       toast('A category with that name already exists.'); return;
     }
-    // Update the category record + all entries with that text
-    const cat = data.categories.find(c => c.businessId === biz.id && c.name === oldName);
-    if (cat) cat.name = trimmed;
-    const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.category === oldName) e.category = trimmed; });
-    session.selectedCategory = trimmed;
-    saveData(); saveSession(); renderAll();
-    toast(`Renamed to "${trimmed}".`);
+    if (newShortcut) {
+      const coll = data.categories.find(c => c.businessId === cat.businessId && c.id !== catId && (
+        (c.shortcut && c.shortcut.toLowerCase() === newShortcut.toLowerCase())
+        || c.name.toLowerCase() === newShortcut.toLowerCase()
+      ));
+      if (coll) { toast(`Shortcut "${newShortcut}" is already used.`); return; }
+    }
+    const oldName = cat.name;
+    if (oldName !== newName) {
+      cat.name = newName;
+      const bookIds = data.books.filter(b => b.businessId === cat.businessId).map(b => b.id);
+      data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.category === oldName) e.category = newName; });
+      // If currently looking at this category's drilldown, follow the rename
+      if (session.selectedCategory === oldName) session.selectedCategory = newName;
+    }
+    cat.shortcut = newShortcut || undefined;
+    saveData(); saveSession(); closeModal(); renderAll();
+    toast('Category updated.');
   }
   // Rename a category by id, refreshing the per-business settings modal.
   // v85: also edits shortcut. Opens a proper modal instead of uiPrompt.
@@ -9040,35 +9544,58 @@
   // itself isn't persisted — it's recomputed every render from live data.
   const SPLIT_STATE_KEY = 'hisabs_split_state_v1';
   function loadSplitStateFor(bizId) {
-    if (!bizId) return { pct: 100, currency: '', rate: 0 };
+    if (!bizId) return { pct: 100, currency: '', rate: 0, parties: [], selectedPartyId: '' };
     try {
       const raw = localStorage.getItem(SPLIT_STATE_KEY);
       const all = raw ? JSON.parse(raw) : {};
       const s = all[bizId];
       if (s && typeof s === 'object') {
+        // v88: named-parties array. Each party = { id, name, pct }.
+        // Older saves don't have it — empty array means "use the legacy
+        // single-% scalar." Names + pcts are validated on load.
+        const parties = Array.isArray(s.parties) ? s.parties
+          .filter(p => p && typeof p === 'object')
+          .map(p => ({
+            id: typeof p.id === 'string' ? p.id : uid(),
+            name: typeof p.name === 'string' ? p.name.slice(0, 80) : '',
+            pct: Number.isFinite(Number(p.pct)) ? Math.max(0, Math.min(100, Number(p.pct))) : 0,
+          })) : [];
         return {
           pct: Number.isFinite(Number(s.pct)) ? Math.max(0, Math.min(100, Number(s.pct))) : 100,
           currency: typeof s.currency === 'string' ? s.currency.slice(0, 6) : '',
           rate: Number.isFinite(Number(s.rate)) ? Math.max(0, Number(s.rate)) : 0,
+          parties,
+          selectedPartyId: typeof s.selectedPartyId === 'string' ? s.selectedPartyId : '',
         };
       }
     } catch (_) {}
-    return { pct: 100, currency: '', rate: 0 };
+    return { pct: 100, currency: '', rate: 0, parties: [], selectedPartyId: '' };
   }
   function saveSplitStateFor(bizId) {
     if (!bizId) return;
     try {
       const raw = localStorage.getItem(SPLIT_STATE_KEY);
       const all = raw ? JSON.parse(raw) : {};
-      all[bizId] = { pct: __splitPct, currency: __splitCurrency, rate: __splitRate };
+      all[bizId] = {
+        pct: __splitPct,
+        currency: __splitCurrency,
+        rate: __splitRate,
+        parties: __splitParties,
+        selectedPartyId: __splitSelectedPartyId,
+      };
       localStorage.setItem(SPLIT_STATE_KEY, JSON.stringify(all));
     } catch (_) {}
   }
-  let __splitPct = 100;           // percent for party A (0–100). B gets the rest. Default 100/0.
+  let __splitPct = 100;           // legacy: single-% scalar. Used when __splitParties is empty.
   let __splitCurrency = '';       // free-text currency code/symbol
   let __splitRate = 0;            // picked currency ÷ business currency (1 USD = 133 NPR → 133)
   let __splitNetProfit = 0;       // re-computed by renderAuditView each render
   let __splitBusinessCurrency = ''; // business currency display, for labels
+  // v88: named-parties split. Each party gets its OWN % of net profit
+  // and can be picked as the "amount source" for Distribution. Empty
+  // array means use the legacy single-% above.
+  let __splitParties = [];
+  let __splitSelectedPartyId = '';  // which party feeds the Distribution amount; '' = use legacy scalar
 
   // ================================================================
   // DISTRIBUTION — Team salaries + Profit shares
@@ -9109,11 +9636,14 @@
             // since salary advances/loans are the common case.
             adjustmentType: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
             adjustmentAmount: Number.isFinite(Number(r.adjustmentAmount)) ? Math.max(0, Number(r.adjustmentAmount)) : 0,
+            // v88: free-form description / reason for the adjustment
+            note: typeof r.note === 'string' ? r.note.slice(0, 280) : '',
           })) : [],
           shares: Array.isArray(s.shares) ? s.shares.map(r => ({
             id: String(r.id || uid()),
             name: typeof r.name === 'string' ? r.name.slice(0, 120) : '',
             pct: Number.isFinite(Number(r.pct)) ? Math.max(0, Math.min(100, Number(r.pct))) : 0,
+            note: typeof r.note === 'string' ? r.note.slice(0, 280) : '',
           })) : [],
         };
       }
@@ -9151,6 +9681,10 @@
       salary: 0,
       adjustmentType: 'deduction',
       adjustmentAmount: 0,
+      // v88: optional note explaining why the adjustment was made
+      // (e.g. "Advance taken", "Performance bonus"). Shows in print
+      // + PDF + CSV exports too.
+      note: '',
     });
     _persistDistribution();
     renderDistributionCard();
@@ -9197,6 +9731,10 @@
     } else if (field === 'adjustmentAmount') {
       const n = Number(value);
       row.adjustmentAmount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    } else if (field === 'note') {
+      // v88: free-form description (e.g. why the adjustment exists).
+      // Cap length at 280 chars — like a short note, not an essay.
+      row.note = String(value || '').slice(0, 280);
     }
     _persistDistribution();
     // Recompute totals + remaining + share amounts. Don't full re-
@@ -9207,7 +9745,7 @@
 
   function addDistShareRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
-    __distShares.push({ id: uid(), name: '', pct: 0 });
+    __distShares.push({ id: uid(), name: '', pct: 0, note: '' });
     _persistDistribution();
     renderDistributionCard();
     setTimeout(() => {
@@ -9241,6 +9779,8 @@
     } else if (field === 'pct') {
       const n = Number(value);
       row.pct = (Number.isFinite(n) && n >= 0 && n <= 100) ? n : Math.max(0, Math.min(100, n || 0));
+    } else if (field === 'note') {
+      row.note = String(value || '').slice(0, 280);
     }
     _persistDistribution();
     refreshDistributionTotals();
@@ -9257,9 +9797,12 @@
     const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
     const displayCur = hasChangedCurrency ? __splitCurrency : bizCur;
     const conversionRate = hasChangedCurrency ? __splitRate : 1;
+    // v88: use selected party's % when one is set
+    const selectedParty = __splitParties.find(p => p.id === __splitSelectedPartyId);
+    const effectivePct = selectedParty ? Number(selectedParty.pct) || 0 : __splitPct;
     // Amount in both currencies. "first portion" naming kept in vars
     // for legacy code readers but the user-facing label is now "Amount".
-    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    const firstPortionBiz = __splitNetProfit * (effectivePct / 100);
     const firstPortionDisp = firstPortionBiz * conversionRate;
     // Section B totals — all in display currency
     let totalSalary = 0;
@@ -9372,8 +9915,15 @@
     const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
     const displayCur = hasChangedCurrency ? escapeHtml(__splitCurrency) : bizCur;
     const conversionRate = hasChangedCurrency ? __splitRate : 1;
+    // v88: If a named party is selected, use ITS % (and its name) as
+    // the Amount source. Otherwise fall back to legacy single-% scalar.
+    const selectedParty = __splitParties.find(p => p.id === __splitSelectedPartyId);
+    const effectivePct = selectedParty ? Number(selectedParty.pct) || 0 : __splitPct;
+    const effectiveLabel = selectedParty && selectedParty.name.trim()
+      ? `${escapeHtml(selectedParty.name)} · ${escapeHtml(String(effectivePct))}% of Net profit`
+      : `${escapeHtml(String(effectivePct))}% of Net profit`;
     // The "Amount" (formerly "First portion") in BOTH currencies.
-    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    const firstPortionBiz = __splitNetProfit * (effectivePct / 100);
     const firstPortionDisp = firstPortionBiz * conversionRate;
     // Team member names for auto-suggest. Pulls from accepted members
     // of the active biz; falls back to empty if no team yet. Names
@@ -9413,14 +9963,16 @@
       <div class="dist-section dist-section-amount">
         <div class="dist-section-title">Amount</div>
         <div class="dist-first-row">
-          <div class="dist-first-label">${escapeHtml(String(__splitPct))}% of Net profit</div>
+          <div class="dist-first-label">${effectiveLabel}</div>
           <div class="dist-first-values">
             <div class="dist-first-portion">${displayCur} ${fmt(firstPortionDisp)}</div>
             ${hasChangedCurrency ? `<div class="dist-first-portion-biz">${bizCur} ${fmt(firstPortionBiz)}</div>` : ''}
           </div>
         </div>
         <div class="dist-section-help">
-          Adjust the % or currency rate in Split &amp; convert above to change this.
+          ${__splitParties.length > 0
+            ? `Select a party in Split &amp; convert above (radio button) to change the Amount source. Currently using: <strong>${selectedParty && selectedParty.name.trim() ? escapeHtml(selectedParty.name) : '(none selected — using legacy single %)'}</strong>.`
+            : 'Adjust the % or currency rate in Split &amp; convert above to change this.'}
           ${hasChangedCurrency ? `All salaries and shares below are in <strong>${escapeHtml(__splitCurrency)}</strong>.` : ''}
         </div>
       </div>`;
@@ -9429,16 +9981,24 @@
     const salaryRows = __distSalaries.length ? __distSalaries.map(r => {
       const signedAdj = r.adjustmentType === 'addition' ? r.adjustmentAmount : -r.adjustmentAmount;
       const final = r.salary + signedAdj;
-      return `<div class="dist-salary-row" data-dist-row="${escapeHtml(r.id)}">
-        <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
-        <input type="number" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal" oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
-        <select data-field="adjustmentType" onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
-          <option value="deduction" ${r.adjustmentType === 'deduction' ? 'selected' : ''}>− Deduction</option>
-          <option value="addition" ${r.adjustmentType === 'addition' ? 'selected' : ''}>+ Addition</option>
-        </select>
-        <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
-        <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
-        <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+      const noteVal = escapeHtml(r.note || '');
+      const adjLabel = r.adjustmentType === 'addition' ? 'addition' : 'deduction';
+      return `<div class="dist-row-card" data-dist-row="${escapeHtml(r.id)}">
+        <div class="dist-salary-row">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal" oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
+          <select data-field="adjustmentType" onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
+            <option value="deduction" ${r.adjustmentType === 'deduction' ? 'selected' : ''}>− Deduction</option>
+            <option value="addition" ${r.adjustmentType === 'addition' ? 'selected' : ''}>+ Addition</option>
+          </select>
+          <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
+          <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
+          <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+        </div>
+        <div class="dist-row-note">
+          <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
+        </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
 
@@ -9456,36 +10016,42 @@
     const sectionB = `
       <div class="dist-section dist-section-salaries">
         <div class="dist-section-head">
-          <div class="dist-section-title">Team Salaries</div>
+          <div class="dist-section-titles">
+            <div class="dist-section-title">Team Salaries${__distSalaries.length ? ` <span class="dist-section-count">${__distSalaries.length}</span>` : ''}</div>
+            <div class="dist-section-sub">Add each team member, their salary, and any one-off adjustment (advance, bonus, deduction). Final paid is computed automatically.</div>
+          </div>
           <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add</button>
         </div>
-        <div class="dist-salary-header">
+        ${__distSalaries.length ? `<div class="dist-salary-header">
           <span>Name</span>
           <span>Salary</span>
           <span>Type</span>
           <span>Amount</span>
           <span>Final</span>
           <span></span>
-        </div>
+        </div>` : ''}
         <div class="dist-salary-list">${salaryRows}</div>
         ${__distSalaries.length ? `
-        <div class="dist-totals">
-          <div class="dist-totals-row">
-            <span class="dist-totals-label">Total salary</span>
-            <span class="dist-total-salary">${displayCur} ${fmt(totalSalary)}</span>
+        <div class="dist-totals-card">
+          <div class="dist-totals-card-row">
+            <span class="dist-totals-card-label">Total salary</span>
+            <span class="dist-totals-card-val dist-total-salary">${displayCur} ${fmt(totalSalary)}</span>
           </div>
-          <div class="dist-totals-row">
-            <span class="dist-totals-label">Total adjustment</span>
-            <span class="dist-total-adj ${totalAdj > 0 ? 'pos' : totalAdj < 0 ? 'neg' : ''}">${totalAdj >= 0 ? '+' : '−'}${displayCur} ${fmt(Math.abs(totalAdj))}</span>
+          <div class="dist-totals-card-row">
+            <span class="dist-totals-card-label">Total adjustment</span>
+            <span class="dist-totals-card-val dist-total-adj ${totalAdj > 0 ? 'pos' : totalAdj < 0 ? 'neg' : ''}">${totalAdj >= 0 ? '+' : '−'}${displayCur} ${fmt(Math.abs(totalAdj))}</span>
           </div>
-          <div class="dist-totals-row dist-totals-final-row">
-            <span class="dist-totals-label">Total final paid</span>
-            <span class="dist-total-final">${displayCur} ${fmt(totalFinal)}</span>
+          <div class="dist-totals-card-row dist-totals-card-final">
+            <span class="dist-totals-card-label">Total final paid</span>
+            <span class="dist-totals-card-val dist-total-final">${displayCur} ${fmt(totalFinal)}</span>
           </div>
         </div>` : ''}
         <div class="dist-remaining-card ${remaining < 0 ? 'neg' : ''}">
-          <span class="dist-remaining-label">Remaining (after salaries)</span>
-          <span class="dist-remaining">${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}</span>
+          <div class="dist-remaining-text">
+            <span class="dist-remaining-label">Remaining for profit shares</span>
+            <span class="dist-remaining-sub">Amount to distribute − Total final paid</span>
+          </div>
+          <span class="dist-remaining dist-remaining-value">${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}</span>
         </div>
       </div>`;
 
@@ -9496,36 +10062,46 @@
       const amt = (r.pct / 100) * remaining;
       totalSharePct += r.pct;
       totalShareAmount += amt;
-      return `<div class="dist-share-row" data-dist-share="${escapeHtml(r.id)}">
-        <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
-        <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
-        <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
-        <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+      const noteVal = escapeHtml(r.note || '');
+      return `<div class="dist-row-card" data-dist-share="${escapeHtml(r.id)}">
+        <div class="dist-share-row">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
+          <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
+          <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+        </div>
+        <div class="dist-row-note">
+          <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
+        </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
 
     const sectionC = `
       <div class="dist-section dist-section-shares">
         <div class="dist-section-head">
-          <div class="dist-section-title">Profit Shares</div>
+          <div class="dist-section-titles">
+            <div class="dist-section-title">Profit Shares${__distShares.length ? ` <span class="dist-section-count">${__distShares.length}</span>` : ''}</div>
+            <div class="dist-section-sub">Allocate the remaining amount as percentage shares. Each share is computed from "Remaining for profit shares" above.</div>
+          </div>
           <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add</button>
         </div>
-        <div class="dist-share-header">
+        ${__distShares.length ? `<div class="dist-share-header">
           <span>Name</span>
           <span>%</span>
           <span>Amount</span>
           <span></span>
-        </div>
+        </div>` : ''}
         <div class="dist-share-list">${shareRows}</div>
         ${__distShares.length ? `
-        <div class="dist-totals">
-          <div class="dist-totals-row">
-            <span class="dist-totals-label">Total %</span>
-            <span class="dist-total-share-pct ${totalSharePct > 100 ? 'over' : ''}">${fmt(totalSharePct)}%</span>
+        <div class="dist-totals-card">
+          <div class="dist-totals-card-row">
+            <span class="dist-totals-card-label">Total %</span>
+            <span class="dist-totals-card-val dist-total-share-pct ${totalSharePct > 100 ? 'over' : totalSharePct === 100 ? 'ok' : ''}">${fmt(totalSharePct)}%${totalSharePct > 100 ? ' <small style="color:var(--loss);">(over 100%)</small>' : totalSharePct < 100 ? ` <small style="color:var(--ink-mute);">(unallocated: ${fmt(100 - totalSharePct)}%)</small>` : ''}</span>
           </div>
-          <div class="dist-totals-row dist-totals-final-row">
-            <span class="dist-totals-label">Total share amount</span>
-            <span class="dist-total-share-amount">${displayCur} ${fmt(totalShareAmount)}</span>
+          <div class="dist-totals-card-row dist-totals-card-final">
+            <span class="dist-totals-card-label">Total share amount</span>
+            <span class="dist-totals-card-val dist-total-share-amount">${displayCur} ${fmt(totalShareAmount)}</span>
           </div>
         </div>` : ''}
       </div>`;
@@ -9575,12 +10151,101 @@
   // absolute value for split, keeps sign in the displayed value) and avoids
   // div-by-zero on the conversion side.
   function updateSplitCalc() {
+    // v88: if there are named parties, render the multi-party view.
+    // Otherwise fall back to the legacy single-% view.
+    if (Array.isArray(__splitParties) && __splitParties.length > 0) {
+      _updateSplitCalcMultiParty();
+      return;
+    }
+    _updateSplitCalcLegacy();
+  }
+
+  // v88: multi-party split rendering. Renders preview, party list inputs,
+  // total %, and per-party result lines (in business currency + converted).
+  function _updateSplitCalcMultiParty() {
+    const net = __splitNetProfit;
+    const cur = __splitBusinessCurrency;
+    const fmtPct = (n) => {
+      const r = Math.round(n * 100) / 100;
+      return r % 1 === 0 ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
+    };
+    // (1) Preview header — "Name : Rajesh & Sabin · % : 40 and 60"
+    const previewEl = document.getElementById('splitPreview');
+    if (previewEl) {
+      const named = __splitParties.filter(p => p.name.trim());
+      if (named.length === 0) {
+        previewEl.innerHTML = '<div class="split-preview-empty">Add parties below to see a live preview.</div>';
+      } else {
+        const namesList = named.map(p => escapeHtml(p.name)).join(' &amp; ');
+        const pctsList = named.map(p => fmtPct(p.pct)).join(' and ');
+        previewEl.innerHTML = `
+          <div class="split-preview-row"><span class="split-preview-key">Name</span><span class="split-preview-val">${namesList}</span></div>
+          <div class="split-preview-row"><span class="split-preview-key">%</span><span class="split-preview-val">${pctsList}</span></div>
+        `;
+      }
+    }
+    // (2) Party inputs list
+    renderSplitParties();
+    // (3) Totals — total % across all parties (warn if != 100)
+    const totalsEl = document.getElementById('splitPartiesTotals');
+    if (totalsEl) {
+      const totalPct = __splitParties.reduce((s, p) => s + (Number(p.pct) || 0), 0);
+      const over = totalPct > 100;
+      const under = totalPct < 100;
+      const stateClass = over ? 'over' : under ? 'under' : 'ok';
+      const msg = over ? '(over 100% — fix the split)'
+        : under ? '(under 100% — some net profit is unallocated)'
+        : '(adds up to 100%)';
+      totalsEl.innerHTML = `
+        <span class="split-parties-total-label">Total %</span>
+        <span class="split-parties-total-val ${stateClass}">${fmtPct(totalPct)}% <small>${msg}</small></span>
+      `;
+    }
+    // (4) Per-party result lines
+    const resultsEl = document.getElementById('splitResults');
+    if (resultsEl) {
+      const hasConv = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
+      const sym = escapeHtml(__splitCurrency);
+      const rows = __splitParties.map(p => {
+        const nameDisp = p.name.trim() ? escapeHtml(p.name) : '<em style="color:var(--ink-mute);">(unnamed)</em>';
+        const portionBiz = net * (Number(p.pct) || 0) / 100;
+        const portionConv = portionBiz * __splitRate;
+        const isSelected = p.id === __splitSelectedPartyId;
+        return `<div class="split-result-row ${isSelected ? 'is-selected' : ''}">
+          <div class="split-result-name">
+            ${nameDisp}
+            ${isSelected ? `<span class="split-result-badge">used for Distribution</span>` : ''}
+          </div>
+          <div class="split-result-detail">
+            <span class="split-result-pct">${fmtPct(Number(p.pct) || 0)}% of Net profit</span>
+            <span class="split-result-eq">=</span>
+            <span class="split-result-amount ${portionBiz >= 0 ? 'pos' : 'neg'}">${cur} ${portionBiz >= 0 ? '' : '−'}${fmt(Math.abs(portionBiz))}</span>
+            ${hasConv ? `<span class="split-result-conv">= ${sym} ${portionConv >= 0 ? '' : '−'}${fmt(Math.abs(portionConv))}</span>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+      resultsEl.innerHTML = rows || '<div class="split-result-empty">Add at least one party above to see the calculation.</div>';
+    }
+    // (5) Refresh Distribution amount label + numbers
+    try {
+      const labelEl = document.querySelector('.dist-first-label');
+      if (labelEl) {
+        const selected = __splitParties.find(p => p.id === __splitSelectedPartyId);
+        if (selected && selected.name.trim()) {
+          labelEl.textContent = `${escapeHtml(selected.name)} · ${fmtPct(Number(selected.pct) || 0)}% of Net profit`;
+        } else {
+          labelEl.textContent = `${fmtPct(__splitPct)}% of Net profit`;
+        }
+      }
+      refreshDistributionTotals();
+    } catch (_) {}
+  }
+
+  // v88: legacy single-% renderer (extracted from the previous updateSplitCalc).
+  // Used when no named parties exist.
+  function _updateSplitCalcLegacy() {
     const pctA = __splitPct;
     const pctB = 100 - pctA;
-    // O1: float arithmetic like 100 - 30.5 can produce 69.5 cleanly, but
-    // 100 - 33.33 produces 66.66999999... Round to 2 decimals for display
-    // so neither side shows an ugly trailing-digit number. The underlying
-    // computation still uses the unrounded value, so the totals stay exact.
     const fmtPct = (n) => {
       const r = Math.round(n * 100) / 100;
       return r % 1 === 0 ? String(r) : r.toFixed(2).replace(/\.?0+$/, '');
@@ -9604,42 +10269,141 @@
         </div>
       `;
     }
-    // Conversion side: only show when both a currency label AND a positive rate are present.
-    // Math: business amount × rate = picked-currency amount.
-    // (Business = USD, picked = Rs, rate = 150 → $10 × 150 = Rs 1,500.)
     const conv = document.getElementById('splitConverted');
-    if (!conv) return;
-    if (!__splitCurrency || !__splitRate || __splitRate <= 0) {
-      conv.innerHTML = `<p class="split-calc-converted-hint">Enter a currency and rate above to see both amounts converted.</p>`;
-      return;
+    if (conv) {
+      if (!__splitCurrency || !__splitRate || __splitRate <= 0) {
+        conv.innerHTML = `<p class="split-calc-converted-hint">Enter a currency and rate above to see both amounts converted.</p>`;
+      } else {
+        const aConv = aAmt * __splitRate;
+        const bConv = bAmt * __splitRate;
+        const sym = escapeHtml(__splitCurrency);
+        conv.innerHTML = `
+          <div class="split-calc-result">
+            <span class="split-calc-result-label">${pctAStr}% in ${sym}</span>
+            <span class="split-calc-result-val ${aConv >= 0 ? 'pos' : 'neg'}">${sym} ${aConv >= 0 ? '' : '−'}${fmt(Math.abs(aConv))}</span>
+          </div>
+          <div class="split-calc-result">
+            <span class="split-calc-result-label">${pctBStr}% in ${sym}</span>
+            <span class="split-calc-result-val ${bConv >= 0 ? 'pos' : 'neg'}">${sym} ${bConv >= 0 ? '' : '−'}${fmt(Math.abs(bConv))}</span>
+          </div>
+        `;
+      }
     }
-    const aConv = aAmt * __splitRate;
-    const bConv = bAmt * __splitRate;
-    const sym = escapeHtml(__splitCurrency);
-    conv.innerHTML = `
-      <div class="split-calc-result">
-        <span class="split-calc-result-label">${pctAStr}% in ${sym}</span>
-        <span class="split-calc-result-val ${aConv >= 0 ? 'pos' : 'neg'}">${sym} ${aConv >= 0 ? '' : '−'}${fmt(Math.abs(aConv))}</span>
-      </div>
-      <div class="split-calc-result">
-        <span class="split-calc-result-label">${pctBStr}% in ${sym}</span>
-        <span class="split-calc-result-val ${bConv >= 0 ? 'pos' : 'neg'}">${sym} ${bConv >= 0 ? '' : '−'}${fmt(Math.abs(bConv))}</span>
-      </div>
-    `;
-    // Distribution Section A reads from __splitPct / __splitNetProfit
-    // / __splitCurrency / __splitRate — the same inputs we just
-    // re-derived above. Refresh its totals so editing the split %
-    // immediately updates "First portion" and every cascaded amount.
-    // No-op if the Distribution card isn't on the page.
     try {
-      // The label text "X% of Net profit" inside Section A doesn't
-      // get patched by refreshDistributionTotals (which only touches
-      // numeric values). When the percentage changes, the label is
-      // now stale. Patch it here directly.
       const labelEl = document.querySelector('.dist-first-label');
       if (labelEl) labelEl.textContent = `${pctAStr}% of Net profit`;
       refreshDistributionTotals();
     } catch (_) {}
+  }
+
+  // v88: render the list of party inputs (name + %). Each row also
+  // has a "Use for Distribution" radio button and a delete button.
+  function renderSplitParties() {
+    const listEl = document.getElementById('splitPartiesList');
+    if (!listEl) return;
+    if (__splitParties.length === 0) {
+      listEl.innerHTML = '<div class="split-parties-empty">No parties yet. Click "+ Add party" above.</div>';
+      return;
+    }
+    const fmtPctVal = (p) => {
+      const n = Number(p);
+      return Number.isFinite(n) && n !== 0 ? String(n) : (p === 0 ? '0' : '');
+    };
+    listEl.innerHTML = __splitParties.map(p => {
+      const isSelected = p.id === __splitSelectedPartyId;
+      return `<div class="split-party-row ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
+        <label class="split-party-radio" title="Use this party as the Amount source in Distribution">
+          <input type="radio" name="splitSelectedParty" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
+          <span class="split-party-radio-dot"></span>
+        </label>
+        <div class="input-wrap">
+          <label>Name</label>
+          <input type="text" value="${escapeHtml(p.name)}" placeholder="e.g. Rajesh" maxlength="80" oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
+        </div>
+        <div class="input-wrap">
+          <label>%</label>
+          <input type="number" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
+        </div>
+        <button class="icon-btn-light" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
+          <svg width="12" height="12"><use href="#ico-trash"/></svg>
+        </button>
+      </div>`;
+    }).join('');
+  }
+
+  function addSplitParty() {
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage split.'); return; }
+    // Default pct: split the remaining unallocated % evenly across new
+    // additions. If current total is 100, new party gets 0 (user can
+    // edit). If less than 100, give the new party the leftover.
+    const totalPct = __splitParties.reduce((s, p) => s + (Number(p.pct) || 0), 0);
+    const remain = Math.max(0, 100 - totalPct);
+    __splitParties.push({ id: uid(), name: '', pct: remain });
+    // If this is the first party added, auto-select it as the Distribution source
+    if (__splitParties.length === 1) {
+      __splitSelectedPartyId = __splitParties[0].id;
+    }
+    saveSplitStateFor(session.activeBizId);
+    // Re-render Distribution view to pick up the layout change
+    // (Net profit card, legacy/multi mode swap, etc.).
+    if (session.view === 'distribution') {
+      const root = document.getElementById('mainContent');
+      if (root) renderDistributionView(root);
+    } else {
+      updateSplitCalc();
+    }
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.split-party-row input[type="text"]');
+      const last = inputs[inputs.length - 1];
+      if (last) last.focus();
+    }, 30);
+  }
+  async function removeSplitParty(id) {
+    if (roleFor(session.activeBizId) !== 'owner') return;
+    const party = __splitParties.find(p => p.id === id);
+    if (!party) return;
+    const hasContent = (party.name && party.name.trim()) || Number(party.pct) > 0;
+    if (hasContent) {
+      const who = (party.name && party.name.trim()) || 'this party';
+      const ok = await uiConfirm(`Remove ${who} from the split?`, {
+        title: 'Remove party',
+        confirmLabel: 'Remove',
+        danger: true,
+      });
+      if (!ok) return;
+    }
+    __splitParties = __splitParties.filter(p => p.id !== id);
+    if (__splitSelectedPartyId === id) {
+      __splitSelectedPartyId = __splitParties[0]?.id || '';
+    }
+    saveSplitStateFor(session.activeBizId);
+    if (session.view === 'distribution') {
+      const root = document.getElementById('mainContent');
+      if (root) renderDistributionView(root);
+    } else {
+      updateSplitCalc();
+    }
+  }
+  function updateSplitParty(id, field, value) {
+    const party = __splitParties.find(p => p.id === id);
+    if (!party) return;
+    if (field === 'name') {
+      party.name = String(value || '').slice(0, 80);
+    } else if (field === 'pct') {
+      if (value === '' || value === null) { party.pct = 0; }
+      else {
+        const n = Number(value);
+        party.pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0;
+      }
+    }
+    saveSplitStateFor(session.activeBizId);
+    updateSplitCalc();
+  }
+  function setSplitSelectedParty(id) {
+    if (!__splitParties.some(p => p.id === id)) return;
+    __splitSelectedPartyId = id;
+    saveSplitStateFor(session.activeBizId);
+    updateSplitCalc();
   }
   // Used by addAuditExpense — returns the month string (YYYY-MM) the new
   // expense should be tagged with. We use the start month of the period:
@@ -10353,6 +11117,12 @@
     __splitPct = splitState.pct;
     __splitCurrency = splitState.currency || '';
     __splitRate = splitState.rate || 0;
+    __splitParties = Array.isArray(splitState.parties) ? splitState.parties : [];
+    __splitSelectedPartyId = splitState.selectedPartyId || '';
+    // If the selected party was deleted, fall back to legacy scalar
+    if (__splitSelectedPartyId && !__splitParties.some(p => p.id === __splitSelectedPartyId)) {
+      __splitSelectedPartyId = '';
+    }
     // Also hydrate the saved net profit. Audit re-derives this from
     // the entries + expenses; if user hasn't visited Audit, the
     // module-level cache could be stale. Fast re-derivation here
@@ -10419,38 +11189,73 @@
         <div class="distribution-net-meta">${taxRate > 0 ? `After ${taxRate}% tax of ${__splitBusinessCurrency} ${fmt(tax)}` : 'No tax applied (Tax % = 0 in Audit)'} · ${currentPeriodLabel ? escapeHtml(currentPeriodLabel()) : 'Current period'}</div>
       </div>
 
-      <!-- v75: Split & convert (moved from Audit). Same scratchpad
-           the user used to access on Audit, now placed here next to
-           the distribution allocation so the % math + currency
-           conversion is right where it matters. -->
+      <!-- v88: Split & convert — redesigned for multi-party named
+           splits. Top bar: live preview of party names + percentages.
+           Middle: party list (name + %) with + Add button. Bottom:
+           currency/rate selector + per-party result lines and the
+           total check. Old single-% scalar is still wired up under
+           the hood; you can ignore it by adding parties. -->
       <div class="split-calc">
         <div class="split-calc-head">
           <h2 class="split-calc-title">Split &amp; convert</h2>
-          <p class="split-calc-sub">Optional scratchpad: split the Net profit (after tax) by % and see it in another currency. Saved per business.</p>
+          <p class="split-calc-sub">Split the Net profit (after tax) by named recipients with their % share, optionally in another currency. Each party can be used as the Amount source for Distribution below.</p>
         </div>
-        <div class="split-calc-pct-row">
-          <div class="split-calc-pct-input">
-            <label>%</label>
-            <input type="number" id="splitPctInput" min="0" max="100" step="0.01" value="${escapeHtml(String(__splitPct))}" oninput="onSplitPctInput(this.value)" onblur="this.value = String(__splitPct)" inputmode="decimal">
-          </div>
-          <div class="split-calc-pct-results" id="splitPctResults">
-            <!-- filled by updateSplitCalc() -->
-          </div>
+
+        <!-- Live preview of all parties + percentages -->
+        <div class="split-preview" id="splitPreview">
+          <!-- filled by updateSplitCalc() -->
         </div>
-        <div class="split-calc-divider"></div>
+
+        <!-- Currency + rate (shared across all parties) -->
         <div class="split-calc-cur-row">
           <div class="input-wrap">
             <label>Currency</label>
             <input type="text" id="splitCurInput" placeholder="Rs, INR, €…" maxlength="6" value="${escapeHtml(__splitCurrency)}" oninput="onSplitCurInput(this.value)">
           </div>
           <div class="input-wrap">
-            <label>Rate (1 ${escapeHtml(__splitBusinessCurrency)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
+            <label id="splitRateLabel">Rate (1 ${escapeHtml(__splitBusinessCurrency)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
             <input type="number" id="splitRateInput" min="0" step="0.0001" value="${escapeHtml(__splitRate ? String(__splitRate) : '')}" oninput="onSplitRateInput(this.value)" inputmode="decimal" placeholder="e.g. 150">
           </div>
         </div>
-        <div class="split-calc-converted" id="splitConverted">
+
+        <!-- Party list with name + % inputs -->
+        <div class="split-parties">
+          <div class="split-parties-head">
+            <div class="split-parties-title">Parties</div>
+            <button class="btn btn-sm btn-ghost" onclick="addSplitParty()">+ Add party</button>
+          </div>
+          <div id="splitPartiesList">
+            <!-- filled by renderSplitParties() -->
+          </div>
+          <div class="split-parties-totals" id="splitPartiesTotals">
+            <!-- filled by updateSplitCalc() -->
+          </div>
+        </div>
+
+        <!-- Per-party result lines (Name : X% of Net profit = ...) -->
+        <div class="split-results" id="splitResults">
           <!-- filled by updateSplitCalc() -->
         </div>
+
+        ${__splitParties.length === 0 ? `
+        <!-- Legacy single-% mode (shown only when no named parties yet)
+             so existing users see the old behaviour without surprise.
+             Adding a named party hides this entirely. -->
+        <div class="split-calc-divider"></div>
+        <div class="split-calc-legacy">
+          <div class="split-calc-pct-row">
+            <div class="split-calc-pct-input">
+              <label>% of net profit (single-party mode)</label>
+              <input type="number" id="splitPctInput" min="0" max="100" step="0.01" value="${escapeHtml(String(__splitPct))}" oninput="onSplitPctInput(this.value)" onblur="this.value = String(__splitPct)" inputmode="decimal">
+            </div>
+            <div class="split-calc-pct-results" id="splitPctResults">
+              <!-- filled by updateSplitCalc() -->
+            </div>
+          </div>
+          <div class="split-calc-converted" id="splitConverted">
+            <!-- filled by updateSplitCalc() -->
+          </div>
+        </div>` : ''}
       </div>
 
       <div class="distribution-card" id="distributionCard"><!-- filled below --></div>
@@ -15423,21 +16228,31 @@
       try { playEntrySound(newEntry.type); } catch (_) {}
     }
     saveData();
-    // v85: Add More flow — keep the modal open and clear only the
-    // transient fields (amount, party, note) so the user can rapidly
-    // batch-enter. Date, account, category stay so they don't have to
-    // re-pick them. The next invoice number updates automatically.
-    if (addMore && !isEdit) {
-      const amtEl = document.getElementById('mAmount'); if (amtEl) amtEl.value = '';
-      const partyEl = document.getElementById('mParty'); if (partyEl) partyEl.value = '';
-      const noteEl = document.getElementById('mNote'); if (noteEl) noteEl.value = '';
+    // v88: Add More flow — clear ALL fields like opening a fresh +Entry.
+    // Keep the modal open and refresh the next invoice number. The user
+    // wanted this to feel like a brand-new entry, not a carryover of
+    // the previous one's date/account/category.
+    if (addMore && !editId) {
+      const clearById = (id) => { const el = document.getElementById(id); if (el) el.value = ''; };
+      clearById('mAmount');
+      clearById('mParty'); clearById('mParty_display');
+      clearById('mAccount'); clearById('mAccount_display');
+      clearById('mCategory'); clearById('mCategory_display');
+      clearById('mNote');
+      // Reset date back to today (in case the user backdated the prior entry)
+      const dateEl = document.getElementById('mDate');
+      if (dateEl) dateEl.value = today();
+      // Reset type to Cash In (default)
+      try { setEntryType('in'); } catch (_) {}
       // Refresh the invoice-number preview in the modal header
       try { updateEntryNoPreview(); } catch (_) {}
+      // Refresh date hint (today/yesterday/etc)
+      try { updateDateRelativeHint(); } catch (_) {}
       // Refresh the entries list behind the modal so the new row is
       // visible if the user closes.
       try { renderAll(); } catch (_) {}
       // Focus the amount field for fast next entry
-      setTimeout(() => amtEl?.focus(), 30);
+      setTimeout(() => document.getElementById('mAmount')?.focus(), 30);
       return;
     }
     closeModal(); renderAll();
@@ -18816,7 +19631,7 @@
         <h3 class="settings-heading">Notifications</h3>
         <div class="toggle-row toggle-row-compact">
           <div class="toggle-row-text">
-            <div class="toggle-row-title">Notifications</div>
+            <div class="toggle-row-title">Announcement</div>
           </div>
           <label class="toggle"><input type="checkbox" id="setChimeMuted" ${isChimeMuted() ? '' : 'checked'} onchange="setChimeMuted(!this.checked)"><span class="toggle-slider"></span></label>
         </div>
@@ -19066,14 +19881,42 @@
           if (_monthOptions.length === 0) {
             return `<p style="font-size:0.78rem;color:var(--ink-mute);background:var(--paper-deep);border:1px dashed var(--line);padding:0.7rem;border-radius:var(--r-sm);">No past months with entries yet. Once entries from previous months exist, they'll appear here for cleanup.</p>`;
           }
-          // Friendly label: "May 2024 — 47 entries"
+          // v88: include estimated storage size per month so the user
+          // can see which months are heaviest. JSON-stringify byte
+          // length is a close enough proxy for "how much localStorage
+          // / cloud row data this month consumes."
+          function _formatBytes(n) {
+            if (n < 1024) return `${n} B`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+            return `${(n / (1024 * 1024)).toFixed(2)} MB`;
+          }
+          const _monthSizes = new Map();
+          for (const e of data.entries) {
+            if (!_bookIds.has(e.bookId)) continue;
+            const m = (e.date || '').slice(0, 7);
+            if (!/^\d{4}-\d{2}$/.test(m)) continue;
+            if (m === _currentMonth) continue;
+            try {
+              const bytes = new Blob([JSON.stringify(e)]).size;
+              _monthSizes.set(m, (_monthSizes.get(m) || 0) + bytes);
+            } catch (_) {}
+          }
+          // Friendly label: "May 2024 — 47 entries · 12.3 KB"
           const _opts = _monthOptions.map(([key, count]) => {
             const [y, m] = key.split('-').map(Number);
             const label = new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
             const entryWord = count === 1 ? 'entry' : 'entries';
-            return `<option value="${escapeHtml(key)}">${escapeHtml(label)} — ${count} ${entryWord}</option>`;
+            const sizeStr = _formatBytes(_monthSizes.get(key) || 0);
+            return `<option value="${escapeHtml(key)}">${escapeHtml(label)} — ${count} ${entryWord} · ${sizeStr}</option>`;
           }).join('');
+          // Total across all past months for a quick at-a-glance summary
+          let _totalBytes = 0;
+          for (const v of _monthSizes.values()) _totalBytes += v;
+          const _totalLabel = _totalBytes > 0
+            ? `<p style="font-size:0.75rem;color:var(--ink-mute);margin-bottom:0.6rem;">Past months total: <strong>${_formatBytes(_totalBytes)}</strong> across ${_monthOptions.length} ${_monthOptions.length === 1 ? 'month' : 'months'}.</p>`
+            : '';
           return `
+            ${_totalLabel}
             <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;">
               <div class="input-wrap" style="flex:1;min-width:220px;">
                 <label for="cleanupMonth_${biz.id}">Month to clear</label>
@@ -22273,17 +23116,22 @@
       toast('Only the owner can export distribution.');
       return;
     }
-    // Use the live __split / __dist state — Distribution view always
-    // hydrates these on render, so they're current when the user
-    // opens the export from there. (Don't recompute from scratch — we
-    // want to export exactly what the user is looking at.)
     const bizCur = biz.currency || 'NPR';
     const hasChangedCurrency = __splitRate > 0 && __splitCurrency && __splitCurrency.trim() !== '';
     const displayCur = hasChangedCurrency ? __splitCurrency : bizCur;
     const conversionRate = hasChangedCurrency ? __splitRate : 1;
-    const firstPortionBiz = __splitNetProfit * (__splitPct / 100);
+    // v88: selected named party's % if any
+    const selectedParty = __splitParties.find(p => p.id === __splitSelectedPartyId);
+    const effectivePct = selectedParty ? Number(selectedParty.pct) || 0 : __splitPct;
+    const effectivePartyLabel = (selectedParty && selectedParty.name.trim())
+      ? `${selectedParty.name} (${effectivePct}%)`
+      : `${effectivePct}%`;
+    const firstPortionBiz = __splitNetProfit * (effectivePct / 100);
     const firstPortionDisp = firstPortionBiz * conversionRate;
-    // Section B totals
+
+    // v88: section-by-section export. Each table has named columns
+    // including the Reason/Description column the user wanted in
+    // print + PDF + CSV.
     let totalSalary = 0, totalAdj = 0, totalFinal = 0;
     const salaryRows = __distSalaries.map(r => {
       const signedAdj = r.adjustmentType === 'addition' ? r.adjustmentAmount : -r.adjustmentAmount;
@@ -22294,51 +23142,78 @@
       return [
         r.name || '—',
         r.salary.toFixed(2),
-        r.adjustmentType === 'addition' ? `+${r.adjustmentAmount.toFixed(2)}` : `−${r.adjustmentAmount.toFixed(2)}`,
+        r.adjustmentType === 'addition' ? 'Addition' : 'Deduction',
+        r.adjustmentAmount.toFixed(2),
         final.toFixed(2),
+        r.note || '',
       ];
     });
     const remaining = firstPortionDisp - totalFinal;
-    // Section C
+
     let totalSharePct = 0, totalShareAmount = 0;
     const shareRows = __distShares.map(r => {
       const amt = (r.pct / 100) * remaining;
       totalSharePct += r.pct;
       totalShareAmount += amt;
-      return [r.name || '—', `${r.pct}%`, amt.toFixed(2)];
+      return [r.name || '—', `${r.pct}%`, amt.toFixed(2), r.note || ''];
     });
-    // Build a row-set: header rows, then salaries, then totals, then shares
-    // PDF/CSV table uses fixed columns. We use the WIDEST schema (4 cols)
-    // and pad share rows with blanks. First column is the label/name.
+
+    // Build a multi-section row-set. Each section has its own header
+    // row clearly labelled, then its columns. PDF/CSV table is
+    // 6 columns wide (matching the salary section); the share section
+    // pads with blanks.
     const rows = [];
-    rows.push(['— Amount —', '', '', '']);
-    rows.push([`${__splitPct}% of Net profit`, `${displayCur} ${firstPortionDisp.toFixed(2)}`, '', hasChangedCurrency ? `${bizCur} ${firstPortionBiz.toFixed(2)}` : '']);
-    rows.push(['', '', '', '']);
-    rows.push(['— Team Salaries —', 'Salary', 'Adjustment', 'Final']);
-    salaryRows.forEach(r => rows.push(r));
-    if (__distSalaries.length) {
-      rows.push(['', '', '', '']);
-      rows.push(['Total salary', totalSalary.toFixed(2), '', '']);
-      rows.push(['Total adjustment', '', (totalAdj >= 0 ? '+' : '−') + Math.abs(totalAdj).toFixed(2), '']);
-      rows.push(['Total final paid', '', '', totalFinal.toFixed(2)]);
+    rows.push(['SUMMARY', '', '', '', '', '']);
+    rows.push([`Net profit (after tax)`, '', '', '', `${bizCur} ${__splitNetProfit.toFixed(2)}`, '']);
+    // v88: list all named parties with their splits, plus mark selected
+    if (__splitParties.length > 0) {
+      rows.push(['Split parties:', '', '', '', '', '']);
+      __splitParties.forEach(p => {
+        const isSel = p.id === __splitSelectedPartyId ? ' ← used for Distribution' : '';
+        const partyAmount = __splitNetProfit * (Number(p.pct) || 0) / 100;
+        rows.push([`  · ${p.name || '(unnamed)'}`, `${p.pct || 0}%`, '', '', `${bizCur} ${partyAmount.toFixed(2)}`, isSel.trim()]);
+      });
     }
-    rows.push(['', '', '', '']);
-    rows.push(['Remaining (after salaries)', '', '', remaining.toFixed(2)]);
-    rows.push(['', '', '', '']);
-    rows.push(['— Profit Shares —', '%', 'Amount', '']);
-    shareRows.forEach(r => rows.push([r[0], r[1], r[2], '']));
-    if (__distShares.length) {
-      rows.push(['', '', '', '']);
-      rows.push(['Total %', `${totalSharePct}%`, '', '']);
-      rows.push(['Total share amount', '', totalShareAmount.toFixed(2), '']);
+    rows.push([`Distribution amount source`, '', '', '', effectivePartyLabel, '']);
+    rows.push([`Amount to distribute`, '', '', '', `${displayCur} ${firstPortionDisp.toFixed(2)}`, hasChangedCurrency ? `(= ${bizCur} ${firstPortionBiz.toFixed(2)})` : '']);
+    if (hasChangedCurrency) {
+      rows.push([`Exchange rate`, '', '', '', `1 ${bizCur} = ${__splitRate} ${__splitCurrency}`, '']);
     }
+    rows.push(['', '', '', '', '', '']);
+
+    rows.push(['TEAM SALARIES', '', '', '', '', '']);
+    rows.push(['Name', 'Salary', 'Type', 'Adjustment', 'Final', 'Reason']);
+    if (salaryRows.length === 0) {
+      rows.push(['(no team salaries)', '', '', '', '', '']);
+    } else {
+      salaryRows.forEach(r => rows.push(r));
+      rows.push(['', '', '', '', '', '']);
+      rows.push(['Total salary',     totalSalary.toFixed(2), '', '', '', '']);
+      rows.push(['Total adjustment', '', '', (totalAdj >= 0 ? '+' : '−') + Math.abs(totalAdj).toFixed(2), '', '']);
+      rows.push(['Total final paid', '', '', '', totalFinal.toFixed(2), '']);
+    }
+    rows.push(['', '', '', '', '', '']);
+    rows.push(['Remaining after salaries', '', '', '', remaining.toFixed(2), '']);
+    rows.push(['', '', '', '', '', '']);
+
+    rows.push(['PROFIT SHARES', '', '', '', '', '']);
+    rows.push(['Name', '%', 'Amount', '', '', 'Reason']);
+    if (shareRows.length === 0) {
+      rows.push(['(no profit shares)', '', '', '', '', '']);
+    } else {
+      shareRows.forEach(r => rows.push([r[0], r[1], r[2], '', '', r[3]]));
+      rows.push(['', '', '', '', '', '']);
+      rows.push(['Total %',            `${totalSharePct}%`, '', '', '', '']);
+      rows.push(['Total share amount', '', totalShareAmount.toFixed(2), '', '', '']);
+    }
+
     const opts = {
       title: `Distribution — ${biz.name}`,
       subtitle: `${displayCur}${hasChangedCurrency ? ` (rate ${__splitRate} per 1 ${bizCur})` : ''} · Generated ${today()}`,
-      columns: ['Item', 'Col 1', 'Col 2', 'Col 3'],
+      columns: ['Item', 'Salary', 'Type', 'Adjustment', 'Amount', 'Reason'],
       rows,
       filename: `distribution_${biz.name.replace(/[^\w]+/g, '_')}`,
-      columnAlign: { 1: 'right', 2: 'right', 3: 'right' },
+      columnAlign: { 1: 'right', 2: 'left', 3: 'right', 4: 'right', 5: 'left' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
@@ -23722,7 +24597,9 @@
     if (!__syncEnabled()) return;
     try {
       const client = sb();
-      __realtimeChannel = client.channel('hisabs-sync')
+      const myChannel = client.channel('hisabs-sync');
+      __realtimeChannel = myChannel;
+      myChannel
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_businesses' },
           (payload) => onRealtimeEvent('businesses', payload))
@@ -23767,6 +24644,12 @@
           { event: '*', schema: 'public', table: 'app_transfers' },
           (payload) => onRealtimeEvent('transfers', payload))
         .subscribe((status) => {
+          // v88: guard against stale callbacks. If our channel ref was
+          // cleared (stopRealtimeListener ran) or swapped (rapid stop/
+          // start cycle), this callback belongs to an obsolete channel
+          // and must not schedule reconnect timers — otherwise sign-out
+          // + a late CLOSED event silently re-starts realtime.
+          if (myChannel !== __realtimeChannel) return;
           // First status is ALWAYS logged so users can confirm at a glance
           // whether realtime connected. Subsequent ones (reconnects, etc.)
           // only log when window.__hisabsDebug is on, to keep production
@@ -23811,8 +24694,17 @@
       __realtimeReconnectTimer = null;
     }
     if (__realtimeChannel) {
-      try { sb().removeChannel(__realtimeChannel); } catch (_) {}
+      // v88: null the ref BEFORE removeChannel(). The Supabase client
+      // synchronously fires a CLOSED status callback inside removeChannel();
+      // if our ref still pointed at the channel being torn down, the
+      // guard in the .subscribe callback (myChannel !== __realtimeChannel)
+      // would NOT short-circuit, and the CLOSED branch would schedule
+      // a reconnect timer for a channel that's already gone. That
+      // produced a zombie timer that fired ~500ms later and silently
+      // restarted realtime after sign-out / stopSyncSystem.
+      const ch = __realtimeChannel;
       __realtimeChannel = null;
+      try { sb().removeChannel(ch); } catch (_) {}
     }
   }
 
@@ -23911,7 +24803,7 @@
     // vibration silently ignore. Web Vibration API is gated to
     // user-gesture contexts; if blocked, fail silently.
     try {
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400]);
+      if (navigator.vibrate) navigator.vibrate([180, 220, 300]);
     } catch (_) {}
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
@@ -23921,38 +24813,31 @@
       if (ctx.state === 'suspended') {
         try { ctx.resume(); } catch (_) {}
       }
-      // v73: Classic 3-tone PA announcement chime — the recognisable
-      // "bing-bong-bing" used in airports, train stations, and stores
-      // before a public-address announcement. Three notes:
-      //   1. G5 (~784 Hz) — rising attention
-      //   2. E5 (~659 Hz) — settle
-      //   3. C5 (~523 Hz) — resolve
-      // Then a repeat after a small gap, so the user hears a clear
-      // "bing-bong-bing ... bing-bong-bing" pattern of ~3.5s total.
-      // Peak gain 0.75 (vs old 0.55) for clearly higher volume as
-      // requested. Inharmonic partials give a bell/chime body so the
-      // tone reads as "announcement" rather than "alarm".
+      // v88: Classic two-tone "store door / shop entry" chime —
+      // the canonical sound of a shop announcement. Two notes,
+      // descending major third (DING → DONG):
+      //   1. G5 (~784 Hz)
+      //   2. E5 (~659 Hz)
+      // The second note rings longer than the first (typical
+      // store-door behavior — the second tone lingers). Bell-like
+      // timbre with inharmonic upper partials (1×, 2×, 2.76× for
+      // the bell-physics ratio) for a real "struck metal" feel
+      // rather than a synth beep. Single pair, no repeat — the
+      // canonical "ding-dong" pattern.
       const now = ctx.currentTime;
-      // Note specs: frequency Hz, start offset (s), duration (s)
       const notes = [
-        // First sequence
-        { freq: 784, t: 0.00, dur: 0.65 },
-        { freq: 659, t: 0.55, dur: 0.65 },
-        { freq: 523, t: 1.10, dur: 0.90 },
-        // Brief pause, then repeat for the classic doubled chime
-        { freq: 784, t: 2.20, dur: 0.55 },
-        { freq: 659, t: 2.70, dur: 0.55 },
-        { freq: 523, t: 3.20, dur: 0.80 },
+        { freq: 784, t: 0.00, dur: 0.80 },  // G5 — DING
+        { freq: 659, t: 0.45, dur: 1.55 },  // E5 — DONG (rings longer)
       ];
       for (const n of notes) {
         const startT = now + n.t;
-        // Bell-like timbre = fundamental + harmonic partial + sparkle.
-        // The sparkle is a slightly inharmonic upper partial that gives
-        // the chime its bright, dispatcher-style edge.
+        // Bell-like timbre. Fundamental + 2× harmonic + 2.76× partial
+        // (the classic struck-bell ratio from physics — gives a
+        // genuine bell character vs. synth-tone harmonics).
         const partials = [
-          { mult: 1.00, gain: 0.75, decay: n.dur },
-          { mult: 2.00, gain: 0.32, decay: n.dur * 0.8 },
-          { mult: 3.01, gain: 0.16, decay: n.dur * 0.6 }, // slightly detuned for sparkle
+          { mult: 1.00, gain: 0.70, decay: n.dur },
+          { mult: 2.00, gain: 0.30, decay: n.dur * 0.75 },
+          { mult: 2.76, gain: 0.14, decay: n.dur * 0.55 }, // bell partial
         ];
         for (const p of partials) {
           const osc = ctx.createOscillator();
@@ -23960,7 +24845,7 @@
           osc.frequency.value = n.freq * p.mult;
           const gain = ctx.createGain();
           // Smooth attack (15ms), exponential decay — sounds like
-          // a real PA speaker rather than a beep.
+          // a real door chime rather than a beep.
           gain.gain.setValueAtTime(0, startT);
           gain.gain.linearRampToValueAtTime(p.gain, startT + 0.015);
           gain.gain.exponentialRampToValueAtTime(0.0001, startT + p.decay);
@@ -23970,8 +24855,8 @@
           osc.stop(startT + p.decay + 0.05);
         }
       }
-      // Total runtime ~4.0 sec — last note ends at t=3.20 + 0.80 = 4.00
-      const totalDur = 4.0;
+      // Total runtime ~2.05 sec — last note ends at t=0.45 + 1.55 = 2.00
+      const totalDur = 2.05;
       return new Promise((resolve) => {
         setTimeout(() => {
           try { ctx.close(); } catch (_) {}
