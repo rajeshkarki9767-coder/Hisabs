@@ -179,6 +179,23 @@
     line-height: 0;
   }
   .btn-icon-only svg { display: block; }
+  /* v73: party-sort dropdown styled to match other page-action buttons */
+  .party-sort-select {
+    cursor: pointer;
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    padding: 0.42rem 1.6rem 0.42rem 0.7rem;
+    font-size: 0.72rem;
+    border-radius: var(--r-sm);
+    font-family: var(--font-sans);
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'><polyline points='6 9 12 15 18 9'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+  }
+  .party-sort-select:hover { border-color: var(--ink-soft); background-color: var(--paper-deep); }
   /* Icon-only ghost button used by the per-view export trigger and any
      future single-icon page-header actions. Keeps the same border/hover
      treatment as `.btn-sm.btn-ghost` but with square padding. */
@@ -863,6 +880,18 @@
     }
     body.printing-member-activity .modal-actions,
     body.printing-member-activity .modal-handle { display: none !important; }
+    /* v74: explicitly unconstrain the inner list — its base style is
+       max-height: 50vh; overflow-y: auto which creates a viewport-
+       clipped scroll region. On print the browser captures ONLY that
+       clip even though the outer modal has overflow:visible, so only
+       the first ~10 rows print. Force the list to expand to its full
+       intrinsic height. */
+    body.printing-member-activity .member-activity-list {
+      max-height: none !important;
+      overflow: visible !important;
+      height: auto !important;
+      border-top: none !important;
+    }
     body.printing-member-activity .member-activity-row {
       page-break-inside: avoid;
       border: 1px solid #ccc;
@@ -1064,17 +1093,130 @@
   }
   /* Status dot — small colored circle pinned to the top-right of the
      row, color-coded to match the row tint so the user can scan a
-     long list visually at a glance. Empty rows get no dot. */
+     long list visually at a glance. Empty rows get no dot.
+     v75: sharper colors + larger size for stronger visual signal. */
   .entry-status-dot {
-    display: inline-block; width: 8px; height: 8px;
+    display: inline-block; width: 10px; height: 10px;
     border-radius: 50%; flex-shrink: 0;
-    box-shadow: 0 0 0 1.5px var(--paper);
+    box-shadow: 0 0 0 2px var(--paper), 0 0 0 2.5px rgba(0,0,0,0.06);
   }
-  .entry-status-dot.dot-edit       { background: #d9a735; }
-  .entry-status-dot.dot-back       { background: #4974a8; }
-  .entry-status-dot.dot-front      { background: #9566af; }
-  .entry-status-dot.dot-back-edit  { background: #3c8c8c; }
-  .entry-status-dot.dot-front-edit { background: #c86e96; }
+  /* v75: brighter, more saturated dot colors. Old earth-toned dots
+     were hard to distinguish at a glance on a busy entries page;
+     these have full chroma so each meaning is unmistakable. */
+  .entry-status-dot.dot-edit       { background: #f0b400; } /* bright amber */
+  .entry-status-dot.dot-back       { background: #1f6cd6; } /* bright blue */
+  .entry-status-dot.dot-front      { background: #a437d4; } /* bright purple */
+  /* The combo dots (kept for any old code paths) are pure chroma too. */
+  .entry-status-dot.dot-back-edit  { background: #1f6cd6; }
+  .entry-status-dot.dot-front-edit { background: #a437d4; }
+  /* v75: wrap container for two-dot combos — small gap between dots
+     so they read as separate signals rather than a smudge. */
+  .entry-status-dot-wrap {
+    display: inline-flex; align-items: center;
+    gap: 4px; flex-shrink: 0;
+  }
+  /* v80: Entry-No badge — small monospace pill next to date showing
+     the invoice-style entry number (e.g. "E12"). Resets each month
+     per book. */
+  .entry-no-badge {
+    display: inline-block; flex-shrink: 0;
+    font-family: var(--font-mono); font-size: 0.65rem; font-weight: 600;
+    color: var(--ink-mute); letter-spacing: 0.04em;
+    padding: 0.1rem 0.35rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line-soft);
+    border-radius: 3px;
+    line-height: 1.2;
+  }
+  /* v80: bigger badge next to the +Entry modal title showing what
+     invoice number this entry will get. */
+  .entry-no-modal-badge {
+    display: inline-block; vertical-align: middle;
+    margin-left: 0.5rem;
+    font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;
+    color: var(--accent-readable); letter-spacing: 0.04em;
+    padding: 0.15rem 0.5rem;
+    background: var(--paper-deep);
+    border: 1.5px solid var(--accent-readable);
+    border-radius: 4px;
+    line-height: 1.2;
+  }
+  .entry-no-modal-sub strong { color: var(--ink); font-family: var(--font-mono); }
+  /* v81: Invoice-numbering rules list in Business Settings. */
+  .invoice-rules {
+    list-style: none;
+    margin: 0; padding: 0;
+    display: flex; flex-direction: column; gap: 0.45rem;
+  }
+  .invoice-rules li {
+    font-size: 0.83rem; line-height: 1.5;
+    color: var(--ink-soft);
+    padding: 0.55rem 0.75rem 0.55rem 1rem;
+    background: var(--paper-deep);
+    border-left: 3px solid var(--line);
+    border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  }
+  .invoice-rules li strong { color: var(--ink); }
+  .invoice-rules li code {
+    font-family: var(--font-mono); font-size: 0.78rem;
+    background: var(--paper); padding: 0.05rem 0.3rem;
+    border-radius: 3px; border: 1px solid var(--line-soft);
+  }
+  /* v77: keyboard-focused entry row — visible outline so the user can
+     see which row they're on while pressing ↑/↓. The 2px ring uses
+     the accent color so it stands out on every theme. */
+  .entry-row.entry-row-kbd-focus {
+    outline: 2px solid var(--accent-readable);
+    outline-offset: -2px;
+    position: relative;
+  }
+  /* v77: shortcuts cheat sheet modal layout */
+  .shortcuts-table { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.85rem 0; }
+  .shortcuts-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.55rem 0.75rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line-soft);
+    border-radius: var(--r-sm);
+  }
+  .shortcuts-label { font-size: 0.88rem; color: var(--ink); }
+  .shortcuts-keys { display: inline-flex; align-items: center; gap: 0.3rem; }
+  .shortcuts-keys kbd {
+    font-family: var(--font-mono); font-size: 0.74rem; font-weight: 600;
+    padding: 0.18rem 0.42rem;
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: var(--ink);
+    box-shadow: 0 1px 0 var(--line-soft);
+  }
+  /* v75: Entry-indicator legend in Business Settings. Reuses the same
+     entry-row-* tints (already defined above) so each legend row looks
+     exactly like a real entry row. */
+  .entry-legend {
+    display: flex; flex-direction: column; gap: 0.4rem;
+  }
+  .entry-legend-row {
+    display: flex; align-items: center; gap: 0.85rem;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+  }
+  .entry-legend-dot {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 32px; flex-shrink: 0;
+  }
+  .entry-legend-text {
+    display: flex; flex-direction: column; gap: 0.15rem;
+    font-size: 0.85rem; line-height: 1.4;
+  }
+  .entry-legend-text strong {
+    font-size: 0.88rem; color: var(--ink);
+  }
+  .entry-legend-text span {
+    color: var(--ink-soft); font-size: 0.78rem;
+  }
   .entry-date { font-family: var(--font-mono); font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: flex-start; gap: 0.4rem; flex-wrap: wrap; }
   /* v57: when a back-dated entry shows "· added <today>" suffix, make
      it visually secondary so the picked date stays prominent. */
@@ -1694,6 +1836,32 @@
      its own background/border/padding. */
   .distribution-card {
     margin-top: 0.4rem;
+  }
+  /* v75: Net profit (after tax) summary card at the top of the
+     Distribution page. Big number, color-coded by sign, with a
+     small meta line showing the period and tax applied. */
+  .distribution-net-card {
+    margin: 1rem 0 1.25rem;
+    padding: 1.1rem 1.25rem;
+    background: var(--surface-1);
+    border: 2px solid;
+    border-radius: var(--r);
+    text-align: center;
+  }
+  .distribution-net-card.pos { border-color: var(--gain); background: rgba(46, 93, 58, 0.05); }
+  .distribution-net-card.neg { border-color: var(--loss); background: rgba(168, 53, 31, 0.05); }
+  .distribution-net-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.35rem;
+  }
+  .distribution-net-value {
+    font-family: var(--font-mono); font-size: 1.85rem; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .distribution-net-card.pos .distribution-net-value { color: var(--gain); }
+  .distribution-net-card.neg .distribution-net-value { color: var(--loss); }
+  .distribution-net-meta {
+    font-size: 0.74rem; color: var(--ink-mute); margin-top: 0.4rem;
   }
   .dist-head { margin-bottom: 0.85rem; }
   .dist-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--ink); margin: 0; }
@@ -3043,6 +3211,23 @@
     border: 1px dashed var(--line);
     border-radius: var(--r-sm, 6px);
   }
+  /* v73: Tax applied amount shown right below the % control.
+     Right-aligned so it lines up with the % button above; the
+     mono font + bold weight + red color makes the currency amount
+     stand out as an actual tax liability. */
+  .audit-tax-applied {
+    margin-top: 0.55rem;
+    display: flex; justify-content: flex-end; align-items: baseline;
+    gap: 0.55rem;
+  }
+  .audit-tax-applied-label {
+    font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--ink-mute); font-weight: 600;
+  }
+  .audit-tax-applied-value {
+    font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;
+    color: var(--loss); font-variant-numeric: tabular-nums;
+  }
   /* "Total expenses" row below the Cash in / Cash out / Profit grid. Full
      width, same card style, but visually grouped with the totals strip above. */
   .audit-expenses-total-row { margin-top: 0.55rem; }
@@ -3908,6 +4093,7 @@
     .date-strip, .date-strip-search, .date-strip-sync,
     .modal-backdrop, .modal-content, .modal-handle,
     .floating-btn, .floating-action,
+    .fab, .fab-container,
     .page-actions, .audit-range-bar, .audit-range-mobile,
     .period-bar, .toolbar, .audit-tax-btn,
     .audit-exp-add, .audit-exp-actions,
@@ -5115,6 +5301,29 @@
     if (!inp || !out) return;
     out.textContent = relativeDateLabel(inp.value);
   }
+  // v80: live-update the entry-no preview in the modal title/sub when
+  // the date changes. Only updates for NEW entries (the edit flow's
+  // entryNo is fixed unless the month moves, which is handled by
+  // saveEntry — and we don't want to show a stale "Will be" hint when
+  // the user already has a saved number).
+  function updateEntryNoPreview() {
+    const editId = document.getElementById('mEditId')?.value;
+    if (editId) return; // edit mode — number is fixed
+    const dateInp = document.getElementById('mDate');
+    const badge = document.getElementById('entryNoPreviewBadge');
+    const sub = document.getElementById('entryNoPreviewSub');
+    if (!dateInp || !session.activeBookId) return;
+    const date = dateInp.value || today();
+    const n = nextEntryNoFor(session.activeBookId, date);
+    const formatted = formatEntryNo(n);
+    if (badge) badge.textContent = formatted;
+    if (sub) {
+      const m = date.slice(0, 7);
+      const [yy, mm] = m.split('-').map(Number);
+      const monthLabel = new Date(yy, mm - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+      sub.innerHTML = `Next invoice number — <strong>${formatted}</strong> in ${escapeHtml(monthLabel)}.`;
+    }
+  }
   // Currencies that use the Indian lakh/crore grouping (e.g. 10,00,000). Other
   // currencies use the western thousand grouping (1,000,000). Defaults to the
   // active business currency; falls back to en-US.
@@ -5469,57 +5678,122 @@
     document.addEventListener('keydown', handler, true);
   }
   __wireEntrySoundUnlock();
-  function playEntrySound() {
+  function playEntrySound(type) {
     if (entrySoundIsMuted()) return;
     if (!__entrySoundCtx) return; // not yet unlocked
     try {
-      const ctx = __entrySoundCtx;
-      const now = ctx.currentTime;
-      // "Tudung" — a percussive two-tone hit, like a wooden mallet
-      // on a small drum. "TU" is a low, fast thump; "DUNG" is a
-      // higher resonant ring that decays over ~2 seconds. Together
-      // they fill 2.5 seconds with a satisfying "saved!" feedback.
-      // Higher peak gain (0.55) than before so it's clearly audible
-      // even with media volume not maxed out.
-      const totalDur = 2.5;
-
-      // Voice 1 — "TU": low thump, very short
-      const g1 = ctx.createGain();
-      g1.connect(ctx.destination);
-      g1.gain.setValueAtTime(0, now);
-      g1.gain.linearRampToValueAtTime(0.55, now + 0.01);
-      g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.18);
-      const osc1 = ctx.createOscillator();
-      osc1.type = 'sine';
-      osc1.frequency.setValueAtTime(140, now);
-      osc1.frequency.exponentialRampToValueAtTime(90, now + 0.18);
-      osc1.connect(g1);
-      osc1.start(now);
-      osc1.stop(now + 0.25);
-
-      // Voice 2 — "DUNG": higher resonant ring, longer sustain
-      const dungStart = 0.18;
-      const g2 = ctx.createGain();
-      g2.connect(ctx.destination);
-      g2.gain.setValueAtTime(0, now + dungStart);
-      g2.gain.linearRampToValueAtTime(0.50, now + dungStart + 0.015);
-      g2.gain.exponentialRampToValueAtTime(0.0001, now + totalDur);
-      // Two partials for a slightly metallic body
-      [440, 660].forEach((f, i) => {
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(f, now + dungStart);
-        // Slight downward pitch bend feels more like a real strike
-        osc.frequency.exponentialRampToValueAtTime(f * 0.85, now + totalDur);
-        const partialGain = ctx.createGain();
-        partialGain.gain.value = i === 0 ? 1 : 0.45;
-        osc.connect(partialGain);
-        partialGain.connect(g2);
-        osc.start(now + dungStart);
-        osc.stop(now + totalDur + 0.05);
-      });
+      const t = String(type || '').toLowerCase();
+      if (t === 'out') {
+        _playCashOutSound(__entrySoundCtx);
+      } else {
+        _playCashInSound(__entrySoundCtx);
+      }
     } catch (e) {
       console.warn('playEntrySound:', e?.message || e);
+    }
+  }
+
+  // Cash-IN sound — a bright register "ka-ching" feel. Quick rising
+  // chime over a soft bell tail. Three voices stack: an attack click
+  // (high-frequency burst at the start, the "ka"), a fundamental ring
+  // (the "ching"), and a sparkle partial that sweeps slightly up
+  // for energy. Total ~1.5s, peak gain 0.55, high volume.
+  function _playCashInSound(ctx) {
+    const now = ctx.currentTime;
+
+    // Voice 1 — attack click ("ka"). Very short noise-burst-like
+    // shape via a brief 1500Hz triangle wave.
+    {
+      const g = ctx.createGain();
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.35, now + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+      const osc = ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(1500, now);
+      osc.frequency.exponentialRampToValueAtTime(900, now + 0.06);
+      osc.connect(g);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    }
+
+    // Voice 2 — bell fundamental ("ching"). Starts ~30ms after attack.
+    // Two partials at 880 and 1320 Hz for a cheerful major-fifth body.
+    const ringStart = 0.03;
+    const ringDur = 1.5;
+    [
+      { freq: 880,  level: 0.55, decay: ringDur },
+      { freq: 1320, level: 0.30, decay: ringDur * 0.8 },
+      { freq: 1760, level: 0.18, decay: ringDur * 0.55 }, // sparkle
+    ].forEach((p) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(p.freq, now + ringStart);
+      const g = ctx.createGain();
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, now + ringStart);
+      g.gain.linearRampToValueAtTime(p.level, now + ringStart + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + ringStart + p.decay);
+      osc.connect(g);
+      osc.start(now + ringStart);
+      osc.stop(now + ringStart + p.decay + 0.05);
+    });
+  }
+
+  // Cash-OUT sound — Cash App-style coin drop. A low percussive
+  // "plunk" (the thud of a coin hitting a tray) immediately followed
+  // by a descending sequence of metallic pings that simulate coins
+  // settling. Total ~1.8s, peak gain 0.55, high volume.
+  function _playCashOutSound(ctx) {
+    const now = ctx.currentTime;
+
+    // Voice 1 — initial "plunk" thud. Low frequency with fast decay.
+    {
+      const g = ctx.createGain();
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, now);
+      g.gain.linearRampToValueAtTime(0.55, now + 0.008);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, now);
+      osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+      osc.connect(g);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    }
+
+    // Voices 2-4 — metallic "ping" sequence, descending pitches at
+    // staggered times. Each ping has bell-like inharmonic partials so
+    // the ear hears them as metal coins rather than pure tones.
+    const pingPitches = [
+      { t: 0.08, freq: 1800, level: 0.45 },
+      { t: 0.18, freq: 1400, level: 0.42 },
+      { t: 0.32, freq: 1100, level: 0.38 },
+      { t: 0.50, freq: 900,  level: 0.30 },
+      { t: 0.75, freq: 700,  level: 0.22 },
+    ];
+    for (const p of pingPitches) {
+      // Inharmonic partials for metallic timbre
+      const partials = [
+        { mult: 1.0,  weight: 1.0,  decay: 0.45 },
+        { mult: 2.76, weight: 0.45, decay: 0.30 },
+        { mult: 5.40, weight: 0.18, decay: 0.20 },
+      ];
+      for (const part of partials) {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(p.freq * part.mult, now + p.t);
+        const g = ctx.createGain();
+        g.connect(ctx.destination);
+        g.gain.setValueAtTime(0, now + p.t);
+        g.gain.linearRampToValueAtTime(p.level * part.weight, now + p.t + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + p.t + part.decay);
+        osc.connect(g);
+        osc.start(now + p.t);
+        osc.stop(now + p.t + part.decay + 0.05);
+      }
     }
   }
 
@@ -6183,6 +6457,11 @@
     if (!session.period) session.period = { mode: 'current' };
     if (!session.view) session.view = 'entries';
     saveSession();
+    // v80: one-shot entryNo backfill. After data hydration, before
+    // first render — so legacy entries display their numbers from
+    // the very first paint. Tagged in localStorage so it never
+    // re-runs after the first successful pass.
+    try { backfillEntryNumbers(); } catch (_) {}
     renderAll();
     // Begin auto-backup loop if user owns any business
     if (userOwnsAnyBiz()) {
@@ -6893,7 +7172,7 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}">
+          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <select id="filterType" onchange="renderEntriesList()">
           <option value="all">All</option>
@@ -6965,6 +7244,16 @@
   function setPeriodYesterday() {
     const y = yesterday();
     setPeriod({ mode: 'range', from: y, to: y });
+  }
+  // v77: jump to "last month" — the calendar month before this one.
+  // Used by the L keyboard shortcut and could power a future Last
+  // Month button on the period bar.
+  function setPeriodLastMonth() {
+    const t = today();
+    const [yyyy, mm] = t.split('-').map(Number);
+    const last = new Date(yyyy, mm - 2, 1); // mm is 1-indexed; -2 gets prev month
+    const monthKey = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`;
+    setPeriod({ mode: 'month', monthKey });
   }
 
   function renderStats() {
@@ -7095,7 +7384,13 @@
           isFrontdated ? 'frontdated future' : '',
           _editLabel ? 'edited' : '',
         ].join(' ');
-        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${acctName} ${byName} ${amountStr} ${amountFmt} ${dateStr} ${editedToken} ${addedToken} ${statusTokens}`.toLowerCase();
+        // v81: entryNo search token. Searchable as "#10", "10", or
+        // just "10". Note: searching "1" matches everything containing
+        // "1" anywhere (amounts, dates, etc.) — same as before.
+        const entryNoToken = e.entryNo
+          ? `#${e.entryNo} ${e.entryNo}`
+          : '';
+        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${acctName} ${byName} ${amountStr} ${amountFmt} ${dateStr} ${editedToken} ${addedToken} ${statusTokens} ${entryNoToken}`.toLowerCase();
         if (!hay.includes(search)) return false;
       }
       if (__entryFilter.partyId && e.partyId !== __entryFilter.partyId) return false;
@@ -7407,7 +7702,8 @@
     // edited, and combos. Returns the row class + a dot color/key.
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
-    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${escapeHtml(_status.label)}" aria-label="${escapeHtml(_status.label)}"></span>` : '';
+    const statusDot = entryStatusDotsHTML(_status);
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
     const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
@@ -7415,7 +7711,7 @@
     const acctChip = acct ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${dateLineMobile}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party" ${partyClick}><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -7439,7 +7735,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${statusDot}${dateLine}</div>
+      <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
@@ -7472,7 +7768,7 @@
     if (!biz) { root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>'; return; }
     const cur = currencyDisplay(biz.currency);
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
-    let parties = bySortOrder(data.parties.filter(p => p.businessId === biz.id));
+    let parties = data.parties.filter(p => p.businessId === biz.id);
 
     // search filter on the party list itself
     const q = __partiesSearch.trim().toLowerCase();
@@ -7492,10 +7788,37 @@
       && !hiddenAcctIds.has(e.accountId)
       && pred(e)
     ).forEach(e => {
-      const t = totals[e.partyId] ||= { in: 0, out: 0, count: 0, lastDate: '' };
+      const t = totals[e.partyId] ||= { in: 0, out: 0, count: 0, lastDate: '', lastCreated: 0 };
       if (e.type === 'in') t.in += e.amount; else t.out += e.amount;
       t.count++;
       if (e.date > t.lastDate) t.lastDate = e.date;
+      if ((e.createdAt || 0) > t.lastCreated) t.lastCreated = e.createdAt || 0;
+    });
+    // v73: Sort modes — no more drag-reorder. Sort by name, by recent
+    // activity, by amount in/out, or by net. Defaults to alphabetical.
+    const sortMode = session.partySortMode || 'name';
+    parties = parties.slice().sort((a, b) => {
+      const ta = totals[a.id] || { in: 0, out: 0, count: 0, lastDate: '', lastCreated: 0 };
+      const tb = totals[b.id] || { in: 0, out: 0, count: 0, lastDate: '', lastCreated: 0 };
+      switch (sortMode) {
+        case 'recent':
+          // Most recently active (latest entry creation time) first.
+          return (tb.lastCreated || 0) - (ta.lastCreated || 0);
+        case 'recent-date':
+          // Most recent entry DATE first (the picked date, not creation).
+          return (tb.lastDate || '').localeCompare(ta.lastDate || '');
+        case 'most-in':
+          return tb.in - ta.in;
+        case 'most-out':
+          return tb.out - ta.out;
+        case 'most-net':
+          return (tb.in - tb.out) - (ta.in - ta.out);
+        case 'name-z':
+          return (b.name || '').localeCompare(a.name || '');
+        case 'name':
+        default:
+          return (a.name || '').localeCompare(b.name || '');
+      }
     });
 
     const role = roleFor(biz.id);
@@ -7568,7 +7891,16 @@
         <div class="page-actions">
           ${printIconButton()}
           ${canExport(biz.id) && totalParties >= 1 ? exportIconButton('parties') : ''}
-          ${canAdd && totalParties >= 2 ? `<button class="btn btn-sm btn-ghost" onclick="openModal('reorderParties')">Reorder</button>` : ''}
+          ${totalParties >= 2 ? `
+            <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
+              <option value="name"        ${sortMode === 'name'        ? 'selected' : ''}>Sort: A → Z</option>
+              <option value="name-z"      ${sortMode === 'name-z'      ? 'selected' : ''}>Sort: Z → A</option>
+              <option value="recent"      ${sortMode === 'recent'      ? 'selected' : ''}>Sort: Recently active</option>
+              <option value="recent-date" ${sortMode === 'recent-date' ? 'selected' : ''}>Sort: Latest entry date</option>
+              ${showTotals ? `<option value="most-in"  ${sortMode === 'most-in'  ? 'selected' : ''}>Sort: Most received</option>` : ''}
+              ${showTotals ? `<option value="most-out" ${sortMode === 'most-out' ? 'selected' : ''}>Sort: Most paid</option>` : ''}
+              ${showTotals ? `<option value="most-net" ${sortMode === 'most-net' ? 'selected' : ''}>Sort: Highest net</option>` : ''}
+            </select>` : ''}
           ${canAdd ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'party\')">+ New Party</button>' : ''}
         </div>
       </div>
@@ -7750,14 +8082,15 @@
     // v72: unified status helper for backdated, frontdated, edited, combos.
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
-    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
+    const statusDot = entryStatusDotsHTML(_status);
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
     // v68: account chip on every drill-down row — users couldn't tell
     // which account each transaction moved through before.
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
     const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           <div class="entry-chip-row">
@@ -7780,7 +8113,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${statusDot}${dateLine}</div>
+      <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
@@ -8040,13 +8373,14 @@
     // v72: unified status helper for backdated, frontdated, edited, combos.
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
-    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
+    const statusDot = entryStatusDotsHTML(_status);
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
     // v68: account chip on category drill-down rows
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
     const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -8067,7 +8401,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${statusDot}${dateLine}</div>
+      <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
@@ -8804,7 +9138,7 @@
           </div>
         </div>
         <div class="dist-section-help">
-          Adjust the % or currency rate in Split &amp; convert (on Audit) to change this.
+          Adjust the % or currency rate in Split &amp; convert above to change this.
           ${hasChangedCurrency ? `All salaries and shares below are in <strong>${escapeHtml(__splitCurrency)}</strong>.` : ''}
         </div>
       </div>`;
@@ -9598,6 +9932,10 @@
             ? `<button class="audit-tax-btn" onclick="setBusinessTaxRate()" title="Change tax rate" aria-label="Change tax rate">${escapeHtml(String(taxRate))}%<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="margin-left:0.4rem;vertical-align:-1px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>`
             : `<span class="audit-tax-readonly">${escapeHtml(String(taxRate))}%</span>`
           }
+          <div class="audit-tax-applied">
+            <span class="audit-tax-applied-label">Tax applied</span>
+            <span class="audit-tax-applied-value">${taxRate > 0 ? `${cur} ${fmt(taxAmount)}` : '—'}</span>
+          </div>
         </div>
       </div>
     `;
@@ -9633,49 +9971,9 @@
       </div>
     `;
 
-    // Profit-split calculator: type X% to see X% × Net profit and (100−X)% × Net profit.
-    // Below that: type any currency code/symbol and an exchange rate. Rate means
-    // "1 unit of BUSINESS currency = N units of PICKED currency" (e.g. business
-    // is USD, picked is Rs, rate = 150 → $10 × 150 = Rs 1,500). State
-    // (__splitPct, __splitCurrency, __splitRate) lives in memory only.
-    const splitNet = netProfit; // can be negative; calculator still works
-    const splitSection = `
-      <div class="split-calc">
-        <div class="split-calc-head">
-          <h2 class="split-calc-title">Split &amp; convert</h2>
-          <p class="split-calc-sub">Optional scratchpad: split the Net profit by % and see it in another currency. Saved per business.</p>
-        </div>
-        <div class="split-calc-pct-row">
-          <div class="split-calc-pct-input">
-            <label>%</label>
-            <input type="number" id="splitPctInput" min="0" max="100" step="0.01" value="${escapeHtml(String(__splitPct))}" oninput="onSplitPctInput(this.value)" onblur="this.value = String(__splitPct)" inputmode="decimal">
-          </div>
-          <div class="split-calc-pct-results" id="splitPctResults">
-            <!-- filled by updateSplitCalc() -->
-          </div>
-        </div>
-        <div class="split-calc-divider"></div>
-        <div class="split-calc-cur-row">
-          <div class="input-wrap">
-            <label>Currency</label>
-            <input type="text" id="splitCurInput" placeholder="Rs, INR, €…" maxlength="6" value="${escapeHtml(__splitCurrency)}" oninput="onSplitCurInput(this.value)">
-          </div>
-          <div class="input-wrap">
-            <label>Rate (1 ${escapeHtml(cur)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
-            <input type="number" id="splitRateInput" min="0" step="0.0001" value="${escapeHtml(__splitRate ? String(__splitRate) : '')}" oninput="onSplitRateInput(this.value)" inputmode="decimal" placeholder="e.g. 150">
-          </div>
-        </div>
-        <div class="split-calc-converted" id="splitConverted">
-          <!-- filled by updateSplitCalc() -->
-        </div>
-      </div>
-    `;
-
-    // v58: Distribution moved to its own sidebar page (under What's
-    // New → Distribution). The card no longer renders on Audit; the
-    // Audit page now ends at the Split & convert section. Click the
-    // sidebar Distribution entry to see the salaries + profit shares
-    // breakdown.
+    // v75: Profit-split / convert moved to the Distribution page.
+    // Net profit summary stays here on Audit; the split scratchpad
+    // now lives on Distribution alongside the salary + share rows.
 
     root.innerHTML = `
       <div class="page-header">
@@ -9695,13 +9993,11 @@
       ${accountsSection}
       ${totalsSection}
       ${netSection}
-      ${splitSection}
     `;
-    // Stash the current net profit on a module-level so the calculator's input
-    // handlers can read it without re-running the whole audit calc.
-    __splitNetProfit = splitNet;
+    // Stash the current net profit on a module-level so the Distribution
+    // page can read it without re-running the audit calc.
+    __splitNetProfit = netProfit;
     __splitBusinessCurrency = cur;
-    updateSplitCalc();
   }
 
   // ================================================================
@@ -9830,10 +10126,56 @@
           ${exportIconButton('distribution')}
         </div>
       </div>
-      <p class="page-intro">Allocate the first % portion of Net profit to team salaries and profit shares. All amounts in the changed currency you set in Split &amp; convert (Audit). Saved per business.</p>
+      <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
+
+      <!-- v75: Net profit (after tax) summary card. Lives at the top
+           of the Distribution page so the user sees the bottom-line
+           number they're distributing before they start allocating. -->
+      <div class="distribution-net-card ${__splitNetProfit >= 0 ? 'pos' : 'neg'}">
+        <div class="distribution-net-label">Net profit (after tax)</div>
+        <div class="distribution-net-value">${__splitBusinessCurrency} ${__splitNetProfit >= 0 ? '+' : '−'}${fmt(Math.abs(__splitNetProfit))}</div>
+        <div class="distribution-net-meta">${taxRate > 0 ? `After ${taxRate}% tax of ${__splitBusinessCurrency} ${fmt(tax)}` : 'No tax applied (Tax % = 0 in Audit)'} · ${currentPeriodLabel ? escapeHtml(currentPeriodLabel()) : 'Current period'}</div>
+      </div>
+
+      <!-- v75: Split & convert (moved from Audit). Same scratchpad
+           the user used to access on Audit, now placed here next to
+           the distribution allocation so the % math + currency
+           conversion is right where it matters. -->
+      <div class="split-calc">
+        <div class="split-calc-head">
+          <h2 class="split-calc-title">Split &amp; convert</h2>
+          <p class="split-calc-sub">Optional scratchpad: split the Net profit (after tax) by % and see it in another currency. Saved per business.</p>
+        </div>
+        <div class="split-calc-pct-row">
+          <div class="split-calc-pct-input">
+            <label>%</label>
+            <input type="number" id="splitPctInput" min="0" max="100" step="0.01" value="${escapeHtml(String(__splitPct))}" oninput="onSplitPctInput(this.value)" onblur="this.value = String(__splitPct)" inputmode="decimal">
+          </div>
+          <div class="split-calc-pct-results" id="splitPctResults">
+            <!-- filled by updateSplitCalc() -->
+          </div>
+        </div>
+        <div class="split-calc-divider"></div>
+        <div class="split-calc-cur-row">
+          <div class="input-wrap">
+            <label>Currency</label>
+            <input type="text" id="splitCurInput" placeholder="Rs, INR, €…" maxlength="6" value="${escapeHtml(__splitCurrency)}" oninput="onSplitCurInput(this.value)">
+          </div>
+          <div class="input-wrap">
+            <label>Rate (1 ${escapeHtml(__splitBusinessCurrency)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
+            <input type="number" id="splitRateInput" min="0" step="0.0001" value="${escapeHtml(__splitRate ? String(__splitRate) : '')}" oninput="onSplitRateInput(this.value)" inputmode="decimal" placeholder="e.g. 150">
+          </div>
+        </div>
+        <div class="split-calc-converted" id="splitConverted">
+          <!-- filled by updateSplitCalc() -->
+        </div>
+      </div>
+
       <div class="distribution-card" id="distributionCard"><!-- filled below --></div>
     `;
     renderDistributionCard();
+    // v75: refresh the Split & Convert results now that the DOM is in place
+    try { updateSplitCalc(); } catch (_) {}
   }
 
   function renderForecastView(root) {
@@ -11457,13 +11799,13 @@
     const dailyNetProfitHTML = `
       <div class="insights-chart-wrap">
         <div class="insights-chart-head">
-          <h3 class="insights-chart-title">Daily net profit <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span></h3>
+          <h3 class="insights-chart-title">Daily Net Profit Graph <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span></h3>
           <div class="insights-chart-legend">
             <span><span class="fc-swatch fc-swatch-current"></span> Profit day</span>
             <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
           </div>
         </div>
-        <p class="insights-chart-help">Tap any point to see the day's entries.</p>
+        <p class="insights-chart-help">Each point is one day's net profit (cash in − cash out for that day). Green dots are profit days, red dots are loss days. Tap any point to see every entry from that day.</p>
         <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
           ${_netZeroAxis}
           ${_netBars.join('')}
@@ -11482,7 +11824,7 @@
             <span><span class="fc-swatch fc-swatch-out"></span> Cash out</span>
           </div>
         </div>
-        <p class="insights-chart-help">Tap any bar to see the day's entries.</p>
+        <p class="insights-chart-help">Two bars per day: blue is cash in, red is cash out. Tap a blue bar to see only that day's cash-in entries; tap a red bar to see only that day's cash-out entries.</p>
         <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_chartH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily cash in and cash out for ${escapeHtml(_dailyMonthName)}">
           ${_dailyYLabels.join('')}
           ${_dailyBars.join('')}
@@ -11499,29 +11841,97 @@
             <span><span class="fc-swatch fc-swatch-out"></span> Cash out</span>
           </div>
         </div>
+        <p class="insights-chart-help">Two bars per month: blue is total cash in, red is total cash out. Use it to compare months side by side at a glance.</p>
         ${insightsPairedBarSVG(monthsArr, cur)}
       </div>`;
-    const trendPoints = monthsArr.map(m => ({ label: m.label, value: m.in - m.out, monthKey: m.key }));
-    const lastYearTrendPoints = lastYearProfitArr.map((v, idx) => ({
-      label: monthsArr[idx].label,
-      value: v,
-    }));
-    const trendComparison = haveLastYearProfit
-      ? { label: `${lastYear}`, points: lastYearTrendPoints }
-      : null;
-    const trendLegend = haveLastYearProfit
-      ? `<div class="insights-chart-legend">
-          <span><span class="trend-swatch trend-swatch-current"></span> ${currentYear}</span>
-          <span><span class="trend-swatch trend-swatch-last"></span> ${lastYear}</span>
-        </div>`
+    // v76: NEW "Net Profit Graph by Months" — per-month version of the
+    // Daily Net Profit Graph. Each month (Jan–Dec of the current year)
+    // is one clickable point on a line; profit months are green dots,
+    // loss months are red dots. Clicking a point drills into all the
+    // entries for that month.
+    const _mnpPad = 36;
+    const _mnpW = 700;
+    const _mnpH = 220;
+    const _mnpInnerW = _mnpW - _mnpPad * 2;
+    const _mnpInnerH = _mnpH - 60;
+    const _mnpHalfH = _mnpInnerH / 2;
+    const _mnpZeroY = 30 + _mnpHalfH;
+    const _mnpMonthPoints = monthsArr.map((m, idx) => {
+      const net = m.in - m.out;
+      return {
+        idx, key: m.key, label: m.label,
+        net,
+        in: m.in, out: m.out,
+        hasData: (m.in > 0 || m.out > 0),
+      };
+    });
+    const _mnpYMax = Math.max(
+      1,
+      ..._mnpMonthPoints.map(p => Math.abs(p.net))
+    );
+    const _mnpMonthWidth = _mnpInnerW / 12;
+    for (const p of _mnpMonthPoints) {
+      p.x = _mnpPad + (p.idx + 0.5) * _mnpMonthWidth;
+      p.y = _mnpZeroY - Math.sign(p.net) * Math.min(_mnpHalfH, (Math.abs(p.net) / _mnpYMax) * _mnpHalfH);
+    }
+    // Build line path through months that have data; break at empty months
+    const _mnpSegments = [];
+    let _mnpCurSeg = [];
+    for (const p of _mnpMonthPoints) {
+      if (!p.hasData) {
+        if (_mnpCurSeg.length) { _mnpSegments.push(_mnpCurSeg); _mnpCurSeg = []; }
+        continue;
+      }
+      _mnpCurSeg.push(p);
+    }
+    if (_mnpCurSeg.length) _mnpSegments.push(_mnpCurSeg);
+    const _mnpPathSegments = _mnpSegments
+      .filter(s => s.length >= 2)
+      .map(s => s.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' '))
+      .join(' ');
+    const _mnpLine = _mnpPathSegments
+      ? `<path d="${_mnpPathSegments}" fill="none" stroke="var(--chart-profit)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
       : '';
-    const trendChartHTML = `
+    // Clickable per-month dot. payload uses kind='monthNet' so the
+    // day-detail handler can route it; existing 'monthIn' is for the
+    // paired-bar chart and only matches in/out subsets.
+    const _mnpDots = _mnpMonthPoints.filter(p => p.hasData).map(p => {
+      const _kindType = p.net >= 0 ? 'profit' : 'loss';
+      const _payload = JSON.stringify({ kind: 'monthNet', monthKey: p.key, label: p.label, value: p.net, type: _kindType });
+      const sign = p.net >= 0 ? '+' : '−';
+      const fill = p.net >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
+      return `<g class="line-point" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;">
+        <title>${escapeHtml(p.label)} ${currentYear}: ${sign}${cur} ${fmt(Math.abs(p.net))}</title>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="11" fill="transparent"/>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="4" fill="${fill}" stroke="var(--paper)" stroke-width="1.4"/>
+      </g>`;
+    });
+    const _mnpXLabels = _mnpMonthPoints.map(p =>
+      `<text class="fc-xlabel" x="${p.x.toFixed(1)}" y="${(_mnpH - 18).toFixed(1)}" text-anchor="middle">${escapeHtml(p.label)}</text>`
+    ).join('');
+    const _mnpZeroAxis = `<line x1="${_mnpPad}" y1="${_mnpZeroY.toFixed(1)}" x2="${(_mnpW - _mnpPad).toFixed(1)}" y2="${_mnpZeroY.toFixed(1)}" stroke="var(--line)" stroke-width="0.8" />`;
+    const _mnpYLabels = `
+      <text class="fc-ylabel" x="${(_mnpPad - 6).toFixed(1)}" y="34" text-anchor="end">+${fmt(_mnpYMax)}</text>
+      <text class="fc-ylabel" x="${(_mnpPad - 6).toFixed(1)}" y="${(_mnpZeroY + 4).toFixed(1)}" text-anchor="end">0</text>
+      <text class="fc-ylabel" x="${(_mnpPad - 6).toFixed(1)}" y="${(30 + _mnpInnerH + 4).toFixed(1)}" text-anchor="end">−${fmt(_mnpYMax)}</text>
+    `;
+    const monthlyNetProfitHTML = `
       <div class="insights-chart-wrap">
         <div class="insights-chart-head">
-          <h3 class="insights-chart-title">Net profit trend <span class="insights-chart-sub">— ${currentYear}${haveLastYearProfit ? ` vs ${lastYear}` : ''}</span></h3>
-          ${trendLegend}
+          <h3 class="insights-chart-title">Net Profit Graph by Months <span class="insights-chart-sub">— ${currentYear}</span></h3>
+          <div class="insights-chart-legend">
+            <span><span class="fc-swatch fc-swatch-current"></span> Profit month</span>
+            <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss month</span>
+          </div>
         </div>
-        ${insightsLineSVG(trendPoints, trendComparison)}
+        <p class="insights-chart-help">Each point is one month's net profit (cash in − cash out for that month). Green dots are profit months, red dots are loss months. Tap any point to see every entry from that month.</p>
+        <svg class="forecast-chart" viewBox="0 0 ${_mnpW} ${_mnpH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Monthly net profit for ${currentYear}">
+          ${_mnpZeroAxis}
+          ${_mnpLine}
+          ${_mnpDots.join('')}
+          ${_mnpXLabels}
+          ${_mnpYLabels}
+        </svg>
       </div>`;
     // ===== Daily net profit — this month vs last month =====
     // Two lines on the same axis. Each line is cumulative net profit
@@ -11587,14 +11997,15 @@
     const dailyTrendChartHTML = (_haveCurData || _haveLastData) ? `
       <div class="insights-chart-wrap">
         <div class="insights-chart-head">
-          <h3 class="insights-chart-title">Daily net profit <span class="insights-chart-sub">— ${escapeHtml(_curMonthName)} vs ${escapeHtml(_lastMonthName)}</span></h3>
+          <h3 class="insights-chart-title">Cumulative profit — this vs last month <span class="insights-chart-sub">— ${escapeHtml(_curMonthName)} vs ${escapeHtml(_lastMonthName)}</span></h3>
           ${_haveLastData ? `<div class="insights-chart-legend">
             <span><span class="trend-swatch trend-swatch-current"></span> ${escapeHtml(_curMonthName)}</span>
             <span><span class="trend-swatch trend-swatch-last"></span> ${escapeHtml(_lastMonthName)}</span>
           </div>` : ''}
         </div>
+        <p class="insights-chart-help">Running total of net profit (cash in − cash out) accumulating day by day. Use it to see if you're ahead of or behind last month at the same point in the month.</p>
         ${insightsLineSVG(_curCumPoints, _haveLastData ? { label: _lastMonthName, points: _lastCumPoints } : null)}
-        <p class="insights-chart-note">Running total of cash in − cash out per day. ${escapeHtml(_curMonthName)} stops at today.</p>
+        <p class="insights-chart-note">${escapeHtml(_curMonthName)} stops at today.</p>
       </div>` : '';
     // ===== Party rankings (period-filtered, default This month) =====
     // v62: replaces the four pie charts AND the previous Top-10-by-
@@ -12035,15 +12446,15 @@
       ${bestWorstSection}
       ${growthHTML}
       ${monthlyCompareHTML}
-      ${dailyNetProfitHTML}
       ${dailyCashFlowHTML}
+      ${dailyNetProfitHTML}
       ${barChartHTML}
-      ${trendChartHTML}
-      ${dailyTrendChartHTML}
+      ${monthlyNetProfitHTML}
       ${dowHTML}
-      ${top10HTML}
+      ${dailyTrendChartHTML}
       ${heatmapHTML}
       ${wowHTML}
+      ${top10HTML}
     `;
   }
 
@@ -12651,10 +13062,11 @@
     // v72: unified status helper for backdated, frontdated, edited, combos.
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
-    const statusDot = _status.dot ? `<span class="entry-status-dot ${_status.dot}" title="${_status.label}" aria-label="${_status.label}"></span>` : '';
+    const statusDot = entryStatusDotsHTML(_status);
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
           ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
@@ -12675,7 +13087,7 @@
       </div>`;
     }
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-      <div class="entry-date">${statusDot}${dateLine}</div>
+      <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
@@ -12852,6 +13264,11 @@
     const cur = biz ? currencyDisplay(biz.currency) : '';
     const acct = entry.accountId ? data.cashAccounts.find(a => a.id === entry.accountId) : null;
     const parts = [];
+    // v82: lead with the invoice number so the activity log line is
+    // immediately matchable to a specific entry. Owners reading
+    // "Edited #12: Before … After …" can jump straight to that entry
+    // on the Entries page.
+    if (entry.entryNo) parts.push(formatEntryNo(entry.entryNo));
     parts.push(entry.type === 'in' ? 'Cash in' : 'Cash out');
     parts.push(`${cur} ${fmt(entry.amount)}`);
     if (entry.party) parts.push(`party: ${entry.party}`);
@@ -13313,6 +13730,198 @@
   function closeModal() { _hideModalBackdrop(); }
 
   // ================================================================
+  // KEYBOARD SHORTCUTS — desktop quality-of-life bindings
+  // ================================================================
+  // v77: a single global keydown handler that wires every shortcut.
+  // Single key shortcuts (T, Y, M, L, ?) only fire when the user is
+  // NOT typing in a text input — otherwise they'd swallow keystrokes.
+  // Modifier-keyed shortcuts (Ctrl+Enter, Ctrl+K, Ctrl+P, Ctrl+E,
+  // Shift+E, Shift+M) fire even from text inputs since the modifier
+  // proves intent. Arrow keys for entry navigation are tracked
+  // separately by __focusedEntryIdx so J/K-style scrubbing has
+  // memory between presses.
+  let __focusedEntryIdx = -1;
+  function _isTypingTarget(el) {
+    if (!el) return false;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+    if (el.isContentEditable) return true;
+    return false;
+  }
+  function _modalIsOpen() {
+    const bd = document.getElementById('modalBackdrop');
+    return !!(bd && bd.classList.contains('active'));
+  }
+  // Move entry-row focus by +1 / -1. The "focused" row gets
+  // .entry-row-kbd-focus for visual feedback and scrolls into view.
+  function _moveEntryFocus(delta) {
+    const rows = Array.from(document.querySelectorAll('.entry-row[data-entry-id]'));
+    if (!rows.length) return;
+    // Find currently focused row (either via class or fall back to __focusedEntryIdx)
+    let idx = rows.findIndex(r => r.classList.contains('entry-row-kbd-focus'));
+    if (idx === -1) idx = __focusedEntryIdx;
+    if (idx < 0 || idx >= rows.length) idx = (delta > 0 ? -1 : rows.length);
+    const next = Math.max(0, Math.min(rows.length - 1, idx + delta));
+    rows.forEach(r => r.classList.remove('entry-row-kbd-focus'));
+    rows[next].classList.add('entry-row-kbd-focus');
+    rows[next].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    __focusedEntryIdx = next;
+  }
+  // The shortcuts cheat-sheet modal — rendered on '?' press.
+  function openShortcutsHelp() {
+    const modal = document.getElementById('modalContent');
+    if (!modal) return;
+    const isMac = /Mac/i.test(navigator.platform || '');
+    const Ctrl = isMac ? '⌘' : 'Ctrl';
+    const rows = [
+      ['Period: Today',                'T'],
+      ['Period: Yesterday',            'Y'],
+      ['Period: This month',           'M'],
+      ['Period: Last month',           'L'],
+      ['Period: All time',             'Shift + M'],
+      ['New cash-in entry',            `${Ctrl} + E`],
+      ['New cash-out entry',           'Shift + E'],
+      ['Save entry (in form)',         `${Ctrl} + Enter`],
+      ['Navigate entries',             '↑ / ↓'],
+      ['Open universal search',        `${Ctrl} + K`],
+      ['Print current page',           `${Ctrl} + P`],
+      ['Close modal / go back',        'Esc'],
+      ['Show this cheat sheet',        '?'],
+    ];
+    modal.innerHTML = `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Keyboard shortcuts</h2>
+      <p class="modal-sub">Available on desktop. Single-letter shortcuts (T, Y, M, L, ?) only fire when you're not typing in a field.</p>
+      <div class="shortcuts-table">
+        ${rows.map(([label, keys]) => `
+          <div class="shortcuts-row">
+            <span class="shortcuts-label">${escapeHtml(label)}</span>
+            <span class="shortcuts-keys">${keys.split(/\s+\+\s+/).map(k => `<kbd>${escapeHtml(k)}</kbd>`).join(' + ')}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="modal-actions"><button class="btn" onclick="closeModal()">Close</button></div>
+    `;
+    _showModalBackdrop();
+  }
+  document.addEventListener('keydown', (ev) => {
+    const tgt = ev.target;
+    const typing = _isTypingTarget(tgt);
+    const key = ev.key;
+
+    // ---- Ctrl/Cmd + Enter — Save the open form (entry modal etc.) ----
+    if ((ev.ctrlKey || ev.metaKey) && key === 'Enter') {
+      if (_modalIsOpen()) {
+        // Look for the primary action button in the open modal — the
+        // entry modal has #saveEntryBtn (created in entryModal), party
+        // modals have an inline "Save" button. We prefer the explicit
+        // id, then fall back to the first non-ghost btn-accent.
+        const modal = document.getElementById('modalContent');
+        if (modal) {
+          const btn = modal.querySelector('#saveEntryBtn')
+            || modal.querySelector('.modal-actions .btn-accent:not([disabled])')
+            || modal.querySelector('.modal-actions .btn:not(.btn-ghost):not([disabled])');
+          if (btn) {
+            ev.preventDefault();
+            btn.click();
+          }
+        }
+      }
+      return;
+    }
+
+    // ---- Ctrl/Cmd + K — focus universal search ----
+    if ((ev.ctrlKey || ev.metaKey) && (key === 'k' || key === 'K')) {
+      // Skip if a modal is open (don't fight the focus trap)
+      if (_modalIsOpen()) return;
+      const inp = document.getElementById('universalSearchInput')
+        || document.getElementById('universalSearchInputMobile');
+      if (inp) {
+        ev.preventDefault();
+        inp.focus();
+        try { inp.select(); } catch (_) {}
+      }
+      return;
+    }
+
+    // ---- Ctrl/Cmd + P — let the browser print, but make sure we
+    //      route through our own print path so paginated lists expand
+    //      and FAB is hidden. Browser's default Ctrl+P will be allowed
+    //      since our @media print stylesheet handles the visuals
+    //      automatically — no override needed. ----
+    // (No code: relying on native Ctrl+P + @media print rules.)
+
+    // ---- Ctrl/Cmd + E — new cash-IN entry ----
+    if ((ev.ctrlKey || ev.metaKey) && (key === 'e' || key === 'E') && !ev.shiftKey) {
+      if (_modalIsOpen()) return;
+      ev.preventDefault();
+      try { openModal('entry', null, 'in'); } catch (_) {}
+      return;
+    }
+
+    // ---- Shift + E — new cash-OUT entry ----
+    // No Ctrl/Cmd needed; just Shift+E. Skip if typing because some
+    // capital letter is genuinely intended in a text field.
+    if (ev.shiftKey && !ev.ctrlKey && !ev.metaKey && !ev.altKey && (key === 'E')) {
+      if (typing || _modalIsOpen()) return;
+      ev.preventDefault();
+      try { openModal('entry', null, 'out'); } catch (_) {}
+      return;
+    }
+
+    // Single-key shortcuts past here all require: no typing in inputs,
+    // no modal open, no modifier keys held (except where noted).
+    if (typing || _modalIsOpen()) return;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+
+    // ---- T — Today ----
+    if (key === 't' || key === 'T') {
+      ev.preventDefault();
+      try { setPeriodToday(); } catch (_) {}
+      return;
+    }
+    // ---- Y — Yesterday ----
+    if (key === 'y' || key === 'Y') {
+      ev.preventDefault();
+      try { setPeriodYesterday(); } catch (_) {}
+      return;
+    }
+    // ---- M / Shift+M — This month / All time ----
+    if (key === 'm' || key === 'M') {
+      ev.preventDefault();
+      if (ev.shiftKey) {
+        try { setPeriod({ mode: 'all' }); } catch (_) {}
+      } else {
+        try { setPeriod({ mode: 'current' }); } catch (_) {}
+      }
+      return;
+    }
+    // ---- L — Last month ----
+    if (key === 'l' || key === 'L') {
+      ev.preventDefault();
+      try { setPeriodLastMonth(); } catch (_) {}
+      return;
+    }
+    // ---- ? — Show shortcuts cheat sheet ----
+    if (key === '?') {
+      ev.preventDefault();
+      try { openShortcutsHelp(); } catch (_) {}
+      return;
+    }
+    // ---- Arrow Up / Down — entry row navigation (Gmail-style) ----
+    if (key === 'ArrowUp' || key === 'ArrowDown') {
+      // Only on the entries view, where there are rows to scrub
+      if (session.view !== 'entries' && session.view !== 'party-detail'
+          && session.view !== 'category-detail' && session.view !== 'account-detail') return;
+      const rows = document.querySelectorAll('.entry-row[data-entry-id]');
+      if (!rows.length) return;
+      ev.preventDefault();
+      _moveEntryFocus(key === 'ArrowDown' ? 1 : -1);
+      return;
+    }
+  });
+
+  // ================================================================
   // ASYNC CONFIRM / PROMPT — custom modal replacements for the
   // native confirm()/prompt() dialogs. Native dialogs are blocked
   // or behave inconsistently in installed iOS PWAs, and they look
@@ -13541,10 +14150,27 @@
     // Category options (value === name; category is stored as text on entries)
     const catOptionsCombo = cats.map(c => ({ value: c.name, label: c.name }));
     const defaultCategoryName = existing?.category || '';
+    // v80: entryNo preview for the modal title. For new entries, peek
+    // the bucket and show "E12 · May 2026". For edits, show the entry's
+    // existing number. The preview updates live when the date input
+    // changes (since date determines the bucket).
+    const _previewDate = existing?.date || today();
+    const _previewNo = isEdit
+      ? Number(existing?.entryNo) || null
+      : nextEntryNoFor(session.activeBookId, _previewDate);
+    const _previewMonthLabel = (() => {
+      const m = _previewDate.slice(0, 7);
+      const [yy, mm] = m.split('-').map(Number);
+      const d = new Date(yy, mm - 1, 1);
+      return d.toLocaleString('default', { month: 'long', year: 'numeric' });
+    })();
+    const _previewBadge = _previewNo
+      ? `<span class="entry-no-modal-badge" id="entryNoPreviewBadge" title="${isEdit ? 'Invoice number' : 'Next invoice number'}">${formatEntryNo(_previewNo)}</span>`
+      : '';
     return `
       <div class="modal-handle"></div>
-      <h2 class="modal-title">${isEdit ? 'Edit' : 'New'} entry</h2>
-      <p class="modal-sub">${isEdit ? 'Update the details below.' : 'A single record of money moving in or out.'}</p>
+      <h2 class="modal-title">${isEdit ? 'Edit' : 'New'} entry ${_previewBadge}</h2>
+      <p class="modal-sub">${isEdit ? 'Update the details below.' : 'A single record of money moving in or out.'} <span class="entry-no-modal-sub" id="entryNoPreviewSub">${_previewNo ? `${isEdit ? 'Invoice no.' : 'Next invoice number —'} <strong>${formatEntryNo(_previewNo)}</strong> in ${escapeHtml(_previewMonthLabel)}.` : ''}</span></p>
       <div class="form-grid">
         <div class="type-toggle">
           <button id="tBtnIn" class="${t==='in'?'active in':''}" onclick="setEntryType('in')">↓ Cash In</button>
@@ -13573,7 +14199,7 @@
           </div>
           <div class="input-wrap">
             <label>Date <span class="req">*</span> <span id="mDateRelative" class="date-relative-hint"></span></label>
-            <input type="date" id="mDate" value="${existing?.date || today()}" oninput="updateDateRelativeHint()" onchange="updateDateRelativeHint()">
+            <input type="date" id="mDate" value="${existing?.date || today()}" oninput="updateDateRelativeHint();updateEntryNoPreview();" onchange="updateDateRelativeHint();updateEntryNoPreview();">
           </div>
         </div>
         <div class="input-wrap">
@@ -14079,10 +14705,18 @@
     let title = 'Detail';
     let subtitle = '';
     if (payload.kind === 'day' && payload.date) {
-      // v72: optional type filter so clicking a cash-in bar only shows
-      // cash-in entries for that day, and same for cash-out / profit.
-      matchFn = (e) => e.date === payload.date
-        && (!payload.type || e.type === payload.type);
+      // v72/v76: optional type filter. For cash-in / cash-out bars,
+      // filter entries by their type so only matching entries appear.
+      // For profit / loss dots, "profit" and "loss" are NOT entry
+      // types — they're aggregate states across both in and out entries
+      // on a day. The fix: treat profit/loss as a wildcard that
+      // matches all entries on the date.
+      matchFn = (e) => {
+        if (e.date !== payload.date) return false;
+        if (!payload.type) return true;
+        if (payload.type === 'profit' || payload.type === 'loss') return true;
+        return e.type === payload.type;
+      };
       const dt = new Date(payload.date + 'T00:00:00');
       const weekday = dt.toLocaleDateString('default', { weekday: 'long' });
       title = dt.toLocaleDateString('default', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
@@ -14106,6 +14740,16 @@
       if (payload.type === 'in')      subtitle = `Cash in this month: ${cur} ${fmt(payload.value || 0)}`;
       else if (payload.type === 'out') subtitle = `Cash out this month: ${cur} ${fmt(payload.value || 0)}`;
       else                              subtitle = `Net for the month: ${cur} ${fmt(payload.value || 0)}`;
+    } else if (payload.kind === 'monthNet' && payload.monthKey) {
+      // v76: per-month net (profit/loss) dot from "Net Profit Graph by
+      // Months". Show ALL entries for that month, since net is an
+      // aggregate across both in and out.
+      const mk = payload.monthKey;
+      matchFn = (e) => (e.date || '').slice(0, 7) === mk;
+      title = `${payload.label || mk} ${(payload.monthKey || '').slice(0, 4)}`;
+      const sign = (payload.value || 0) >= 0 ? '+' : '−';
+      const label = (payload.value || 0) >= 0 ? 'Profit' : 'Loss';
+      subtitle = `${label} for the month: ${sign}${cur} ${fmt(Math.abs(payload.value || 0))}`;
     } else if (payload.kind === 'pie' && payload.label) {
       const field = payload.field || 'category';
       const labelLower = String(payload.label).toLowerCase();
@@ -14212,7 +14856,7 @@
     _showModalBackdrop();
   }
 
-  function saveEntry() {
+  async function saveEntry() {
     // Clear previous error states
     ['mAmount', 'mParty', 'mCategory', 'mDate', 'mAccount'].forEach(id => {
       const el = document.getElementById(id);
@@ -14297,9 +14941,45 @@
       // v60: snapshot the entry as it stood pre-edit so we can describe
       // what changed for the business activity log.
       const before = formatEntryAudit(e);
-      e.type = document.getElementById('mType').value;
+      const prevMonth = (e.date || '').slice(0, 7);
+      // v81: capture ALL form values BEFORE we potentially show a
+      // confirm modal that will replace the form DOM. Without this,
+      // post-confirm reads of document.getElementById('mType') etc.
+      // would hit null because the form is no longer in the DOM.
+      const newDateValue = document.getElementById('mDate').value || today();
+      const newTypeValue = document.getElementById('mType').value;
+      const newMonth = newDateValue.slice(0, 7);
+      // Cross-month edit: ask first. Silent renumbering was confusing
+      // (a user expecting #2-of-May to stay #2-of-May would suddenly
+      // find it became #4-of-April).
+      if (prevMonth && newMonth && prevMonth !== newMonth && e.entryNo) {
+        const newNoPreview = (() => {
+          const orig = e.entryNo;
+          delete e.entryNo;
+          const n = nextEntryNoFor(e.bookId, newDateValue);
+          e.entryNo = orig;
+          return n;
+        })();
+        const fmtMonth = (ym) => {
+          const [yy, mm] = ym.split('-').map(Number);
+          return new Date(yy, mm - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+        };
+        const ok = await uiConfirm(
+          `Changing the date moves this entry from ${fmtMonth(prevMonth)} to ${fmtMonth(newMonth)}.\n\nIts invoice number will change from ${formatEntryNo(e.entryNo)} to ${formatEntryNo(newNoPreview)}.\n\nThe original number stays as a gap in ${fmtMonth(prevMonth)} (numbers never get re-used).`,
+          { confirmLabel: 'Yes, change date', cancelLabel: 'Cancel', title: 'Invoice number will change' }
+        );
+        if (!ok) {
+          // User cancelled — re-open the edit modal so they can pick a
+          // different date or change their mind. Their in-progress
+          // edits are lost (the modal reverts to the saved state).
+          editEntry(editId);
+          toast('Date change cancelled.');
+          return;
+        }
+      }
+      e.type = newTypeValue;
       e.amount = amt;
-      e.date = document.getElementById('mDate').value || today();
+      e.date = newDateValue;
       e.party = partyText;
       e.partyId = partyId || undefined;
       e.accountId = accountId || undefined;
@@ -14307,6 +14987,22 @@
       e.note = note;
       e.editedAt = Date.now();
       e.editedBy = u.id;
+      if (prevMonth !== newMonth) {
+        // User already confirmed above. Renumber and log it.
+        const oldNo = e.entryNo;
+        delete e.entryNo;
+        e.entryNo = nextEntryNoFor(e.bookId, e.date);
+        const book = data.books.find(b => b.id === e.bookId);
+        const bizId = book ? book.businessId : null;
+        if (bizId && oldNo) {
+          logAuditEvent(
+            'entry_renumbered',
+            `Moved from ${prevMonth} (was ${formatEntryNo(oldNo)}) to ${newMonth} (now ${formatEntryNo(e.entryNo)})`,
+            { entry_id: e.id, book_id: e.bookId, old_no: oldNo, new_no: e.entryNo },
+            bizId
+          ).catch(() => {});
+        }
+      }
       const after = formatEntryAudit(e);
       // Only log if the description actually changed — otherwise the
       // audit feed fills with no-op "edits" from users who re-opened
@@ -14333,6 +15029,9 @@
         accountId: accountId || undefined,
         category: catValue,
         note,
+        // v80: invoice-style number assigned per (book, month). Resets
+        // each month. Stable across sorts and period changes.
+        entryNo: nextEntryNoFor(session.activeBookId, newDate),
         createdAt: Date.now(), createdBy: u.id, createdByName: u.name,
       };
       data.entries.push(newEntry);
@@ -14362,6 +15061,11 @@
         saveSession();
       }
       toast('Entry saved.');
+      // v73: play type-specific sound on the user's own save too.
+      // Cash-in = ka-ching, cash-out = coin drop (like Cash App).
+      // Previously the entry sound only fired for teammates' entries;
+      // owners didn't get audible confirmation of their own saves.
+      try { playEntrySound(newEntry.type); } catch (_) {}
     }
     saveData(); closeModal(); renderAll();
   }
@@ -16639,7 +17343,7 @@
           return `<div class="${rowCls}">
             <div class="member-activity-date">
               ${escapeHtml(e.date || '')}
-              <div style="font-size:0.65rem;color:var(--ink-mute);font-weight:400;margin-top:0.2rem;">${dateLine}${editedBadge}</div>
+              <div style="font-size:0.65rem;color:var(--ink-mute);font-weight:400;margin-top:0.2rem;">${e.entryNo ? `<span class="entry-no-badge" style="margin-right:0.3rem;">${formatEntryNo(e.entryNo)}</span>` : ''}${dateLine}${editedBadge}</div>
             </div>
             <div class="member-activity-body">
               ${partyLine}
@@ -17047,6 +17751,13 @@
     </div>`;
   }
   function setPartiesSearch(v) { __partiesSearch = v; const root = document.getElementById('mainContent'); if (root) renderPartiesView(root); restoreSearchFocus('partiesSearchInput'); }
+  // v73: persist the chosen party sort across navigations
+  function setPartySortMode(v) {
+    session.partySortMode = v;
+    saveSession();
+    const root = document.getElementById('mainContent');
+    if (root) renderPartiesView(root);
+  }
   function setCategoriesSearch(v) { __categoriesSearch = v; const root = document.getElementById('mainContent'); if (root) renderCategoriesView(root); restoreSearchFocus('categoriesSearchInput'); }
   function setAccountsSearch(v) { __accountsSearch = v; const root = document.getElementById('mainContent'); if (root) renderAccountsView(root); restoreSearchFocus('accountsSearchInput'); }
   function restoreSearchFocus(id) {
@@ -17718,7 +18429,7 @@
     if (enabled) {
       unlockEntrySound();
       // Small delay so the click finishes propagating before the chime
-      setTimeout(() => playEntrySound(), 60);
+      setTimeout(() => playEntrySound('in'), 60);
       toast('Entry sound on — teammates\' new entries will chime.');
     } else {
       toast('Entry sound muted.');
@@ -17800,6 +18511,103 @@
           </li>`).join('')}
         </ul>
       </div>` : ''}
+
+      <!-- v78: Keyboard shortcuts — single button that opens the same
+           cheat-sheet modal the ? key brings up. Sits right below Books
+           per the user's spec, so anyone exploring business settings
+           can discover them. The shortcuts themselves only fire on
+           desktop (where there's a physical keyboard), so the helper
+           text makes that explicit. -->
+      <div class="settings-section">
+        <h3 class="settings-heading">Keyboard shortcuts</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Speed up your work on desktop with shortcuts for switching periods, creating entries, navigating rows, and more.</p>
+        <button class="btn btn-sm" onclick="openShortcutsHelp();">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-2px;">
+            <rect x="2" y="6" width="20" height="12" rx="2"/>
+            <line x1="6" y1="10" x2="6" y2="10"/>
+            <line x1="10" y1="10" x2="10" y2="10"/>
+            <line x1="14" y1="10" x2="14" y2="10"/>
+            <line x1="18" y1="10" x2="18" y2="10"/>
+            <line x1="6" y1="14" x2="18" y2="14"/>
+          </svg>
+          View keyboard shortcuts
+        </button>
+      </div>
+
+      <!-- v75: Entry indicator legend — show what each color tint + dot
+           on an entry row means, so any team member can look it up
+           without having to memorise. -->
+      <div class="settings-section">
+        <h3 class="settings-heading">Entry indicators</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Each entry row on the Entries page (and on every drill-down) carries a small colored dot and a subtle row tint to tell you when it was added relative to its calendar date, and whether it's been edited.</p>
+        <div class="entry-legend">
+          <div class="entry-legend-row entry-row-edited">
+            <span class="entry-legend-dot"><span class="entry-status-dot dot-edit"></span></span>
+            <div class="entry-legend-text">
+              <strong>Edited</strong>
+              <span>The entry was changed after it was first saved. Yellow tint, amber dot.</span>
+            </div>
+          </div>
+          <div class="entry-legend-row entry-row-pastdate">
+            <span class="entry-legend-dot"><span class="entry-status-dot dot-back"></span></span>
+            <div class="entry-legend-text">
+              <strong>Backdated</strong>
+              <span>The entry's date is in the past — added today for a transaction that happened earlier. Blue tint, blue dot.</span>
+            </div>
+          </div>
+          <div class="entry-legend-row entry-row-futuredate">
+            <span class="entry-legend-dot"><span class="entry-status-dot dot-front"></span></span>
+            <div class="entry-legend-text">
+              <strong>Future-dated</strong>
+              <span>The entry's date is after today — scheduled or post-dated. Purple tint, purple dot.</span>
+            </div>
+          </div>
+          <div class="entry-legend-row entry-row-pastdate-edited">
+            <span class="entry-legend-dot">
+              <span class="entry-status-dot-wrap">
+                <span class="entry-status-dot dot-back"></span>
+                <span class="entry-status-dot dot-edit"></span>
+              </span>
+            </span>
+            <div class="entry-legend-text">
+              <strong>Backdated &amp; edited</strong>
+              <span>Two dots — blue for backdated, amber for edited. Teal-ish tint.</span>
+            </div>
+          </div>
+          <div class="entry-legend-row entry-row-futuredate-edited">
+            <span class="entry-legend-dot">
+              <span class="entry-status-dot-wrap">
+                <span class="entry-status-dot dot-front"></span>
+                <span class="entry-status-dot dot-edit"></span>
+              </span>
+            </span>
+            <div class="entry-legend-text">
+              <strong>Future-dated &amp; edited</strong>
+              <span>Two dots — purple for future, amber for edited. Pink tint.</span>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.8rem;">You can also search for these states directly on the Entries page — try typing <code>edited</code>, <code>backdated</code>, or <code>frontdated</code> in the search box.</p>
+      </div>
+
+      <!-- v81: Invoice numbers explainer. Tells users how the #N prefix
+           works, what happens on edit/delete/backdate, and how to
+           search. Sits right after the entry-indicator legend so it's
+           contextually grouped with all the "how the entries page
+           reads" guidance. -->
+      <div class="settings-section">
+        <h3 class="settings-heading">Invoice numbers</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Every entry gets an invoice-style number prefixed with <code>#</code>. The counter resets at the start of each month, separately for each book.</p>
+        <ul class="invoice-rules">
+          <li><strong>New entry</strong> → gets the next available number in the entry's month (max + 1). Two entries can have the same number across different months — <code>#3</code> in May and <code>#3</code> in June are different invoices.</li>
+          <li><strong>Backdated entry</strong> → still gets the next number in <em>the month it's dated for</em>. If you record today an entry dated May 7, and May already has #1–#5, the new one becomes <code>#6</code> — even though it sits chronologically between earlier entries. This matches a paper invoice book: you grab the next blank page, not insert one mid-pad.</li>
+          <li><strong>Future-dated entry</strong> → same rule. Dated for June while it's May? Gets the next June number (likely <code>#1</code> if June is empty).</li>
+          <li><strong>Deleted entry</strong> → its number stays as a gap in that month. <code>#3</code> deleted means the month shows #1, #2, #4, #5… The gap is intentional — it's the audit trail. The next new entry gets max+1 (e.g. <code>#6</code>), not the empty slot.</li>
+          <li><strong>Date edited (same month)</strong> → number is preserved. Moving an entry from May 5 to May 12 keeps it as the same <code>#N</code>.</li>
+          <li><strong>Date edited (different month)</strong> → Hisabs asks you first. The number will change, and the original number stays as a gap in the old month. You can cancel and pick a different date if that matters.</li>
+        </ul>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.6rem;">Search any number directly on the Entries page — try <code>#10</code>, <code>10</code>, or just the digits.</p>
+      </div>
     `;
   }
 
@@ -19741,6 +20549,73 @@
   // property: an entry tagged for today stays default-coloured
   // forever, even after "today" moves on. Drives the .entry-row-pastdate
   // tint in renderEntryRow and related render paths.
+  // v80: Entry numbering — invoice-style E1, E2, … that resets each
+  // month per book. The number is stored on the entry (entryNo) so it
+  // stays stable across sorts, period changes, and renames; deletions
+  // leave audit-trail gaps rather than renumbering.
+  function _entryNoBucketKey(bookId, dateYmd) {
+    return `${bookId}::${(dateYmd || '').slice(0, 7)}`;
+  }
+  // Returns the next available entryNo for the (book, month) bucket
+  // identified by bookId + the YYYY-MM prefix of dateYmd.
+  function nextEntryNoFor(bookId, dateYmd) {
+    if (!bookId || !dateYmd) return 1;
+    const month = dateYmd.slice(0, 7);
+    let maxN = 0;
+    for (const e of data.entries) {
+      if (e.bookId !== bookId) continue;
+      if ((e.date || '').slice(0, 7) !== month) continue;
+      const n = Number(e.entryNo);
+      if (Number.isFinite(n) && n > maxN) maxN = n;
+    }
+    return maxN + 1;
+  }
+  // One-shot migration: walk all entries grouped by (bookId, month),
+  // sort each bucket chronologically, and assign rising entryNo to
+  // any entry that lacks one. Preserves any existing numbers. Tagged
+  // via localStorage so we never run it twice.
+  function backfillEntryNumbers() {
+    try {
+      if (localStorage.getItem('hisabs_entry_no_v1') === 'done') return;
+    } catch (_) {}
+    const buckets = new Map();
+    for (const e of data.entries) {
+      if (!e.bookId || !e.date) continue;
+      const k = _entryNoBucketKey(e.bookId, e.date);
+      if (!buckets.has(k)) buckets.set(k, []);
+      buckets.get(k).push(e);
+    }
+    let assigned = 0;
+    for (const list of buckets.values()) {
+      list.sort((a, b) => {
+        const ad = a.date || '', bd = b.date || '';
+        if (ad !== bd) return ad < bd ? -1 : 1;
+        return (a.createdAt || 0) - (b.createdAt || 0);
+      });
+      let maxExisting = 0;
+      for (const e of list) {
+        const n = Number(e.entryNo);
+        if (Number.isFinite(n) && n > maxExisting) maxExisting = n;
+      }
+      let next = maxExisting + 1;
+      for (const e of list) {
+        if (!Number.isFinite(Number(e.entryNo))) {
+          e.entryNo = next++;
+          assigned++;
+        }
+      }
+    }
+    if (assigned > 0) saveData();
+    try { localStorage.setItem('hisabs_entry_no_v1', 'done'); } catch (_) {}
+  }
+  // Display formatter — "#12" by default, "#001" with opts.padded.
+  function formatEntryNo(n, opts) {
+    const num = Number(n);
+    if (!Number.isFinite(num) || num <= 0) return '';
+    if (opts && opts.padded) return '#' + String(num).padStart(3, '0');
+    return '#' + String(num);
+  }
+
   function isEntryBackdated(entry) {
     if (!entry || !entry.date || !entry.createdAt) return false;
     const cd = new Date(entry.createdAt);
@@ -19769,12 +20644,44 @@
     const isEdited = !!entryEditedLabel(e);
     const isBack = isEntryBackdated(e);
     const isFront = isEntryFrontdated(e);
-    if (isBack && isEdited) return { cls: 'entry-row-pastdate-edited', dot: 'dot-back-edit', label: 'backdated · edited' };
-    if (isFront && isEdited) return { cls: 'entry-row-futuredate-edited', dot: 'dot-front-edit', label: 'future · edited' };
-    if (isBack) return { cls: 'entry-row-pastdate', dot: 'dot-back', label: 'backdated' };
-    if (isFront) return { cls: 'entry-row-futuredate', dot: 'dot-front', label: 'future date' };
-    if (isEdited) return { cls: 'entry-row-edited', dot: 'dot-edit', label: 'edited' };
-    return { cls: '', dot: '', label: '' };
+    // v75: For combo states, return TWO dots side-by-side instead of a
+    // single blended color. The user can spot both signals at a glance:
+    //   backdated + edited  → blue dot + yellow dot
+    //   frontdated + edited → purple dot + yellow dot
+    // Single states keep their single dot.
+    if (isBack && isEdited) {
+      return {
+        cls: 'entry-row-pastdate-edited',
+        dot: 'dot-back-edit', label: 'backdated · edited',
+        dots: [
+          { cls: 'dot-back',  label: 'backdated' },
+          { cls: 'dot-edit',  label: 'edited' },
+        ],
+      };
+    }
+    if (isFront && isEdited) {
+      return {
+        cls: 'entry-row-futuredate-edited',
+        dot: 'dot-front-edit', label: 'future · edited',
+        dots: [
+          { cls: 'dot-front', label: 'future date' },
+          { cls: 'dot-edit',  label: 'edited' },
+        ],
+      };
+    }
+    if (isBack)   return { cls: 'entry-row-pastdate',   dot: 'dot-back',  label: 'backdated',   dots: [{ cls: 'dot-back',  label: 'backdated'   }] };
+    if (isFront)  return { cls: 'entry-row-futuredate', dot: 'dot-front', label: 'future date', dots: [{ cls: 'dot-front', label: 'future date' }] };
+    if (isEdited) return { cls: 'entry-row-edited',     dot: 'dot-edit',  label: 'edited',      dots: [{ cls: 'dot-edit',  label: 'edited'      }] };
+    return { cls: '', dot: '', label: '', dots: [] };
+  }
+  // v75: render the dots array as a small wrap of colored circles next
+  // to the entry date. Reused by all row renderers (main + drilldowns).
+  function entryStatusDotsHTML(status) {
+    if (!status || !status.dots || !status.dots.length) return '';
+    const dots = status.dots.map(d =>
+      `<span class="entry-status-dot ${d.cls}" title="${escapeHtml(d.label)}" aria-label="${escapeHtml(d.label)}"></span>`
+    ).join('');
+    return `<span class="entry-status-dot-wrap">${dots}</span>`;
   }
 
   // Cached after the first failure so we don't keep retrying a function
@@ -20342,6 +21249,7 @@
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
+        e.entryNo ? formatEntryNo(e.entryNo) : '',
         e.date || '',
         e.note || '',
         e.party || '',
@@ -20357,19 +21265,18 @@
     const outSum = entries.reduce((a, e) => a + (e.type === 'out' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
     if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
     doc.autoTable({
-      head: [['Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
+      head: [['No.', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
       body: rows, startY: 35,
       headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 7 },
       columnStyles: {
-        // v72: color-code amount columns so the printed PDF reads
-        // the same way as the screen — green for cash-in, red for
-        // cash-out. Helps owners glance at a long ledger.
-        5: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
-        6: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
-        7: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
+        0: { halign: 'left', fontStyle: 'bold', cellWidth: 12 },                // Entry No. — left, bold
+        // v80: amount columns shifted +1 since No. is now first.
+        6: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
+        7: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
+        8: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
       },
-      foot: [['', '', '', '', 'Totals', fmt(inSum, biz.currency), fmt(outSum, biz.currency), fmt(inSum - outSum, biz.currency), '']],
+      foot: [['', '', '', '', '', 'Totals', fmt(inSum, biz.currency), fmt(outSum, biz.currency), fmt(inSum - outSum, biz.currency), '']],
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
@@ -20405,13 +21312,14 @@
       return '"' + s.replace(/"/g, '""') + '"';
     }
     let bal = 0;
-    const headers = ['Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
+    const headers = ['No.', 'Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
     const rows = entries.map(e => {
       const amt = Number(e.amount);
       const safeAmt = Number.isFinite(amt) ? amt : 0;
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
+        e.entryNo ? formatEntryNo(e.entryNo) : '',
         e.date || '',
         e.note || '',
         e.party || '',
@@ -20497,6 +21405,9 @@
         columnStyles[idx].fontStyle = 'bold';
       }
     }
+    // v73: per-row colors. rowColors is { rowIndex: [r,g,b] }. Used
+    // to highlight specific rows (e.g. tax line in audit PDF).
+    const rowColorsMap = opts.rowColors || {};
     doc.autoTable({
       head: [opts.columns],
       body: opts.rows,
@@ -20504,6 +21415,14 @@
       headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 8, cellPadding: 2 },
       columnStyles,
+      didParseCell: function(data) {
+        if (data.section !== 'body') return;
+        const rowColor = rowColorsMap[data.row.index];
+        if (rowColor) {
+          data.cell.styles.textColor = rowColor;
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
       foot: opts.totals ? [opts.totals] : undefined,
       footStyles: opts.totals ? { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' } : undefined,
     });
@@ -20690,11 +21609,19 @@
     ];
     const opts = {
       title: `Audit summary — ${biz.name}`,
-      subtitle: `All time · ${biz.currency} · Tax ${taxRate}% · Generated ${today()}`,
+      subtitle: `All time · ${biz.currency} · Tax rate ${taxRate}% · Tax applied ${biz.currency} ${fmt(taxAmount)} · Generated ${today()}`,
       columns: ['Item', 'Amount'],
       rows,
       filename: `audit_${biz.name}_all`,
       columnAlign: { 1: 'right' },
+      // v73: color the tax row so the user spots their liability fast.
+      // Operating profit row is green/red by sign, net profit row is
+      // bold so the bottom line stands out.
+      rowColors: {
+        // Index in the rows array of the Tax row (5th row, 0-indexed 4)
+        4: [168, 53, 31],   // Tax → red
+        5: [46, 93, 58],    // Net profit (after tax) → green
+      },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
@@ -22169,6 +23096,13 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_announcements' },
           (payload) => onRealtimeEvent('announcements', payload))
+        // v73: announcement views (seen + reactions) — when a teammate
+        // taps "seen" or hearts an announcement, push that to everyone
+        // viewing the announcement page so the owner's receipt summary
+        // and the heart count refresh without a manual reload.
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_announcement_views' },
+          (payload) => onRealtimeAnnouncementView(payload))
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_transfers' },
           (payload) => onRealtimeEvent('transfers', payload))
@@ -22306,36 +23240,48 @@
       if (ctx.state === 'suspended') {
         try { ctx.resume(); } catch (_) {}
       }
-      // "Ding Ding" announcement bell — bright two-note pattern,
-      // 8 dings over 4 seconds, alternating high/low pitches like
-      // a classic doorbell/PA chime. Each ding has a sharp attack
-      // and bell-like decay (a few harmonic partials, not pure
-      // sine). High peak gain (0.55) for unmistakable presence.
+      // v73: Classic 3-tone PA announcement chime — the recognisable
+      // "bing-bong-bing" used in airports, train stations, and stores
+      // before a public-address announcement. Three notes:
+      //   1. G5 (~784 Hz) — rising attention
+      //   2. E5 (~659 Hz) — settle
+      //   3. C5 (~523 Hz) — resolve
+      // Then a repeat after a small gap, so the user hears a clear
+      // "bing-bong-bing ... bing-bong-bing" pattern of ~3.5s total.
+      // Peak gain 0.75 (vs old 0.55) for clearly higher volume as
+      // requested. Inharmonic partials give a bell/chime body so the
+      // tone reads as "announcement" rather than "alarm".
       const now = ctx.currentTime;
-      const dingDur = 0.45;     // each "ding" is ~0.45s of audible ring
-      const dingGap = 0.05;     // small breath between dings
-      const stride = dingDur + dingGap; // 0.5s per ding → 8 dings in 4s
-      const dingCount = 8;
-      // Alternating high/low: DING-dong-DING-dong-DING-dong-DING-dong
-      const freqs = [880, 660];
-
-      for (let i = 0; i < dingCount; i++) {
-        const startT = now + i * stride;
-        const fundamental = freqs[i % 2];
-        // Bell timbre = fundamental + 2.76x partial (inharmonic, gives bell shimmer) + 5.4x partial
+      // Note specs: frequency Hz, start offset (s), duration (s)
+      const notes = [
+        // First sequence
+        { freq: 784, t: 0.00, dur: 0.65 },
+        { freq: 659, t: 0.55, dur: 0.65 },
+        { freq: 523, t: 1.10, dur: 0.90 },
+        // Brief pause, then repeat for the classic doubled chime
+        { freq: 784, t: 2.20, dur: 0.55 },
+        { freq: 659, t: 2.70, dur: 0.55 },
+        { freq: 523, t: 3.20, dur: 0.80 },
+      ];
+      for (const n of notes) {
+        const startT = now + n.t;
+        // Bell-like timbre = fundamental + harmonic partial + sparkle.
+        // The sparkle is a slightly inharmonic upper partial that gives
+        // the chime its bright, dispatcher-style edge.
         const partials = [
-          { mult: 1.00, gain: 0.55, decay: dingDur },
-          { mult: 2.76, gain: 0.22, decay: dingDur * 0.7 },
-          { mult: 5.40, gain: 0.10, decay: dingDur * 0.5 },
+          { mult: 1.00, gain: 0.75, decay: n.dur },
+          { mult: 2.00, gain: 0.32, decay: n.dur * 0.8 },
+          { mult: 3.01, gain: 0.16, decay: n.dur * 0.6 }, // slightly detuned for sparkle
         ];
         for (const p of partials) {
           const osc = ctx.createOscillator();
           osc.type = 'sine';
-          osc.frequency.value = fundamental * p.mult;
+          osc.frequency.value = n.freq * p.mult;
           const gain = ctx.createGain();
-          // Sharp attack (5ms), exponential decay to silence
+          // Smooth attack (15ms), exponential decay — sounds like
+          // a real PA speaker rather than a beep.
           gain.gain.setValueAtTime(0, startT);
-          gain.gain.linearRampToValueAtTime(p.gain, startT + 0.005);
+          gain.gain.linearRampToValueAtTime(p.gain, startT + 0.015);
           gain.gain.exponentialRampToValueAtTime(0.0001, startT + p.decay);
           osc.connect(gain);
           gain.connect(ctx.destination);
@@ -22343,8 +23289,8 @@
           osc.stop(startT + p.decay + 0.05);
         }
       }
-      // Total runtime: 8 × 0.5 = 4.0 sec exact.
-      const totalDur = dingCount * stride;
+      // Total runtime ~4.0 sec — last note ends at t=3.20 + 0.80 = 4.00
+      const totalDur = 4.0;
       return new Promise((resolve) => {
         setTimeout(() => {
           try { ctx.close(); } catch (_) {}
@@ -22698,6 +23644,57 @@
     } catch (_) {}
   }
 
+  // v73: realtime updates for announcement views (seen + reactions).
+  // app_announcement_views is keyed on (announcement_id, user_id) — when
+  // user A toggles their reaction, every device with the app open receives
+  // this event and refreshes the per-announcement reaction count without
+  // a full page reload.
+  function onRealtimeAnnouncementView(payload) {
+    if (!payload) return;
+    const eventType = payload.eventType || payload.event;
+    const row = payload.new || payload.old;
+    if (!row || !row.announcement_id) return;
+    const annId = row.announcement_id;
+    const userId = row.user_id;
+    // Update the local reactions cache so the heart chip count is right
+    // even if the user navigates away and back without a re-pull.
+    const r = loadReactions();
+    if (!r[annId]) r[annId] = [];
+    const idx = r[annId].indexOf(userId);
+    const reactedNow = eventType !== 'DELETE' && row.reacted_at;
+    if (reactedNow && idx < 0) r[annId].push(userId);
+    if (!reactedNow && idx >= 0) r[annId].splice(idx, 1);
+    if (r[annId].length === 0) delete r[annId];
+    saveReactions(r);
+    // Invalidate the per-announcement receipts cache so the next time
+    // the owner opens the receipts modal it shows fresh data.
+    if (typeof __annReceiptsCache !== 'undefined') __annReceiptsCache.delete(annId);
+    // Patch the visible heart chip in place for ALL chips that show this
+    // announcement (sidebar, manage page, modal).
+    const chips = document.querySelectorAll(`[data-react-for="${annId}"]`);
+    const count = (r[annId] || []).length;
+    const meReacted = (r[annId] || []).includes(session.userId);
+    for (const chip of chips) {
+      chip.dataset.reacted = meReacted ? '1' : '0';
+      const countEl = chip.querySelector('.announcement-react-count');
+      if (countEl) countEl.textContent = count > 0 ? String(count) : '';
+      chip.classList.toggle('reacted', meReacted);
+      chip.classList.toggle('has-count', count > 0);
+    }
+    // If the announcements view is open, refresh receipt summaries so
+    // the "N seen · M reacted" label updates within seconds.
+    if (session.view === 'announcementsView' || session.view === 'announcements') {
+      try {
+        const annIds = (data.announcements || [])
+          .filter(a => a.businessId === session.activeBizId)
+          .map(a => a.id);
+        if (annIds.length && typeof loadAnnouncementReceiptSummaries === 'function') {
+          loadAnnouncementReceiptSummaries(annIds).catch(() => {});
+        }
+      } catch (_) {}
+    }
+  }
+
   function onRealtimeEvent(localKey, payload) {
     if (!payload) return;
     const map = cloudSchemaMap[localKey];
@@ -22767,7 +23764,7 @@
         const book = data.books.find(b => b.id === restored.bookId);
         const sameBiz = book && book.businessId === session.activeBizId;
         if (!isOwnEntry && sameBiz) {
-          try { playEntrySound(); } catch (_) {}
+          try { playEntrySound(restored.type); } catch (_) {}
         }
       }
       scheduleRemoteRender(localKey, newRow.id, 'upsert');
