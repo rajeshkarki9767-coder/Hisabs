@@ -212,27 +212,45 @@
   .insights-chart-interactive { touch-action: pan-y; }
   .insights-chart-interactive.is-scrubbing { touch-action: none; }
 
-  /* v89: entry-modal top bar holds the title block on the left and
-     the Save / + Add More buttons on the right. Cancel lives alone
-     at the bottom. Layout collapses to stacked on phones. */
-  .entry-modal-topbar {
+  /* v89.1: entry-modal top-bar V2. Title sits left-of-buttons in
+     the same row (so the green Save and + icon sit immediately to
+     the right of the invoice-number badge). Sub-text wraps below on
+     a separate line, full-width. Cancel lives alone at the bottom. */
+  .entry-modal-topbar-v2 { margin-bottom: 0.55rem; }
+  .entry-modal-topbar-title-row {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 0.9rem;
-    margin-bottom: 0.4rem;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
   }
-  .entry-modal-topbar-text { flex: 1; min-width: 0; }
-  .entry-modal-topbar-text .modal-title { margin-bottom: 0.1rem; }
-  .entry-modal-topbar-text .modal-sub { margin-bottom: 0; }
+  .entry-modal-topbar-v2 .modal-title { margin: 0; min-width: 0; }
+  .entry-modal-topbar-v2 .modal-sub { margin: 0; }
   .entry-modal-topbar-actions {
     display: flex;
-    gap: 0.4rem;
+    gap: 0.5rem;
     flex-shrink: 0;
-    flex-wrap: wrap;
-    justify-content: flex-end;
     align-items: center;
   }
+  .btn-icon-add-more {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1.5px solid var(--line);
+    background: var(--paper);
+    color: var(--ink-soft);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, transform 0.1s;
+    padding: 0;
+  }
+  .btn-icon-add-more:hover { background: var(--paper-deep); border-color: var(--ink-mute); color: var(--ink); }
+  .btn-icon-add-more:active { transform: scale(0.95); }
+  .btn-icon-add-more svg { display: block; }
+  .entry-modal-save-btn { min-width: 80px; padding: 0.55rem 1.1rem !important; font-size: 0.92rem !important; font-weight: 700 !important; }
   .modal-actions-cancel-only { justify-content: flex-end; }
 
   /* v89: Audit Tax % inline editor — input + suffix + Save button. */
@@ -280,9 +298,10 @@
   .dist-section-actions { display: flex; gap: 0.4rem; align-items: center; }
   .dist-row-lock-btn { padding: 0.3rem 0.6rem !important; font-size: 0.72rem !important; }
   @media (max-width: 720px) {
-    .entry-modal-topbar { flex-direction: column; gap: 0.5rem; }
-    .entry-modal-topbar-actions { width: 100%; justify-content: stretch; }
-    .entry-modal-topbar-actions .btn { flex: 1; min-width: 0; }
+    /* v89.1: keep title + buttons in the same row even on phones,
+       since the buttons are now compact (icon + small Save). */
+    .entry-modal-save-btn { padding: 0.6rem 1.2rem !important; }
+    .btn-icon-add-more { width: 42px; height: 42px; }
   }
   body::before {
     content: '';
@@ -900,8 +919,9 @@
   /* ============ MAIN ============ */
   main { padding: 1.25rem 1.5rem 2rem; min-width: 0; }
   .topbar { display: none; }
-  /* v89: sticky +Entry hidden on desktop — desktop has the page-actions + Entry button */
-  .entries-sticky-plus { display: none; }
+  /* v89.1: inline +Entry hidden on desktop — desktop has its own
+     + Entry button in the page-actions row. */
+  .entries-inline-plus-row { display: none; }
   .fab { display: none; }
 
   /* Date / day strip — shows current weekday + date above every page, on both desktop and mobile. */
@@ -2090,7 +2110,8 @@
   .split-calc-result-val.pos { color: var(--gain); }
   .split-calc-result-val.neg { color: var(--loss); }
   .split-calc-divider { border-top: 1px dashed var(--line); margin: 0.85rem 0 0.75rem; }
-  .split-calc-cur-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-bottom: 0.7rem; }
+  /* v89.1: removed top margin since empty preview above now collapses */
+  .split-calc-cur-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0; margin-bottom: 0.7rem; }
   .split-calc-converted { display: flex; flex-direction: column; gap: 0.35rem; }
   .split-calc-converted-hint { font-size: 0.72rem; color: var(--ink-mute); font-style: italic; padding: 0.4rem 0; margin: 0; }
 
@@ -2101,6 +2122,9 @@
      results, total %. Visually grouped so the relationship between
      inputs (top) and computed lines (bottom) is clear.
      ============================================================ */
+  /* v89.1: hide empty split-preview (legacy single-% mode never
+     populates it, leaving a blank box). */
+  .split-preview:empty { display: none; }
   .split-preview {
     display: flex;
     flex-direction: column;
@@ -4541,35 +4565,33 @@
        inside the Entries view (rendered only on that view). */
     .fab { display: none !important; }
 
-    /* v89: Sticky +Entry button on Entries tab (phone only). Same
-       bright green as the Add button. Sits below search/period bar
-       and sticks to bottom while scrolling, but inside the scroll
-       container so it doesn't overlap the bottom-nav area.
-
-       Rendered inline by renderEntriesView; positioned fixed at the
-       bottom of the viewport on phones only. */
+    /* v89.1: +Entry button — phone only, lives inside the entries
+       toolbar row, right-aligned beneath the search bar. Scrolls
+       with content rather than floating over it. Same bright green
+       as the Add button. */
+    .entries-inline-plus-row {
+      display: flex;
+      justify-content: flex-end;
+      margin: 0.45rem 0 0.65rem;
+    }
     .entries-sticky-plus {
-      position: fixed;
-      bottom: calc(0.9rem + var(--safe-bottom));
-      right: 0.9rem;
-      left: auto;
-      z-index: 60;
       background: var(--gain);
       color: #fff;
       border: none;
       border-radius: 999px;
-      padding: 0.85rem 1.35rem;
+      padding: 0.85rem 1.5rem;
       font-weight: 700;
-      font-size: 0.92rem;
+      font-size: 1rem;
       letter-spacing: 0.02em;
-      box-shadow: 0 10px 28px -6px rgba(17,99,67,0.55), 0 2px 6px rgba(0,0,0,0.18);
-      display: flex;
+      box-shadow: 0 6px 18px -4px rgba(17,99,67,0.45), 0 1px 4px rgba(0,0,0,0.12);
+      display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
+      gap: 0.45rem;
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
+      min-height: 46px;
     }
-    .entries-sticky-plus:active { transform: scale(0.96); box-shadow: 0 4px 14px -2px rgba(17,99,67,0.45); }
+    .entries-sticky-plus:active { transform: scale(0.97); box-shadow: 0 3px 10px -2px rgba(17,99,67,0.4); }
     .entries-sticky-plus:disabled { opacity: 0.45; pointer-events: none; }
     /* Single-FAB layout: center the button, give it a max width so it
        doesn't stretch the full screen on tablets. */
@@ -5234,23 +5256,10 @@
     <div id="mainContent" tabindex="-1"></div>
   </main>
 
-  <!-- Floating action button (mobile). Single + Entry button; the
-  <!-- v89: Sticky +Entry button for phones, shown only when
-       session.view === 'entries'. Toggled by renderAll/switchView. -->
-  <button class="entries-sticky-plus" id="entriesStickyPlus"
-          onclick="openModal('entry')"
-          aria-label="Add entry"
-          style="display:none;">
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-    </svg>
-    Entry
-  </button>
-
-       entry modal picks In vs Out via the type toggle inside it. The
-       previous dual Cash-In / Cash-Out buttons doubled the footprint
-       on mobile screens for no real value — most users tap, see the
-       form, set type, and submit. -->
+  <!-- v89.1: legacy FAB wrapper kept in DOM (CSS hides it on phones
+       via .fab { display:none !important }) so existing JS references
+       still resolve. The visible sticky +Entry button is rendered
+       inline by renderEntriesView under the search bar. -->
   <div class="fab" id="fab">
     <button class="fab-btn in" id="fabEntry" onclick="openModal('entry')" aria-label="Add entry">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -7419,17 +7428,11 @@
   function _isDrawerBreakpoint() {
     try { return window.matchMedia('(max-width: 880px)').matches; } catch (_) { return false; }
   }
-  // v89: toggle the sticky +Entry button. It should appear only on the
-  // Entries view, only when the user has permission to add entries, and
-  // only on phones (the CSS already hides it on desktop). Called from
-  // renderAll so it stays in sync with every state change.
-  function updateEntriesStickyPlus() {
-    const btn = document.getElementById('entriesStickyPlus');
-    if (!btn) return;
-    const onEntriesView = session.view === 'entries';
-    const canAdd = (typeof canAddEntry === 'function') ? canAddEntry() : true;
-    btn.style.display = (onEntriesView && canAdd) ? 'flex' : 'none';
-  }
+  // v89.1: the sticky +Entry button is now rendered inline by
+  // renderEntriesView (no longer a body-level fixed element). This
+  // helper is kept as a no-op for backward compat with any callers
+  // we wired in v89 (e.g. _restoreFocusAfterRender).
+  function updateEntriesStickyPlus() { /* no-op in v89.1 */ }
 
   // v89: left-edge swipe gesture on phones — open sidebar drawer.
   // Trigger zone: first 22px from the left edge of the viewport.
@@ -7517,20 +7520,13 @@
     }, true);
   })();
 
-  // v89: Chart touch handler (Option C). Adds a long-press scrub +
-  // tap-to-show-value behavior to any .insights-chart-interactive SVG.
-  // We hit-test by elementFromPoint and walk up to find the chart-data
-  // host. Each chart sets its data points to have <title> children OR
-  // a data-chart-value attribute; both work.
+  // v89.1: Chart touch handler — long-press scrub removed (long-press
+  // is disabled app-wide). Now: single tap shows the value at the
+  // tapped position. Tooltip auto-hides after 1.8s. Simpler than v89
+  // and no longer competes with vertical page scrolling.
   (function attachChartTouch() {
     if (typeof document === 'undefined') return;
     let tooltipEl = null;
-    let chartEl = null;
-    let pressTimer = null;
-    let scrubbing = false;
-    let startedAt = 0;
-    let lastValue = '';
-    const LONG_PRESS_MS = 280;
 
     function ensureTooltip() {
       if (tooltipEl) return tooltipEl;
@@ -7540,45 +7536,26 @@
       document.body.appendChild(tooltipEl);
       return tooltipEl;
     }
-
     function showTooltip(x, y, text) {
       const t = ensureTooltip();
       t.textContent = text;
       t.style.left = x + 'px';
       t.style.top = y + 'px';
       t.classList.add('show');
-      lastValue = text;
+      setTimeout(() => { if (tooltipEl) tooltipEl.classList.remove('show'); }, 1800);
     }
-
-    function hideTooltip(delay) {
-      if (!tooltipEl) return;
-      if (delay) {
-        setTimeout(() => { if (tooltipEl) tooltipEl.classList.remove('show'); }, delay);
-      } else {
-        tooltipEl.classList.remove('show');
-      }
-    }
-
-    // Find a data-bearing element near the touch point. Looks for
-    // any descendant with a <title> child or [data-chart-value]
-    // within the chart SVG.
     function findValueAt(clientX, clientY) {
       const el = document.elementFromPoint(clientX, clientY);
       if (!el) return null;
-      // Walk up to nearest .insights-chart-interactive
       const chart = el.closest && el.closest('.insights-chart-interactive');
       if (!chart) return null;
-      // Try the element itself, then its parents up to the chart root.
       let cur = el;
       while (cur && cur !== chart) {
-        if (cur.dataset && cur.dataset.chartValue) return { chart, value: cur.dataset.chartValue };
-        // <title> child as SVG tooltip text
+        if (cur.dataset && cur.dataset.chartValue) return cur.dataset.chartValue;
         const title = cur.tagName && cur.querySelector && cur.querySelector(':scope > title');
-        if (title && title.textContent) return { chart, value: title.textContent };
+        if (title && title.textContent) return title.textContent;
         cur = cur.parentNode;
       }
-      // Fallback: scan all <title>s in the chart and pick the one
-      // whose owner is closest horizontally to the touch.
       const titles = chart.querySelectorAll('title');
       let best = null, bestDx = Infinity;
       for (const tt of titles) {
@@ -7589,75 +7566,18 @@
         const dx = Math.abs(cx - clientX);
         if (dx < bestDx) { bestDx = dx; best = tt; }
       }
-      if (best) return { chart, value: best.textContent };
-      return null;
+      return best ? best.textContent : null;
     }
-
-    function onTouchStart(e) {
-      const touch = e.touches ? e.touches[0] : null;
-      if (!touch) return;
-      // Check we started inside an interactive chart.
-      const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    // Single-tap-to-show-value. No long-press, no scrub.
+    document.addEventListener('touchend', (e) => {
+      const t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      const target = document.elementFromPoint(t.clientX, t.clientY);
       const chart = target && target.closest && target.closest('.insights-chart-interactive');
       if (!chart) return;
-      chartEl = chart;
-      startedAt = Date.now();
-      scrubbing = false;
-
-      // Schedule long-press → enter scrub mode
-      pressTimer = setTimeout(() => {
-        scrubbing = true;
-        chartEl.classList.add('is-scrubbing');
-        // Show value at current position
-        const v = findValueAt(touch.clientX, touch.clientY);
-        if (v) showTooltip(touch.clientX, touch.clientY, v.value);
-        // Subtle haptic if available
-        try { navigator.vibrate && navigator.vibrate(10); } catch (_) {}
-      }, LONG_PRESS_MS);
-    }
-
-    function onTouchMove(e) {
-      if (!chartEl) return;
-      const touch = e.touches ? e.touches[0] : null;
-      if (!touch) return;
-      if (!scrubbing) {
-        // Cancel long-press if the user moved beyond a small threshold
-        // (they're trying to scroll the page, not long-press the chart)
-        // Use a 12px movement threshold.
-        return;
-      }
-      // We're scrubbing — keep updating the tooltip and prevent scroll
-      e.preventDefault();
-      const v = findValueAt(touch.clientX, touch.clientY);
-      if (v) showTooltip(touch.clientX, touch.clientY, v.value);
-    }
-
-    function onTouchEnd(e) {
-      const wasScrubbing = scrubbing;
-      const duration = Date.now() - startedAt;
-      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-      if (chartEl) chartEl.classList.remove('is-scrubbing');
-
-      // Tap (not scrub): show value briefly at the touch point
-      if (!wasScrubbing && duration < LONG_PRESS_MS && e.changedTouches && e.changedTouches[0]) {
-        const t = e.changedTouches[0];
-        const v = findValueAt(t.clientX, t.clientY);
-        if (v) {
-          showTooltip(t.clientX, t.clientY, v.value);
-          hideTooltip(1800); // auto-hide after 1.8s
-        }
-      } else if (wasScrubbing) {
-        // After scrub: keep tooltip showing the last value for 1.2s
-        hideTooltip(1200);
-      }
-      scrubbing = false;
-      chartEl = null;
-    }
-
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onTouchEnd, { passive: true });
-    document.addEventListener('touchcancel', onTouchEnd, { passive: true });
+      const v = findValueAt(t.clientX, t.clientY);
+      if (v) showTooltip(t.clientX, t.clientY, v);
+    }, { passive: true });
   })();
 
   function openDrawer() {
@@ -8438,8 +8358,23 @@
         </select>
       </div>`;
     const periodLabelText = currentPeriodLabel();
+    // v89.1: inline +Entry button under search bar, right-aligned,
+    // phone-only (CSS hides on desktop). canAddEntry gates visibility.
+    const canAddInline = (typeof canAddEntry === 'function') ? canAddEntry() : true;
+    const inlinePlusHTML = canAddInline
+      ? `<div class="entries-inline-plus-row" id="entriesInlinePlusRow">
+           <button class="entries-sticky-plus" id="entriesStickyPlus"
+                   onclick="openModal('entry')" aria-label="Add entry">
+             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+               <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+             </svg>
+             Entry
+           </button>
+         </div>`
+      : '';
     const entriesHTML = `
       <div id="entryFilterBanner"></div>
+      ${inlinePlusHTML}
       <div class="entries-wrap">
         <div class="entries-period-label">${escapeHtml(periodLabelText)}</div>
         <div class="entries-head">
@@ -16097,16 +16032,19 @@
       : '';
     return `
       <div class="modal-handle"></div>
-      <!-- v89: Save buttons moved to top-right; Cancel stays at bottom -->
-      <div class="entry-modal-topbar">
-        <div class="entry-modal-topbar-text">
+      <!-- v89.1: Save buttons sit on the top-right next to the
+           invoice number badge. + icon for Add More (left), Save (right).
+           Title and sub-text sit on a separate row below to give the
+           buttons more visual prominence as primary actions. -->
+      <div class="entry-modal-topbar entry-modal-topbar-v2">
+        <div class="entry-modal-topbar-title-row">
           <h2 class="modal-title">${isEdit ? 'Edit' : 'New'} entry ${_previewBadge}</h2>
-          <p class="modal-sub">${isEdit ? 'Update the details below.' : 'A single record of money moving in or out.'} <span class="entry-no-modal-sub" id="entryNoPreviewSub">${_previewNo ? `${isEdit ? 'Invoice no.' : 'Next invoice number —'} <strong>${formatEntryNo(_previewNo)}</strong> in ${escapeHtml(_previewMonthLabel)}.` : ''}</span></p>
+          <div class="entry-modal-topbar-actions">
+            ${!isEdit ? `<button class="btn-icon-add-more" id="saveAndAddMoreBtn" onclick="saveEntry({addMore:true})" title="Save and add another (Shift+E)" aria-label="Save and add another"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}
+            <button class="btn btn-sm ${t === 'in' ? 'btn-gain' : 'btn-loss'} entry-modal-save-btn" id="saveEntryBtn" onclick="saveEntry()">${isEdit ? 'Save' : 'Save'}</button>
+          </div>
         </div>
-        <div class="entry-modal-topbar-actions">
-          ${!isEdit ? `<button class="btn btn-sm btn-ghost" id="saveAndAddMoreBtn" onclick="saveEntry({addMore:true})" title="Save and add another with the same date / account / category (Shift+E)">+ Add More</button>` : ''}
-          <button class="btn btn-sm ${t === 'in' ? 'btn-gain' : 'btn-loss'}" id="saveEntryBtn" onclick="saveEntry()">${isEdit ? 'Save' : 'Save'}</button>
-        </div>
+        <p class="modal-sub">${isEdit ? 'Update the details below.' : 'A single record of money moving in or out.'} <span class="entry-no-modal-sub" id="entryNoPreviewSub">${_previewNo ? `${isEdit ? 'Invoice no.' : 'Next invoice number —'} <strong>${formatEntryNo(_previewNo)}</strong> in ${escapeHtml(_previewMonthLabel)}.` : ''}</span></p>
       </div>
       <div class="form-grid">
         <div class="type-toggle">
@@ -16428,80 +16366,46 @@
   });
 
   // ================================================================
-  // v65: MOBILE GESTURES on entry rows
+  // v89.1: MOBILE GESTURES on entry rows — double-tap (was long-press)
   // ================================================================
-  // One touch gesture, intentionally minimal:
-  //   • long-press (550ms, finger barely moves) → context menu with
-  //     Edit/Delete buttons. Touch-only — desktop click behaviour is
-  //     untouched.
-  // The handler treats the gesture as committed only on touchend so a
-  // user mid-gesture can still abort by moving vertically (which fires
-  // the cancel logic — we honour the user's scroll intent).
-  //
-  // Permissions: editEntry/deleteEntry both call canEditEntry; the
-  // context menu wires straight through to those, so non-owner viewers
-  // can't accidentally delete other people's entries — the toast inside
-  // those helpers still fires.
-  //
-  // Disabled when a modal is open (touchend in a modal shouldn't
-  // trigger a row gesture underneath).
-  const __GESTURE_LONG_PRESS_MS = 550;
-  const __GESTURE_VERT_CANCEL = 30;
-  const __GESTURE_HORIZ_CANCEL = 12; // a press should be still — even modest horizontal travel cancels.
-  let __gestureState = null; // { rowEl, entryId, startX, startY, t, longPressTimer, fired }
-  function __cancelGesture() {
-    if (!__gestureState) return;
-    if (__gestureState.longPressTimer) clearTimeout(__gestureState.longPressTimer);
-    __gestureState = null;
-  }
+  // Long-press is disabled app-wide in v89.1. The action menu (View,
+  // Edit, Delete) is now opened by double-tapping a row instead.
+  // Window: 320ms between taps. Both taps must land on the same row
+  // (entryId match). Movement greater than 12px between taps cancels —
+  // the user is scrolling, not tapping twice. Disabled when a modal
+  // is open.
+  const __DBLTAP_WINDOW_MS = 320;
+  const __DBLTAP_MAX_DRIFT_PX = 12;
+  let __lastTapState = null; // { entryId, x, y, t }
   function __modalIsOpen() {
     return document.getElementById('modalBackdrop')?.classList.contains('active');
   }
-  document.addEventListener('touchstart', (ev) => {
+  document.addEventListener('touchend', (ev) => {
     if (__modalIsOpen()) return;
-    const row = ev.target.closest('.entry-row[data-entry-id]');
+    const touch = (ev.changedTouches && ev.changedTouches[0]) || null;
+    if (!touch) return;
+    // Walk up from the touch endpoint to find the entry row, if any.
+    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+    if (!target) return;
+    const row = target.closest && target.closest('.entry-row[data-entry-id]');
     if (!row) return;
-    // Don't fire when the touch starts on an interactive child — the
-    // edit/delete buttons, chips, party links all have their own
-    // tap handling and a long-press there would be confusing.
-    if (ev.target.closest('button, a, .entry-cat, .entry-acct-chip, .entry-party')) return;
-    const t = ev.touches[0];
-    __gestureState = {
-      rowEl: row,
-      entryId: row.getAttribute('data-entry-id') || '',
-      startX: t.clientX,
-      startY: t.clientY,
-      t: Date.now(),
-      fired: false,
-      longPressTimer: setTimeout(() => {
-        // Long-press fired — but only if the finger hasn't moved much.
-        // The touchmove handler aborts the timer if it has.
-        if (!__gestureState || __gestureState.fired) return;
-        __gestureState.fired = 'long';
-        const eid = __gestureState.entryId;
-        if (navigator.vibrate) { try { navigator.vibrate(15); } catch (_) {} }
-        openEntryContextMenu(eid);
-      }, __GESTURE_LONG_PRESS_MS),
-    };
-  }, { passive: true });
-  document.addEventListener('touchmove', (ev) => {
-    if (!__gestureState) return;
-    const t = ev.touches[0];
-    const dx = t.clientX - __gestureState.startX;
-    const dy = t.clientY - __gestureState.startY;
-    // Cancel on any meaningful movement — vertical for scroll intent,
-    // or horizontal beyond a small dead-zone (a press should be still).
-    if (Math.abs(dy) > __GESTURE_VERT_CANCEL || Math.abs(dx) > __GESTURE_HORIZ_CANCEL) {
-      __cancelGesture();
+    // Ignore taps on interactive children (edit/delete buttons, chips, etc.)
+    if (target.closest && target.closest('button, a, .entry-cat, .entry-acct-chip, .entry-party')) return;
+    const eid = row.getAttribute('data-entry-id') || '';
+    const now = Date.now();
+    if (__lastTapState
+        && __lastTapState.entryId === eid
+        && (now - __lastTapState.t) <= __DBLTAP_WINDOW_MS
+        && Math.abs(touch.clientX - __lastTapState.x) <= __DBLTAP_MAX_DRIFT_PX
+        && Math.abs(touch.clientY - __lastTapState.y) <= __DBLTAP_MAX_DRIFT_PX) {
+      // Second tap within window → fire context menu.
+      __lastTapState = null;
+      if (navigator.vibrate) { try { navigator.vibrate(10); } catch (_) {} }
+      try { openEntryContextMenu(eid); } catch (_) {}
+      return;
     }
-  }, { passive: true });
-  document.addEventListener('touchend', () => {
-    // Long-press already fired (or didn't) by now. Touchend just cleans
-    // up state — no directional swipe action.
-    __cancelGesture();
-  }, { passive: true });
-  document.addEventListener('touchcancel', () => {
-    __cancelGesture();
+    // Record this as the first tap; second tap (within window) will fire.
+    __lastTapState = { entryId: eid, x: touch.clientX, y: touch.clientY, t: now };
   }, { passive: true });
 
   // Context menu shown after a long-press on a row. Three actions:
