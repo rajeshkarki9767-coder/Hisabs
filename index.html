@@ -8,7 +8,14 @@
   app shows small financial figures that elderly or low-vision users need to
   enlarge.
 -->
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<!--
+  v86: lock the viewport for app-like behavior. interactive-widget=resizes-content
+  keeps the soft keyboard from pushing the layout up (matches iOS Mail/Slack
+  feel). maximum-scale=1 + user-scalable=no disables pinch-zoom and accidental
+  double-tap zoom so taps stay taps. Users who need larger text can rely on
+  the OS-level accessibility text size, which PWAs respect.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1c1b18" media="(prefers-color-scheme: dark)">
 <title>Hisabs — your cash, in order</title>
@@ -98,7 +105,41 @@
     --r: 6px;
     --r-lg: 10px;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  /* v86: app-like behavior. Disable text selection + iOS callout
+     globally so long-press doesn't pop a "Copy / Select All" menu
+     (which breaks the PWA-as-real-app illusion and gets triggered by
+     accidental finger holds during scroll). Opt back in for places
+     where users genuinely want to copy text:
+       - inputs, textareas, contenteditable (must be selectable to
+         type/paste)
+       - the snapshot tag chips (user wants to copy phone numbers/
+         account numbers — already has a copy icon, but selection is
+         a fallback)
+       - entry notes shown on detail views (long descriptions users
+         may want to grab)
+       - currency amounts in audit cards (sometimes pasted into
+         calculators)
+     The .selectable utility class can be added to anything else if
+     a specific case comes up. */
+  * {
+    box-sizing: border-box; margin: 0; padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  input, textarea, select, [contenteditable="true"],
+  .selectable, .selectable *,
+  .ql-tag-display, .ql-tag-display *,
+  .entry-note, .entry-note *,
+  .audit-stat-value, .audit-stat-value *,
+  .audit-operating-profit-value, .audit-net-profit-value,
+  .audit-tax-applied-value, .audit-tax-readonly,
+  .balance-amount, .stat-value, .stat-value * {
+    -webkit-touch-callout: default;
+    -webkit-user-select: text;
+    user-select: text;
+  }
   html, body { height: 100%; }
   body {
     background: var(--paper);
@@ -196,6 +237,13 @@
     background-position: right 0.5rem center;
   }
   .party-sort-select:hover { border-color: var(--ink-soft); background-color: var(--paper-deep); }
+  /* v83: row that holds the Sort dropdown under the search box. Right-
+     aligned so the dropdown sits flush with the right edge of the
+     search input (small gap below the search box). */
+  .parties-sort-row {
+    display: flex; justify-content: flex-end;
+    margin: 0.5rem 0 0.75rem;
+  }
   /* Icon-only ghost button used by the per-view export trigger and any
      future single-icon page-header actions. Keeps the same border/hover
      treatment as `.btn-sm.btn-ghost` but with square padding. */
@@ -908,6 +956,60 @@
     }
     body.printing-member-activity .member-activity-amount.in { color: #2e5d3a !important; }
     body.printing-member-activity .member-activity-amount.out { color: #a8351f !important; }
+    /* v85: full-page member-activity print. Unlike the legacy
+       modal-clipped print above, this version operates on the page
+       layout (renderMemberActivityView) which is naturally tall, so
+       the browser paginates correctly across pages. We just hide
+       chrome (sidebar, topbar, page-actions) and tighten the row
+       page-break behaviour. */
+    body.printing-member-activity-page .sidebar,
+    body.printing-member-activity-page .topbar,
+    body.printing-member-activity-page .fab,
+    body.printing-member-activity-page .party-detail-back,
+    body.printing-member-activity-page .page-actions,
+    body.printing-member-activity-page .modal-backdrop {
+      display: none !important;
+    }
+    body.printing-member-activity-page .app-main {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100% !important;
+    }
+    body.printing-member-activity-page,
+    body.printing-member-activity-page html {
+      background: white !important;
+      color: #000 !important;
+    }
+    body.printing-member-activity-page .page-header {
+      border-bottom: 1px solid #999;
+      margin-bottom: 1rem;
+    }
+    body.printing-member-activity-page .page-title { color: #000 !important; }
+    body.printing-member-activity-page .member-activity-totals {
+      page-break-inside: avoid;
+      margin-bottom: 1rem;
+    }
+    body.printing-member-activity-page .member-activity-list {
+      max-height: none !important;
+      overflow: visible !important;
+      height: auto !important;
+    }
+    body.printing-member-activity-page .member-activity-row {
+      page-break-inside: avoid;
+      border: 1px solid #ccc;
+      background: white !important;
+      color: #000 !important;
+      break-inside: avoid;
+    }
+    body.printing-member-activity-page .member-activity-row * { color: #000 !important; }
+    body.printing-member-activity-page .entry-cat {
+      background: transparent !important;
+      border-color: #999 !important;
+      color: #000 !important;
+    }
+    body.printing-member-activity-page .member-activity-amount.in  { color: #2e5d3a !important; }
+    body.printing-member-activity-page .member-activity-amount.out { color: #a8351f !important; }
+    @page { margin: 1.2cm; }
     /* v69: team-activity leaderboard print — display:none everything
        except the page-header + the leaderboard section. Uses the same
        pattern as member-activity above: display:none cleanly drops
@@ -1306,6 +1408,41 @@
      copyable tags. Two sections: "In Use" up top (toggled-on entries)
      and "All" below (everything). Cards show name + copyable tag + QR. */
   .ql-section-title { font-family: var(--font-serif); font-size: 1.1rem; font-weight: 600; margin: 1.25rem 0 0.6rem; letter-spacing: -0.005em; color: var(--ink); display: flex; align-items: center; gap: 0.5rem; }
+  /* v85: horizontal sub-tabs for Snapshot In Use / Not In Use. Tab
+     row sits above the card grid. Active tab has a 2px accent
+     underline + bold text; inactive tabs are muted. Count badge
+     appears next to the label. */
+  .ql-tabs {
+    display: flex; gap: 1.5rem;
+    border-bottom: 1px solid var(--line);
+    margin: 1rem 0 1rem;
+  }
+  .ql-tab {
+    background: transparent; border: none; cursor: pointer;
+    padding: 0.55rem 0.1rem 0.7rem;
+    margin-bottom: -1px;
+    font: inherit; font-size: 0.95rem; font-weight: 500;
+    color: var(--ink-mute);
+    border-bottom: 2px solid transparent;
+    transition: color 0.12s, border-color 0.12s;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .ql-tab:hover { color: var(--ink); }
+  .ql-tab.is-active {
+    color: var(--ink); font-weight: 600;
+    border-bottom-color: var(--accent);
+  }
+  .ql-tab-count {
+    font-family: var(--font-mono);
+    font-size: 0.72rem; font-weight: 500;
+    color: var(--ink-mute);
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    padding: 0.1rem 0.5rem; border-radius: 999px;
+    min-width: 1.6rem; text-align: center;
+  }
+  .ql-tab.is-active .ql-tab-count { color: var(--ink); border-color: var(--ink-soft); }
+  .ql-tab-panel { min-height: 100px; }
   .ql-section-title .ql-count { font-family: var(--font-sans); font-size: 0.75rem; font-weight: 500; color: var(--ink-mute); letter-spacing: 0.04em; }
   .ql-section-title:first-child { margin-top: 0; }
   .ql-empty { padding: 1.5rem; background: var(--surface-1); border: 1px dashed var(--line); border-radius: var(--r); color: var(--ink-mute); font-size: 0.85rem; text-align: center; }
@@ -3180,24 +3317,42 @@
     text-transform: none; letter-spacing: 0;
   }
   /* Tax % row — sits above the Net profit card. Owner sees an
-     editable button; viewer/manager see a read-only span. */
+     editable button; viewer/manager see a read-only span.
+     v83: layout is now a 2-column grid. Left column holds the "Tax %"
+     label and subtext. Right column stacks the % control on top of
+     the Tax Applied amount, right-aligned, so the user reads
+     "TAX %  →  13%  /  TAX APPLIED  Rs 1,200" as a clean vertical
+     stack on the right that directly mirrors the label group on the
+     left. Works the same on all screen sizes (the right column stays
+     a vertical stack; only the row's padding tightens on mobile). */
   .audit-tax-row {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0.7rem 1rem;
+    display: flex; align-items: stretch; justify-content: space-between;
+    gap: 1rem;
+    padding: 0.85rem 1rem;
     background: var(--paper-deep, var(--surface-2));
     border: 1px solid var(--line);
     border-radius: var(--r);
     margin: 0.85rem 0 0;
   }
+  .audit-tax-label-wrap {
+    display: flex; flex-direction: column; justify-content: center;
+    min-width: 0;
+  }
   .audit-tax-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); font-weight: 600; }
   .audit-tax-meta { font-size: 0.7rem; color: var(--ink-mute); margin-top: 0.15rem; }
+  .audit-tax-value-wrap {
+    display: flex; flex-direction: column;
+    align-items: flex-end; justify-content: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+  }
   .audit-tax-btn {
     font: inherit; font-family: var(--font-mono);
-    font-size: 1.1rem; font-weight: 600;
+    font-size: 1.05rem; font-weight: 600;
     background: transparent;
     border: 1px solid var(--line);
     border-radius: var(--r-sm, 6px);
-    padding: 0.35rem 0.7rem;
+    padding: 0.3rem 0.65rem;
     cursor: pointer; color: var(--ink);
     display: inline-flex; align-items: center;
     transition: background 0.1s, border-color 0.1s;
@@ -3205,19 +3360,18 @@
   .audit-tax-btn:hover { background: var(--surface-3, var(--surface-2)); border-color: var(--ink-mute); }
   .audit-tax-readonly {
     font-family: var(--font-mono);
-    font-size: 1.1rem; font-weight: 600;
+    font-size: 1.05rem; font-weight: 600;
     color: var(--ink);
-    padding: 0.35rem 0.7rem;
+    padding: 0.3rem 0.65rem;
     border: 1px dashed var(--line);
     border-radius: var(--r-sm, 6px);
   }
-  /* v73: Tax applied amount shown right below the % control.
-     Right-aligned so it lines up with the % button above; the
-     mono font + bold weight + red color makes the currency amount
-     stand out as an actual tax liability. */
+  /* v83: Tax applied amount stacked under the % control, both
+     right-aligned. Label + amount on a single baseline so the user's
+     eye moves "Tax %: 13%" → "Tax applied: Rs 1,200" in a clean
+     vertical reading order. */
   .audit-tax-applied {
-    margin-top: 0.55rem;
-    display: flex; justify-content: flex-end; align-items: baseline;
+    display: flex; align-items: baseline;
     gap: 0.55rem;
   }
   .audit-tax-applied-label {
@@ -3225,8 +3379,17 @@
     color: var(--ink-mute); font-weight: 600;
   }
   .audit-tax-applied-value {
-    font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700;
+    font-family: var(--font-mono); font-size: 1rem; font-weight: 700;
     color: var(--loss); font-variant-numeric: tabular-nums;
+  }
+  /* v83: at narrow widths (≤420), tighten padding and font size so
+     the row doesn't crowd the right column. Left label stays
+     truncatable; right stack stays vertically aligned. */
+  @media (max-width: 420px) {
+    .audit-tax-row { padding: 0.7rem 0.75rem; gap: 0.7rem; }
+    .audit-tax-btn, .audit-tax-readonly { font-size: 0.95rem; padding: 0.25rem 0.5rem; }
+    .audit-tax-applied-value { font-size: 0.9rem; }
+    .audit-tax-meta { display: none; }
   }
   /* "Total expenses" row below the Cash in / Cash out / Profit grid. Full
      width, same card style, but visually grouped with the totals strip above. */
@@ -3565,6 +3728,18 @@
   .totals-hidden-note svg { flex-shrink: 0; opacity: 0.7; }
 
   .toggle-row { display: flex; align-items: center; gap: 1rem; padding: 0.6rem 0; }
+  /* v85: profile name row — input + inline Save button */
+  .profile-name-input-wrap { display: flex; gap: 0.5rem; align-items: stretch; }
+  .profile-name-input-wrap input { flex: 1; min-width: 0; }
+  .profile-name-input-wrap button { flex-shrink: 0; }
+  /* v83: compact variant for stacked notifications toggles — no
+     description, tighter vertical rhythm, soft divider between rows. */
+  .toggle-row-compact {
+    padding: 0.55rem 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .toggle-row-compact:first-of-type { border-top: none; }
+  .toggle-row-compact .toggle-row-title { font-size: 0.92rem; font-weight: 500; }
   .toggle-row-text { flex: 1; min-width: 0; }
   .toggle-row-title { font-size: 0.95rem; font-weight: 500; color: var(--ink); margin-bottom: 0.15rem; }
   .toggle-row-desc { font-size: 0.78rem; color: var(--ink-mute); line-height: 1.45; }
@@ -5678,9 +5853,70 @@
     document.addEventListener('keydown', handler, true);
   }
   __wireEntrySoundUnlock();
+
+  // v86: App-like gesture defense. The viewport meta tag is honored by
+  // most browsers, but iOS Safari (especially as a standalone PWA)
+  // sometimes still allows pinch-to-zoom and double-tap-to-zoom unless
+  // we block the events ourselves.
+  (function _wireAppLikeGestureDefense() {
+    // Pinch-zoom: block iOS-specific gesture events. These are non-
+    // standard but the only reliable way to kill pinch-zoom on iOS
+    // Safari. preventDefault on touchstart/move would break scrolling.
+    const blockGesture = (e) => { try { e.preventDefault(); } catch (_) {} };
+    document.addEventListener('gesturestart',  blockGesture, { passive: false });
+    document.addEventListener('gesturechange', blockGesture, { passive: false });
+    document.addEventListener('gestureend',    blockGesture, { passive: false });
+    // Double-tap-to-zoom: track the timestamp of the last touchend; if
+    // a second touchend fires within 300ms with no movement, it's a
+    // double-tap — block it. We only block when the target isn't an
+    // input/textarea/contenteditable (otherwise we'd break typing
+    // workflows that rely on double-tap to select a word).
+    let __lastTouchEnd = 0;
+    document.addEventListener('touchend', (e) => {
+      const now = Date.now();
+      const target = e.target;
+      const isFormField = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable
+      );
+      if (!isFormField && (now - __lastTouchEnd) < 300) {
+        try { e.preventDefault(); } catch (_) {}
+      }
+      __lastTouchEnd = now;
+    }, { passive: false });
+    // Long-press context menu on non-form elements: kill it. iOS shows
+    // a Copy / Look Up / Share menu after ~600ms of holding which is
+    // jarring inside an app context. The CSS -webkit-touch-callout
+    // already disables it for most elements; this is the JS fallback
+    // for the contextmenu event itself on touch devices.
+    document.addEventListener('contextmenu', (e) => {
+      const target = e.target;
+      const allowMenu = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable ||
+        // explicit opt-in classes for places where users may want
+        // a context menu (e.g. links to copy URL)
+        target.closest('.selectable, .ql-tag-display, .entry-note')
+      );
+      if (!allowMenu) { try { e.preventDefault(); } catch (_) {} }
+    });
+  })();
+
   function playEntrySound(type) {
     if (entrySoundIsMuted()) return;
-    if (!__entrySoundCtx) return; // not yet unlocked
+    // v85: if the audio context isn't unlocked yet, try to unlock it
+    // right now. We're inside an event handler (the user just clicked
+    // Save), which counts as a user gesture for autoplay policies.
+    // Previously a silent-return here meant the user's very first
+    // entry of a session was silent.
+    if (!__entrySoundCtx) {
+      try { unlockEntrySound(); } catch (_) {}
+    }
+    if (!__entrySoundCtx) return;
     try {
       const t = String(type || '').toLowerCase();
       if (t === 'out') {
@@ -5693,39 +5929,49 @@
     }
   }
 
-  // Cash-IN sound — a bright register "ka-ching" feel. Quick rising
-  // chime over a soft bell tail. Three voices stack: an attack click
-  // (high-frequency burst at the start, the "ka"), a fundamental ring
-  // (the "ching"), and a sparkle partial that sweeps slightly up
-  // for energy. Total ~1.5s, peak gain 0.55, high volume.
+  // v83: Cash-IN — refined "cha-ching" cash register sound. Quick
+  // metallic attack tap (the "cha"), then a bright bell ring with
+  // sparkle (the "ching"). The ring uses a major chord stack
+  // (root + third + fifth) for a positive, celebratory feel.
+  // Total ~1.4s, peak gain 0.55.
   function _playCashInSound(ctx) {
     const now = ctx.currentTime;
 
-    // Voice 1 — attack click ("ka"). Very short noise-burst-like
-    // shape via a brief 1500Hz triangle wave.
+    // Voice 1 — "cha" register tap. Brief metallic noise burst feel
+    // via a fast-decaying high-pitched square wave with bandpass
+    // shaping. Square has more harmonics than triangle so it reads
+    // as a percussive metal hit.
     {
       const g = ctx.createGain();
-      g.connect(ctx.destination);
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 2200;
+      bp.Q.value = 1.2;
+      bp.connect(ctx.destination);
+      g.connect(bp);
       g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.35, now + 0.005);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+      g.gain.linearRampToValueAtTime(0.40, now + 0.003);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
       const osc = ctx.createOscillator();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(1500, now);
-      osc.frequency.exponentialRampToValueAtTime(900, now + 0.06);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(2200, now);
+      osc.frequency.exponentialRampToValueAtTime(1200, now + 0.07);
       osc.connect(g);
       osc.start(now);
-      osc.stop(now + 0.08);
+      osc.stop(now + 0.09);
     }
 
-    // Voice 2 — bell fundamental ("ching"). Starts ~30ms after attack.
-    // Two partials at 880 and 1320 Hz for a cheerful major-fifth body.
-    const ringStart = 0.03;
-    const ringDur = 1.5;
+    // Voice 2 — "ching" bell ring. Three sine partials forming a
+    // C major chord (C5/E5/G5) plus an octave sparkle (C6). Bell-like
+    // envelope: instant attack, long exponential tail.
+    const ringStart = 0.04;
+    const ringDur = 1.4;
     [
-      { freq: 880,  level: 0.55, decay: ringDur },
-      { freq: 1320, level: 0.30, decay: ringDur * 0.8 },
-      { freq: 1760, level: 0.18, decay: ringDur * 0.55 }, // sparkle
+      { freq: 523.25, level: 0.50, decay: ringDur },        // C5 root
+      { freq: 659.25, level: 0.32, decay: ringDur * 0.85 }, // E5 third
+      { freq: 783.99, level: 0.28, decay: ringDur * 0.85 }, // G5 fifth
+      { freq: 1046.5, level: 0.20, decay: ringDur * 0.55 }, // C6 sparkle
+      { freq: 1567.98, level: 0.10, decay: ringDur * 0.35 },// G6 high sparkle
     ].forEach((p) => {
       const osc = ctx.createOscillator();
       osc.type = 'sine';
@@ -5733,7 +5979,7 @@
       const g = ctx.createGain();
       g.connect(ctx.destination);
       g.gain.setValueAtTime(0, now + ringStart);
-      g.gain.linearRampToValueAtTime(p.level, now + ringStart + 0.01);
+      g.gain.linearRampToValueAtTime(p.level, now + ringStart + 0.008);
       g.gain.exponentialRampToValueAtTime(0.0001, now + ringStart + p.decay);
       osc.connect(g);
       osc.start(now + ringStart);
@@ -5741,59 +5987,50 @@
     });
   }
 
-  // Cash-OUT sound — Cash App-style coin drop. A low percussive
-  // "plunk" (the thud of a coin hitting a tray) immediately followed
-  // by a descending sequence of metallic pings that simulate coins
-  // settling. Total ~1.8s, peak gain 0.55, high volume.
+  // v83: Cash-OUT — CashApp-style notification ping. Bright bell tone
+  // with a quick descending whoosh underneath to imply money flowing
+  // away. Single concise event, not the multi-coin sequence of v80
+  // (less attention-grabbing since users don't celebrate cash-out).
+  // Total ~0.8s, peak gain 0.45.
   function _playCashOutSound(ctx) {
     const now = ctx.currentTime;
 
-    // Voice 1 — initial "plunk" thud. Low frequency with fast decay.
-    {
+    // Voice 1 — main bell ping. E5 sine with one inharmonic partial
+    // for slight metallic edge.
+    [
+      { freq: 659.25, level: 0.45, decay: 0.6  }, // E5
+      { freq: 880.0,  level: 0.18, decay: 0.45 }, // A5 brighten
+      { freq: 1318.5, level: 0.10, decay: 0.30 }, // E6 sparkle
+    ].forEach((p) => {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(p.freq, now);
       const g = ctx.createGain();
       g.connect(ctx.destination);
       g.gain.setValueAtTime(0, now);
-      g.gain.linearRampToValueAtTime(0.55, now + 0.008);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.15);
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(180, now);
-      osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+      g.gain.linearRampToValueAtTime(p.level, now + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + p.decay);
       osc.connect(g);
       osc.start(now);
-      osc.stop(now + 0.2);
-    }
+      osc.stop(now + p.decay + 0.05);
+    });
 
-    // Voices 2-4 — metallic "ping" sequence, descending pitches at
-    // staggered times. Each ping has bell-like inharmonic partials so
-    // the ear hears them as metal coins rather than pure tones.
-    const pingPitches = [
-      { t: 0.08, freq: 1800, level: 0.45 },
-      { t: 0.18, freq: 1400, level: 0.42 },
-      { t: 0.32, freq: 1100, level: 0.38 },
-      { t: 0.50, freq: 900,  level: 0.30 },
-      { t: 0.75, freq: 700,  level: 0.22 },
-    ];
-    for (const p of pingPitches) {
-      // Inharmonic partials for metallic timbre
-      const partials = [
-        { mult: 1.0,  weight: 1.0,  decay: 0.45 },
-        { mult: 2.76, weight: 0.45, decay: 0.30 },
-        { mult: 5.40, weight: 0.18, decay: 0.20 },
-      ];
-      for (const part of partials) {
-        const osc = ctx.createOscillator();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(p.freq * part.mult, now + p.t);
-        const g = ctx.createGain();
-        g.connect(ctx.destination);
-        g.gain.setValueAtTime(0, now + p.t);
-        g.gain.linearRampToValueAtTime(p.level * part.weight, now + p.t + 0.005);
-        g.gain.exponentialRampToValueAtTime(0.0001, now + p.t + part.decay);
-        osc.connect(g);
-        osc.start(now + p.t);
-        osc.stop(now + p.t + part.decay + 0.05);
-      }
+    // Voice 2 — descending whoosh underneath, starting just after the
+    // ping. Sine sweeping from 600Hz down to 150Hz over 0.4s — the
+    // "money leaving" suggestion.
+    {
+      const g = ctx.createGain();
+      g.connect(ctx.destination);
+      g.gain.setValueAtTime(0, now + 0.05);
+      g.gain.linearRampToValueAtTime(0.18, now + 0.08);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(600, now + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(150, now + 0.45);
+      osc.connect(g);
+      osc.start(now + 0.05);
+      osc.stop(now + 0.5);
     }
   }
 
@@ -7085,6 +7322,7 @@
     }
     if (session.view === 'announcementsView') { renderAnnouncementsReadView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'quickLook') { renderQuickLookView(root); _restoreFocusAfterRender(_preservedFocus); return; }
+    if (session.view === 'memberActivity') { renderMemberActivityView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     renderEntriesView(root);
     _restoreFocusAfterRender(_preservedFocus);
   }
@@ -7390,7 +7628,15 @@
         const entryNoToken = e.entryNo
           ? `#${e.entryNo} ${e.entryNo}`
           : '';
-        const hay = `${e.note || ''} ${e.category || ''} ${e.party || ''} ${acctName} ${byName} ${amountStr} ${amountFmt} ${dateStr} ${editedToken} ${addedToken} ${statusTokens} ${entryNoToken}`.toLowerCase();
+        // v85: category shortcut alias. If the entry's category has a
+        // shortcut (e.g. "SB" for "Soyabean"), make the shortcut also
+        // searchable so users find entries by either form.
+        const catShortcutToken = (() => {
+          if (!e.category) return '';
+          const catRow = (data.categories || []).find(c => c.name === e.category);
+          return catRow?.shortcut || '';
+        })();
+        const hay = `${e.note || ''} ${e.category || ''} ${catShortcutToken} ${e.party || ''} ${acctName} ${byName} ${amountStr} ${amountFmt} ${dateStr} ${editedToken} ${addedToken} ${statusTokens} ${entryNoToken}`.toLowerCase();
         if (!hay.includes(search)) return false;
       }
       if (__entryFilter.partyId && e.partyId !== __entryFilter.partyId) return false;
@@ -7891,16 +8137,6 @@
         <div class="page-actions">
           ${printIconButton()}
           ${canExport(biz.id) && totalParties >= 1 ? exportIconButton('parties') : ''}
-          ${totalParties >= 2 ? `
-            <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
-              <option value="name"        ${sortMode === 'name'        ? 'selected' : ''}>Sort: A → Z</option>
-              <option value="name-z"      ${sortMode === 'name-z'      ? 'selected' : ''}>Sort: Z → A</option>
-              <option value="recent"      ${sortMode === 'recent'      ? 'selected' : ''}>Sort: Recently active</option>
-              <option value="recent-date" ${sortMode === 'recent-date' ? 'selected' : ''}>Sort: Latest entry date</option>
-              ${showTotals ? `<option value="most-in"  ${sortMode === 'most-in'  ? 'selected' : ''}>Sort: Most received</option>` : ''}
-              ${showTotals ? `<option value="most-out" ${sortMode === 'most-out' ? 'selected' : ''}>Sort: Most paid</option>` : ''}
-              ${showTotals ? `<option value="most-net" ${sortMode === 'most-net' ? 'selected' : ''}>Sort: Highest net</option>` : ''}
-            </select>` : ''}
           ${canAdd ? '<button class="btn btn-sm btn-accent" onclick="openModal(\'party\')">+ New Party</button>' : ''}
         </div>
       </div>
@@ -7909,6 +8145,17 @@
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="partiesSearchInput" class="entity-search-input" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
         ${__partiesSearch ? `<button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
+      </div>` : ''}
+      ${totalParties >= 2 ? `<div class="parties-sort-row">
+        <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
+          <option value="name"        ${sortMode === 'name'        ? 'selected' : ''}>Sort: A → Z</option>
+          <option value="name-z"      ${sortMode === 'name-z'      ? 'selected' : ''}>Sort: Z → A</option>
+          <option value="recent"      ${sortMode === 'recent'      ? 'selected' : ''}>Sort: Recently active</option>
+          <option value="recent-date" ${sortMode === 'recent-date' ? 'selected' : ''}>Sort: Latest entry date</option>
+          ${showTotals ? `<option value="most-in"  ${sortMode === 'most-in'  ? 'selected' : ''}>Sort: Most received</option>` : ''}
+          ${showTotals ? `<option value="most-out" ${sortMode === 'most-out' ? 'selected' : ''}>Sort: Most paid</option>` : ''}
+          ${showTotals ? `<option value="most-net" ${sortMode === 'most-net' ? 'selected' : ''}>Sort: Highest net</option>` : ''}
+        </select>
       </div>` : ''}
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">Customers, vendors, and anyone you've moved money to or from. ${showTotals ? 'Totals shown reflect the period selected above.' : ''}</p>
       
@@ -8050,6 +8297,7 @@
           ${canExport(biz.id) ? exportIconButton('party:' + party.id) : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="renameParty('${party.id}')">Rename</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-danger-outline" onclick="deletePartyAction('${party.id}')">Delete</button>` : ''}
+          ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({partyId:'${jsAttr(party.id)}'})" title="Add an entry pre-filled with ${escapeHtml(party.name)}">+ Entry</button>` : ''}
         </div>
       </div>
       ${statsHTML}
@@ -8343,6 +8591,7 @@
           ${canExport(biz.id) && !isUncat ? exportIconButton('category:' + jsAttr(catName)) : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="renameCategoryFlow('${jsAttr(catName)}')">Rename</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteCategoryFromDetail('${jsAttr(catName)}')">Remove</button>` : ''}
+          ${(!isUncat && canAddEntry()) ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({category:'${jsAttr(catName)}'})" title="Add an entry pre-filled with ${escapeHtml(displayName)}">+ Entry</button>` : ''}
         </div>
       </div>
       ${statsHTML}
@@ -8450,25 +8699,58 @@
     toast(`Renamed to "${trimmed}".`);
   }
   // Rename a category by id, refreshing the per-business settings modal.
-  async function renameCategoryByIdFromBizSettings(catId, bizId) {
+  // v85: also edits shortcut. Opens a proper modal instead of uiPrompt.
+  function renameCategoryByIdFromBizSettings(catId, bizId) {
     const cat = data.categories.find(c => c.id === catId);
     if (!cat) return;
     if (!canManageOps(cat.businessId)) { toast('Only the owner or manager can rename.'); return; }
-    const newName = await uiPrompt('Rename category:', cat.name, { title: 'Rename category', submitLabel: 'Rename' });
-    if (newName == null) return;
-    const trimmed = newName.trim();
-    if (!trimmed) { toast('Name cannot be blank.'); return; }
-    if (trimmed === cat.name) return;
-    if (data.categories.find(c => c.businessId === cat.businessId && c.id !== catId && c.name.toLowerCase() === trimmed.toLowerCase())) {
+    openModalRaw(`
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Edit category</h2>
+      <div class="form-grid">
+        <div class="input-wrap">
+          <label>Name</label>
+          <input type="text" id="mEditCatName" maxlength="120" value="${escapeHtml(cat.name)}">
+        </div>
+        <div class="input-wrap">
+          <label>Shortcut <span style="color:var(--ink-mute);font-weight:400;">(optional)</span></label>
+          <input type="text" id="mEditCatShortcut" maxlength="20" value="${escapeHtml(cat.shortcut || '')}" placeholder="e.g. SB for Soyabean">
+          <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.2rem;">Used to search and auto-pick this category when entering an entry.</div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal();openBizSettings('${jsAttr(bizId)}')">Cancel</button>
+          <button class="btn btn-accent" onclick="submitCategoryEdit('${jsAttr(catId)}','${jsAttr(bizId)}')">Save</button>
+        </div>
+      </div>
+    `);
+    setTimeout(() => document.getElementById('mEditCatName')?.focus(), 60);
+  }
+  function submitCategoryEdit(catId, bizId) {
+    const cat = data.categories.find(c => c.id === catId);
+    if (!cat) return;
+    const newName = (document.getElementById('mEditCatName')?.value || '').trim();
+    const newShortcut = (document.getElementById('mEditCatShortcut')?.value || '').trim();
+    if (!newName) { toast('Name cannot be blank.'); return; }
+    if (data.categories.find(c => c.businessId === cat.businessId && c.id !== catId && c.name.toLowerCase() === newName.toLowerCase())) {
       toast('A category with that name already exists.'); return;
     }
+    if (newShortcut) {
+      const coll = data.categories.find(c => c.businessId === cat.businessId && c.id !== catId && (
+        (c.shortcut && c.shortcut.toLowerCase() === newShortcut.toLowerCase())
+        || c.name.toLowerCase() === newShortcut.toLowerCase()
+      ));
+      if (coll) { toast(`Shortcut "${newShortcut}" is already used.`); return; }
+    }
     const oldName = cat.name;
-    cat.name = trimmed;
-    const bookIds = data.books.filter(b => b.businessId === cat.businessId).map(b => b.id);
-    data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.category === oldName) e.category = trimmed; });
-    saveData(); renderAll();
+    if (oldName !== newName) {
+      cat.name = newName;
+      const bookIds = data.books.filter(b => b.businessId === cat.businessId).map(b => b.id);
+      data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.category === oldName) e.category = newName; });
+    }
+    cat.shortcut = newShortcut || undefined;
+    saveData(); closeModal(); renderAll();
     openBizSettings(bizId);
-    toast(`Renamed to "${trimmed}".`);
+    toast('Category updated.');
   }
 
   async function deleteCategoryFromDetail(name) {
@@ -12330,9 +12612,22 @@
         </div>
       </div>`;
 
-    // v63: Monthly comparisons — 3 cards side-by-side for last 3
-    // months. Each card shows month name + cash in / out / net.
-    // Quick visual story-arc of recent activity.
+    // v63/v85: Monthly comparisons — 3 cards side-by-side for last 3
+    // months. Each card shows month name + cash in / out /
+    // operating profit. Operating profit = cash in − cash out −
+    // expenses (matches the Audit page definition).
+    //
+    // Build a per-month expense total from data.auditExpenses (scoped
+    // to active business). The expense `month` is normally a 'YYYY-MM'
+    // string, but legacy rows may only have `date` — handle both.
+    const expensesByMonth = new Map();
+    for (const x of (data.auditExpenses || [])) {
+      if (x.businessId !== session.activeBizId) continue;
+      const m = x.month || (x.date ? x.date.slice(0, 7) : null);
+      if (!m) continue;
+      const amt = Number(x.amount) || 0;
+      expensesByMonth.set(m, (expensesByMonth.get(m) || 0) + amt);
+    }
     const monthlyCompareMonths = [];
     for (let off = -2; off <= 0; off++) {
       const key = yearMonthKey(off);
@@ -12340,12 +12635,16 @@
       const d = new Date();
       d.setMonth(d.getMonth() + off);
       const label = d.toLocaleString('default', { month: 'long' });
+      const cashIn = m?.in || 0;
+      const cashOut = m?.out || 0;
+      const expenses = expensesByMonth.get(key) || 0;
       monthlyCompareMonths.push({
         key,
         label,
-        in: m?.in || 0,
-        out: m?.out || 0,
-        net: (m?.in || 0) - (m?.out || 0),
+        in: cashIn,
+        out: cashOut,
+        expenses,
+        opProfit: cashIn - cashOut - expenses,
         isCurrent: off === 0,
       });
     }
@@ -12359,7 +12658,7 @@
               <div class="insights-monthly-label">${escapeHtml(m.label)}${m.isCurrent ? ' <span class="insights-monthly-now">now</span>' : ''}</div>
               <div class="insights-monthly-row"><span>Cash in</span><span class="pos">${cur} ${fmt(m.in)}</span></div>
               <div class="insights-monthly-row"><span>Cash out</span><span class="neg">${cur} ${fmt(m.out)}</span></div>
-              <div class="insights-monthly-row insights-monthly-net"><span>Net</span><span class="${m.net >= 0 ? 'pos' : 'neg'}">${cur} ${m.net >= 0 ? '+' : '−'}${fmt(Math.abs(m.net))}</span></div>
+              <div class="insights-monthly-row insights-monthly-net"><span>Operating profit</span><span class="${m.opProfit >= 0 ? 'pos' : 'neg'}">${cur} ${m.opProfit >= 0 ? '+' : '−'}${fmt(Math.abs(m.opProfit))}</span></div>
             </div>
           `).join('')}
         </div>
@@ -13032,6 +13331,7 @@
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="renameAccountFlow('${acc.id}')">Rename</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="moveAccountToGroup('${acc.id}')">Move</button>` : ''}
           ${canManage && accountCount > 1 ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteAccountAction('${acc.id}')">Delete</button>` : ''}
+          ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({accountId:'${jsAttr(acc.id)}'})" title="Add an entry pre-filled with ${escapeHtml(acc.name)}">+ Entry</button>` : ''}
         </div>
       </div>
       ${statsHTML}
@@ -13421,7 +13721,16 @@
   // ================================================================
   // MODALS
   // ================================================================
-  function openModal(kind, payload, presetType) {
+  // v85: contextual +Entry — opens the entry modal pre-populated with
+  // a specific party / category / account. Used by the + Entry buttons
+  // on the party / category / account detail pages so the user doesn't
+  // have to re-select the entity they're already looking at.
+  function openContextualEntryModal(prefill) {
+    if (!canAddEntry()) { toast("You can't add entries here."); return; }
+    openModal('entry', null, 'in', prefill);
+  }
+
+  function openModal(kind, payload, presetType, prefill) {
     const modal = document.getElementById('modalContent');
     if (!modal) return;
     // D5: When opening a new modal, scrub any leftover state from a
@@ -13436,7 +13745,7 @@
     let handled = true;
     if (kind === 'entry') {
       if (!canAddEntry() && !payload) { toast("You can't add entries here."); return; }
-      modal.innerHTML = entryModal(payload, presetType);
+      modal.innerHTML = entryModal(payload, presetType, prefill);
       setTimeout(() => {
         const t = payload?.type || presetType || 'in';
         setEntryType(t);
@@ -14108,7 +14417,12 @@
   });
 
   // ENTRY MODAL with party autocomplete + category dropdown
-  function entryModal(existing, presetType) {
+  // v85: third arg `prefill` lets the contextual +Entry buttons on
+  // party/category/account detail pages pre-populate the relevant
+  // field without making it a true edit. The modal still creates a
+  // new entry on save (with continuing invoice number) — prefill is
+  // a UX shortcut, not a mode.
+  function entryModal(existing, presetType, prefill) {
     const isEdit = !!existing;
     const t = existing?.type || presetType || 'in';
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -14135,21 +14449,50 @@
       const m = parties.find(p => p.name.toLowerCase() === existing.party.toLowerCase());
       if (m) defaultPartyId = m.id;
     }
+    // v85: contextual +Entry — apply prefill from drilldown pages.
+    // prefill takes effect only for new entries (isEdit === false).
+    if (!isEdit && prefill) {
+      if (prefill.partyId && parties.some(p => p.id === prefill.partyId)) {
+        defaultPartyId = prefill.partyId;
+      }
+    }
     // Build combobox options. Each entry: { value, label, group? }.
     const partyOptionsCombo = parties.map(p => ({ value: p.id, label: p.name }));
-    const defaultAccountId = existing?.accountId || '';
+    let defaultAccountId = existing?.accountId || '';
+    if (!isEdit && prefill && prefill.accountId && accs.some(a => a.id === prefill.accountId)) {
+      defaultAccountId = prefill.accountId;
+    }
     // Build account combobox options with group labels so the dropdown
     // still shows "Cash" / "Bank" headers.
+    // v85: include the group name in `searchKey` so typing a parent
+    // group name (e.g. "Cash") matches every account inside that
+    // group. This satisfies "type a parent account, see sub-accounts."
     const acctOptionsCombo = [];
     groups.forEach(g => {
       const inGroup = accs.filter(a => a.groupId === g.id);
-      inGroup.forEach(a => acctOptionsCombo.push({ value: a.id, label: a.name, group: g.name }));
+      inGroup.forEach(a => acctOptionsCombo.push({
+        value: a.id, label: a.name, group: g.name,
+        searchKey: `${a.name} ${g.name}`,
+      }));
     });
     const orphans = accs.filter(a => !a.groupId || !groups.some(g => g.id === a.groupId));
-    orphans.forEach(a => acctOptionsCombo.push({ value: a.id, label: a.name, group: 'Other' }));
+    orphans.forEach(a => acctOptionsCombo.push({
+      value: a.id, label: a.name, group: 'Other',
+      searchKey: `${a.name} Other`,
+    }));
     // Category options (value === name; category is stored as text on entries)
-    const catOptionsCombo = cats.map(c => ({ value: c.name, label: c.name }));
-    const defaultCategoryName = existing?.category || '';
+    // v85: searchKey includes the shortcut alias so the combobox's
+    // labelMatches/optMatches considers it. Display label still shows
+    // just the name to keep the dropdown clean.
+    const catOptionsCombo = cats.map(c => ({
+      value: c.name,
+      label: c.name,
+      searchKey: c.shortcut ? `${c.name} ${c.shortcut}` : c.name,
+    }));
+    let defaultCategoryName = existing?.category || '';
+    if (!isEdit && prefill && prefill.category && cats.some(c => c.name === prefill.category)) {
+      defaultCategoryName = prefill.category;
+    }
     // v80: entryNo preview for the modal title. For new entries, peek
     // the bucket and show "E12 · May 2026". For edits, show the entry's
     // existing number. The preview updates live when the date input
@@ -14208,6 +14551,7 @@
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          ${!isEdit ? `<button class="btn btn-ghost" id="saveAndAddMoreBtn" onclick="saveEntry({addMore:true})" title="Save and add another with the same date / account / category">+ Add More</button>` : ''}
           <button class="btn ${t === 'in' ? 'btn-gain' : 'btn-loss'}" id="saveEntryBtn" onclick="saveEntry()">${isEdit ? 'Save changes' : 'Save entry'}</button>
         </div>
       </div>
@@ -14317,18 +14661,27 @@
     // Substring match was too loose — typing "ali" used to surface
     // unrelated entries like "Vitalik" or "Mali". Word-start matching
     // is what the user expects from a contact-style picker.
-    function labelMatches(label) {
+    // v85: also match against an optional `searchKey` field (used by
+    // category options to include their shortcut alias, so typing
+    // "SB" finds "Soyabean" even though the visible label is just
+    // the full name).
+    function tokensOf(s) {
+      return String(s || '').toLowerCase().split(/[\s\-_,./()|]+/).filter(Boolean);
+    }
+    function optMatches(o) {
       if (!q) return true;
-      const labelTokens = String(label || '').toLowerCase().split(/[\s\-_,./()|]+/).filter(Boolean);
+      const haystackTokens = [
+        ...tokensOf(o.label),
+        ...tokensOf(o.searchKey || ''),
+      ];
       const queryTokens = q.split(/\s+/).filter(Boolean);
       for (const qtok of queryTokens) {
-        // Every query token must find a label token that starts with it.
-        const matched = labelTokens.some(lt => lt.startsWith(qtok));
+        const matched = haystackTokens.some(lt => lt.startsWith(qtok));
         if (!matched) return false;
       }
       return true;
     }
-    const filtered = q ? options.filter(o => labelMatches(o.label)) : options;
+    const filtered = q ? options.filter(optMatches) : options;
     const list = document.getElementById(id + '_list');
     if (!list) return;
     if (!filtered.length && !allowEmpty) {
@@ -14856,7 +15209,9 @@
     _showModalBackdrop();
   }
 
-  async function saveEntry() {
+  async function saveEntry(opts) {
+    opts = opts || {};
+    const addMore = !!opts.addMore;
     // Clear previous error states
     ['mAmount', 'mParty', 'mCategory', 'mDate', 'mAccount'].forEach(id => {
       const el = document.getElementById(id);
@@ -15067,7 +15422,25 @@
       // owners didn't get audible confirmation of their own saves.
       try { playEntrySound(newEntry.type); } catch (_) {}
     }
-    saveData(); closeModal(); renderAll();
+    saveData();
+    // v85: Add More flow — keep the modal open and clear only the
+    // transient fields (amount, party, note) so the user can rapidly
+    // batch-enter. Date, account, category stay so they don't have to
+    // re-pick them. The next invoice number updates automatically.
+    if (addMore && !isEdit) {
+      const amtEl = document.getElementById('mAmount'); if (amtEl) amtEl.value = '';
+      const partyEl = document.getElementById('mParty'); if (partyEl) partyEl.value = '';
+      const noteEl = document.getElementById('mNote'); if (noteEl) noteEl.value = '';
+      // Refresh the invoice-number preview in the modal header
+      try { updateEntryNoPreview(); } catch (_) {}
+      // Refresh the entries list behind the modal so the new row is
+      // visible if the user closes.
+      try { renderAll(); } catch (_) {}
+      // Focus the amount field for fast next entry
+      setTimeout(() => amtEl?.focus(), 30);
+      return;
+    }
+    closeModal(); renderAll();
   }
 
   function bizModal() {
@@ -15147,6 +15520,11 @@
       <p class="modal-sub">A label for what an entry is about, like Sales or Rent.</p>
       <div class="form-grid">
         <div class="input-wrap"><label>Name</label><input type="text" id="mCategoryName" placeholder="Sales / Rent / Salary"></div>
+        <div class="input-wrap">
+          <label>Shortcut <span style="color:var(--ink-mute);font-weight:400;">(optional)</span></label>
+          <input type="text" id="mCategoryShortcut" maxlength="20" placeholder="e.g. SB for Soyabean">
+          <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.2rem;">Used to search and auto-pick this category when entering an entry.</div>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="saveCategoryManual()">Create</button>
@@ -15156,15 +15534,27 @@
   function saveCategoryManual() {
     const name = document.getElementById('mCategoryName').value.trim();
     if (!name) { toast('Enter a name.'); return; }
+    const shortcut = (document.getElementById('mCategoryShortcut')?.value || '').trim();
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageOps(biz.id)) { toast('Only the owner or manager can add categories.'); return; }
     if (data.categories.find(c => c.businessId === biz.id && c.name.toLowerCase() === name.toLowerCase())) {
       toast('A category with that name already exists.'); return;
     }
+    // v85: shortcut must not collide with another category's shortcut OR another category's name
+    if (shortcut) {
+      const collision = data.categories.find(c => c.businessId === biz.id && (
+        (c.shortcut && c.shortcut.toLowerCase() === shortcut.toLowerCase())
+        || c.name.toLowerCase() === shortcut.toLowerCase()
+      ));
+      if (collision) {
+        toast(`Shortcut "${shortcut}" is already used by another category.`); return;
+      }
+    }
     data.categories.push({
       id: uid(),
       businessId: biz.id,
       name,
+      shortcut: shortcut || undefined,
       sortOrder: nextSortOrder(data.categories, 'businessId', biz.id),
     });
     saveData(); closeModal(); renderAll();
@@ -15938,11 +16328,11 @@
   let __quickLookSearch = '';
   function setQuickLookSearch(v) {
     __quickLookSearch = String(v || '');
-    // Re-render only the lists, not the whole page, so the search input
-    // doesn't lose focus on every keystroke.
-    const inUseEl = document.getElementById('qlInUseList');
-    const allEl = document.getElementById('qlAllList');
-    if (!inUseEl || !allEl) { renderAll(); return; }
+    // v85: with the tab structure we only have one panel visible at
+    // a time, plus the two tab counter badges. Update just those so
+    // the search input keeps focus.
+    const panel = document.getElementById('qlTabPanel');
+    if (!panel) { renderAll(); return; }
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     const role = roleFor(biz.id);
@@ -15951,10 +16341,18 @@
     const filtered = __quickLookSearch
       ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
       : all;
-    inUseEl.innerHTML = renderQuickLookGrid(filtered.filter(r => r.inUse !== false), canManage, false);
-    allEl.innerHTML = renderQuickLookGrid(filtered, canManage, true);
-    document.getElementById('qlInUseCount').textContent = `${filtered.filter(r => r.inUse !== false).length} of ${all.filter(r => r.inUse !== false).length}`;
-    document.getElementById('qlAllCount').textContent = `${filtered.length} of ${all.length}`;
+    const tab = (session.qlTab === 'not-in-use') ? 'not-in-use' : 'in-use';
+    const activeRows = tab === 'in-use'
+      ? filtered.filter(r => r.inUse !== false)
+      : filtered.filter(r => r.inUse === false);
+    panel.innerHTML = renderQuickLookGrid(activeRows, canManage, tab);
+    // Update tab badges
+    const inUseTabBadge = document.querySelector('.ql-tab[aria-selected]:first-of-type .ql-tab-count');
+    const tabs = document.querySelectorAll('.ql-tab');
+    if (tabs.length === 2) {
+      tabs[0].querySelector('.ql-tab-count').textContent = filtered.filter(r => r.inUse !== false).length;
+      tabs[1].querySelector('.ql-tab-count').textContent = filtered.filter(r => r.inUse === false).length;
+    }
   }
   function qlMatchesSearch(r, q) {
     const needle = q.toLowerCase().trim();
@@ -15972,7 +16370,14 @@
     const filtered = __quickLookSearch
       ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
       : all;
-    const inUse = filtered.filter(r => r.inUse !== false);
+    // v85: horizontal sub-tabs. Active tab stored on session so it
+    // persists across navigation and renders. Default is in-use.
+    const tab = (session.qlTab === 'not-in-use') ? 'not-in-use' : 'in-use';
+    const inUseAll = all.filter(r => r.inUse !== false);
+    const notInUseAll = all.filter(r => r.inUse === false);
+    const inUseFiltered = filtered.filter(r => r.inUse !== false);
+    const notInUseFiltered = filtered.filter(r => r.inUse === false);
+    const activeRows = tab === 'in-use' ? inUseFiltered : notInUseFiltered;
     root.innerHTML = `
       <div class="page-header">
         <div class="page-title-wrap">
@@ -15987,7 +16392,7 @@
       </div>
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1rem;">
         ${canManage
-          ? 'Share payment accounts and QR codes with your team. Tap the copy icon to copy a tag; tap a photo to view full-size or download. The toggle on each card moves it between "In Use" and "All".'
+          ? 'Share payment accounts and QR codes with your team. Tap the copy icon to copy a tag; tap a photo to view full-size or download. The toggle on each card moves it between the tabs.'
           : 'Payment accounts and QR codes for this business. Tap the copy icon to copy a tag; tap a photo to download.'}
       </p>
       ${all.length >= 4 ? `<div class="entity-search-wrap">
@@ -15995,44 +16400,48 @@
         <input type="text" id="quickLookSearch" class="entity-search-input" placeholder="Search ${all.length} entries by name or tag…" value="${escapeHtml(__quickLookSearch)}" oninput="setQuickLookSearch(this.value)">
         ${__quickLookSearch ? `<button class="entity-search-clear" onclick="setQuickLookSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
       </div>` : ''}
-      <h2 class="ql-section-title">In Use <span class="ql-count" id="qlInUseCount">${inUse.length}${__quickLookSearch ? ` of ${all.filter(r => r.inUse !== false).length}` : ''}</span></h2>
-      <div id="qlInUseList">${renderQuickLookGrid(inUse, canManage, false)}</div>
-      ${(() => {
-        // "All" section is collapsed by default. The toggle reveals the
-        // remaining entries (the ones not marked in-use). When a search is
-        // active we expand automatically so search results aren't hidden.
-        const otherCount = filtered.length - inUse.length;
-        if (!all.length || otherCount <= 0) return '';
-        const expanded = !!__qlAllExpanded || !!__quickLookSearch;
-        return `
-          <div class="ql-all-toggle-wrap" style="margin-top:1.5rem;">
-            <button class="btn btn-sm btn-ghost ql-all-toggle" onclick="toggleQuickLookAllSection()">
-              ${expanded ? 'Hide other entries' : `View all (${otherCount} more)`}
-            </button>
-          </div>
-          ${expanded ? `
-            <h2 class="ql-section-title" style="margin-top:1.25rem;">All <span class="ql-count" id="qlAllCount">${filtered.length}${__quickLookSearch ? ` of ${all.length}` : ''}</span></h2>
-            <div id="qlAllList">${renderQuickLookGrid(filtered, canManage, true)}</div>
-          ` : ''}
-        `;
-      })()}
+      <div class="ql-tabs" role="tablist">
+        <button class="ql-tab ${tab === 'in-use' ? 'is-active' : ''}" role="tab" aria-selected="${tab === 'in-use'}" onclick="setQuickLookTab('in-use')">
+          In Use <span class="ql-tab-count">${inUseAll.length}</span>
+        </button>
+        <button class="ql-tab ${tab === 'not-in-use' ? 'is-active' : ''}" role="tab" aria-selected="${tab === 'not-in-use'}" onclick="setQuickLookTab('not-in-use')">
+          Not In Use <span class="ql-tab-count">${notInUseAll.length}</span>
+        </button>
+      </div>
+      <div class="ql-tab-panel" id="qlTabPanel">${renderQuickLookGrid(activeRows, canManage, tab)}</div>
     `;
   }
-  // Snapshot: whether the "All" section is expanded. Defaults to false so
-  // the user sees only In-Use entries on first load.
+  function setQuickLookTab(tab) {
+    session.qlTab = tab === 'not-in-use' ? 'not-in-use' : 'in-use';
+    saveSession();
+    renderMain();
+  }
+  // v83: __qlAllExpanded is no longer used (no "All" tab). Kept for
+  // back-compat in case other code references it but is otherwise dead.
   let __qlAllExpanded = false;
   function toggleQuickLookAllSection() {
-    __qlAllExpanded = !__qlAllExpanded;
+    // no-op stub kept so old saved DOM nodes don't 404; the button
+    // is gone, so this can only be hit by an obsolete bookmark.
     renderMain();
   }
 
-  // Render a grid of cards. `showAll` toggles whether the toggle's state
-  // is meaningful — in the All list we visually dim unused cards.
-  function renderQuickLookGrid(rows, canManage, showAll) {
+  // Render a grid of cards. `section` = 'in-use' | 'not-in-use' tells
+  // us the empty-state messaging and whether to dim cards. Cards in
+  // the 'not-in-use' section are not dimmed since they're shown in
+  // their own dedicated section now.
+  function renderQuickLookGrid(rows, canManage, section) {
     if (!rows.length) {
-      const msg = canManage
-        ? (showAll ? 'No entries yet. Click "+ Add entry" above to add the first one.' : 'Nothing in use right now. Toggle entries from the All section below to surface them here.')
-        : (showAll ? 'No entries yet. Ask the owner or manager to add some.' : 'Nothing in use right now.');
+      const msg = (() => {
+        if (section === 'not-in-use') {
+          return canManage
+            ? 'Nothing here. Cards with their toggle switched off appear here.'
+            : 'Nothing here right now.';
+        }
+        // 'in-use' (default)
+        return canManage
+          ? 'Nothing in use right now. Tap "+ Add entry" above, or toggle entries from "Not In Use" below.'
+          : 'Nothing in use right now.';
+      })();
       return `<div class="ql-empty">${escapeHtml(msg)}</div>`;
     }
     const sorted = rows.slice().sort((a, b) => {
@@ -16040,18 +16449,20 @@
       if (so !== 0) return so;
       return (a.name || '').localeCompare(b.name || '');
     });
-    return `<div class="ql-grid">${sorted.map(r => quickLookCardHTML(r, canManage, showAll)).join('')}</div>`;
+    return `<div class="ql-grid">${sorted.map(r => quickLookCardHTML(r, canManage, section)).join('')}</div>`;
   }
 
-  function quickLookCardHTML(r, canManage, showAll) {
-    const unusedClass = (showAll && r.inUse === false) ? 'unused' : '';
+  function quickLookCardHTML(r, canManage, section) {
+    // v83: cards no longer get a dim treatment — both sections are
+    // equally important and each card stands on its own.
+    const unusedClass = '';
     const toggleHTML = canManage
       ? `<div class="ql-toggle" onclick="event.stopPropagation(); toggleQuickLookInUse('${jsAttr(r.id)}')" title="Toggle in use">
-           <span>${r.inUse !== false ? 'In use' : 'Unused'}</span>
+           <span>${r.inUse !== false ? 'In use' : 'Not in use'}</span>
            <span class="ql-toggle-track ${r.inUse !== false ? 'on' : ''}"><span class="ql-toggle-thumb"></span></span>
          </div>`
       : `<div class="ql-toggle readonly" title="Only owner/manager can change">
-           <span>${r.inUse !== false ? 'In use' : 'Unused'}</span>
+           <span>${r.inUse !== false ? 'In use' : 'Not in use'}</span>
            <span class="ql-toggle-track ${r.inUse !== false ? 'on' : ''}"><span class="ql-toggle-thumb"></span></span>
          </div>`;
     // Build menu entries (owner/manager only). Edit + delete.
@@ -17312,6 +17723,27 @@
       toast('Only the owner can drill into team activity.');
       return;
     }
+    // v85: full-page view instead of modal. Persists across renders
+    // via session.view; back arrow returns to Activity.
+    session.view = 'memberActivity';
+    session.memberActivityBucket = bucketKey;
+    session.memberActivityName = memberName;
+    try { saveSession(); } catch (_) {}
+    renderMain();
+  }
+
+  function renderMemberActivityView(root) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) { switchView('activity'); return; }
+    if (roleFor(biz.id) !== 'owner') {
+      session.view = 'activity';
+      try { saveSession(); } catch (_) {}
+      renderMain();
+      return;
+    }
+    const bucketKey = session.memberActivityBucket;
+    const memberName = session.memberActivityName || 'Member';
+    if (!bucketKey) { switchView('activity'); return; }
     const entries = getEntriesForMember(bucketKey);
     const cur = currencyDisplay(biz.currency);
     const periodLabel = currentPeriodLabel();
@@ -17326,11 +17758,6 @@
           const acctName = a ? a.name : '—';
           const noteLine = e.note ? `<div style="font-size:0.8rem;color:var(--ink-soft);margin-top:0.15rem;">${escapeHtml(e.note)}</div>` : '';
           const partyLine = e.party ? `<div style="font-size:0.72rem;color:var(--ink-mute);">${e.type === 'in' ? 'From' : 'To'} ${escapeHtml(e.party)}</div>` : '';
-          // v68: bring this row up to parity with the main entry rows —
-          // show date+time of when the entry was added, plus the edited
-          // badge with full timestamp tooltip, plus the row tint when
-          // the entry is backdated. Owners auditing team activity need
-          // ALL of these signals, not just date and amount.
           const dateLine = entryDateLine(e, 'inline');
           const _editLabel = entryEditedLabel(e);
           const editedBadge = _editLabel
@@ -17356,12 +17783,26 @@
             <div class="member-activity-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${cur} ${fmt(entryAmount(e))}</div>
           </div>`;
         }).join('');
-    const modal = document.getElementById('modalContent');
-    if (!modal) return;
-    modal.innerHTML = `
-      <div class="modal-handle"></div>
-      <h2 class="modal-title">Entries by ${escapeHtml(memberName)}</h2>
-      <p class="modal-sub">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} during <strong>${escapeHtml(periodLabel)}</strong>.</p>
+    root.innerHTML = `
+      <button class="party-detail-back" onclick="switchView('activity')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to Activity
+      </button>
+      <div class="page-header">
+        <div class="page-title-wrap">
+          <div class="page-eyebrow">${escapeHtml(biz.name)} · team activity</div>
+          <h1 class="page-title">Entries by ${escapeHtml(memberName)}</h1>
+          <p style="color:var(--ink-mute);font-size:0.9rem;margin-top:0.4rem;">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} during <strong>${escapeHtml(periodLabel)}</strong>.</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-sm btn-icon-ghost" onclick="printMemberActivityPage('${jsAttr(memberName)}','${jsAttr(periodLabel)}')" title="Print" aria-label="Print">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          </button>
+          <button class="btn btn-sm btn-icon-ghost" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')" title="Export PDF" aria-label="Export PDF">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </button>
+        </div>
+      </div>
       <div class="member-activity-totals">
         <div class="member-activity-stat">
           <div class="member-activity-stat-label">Cash in</div>
@@ -17377,14 +17818,23 @@
         </div>
       </div>
       <div class="member-activity-list" id="memberActivityListPrint">${list}</div>
-      <div class="modal-actions">
-        ${smPrintIcon(`printMemberActivity('${jsAttr(memberName)}','${jsAttr(periodLabel)}')`)}
-        ${smPdfIcon(`exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')`)}
-        ${smCsvIcon(`exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','csv')`)}
-        <button class="btn" onclick="closeModal()">Done</button>
-      </div>
     `;
-    _showModalBackdrop();
+  }
+
+  // v85: full-page print for member activity. Different from the old
+  // modal print: the body class clips nothing, and CSS controls
+  // page-break behaviour on the row level so the list paginates across
+  // multiple pages instead of clipping at one.
+  function printMemberActivityPage(memberName, periodLabel) {
+    document.body.classList.add('printing-member-activity-page');
+    document.title = `Entries by ${memberName} — ${periodLabel}`;
+    const cleanup = () => {
+      document.body.classList.remove('printing-member-activity-page');
+      window.removeEventListener('afterprint', cleanup);
+      document.title = 'Hisabs';
+    };
+    window.addEventListener('afterprint', cleanup);
+    setTimeout(() => window.print(), 100);
   }
 
   // Print the member activity modal — applies a body class so the
@@ -18338,7 +18788,13 @@
       <div class="settings-section">
         <h3 class="settings-heading">Your account</h3>
         <div class="form-grid">
-          <div class="input-wrap"><label>Name</label><input type="text" id="setName" value="${escapeHtml(u.name)}"></div>
+          <div class="input-wrap profile-name-row">
+            <label>Name</label>
+            <div class="profile-name-input-wrap">
+              <input type="text" id="setName" value="${escapeHtml(u.name)}">
+              <button class="btn btn-sm" onclick="saveProfileName()" id="profileSaveNameBtn">Save</button>
+            </div>
+          </div>
           <div class="input-wrap"><label>${u.provider === 'google' ? 'Google email' : 'Phone / email'} (login)</label><input type="text" value="${escapeHtml(u.login)}" disabled style="opacity:0.6;"></div>
           ${u.provider === 'google' ? `
             <div class="info-box" style="margin-bottom:0;display:flex;align-items:center;gap:0.6rem;">
@@ -18346,39 +18802,32 @@
               <span>Signed in with Google. No password needed.</span>
             </div>
           ` : `
-            <!-- Change-password reveal. Hidden by default to keep the
-                 Profile tab uncluttered; user clicks the button to expand
-                 the inputs. Empty inputs are ignored by saveAccount, so
-                 a hidden state means "no password change". -->
-            <div id="setPwdReveal">
-              <button type="button" class="btn btn-sm btn-ghost" onclick="toggleChangePassword(true)">Change password</button>
-            </div>
-            <div id="setPwdSection" hidden>
-              <div class="form-row">
-                <div class="input-wrap"><label>New password</label><input type="password" id="setPwd" placeholder="at least 6 characters"></div>
-                <div class="input-wrap"><label>Confirm</label><input type="password" id="setPwd2" placeholder=""></div>
-              </div>
-              <div style="display:flex;justify-content:flex-end;margin-top:0.4rem;">
-                <button type="button" class="btn btn-sm btn-ghost" onclick="toggleChangePassword(false)">Cancel password change</button>
-              </div>
+            <!-- v85: change password is now a dedicated modal with old /
+                 new / confirm + a forgot password fallback. The button
+                 below opens it; saving is done inside the modal. -->
+            <div>
+              <button type="button" class="btn btn-sm btn-ghost" onclick="openChangePasswordModal()">Change password</button>
             </div>
           `}
-          <div style="display:flex;justify-content:flex-end;"><button class="btn btn-sm" onclick="saveAccount()">Save account</button></div>
         </div>
       </div>
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Notifications</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.55rem;">Alerts when the owner posts a new announcement. ${typeof Notification === 'undefined' ? 'Your browser doesn\'t support notifications.' : (Notification.permission === 'granted' ? 'System notifications are <strong>enabled</strong>.' : Notification.permission === 'denied' ? 'System notifications are <strong>blocked</strong>. To re-enable, change the permission in your browser site settings.' : 'System notifications are <strong>not granted yet</strong>. Tap the button to enable.')}</p>
-        <div class="toggle-row">
+        <div class="toggle-row toggle-row-compact">
           <div class="toggle-row-text">
-            <div class="toggle-row-title">Play sound for new announcements</div>
-            <div class="toggle-row-desc">A 4-second alert tone with vibration when a teammate posts. Browsers block audio until you tap somewhere on the page, so the very first alert after page load may be silent.</div>
+            <div class="toggle-row-title">Notifications</div>
           </div>
           <label class="toggle"><input type="checkbox" id="setChimeMuted" ${isChimeMuted() ? '' : 'checked'} onchange="setChimeMuted(!this.checked)"><span class="toggle-slider"></span></label>
         </div>
+        <div class="toggle-row toggle-row-compact">
+          <div class="toggle-row-text">
+            <div class="toggle-row-title">Entry</div>
+          </div>
+          <label class="toggle"><input type="checkbox" id="mEntrySoundEnabled" ${entrySoundIsMuted() ? '' : 'checked'} onchange="toggleEntrySoundFromSetting(this.checked)"><span class="toggle-slider"></span></label>
+        </div>
         ${typeof Notification !== 'undefined' && Notification.permission === 'default' ? `
-          <div style="margin-top:0.5rem;">
+          <div style="margin-top:0.6rem;">
             <button class="btn btn-sm btn-ghost" onclick="enableNotificationsExplicit()">Enable system notifications</button>
           </div>` : ''}
       </div>` : ''}
@@ -18404,17 +18853,6 @@
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-sm btn-ghost" onclick="openModal('userGuide')">User guide</button>
           <button class="btn btn-sm btn-ghost" onclick="openModal('privacy')">Privacy</button>
-        </div>
-        <hr style="border:none;border-top:1px solid var(--line-soft);margin:0.8rem 0;">
-        <div class="form-row" style="align-items:center;gap:0.8rem;">
-          <div style="flex:1;min-width:0;">
-            <div style="font-size:0.88rem;font-weight:500;">Entry sound</div>
-            <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.15rem;">Play a soft chime when a teammate adds an entry. Plays only when you're on the same business.</div>
-          </div>
-          <label class="toggle" style="flex-shrink:0;">
-            <input type="checkbox" id="mEntrySoundEnabled" ${entrySoundIsMuted() ? '' : 'checked'} onchange="toggleEntrySoundFromSetting(this.checked)">
-            <span class="toggle-slider"></span>
-          </label>
         </div>
       </div>`;
   }
@@ -18588,25 +19026,6 @@
           </div>
         </div>
         <p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.8rem;">You can also search for these states directly on the Entries page — try typing <code>edited</code>, <code>backdated</code>, or <code>frontdated</code> in the search box.</p>
-      </div>
-
-      <!-- v81: Invoice numbers explainer. Tells users how the #N prefix
-           works, what happens on edit/delete/backdate, and how to
-           search. Sits right after the entry-indicator legend so it's
-           contextually grouped with all the "how the entries page
-           reads" guidance. -->
-      <div class="settings-section">
-        <h3 class="settings-heading">Invoice numbers</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Every entry gets an invoice-style number prefixed with <code>#</code>. The counter resets at the start of each month, separately for each book.</p>
-        <ul class="invoice-rules">
-          <li><strong>New entry</strong> → gets the next available number in the entry's month (max + 1). Two entries can have the same number across different months — <code>#3</code> in May and <code>#3</code> in June are different invoices.</li>
-          <li><strong>Backdated entry</strong> → still gets the next number in <em>the month it's dated for</em>. If you record today an entry dated May 7, and May already has #1–#5, the new one becomes <code>#6</code> — even though it sits chronologically between earlier entries. This matches a paper invoice book: you grab the next blank page, not insert one mid-pad.</li>
-          <li><strong>Future-dated entry</strong> → same rule. Dated for June while it's May? Gets the next June number (likely <code>#1</code> if June is empty).</li>
-          <li><strong>Deleted entry</strong> → its number stays as a gap in that month. <code>#3</code> deleted means the month shows #1, #2, #4, #5… The gap is intentional — it's the audit trail. The next new entry gets max+1 (e.g. <code>#6</code>), not the empty slot.</li>
-          <li><strong>Date edited (same month)</strong> → number is preserved. Moving an entry from May 5 to May 12 keeps it as the same <code>#N</code>.</li>
-          <li><strong>Date edited (different month)</strong> → Hisabs asks you first. The number will change, and the original number stays as a gap in the old month. You can cancel and pick a different date if that matters.</li>
-        </ul>
-        <p style="font-size:0.78rem;color:var(--ink-mute);margin-top:0.6rem;">Search any number directly on the Entries page — try <code>#10</code>, <code>10</code>, or just the digits.</p>
       </div>
     `;
   }
@@ -19142,72 +19561,175 @@
     }
   }
 
-  async function saveAccount() {
+  // v85: focused save just for the name field. Has its own inline
+  // button next to the input.
+  async function saveProfileName() {
     const u = me();
     if (!u) return;
-    const newName = document.getElementById('setName').value.trim();
-    const pwdEl = document.getElementById('setPwd');
-    const pwdEl2 = document.getElementById('setPwd2');
-    const pwd1 = pwdEl ? pwdEl.value : '';
-    const pwd2 = pwdEl2 ? pwdEl2.value : '';
+    const newName = (document.getElementById('setName')?.value || '').trim();
     if (!newName) { toast('Name cannot be blank.'); return; }
     if (newName.length > LIMITS.name) { toast(`Name too long (max ${LIMITS.name}).`); return; }
-    if (pwd1 || pwd2) {
-      if (pwd1 !== pwd2) { toast("Passwords don't match."); return; }
-      u.password = pwd1;
-    }
-    const nameChanged = (u.name !== newName);
-    if (nameChanged) {
-      u.name = newName;
-      // Existing entries: update the cached createdByName so the
-      // Entries view shows the new label without waiting for a re-sync.
-      data.entries.forEach(e => { if (e.createdBy === u.id) e.createdByName = newName; });
-      // Member rows: propagate the new name to every business this
-      // user belongs to (as an invited member, not as owner). Sync
-      // will push the rows; other members on other devices will see
-      // them via realtime. saveData triggers the diff/push pipeline.
-      let memberRowsUpdated = 0;
-      for (const m of (data.members || [])) {
-        const matchesMe = (m.userId && m.userId === u.id)
-          || (m.userLogin && u.login && normalize(m.userLogin) === normalize(u.login));
-        if (matchesMe && m.displayName !== newName) {
-          m.displayName = newName;
-          memberRowsUpdated++;
-        }
-      }
-      if (memberRowsUpdated) {
-        // No-op assignment to force the diff pipeline to notice the
-        // member rows mutated — they're already saved via saveData
-        // below, but being explicit here documents intent.
-      }
+    if (u.name === newName) { toast('Name unchanged.'); return; }
+    u.name = newName;
+    // Existing entries: update the cached createdByName so the
+    // Entries view shows the new label without waiting for a re-sync.
+    data.entries.forEach(e => { if (e.createdBy === u.id) e.createdByName = newName; });
+    // Member rows: propagate the new name to every business this
+    // user belongs to.
+    for (const m of (data.members || [])) {
+      const matchesMe = (m.userId && m.userId === u.id)
+        || (m.userLogin && u.login && normalize(m.userLogin) === normalize(u.login));
+      if (matchesMe && m.displayName !== newName) m.displayName = newName;
     }
     saveAccounts(); saveData();
-    document.getElementById('userName').textContent = u.name;
-    document.getElementById('userAvatar').textContent = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    const userNameEl = document.getElementById('userName');
+    if (userNameEl) userNameEl.textContent = u.name;
+    const avatarEl = document.getElementById('userAvatar');
+    if (avatarEl) avatarEl.textContent = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
     // Push the name to Supabase auth.users.user_metadata so the next
-    // cloud session sees it (without this, refresh wipes the name back
-    // to whatever was saved at signup). Also pushes via the auth
-    // listener to any other tabs of this user on this browser. We do
-    // this AFTER local saves so the UI feels instant even on flaky
-    // networks.
-    if (nameChanged && u.cloud) {
+    // cloud session sees it.
+    if (u.cloud) {
       try {
         const { error } = await sb().auth.updateUser({ data: { name: newName } });
         if (error) {
-          // Don't roll back the local change — the next attempt at
-          // sign-in could pick up the same value, or the user can
-          // re-save. Warn so we can see it in console if it happens.
           console.warn('Could not push display name to Supabase:', error.message || error);
           toast('Saved locally — cloud profile may not have updated.');
-          openModal('settings');
           return;
         }
       } catch (e) {
         console.warn('auth.updateUser threw:', e);
       }
     }
-    toast('Account saved.');
+    toast('Name saved.');
+  }
+
+  // v85: dedicated change-password modal. Has Old / New / Confirm
+  // fields + a Forgot password link + a Confirm Change button.
+  function openChangePasswordModal() {
+    const u = me();
+    if (!u) return;
+    if (u.provider === 'google') {
+      toast('Password is managed by Google for this account.');
+      return;
+    }
+    openModalRaw(`
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Change password</h2>
+      <p class="modal-sub">Enter your current password to confirm, then choose a new one.</p>
+      <div class="form-grid">
+        <div class="input-wrap">
+          <label>Old password</label>
+          <input type="password" id="mPwdOld" autocomplete="current-password" placeholder="Your current password">
+        </div>
+        <div style="margin: -0.4rem 0 0.2rem; text-align: right;">
+          <a class="link-subtle" onclick="forgotPasswordFromProfile()" style="font-size: 0.78rem; cursor: pointer;">Forgot your password?</a>
+        </div>
+        <div class="input-wrap">
+          <label>New password</label>
+          <input type="password" id="mPwdNew" autocomplete="new-password" placeholder="At least 6 characters">
+        </div>
+        <div class="input-wrap">
+          <label>Confirm new password</label>
+          <input type="password" id="mPwdConfirm" autocomplete="new-password" placeholder="Retype the new password">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal();openModal('settings');">Cancel</button>
+        <button class="btn btn-accent" onclick="submitPasswordChange()">Confirm Change</button>
+      </div>
+    `);
+    // Auto-focus the first password field
+    setTimeout(() => document.getElementById('mPwdOld')?.focus(), 60);
+  }
+
+  // openModalRaw — shortcut that bypasses the templated openModal flow
+  // since this modal is generated inline. Re-uses the same backdrop +
+  // ESC + focus-trap machinery as the rest of the app.
+  function openModalRaw(html) {
+    const backdrop = document.getElementById('modalBackdrop');
+    const content = document.getElementById('modalContent');
+    if (!backdrop || !content) return;
+    content.innerHTML = html;
+    backdrop.classList.add('active');
+    document.body.classList.add('modal-open');
+    if (typeof _trapFocus === 'function') _trapFocus(content);
+  }
+
+  async function submitPasswordChange() {
+    const u = me();
+    if (!u) return;
+    const oldPwd = document.getElementById('mPwdOld')?.value || '';
+    const newPwd = document.getElementById('mPwdNew')?.value || '';
+    const confirmPwd = document.getElementById('mPwdConfirm')?.value || '';
+    if (!oldPwd) { toast('Enter your current password.'); return; }
+    if (!newPwd) { toast('Enter a new password.'); return; }
+    if (newPwd.length < 6) { toast('New password must be at least 6 characters.'); return; }
+    if (newPwd !== confirmPwd) { toast('New passwords don\'t match.'); return; }
+    if (newPwd === oldPwd) { toast('New password is the same as the old one.'); return; }
+    // For cloud users: verify old password by signing in again with it
+    // first, then call auth.updateUser. For local-only users: compare
+    // against u.password.
+    if (u.cloud) {
+      try {
+        const { error: signinErr } = await sb().auth.signInWithPassword({
+          email: u.login,
+          password: oldPwd,
+        });
+        if (signinErr) {
+          toast('Current password is incorrect.');
+          return;
+        }
+        const { error: updErr } = await sb().auth.updateUser({ password: newPwd });
+        if (updErr) {
+          toast('Could not update password: ' + (updErr.message || 'unknown error'));
+          return;
+        }
+      } catch (e) {
+        toast('Password change failed: ' + (e.message || e));
+        return;
+      }
+    } else {
+      if (u.password !== oldPwd) {
+        toast('Current password is incorrect.');
+        return;
+      }
+      u.password = newPwd;
+      saveAccounts();
+    }
+    closeModal();
+    toast('Password changed.');
     openModal('settings');
+  }
+
+  async function forgotPasswordFromProfile() {
+    const u = me();
+    if (!u) return;
+    if (!u.cloud) {
+      toast('Password reset only available for cloud accounts.');
+      return;
+    }
+    if (!(await uiConfirm(
+      `Send a password-reset email to ${u.login}?\n\nIf you forgot your current password, you'll get a link to set a new one without needing the old one.`,
+      { confirmLabel: 'Send reset email', cancelLabel: 'Cancel' }
+    ))) return;
+    try {
+      const { error } = await sb().auth.resetPasswordForEmail(u.login, {
+        redirectTo: window.location.origin,
+      });
+      if (error) { toast('Could not send reset email: ' + error.message); return; }
+      toast('Reset email sent. Check your inbox.');
+      closeModal();
+      openModal('settings');
+    } catch (e) {
+      toast('Reset failed: ' + (e.message || e));
+    }
+  }
+
+  // v85: back-compat shim. The "Save account" button is gone, but if
+  // any cached handler somewhere still triggers saveAccount(), route
+  // it to saveProfileName so we don't break.
+  async function saveAccount() {
+    return saveProfileName();
   }
   function saveActiveBiz() {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -20572,12 +21094,24 @@
   }
   // One-shot migration: walk all entries grouped by (bookId, month),
   // sort each bucket chronologically, and assign rising entryNo to
-  // any entry that lacks one. Preserves any existing numbers. Tagged
-  // via localStorage so we never run it twice.
+  // any entry that lacks one. Preserves any existing numbers.
+  //
+  // v83: cloud is now authoritative — the server trigger assigns
+  // entry_no on every insert. This local backfill exists for two
+  // narrow cases: (1) entries created entirely offline before cloud
+  // sync, (2) legacy entries from before v80 that haven't been
+  // backfilled by the SQL migration yet. Never set the localStorage
+  // flag on an empty state, so a fresh load before sync doesn't
+  // permanently block future backfills if real entries arrive after.
   function backfillEntryNumbers() {
     try {
       if (localStorage.getItem('hisabs_entry_no_v1') === 'done') return;
     } catch (_) {}
+    if (!data.entries || data.entries.length === 0) {
+      // Nothing to backfill. Don't set the flag — wait for entries to
+      // arrive (from cloud or local creation), then run on next boot.
+      return;
+    }
     const buckets = new Map();
     for (const e of data.entries) {
       if (!e.bookId || !e.date) continue;
@@ -20606,6 +21140,10 @@
       }
     }
     if (assigned > 0) saveData();
+    // Only mark complete if we actually processed entries with entries
+    // we could number. If everything already had numbers (e.g. cloud
+    // backfill ran first), the flag still gets set so we don't keep
+    // walking the array on every boot.
     try { localStorage.setItem('hisabs_entry_no_v1', 'done'); } catch (_) {}
   }
   // Display formatter — "#12" by default, "#001" with opts.padded.
@@ -21814,7 +22352,7 @@
 
     if (kind === 'csv') {
       // CSV can't embed images. Just note presence.
-      const rows = all.map(r => [r.name || '', r.tag || '', r.inUse !== false ? 'In use' : 'Unused', r.photoData ? 'Yes' : '—']);
+      const rows = all.map(r => [r.name || '', r.tag || '', r.inUse !== false ? 'In use' : 'Not in use', r.photoData ? 'Yes' : '—']);
       exportTableCSV({
         title: `Snapshot — ${biz.name}`,
         subtitle: `${all.length} entries · Generated ${today()}`,
@@ -22546,13 +23084,21 @@
   // Schedule a delta-pull from the cloud, but ONLY after the local op queue
   // is empty. Otherwise the pull would overwrite local state that hasn't
   // been pushed yet, causing entries to briefly disappear.
+  let __catchupInFlight = false;
   function scheduleCatchupPull() {
+    // v87: guard against parallel ticks. If we're already waiting for
+    // the queue to drain, a second invocation just piggy-backs on the
+    // first. Without this, rapid reconnect events could spawn many
+    // parallel poll loops all racing to call cloudPullAll.
+    if (__catchupInFlight) return;
+    __catchupInFlight = true;
     let waitedMs = 0;
     const tick = async () => {
-      if (!__syncEnabled()) return;
+      if (!__syncEnabled()) { __catchupInFlight = false; return; }
       if (__syncQueue.length === 0) {
         try { await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true }); }
         catch (e) { console.warn('Catchup pull failed:', e.message); }
+        __catchupInFlight = false;
         return;
       }
       // Queue still has items. Wait a bit and retry. Bail after 30s of
@@ -22561,6 +23107,7 @@
       waitedMs += 500;
       if (waitedMs >= 30000) {
         console.warn('Catchup pull deferred: queue still has', __syncQueue.length, 'ops after 30s');
+        __catchupInFlight = false;
         return;
       }
       setTimeout(tick, 500);
@@ -22917,23 +23464,126 @@
 
   // ----------- Background worker -------------
   let __syncWorkerTimer = null;
+  // v84: 60s periodic delta-pull as a backstop in case realtime fails.
+  let __backstopPullTimer = null;
   let __syncDraining = false;
   let __online = navigator.onLine;
 
   function startSyncWorker() {
     if (__syncWorkerTimer) return;
     __syncWorkerTimer = setInterval(() => { drainQueueOnce(); }, SYNC_DRAIN_INTERVAL_MS);
+    // v84: backstop pull every 60s in case realtime missed something
+    // (firewall, proxy buffering, server-side blip). Only fires when
+    // the page is visible — no point pulling for a backgrounded tab.
+    __backstopPullTimer = setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      if (!__syncEnabled() || !__online) return;
+      try { schedulePullDelta(); } catch (_) {}
+    }, 60000);
     window.addEventListener('online', onOnline);
     window.addEventListener('offline', onOffline);
+    // v84: page visibility + focus listeners. On mobile (especially
+    // Android Chrome), the OS can kill the realtime WebSocket while
+    // the app is in the background. When the user returns we have to:
+    //   (1) verify the channel is still subscribed, restart if not,
+    //   (2) trigger a delta pull to catch events that happened while
+    //       we were away.
+    // Without this, users report "I have the app open but new entries
+    // don't show up until I hit refresh."
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onFocusReconnect);
+    // v87: cross-tab sync. When tab A saves data, tab B gets the
+    // storage event and reloads local state for instant cross-tab
+    // updates (no cloud round-trip needed for same-device tabs).
+    window.addEventListener('storage', onStorageChange);
     // Try once immediately on boot in case there are queued ops from offline.
     setTimeout(() => drainQueueOnce(), 500);
   }
 
   function stopSyncWorker() {
     if (__syncWorkerTimer) { clearInterval(__syncWorkerTimer); __syncWorkerTimer = null; }
+    if (__backstopPullTimer) { clearInterval(__backstopPullTimer); __backstopPullTimer = null; }
     window.removeEventListener('online', onOnline);
     window.removeEventListener('offline', onOffline);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+    window.removeEventListener('focus', onFocusReconnect);
+    window.removeEventListener('storage', onStorageChange);
   }
+
+  // v87: cross-tab sync. Browsers fire the 'storage' event only on
+  // OTHER tabs, not the tab doing the write, so there's no echo loop
+  // to guard against. Debounce in case multiple keys change in a
+  // burst (saveData + saveSession + saveAccounts often run together).
+  let __storageReloadTimer = null;
+  function onStorageChange(e) {
+    if (!e || !e.key) return;
+    // Only react to OUR keys. Random unrelated storage from other
+    // sites/extensions shouldn't trigger a reload.
+    const isDataKey = (e.key === DATA_KEY
+      || e.key === SESSION_KEY
+      || e.key === ACCOUNTS_KEY);
+    const isSnapshotKey = (e.key === SYNC_SNAPSHOT_KEY);
+    if (!isDataKey && !isSnapshotKey) return;
+    // If only snapshot changed (no data change), just refresh the
+    // in-memory snapshot — no need to re-render. This keeps tab B's
+    // diff baseline in sync with what tab A just confirmed from cloud,
+    // preventing tab B from re-pushing entries that are already saved.
+    if (isSnapshotKey && !isDataKey) {
+      try {
+        if (e.newValue) __syncSnapshot = JSON.parse(e.newValue);
+      } catch (_) {}
+      return;
+    }
+    // Data key changed → debounced reload + re-render. Multiple keys
+    // changing in a burst (typical when saveData + saveSession run
+    // together) get coalesced into one reload.
+    if (__storageReloadTimer) return;
+    __storageReloadTimer = setTimeout(() => {
+      __storageReloadTimer = null;
+      try {
+        // Reload from localStorage. Re-uses the loadAll path so all
+        // the same normalisation/migrations apply, then re-renders.
+        loadAll();
+        // Also refresh the snapshot from disk so the next diff baseline
+        // matches what was just written.
+        try {
+          const raw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
+          if (raw) __syncSnapshot = JSON.parse(raw);
+        } catch (_) {}
+        if (typeof renderAll === 'function') renderAll();
+      } catch (err) {
+        console.warn('Cross-tab reload failed:', err?.message || err);
+      }
+    }, 150);
+  }
+
+  // v84: reconnect handler shared by visibilitychange + focus.
+  // - If the channel reference is gone (CLOSED state cleared it), restart.
+  // - If it exists but might be stale, do a delta pull to be safe.
+  // We rate-limit so a flurry of focus/visibility events doesn't spam
+  // the server.
+  let __lastVisibilityReconnect = 0;
+  function _maybeReconnectRealtime() {
+    if (!__syncEnabled()) return;
+    if (!__online) return;
+    const now = Date.now();
+    if (now - __lastVisibilityReconnect < 2000) return;
+    __lastVisibilityReconnect = now;
+    // If the channel is gone or appears unhealthy, restart it.
+    // Heuristic: we keep __realtimeChannel non-null only between
+    // startRealtimeListener and stopRealtimeListener. CLOSED status
+    // from the SDK already triggered the reconnect timer in the
+    // subscribe callback; this is a belt-and-braces extra check.
+    if (!__realtimeChannel) {
+      try { startRealtimeListener(); } catch (_) {}
+    }
+    // Either way, fetch any cloud changes we may have missed.
+    try { schedulePullDelta(); } catch (_) {}
+  }
+  function onVisibilityChange() {
+    if (document.visibilityState === 'visible') _maybeReconnectRealtime();
+  }
+  function onFocusReconnect() { _maybeReconnectRealtime(); }
 
   function onOnline()  {
     __online = true;
@@ -22942,6 +23592,10 @@
     // F5: Reconnect → re-attempt any push triggers that queued up while
     // we were offline.
     try { flushPushTriggerQueue(); } catch (_) {}
+    // v84: reconnect realtime too. Going offline → online means the
+    // WebSocket is definitely dead; we have to rebuild it. Without
+    // this the user is back online but events still don't arrive.
+    try { _maybeReconnectRealtime(); } catch (_) {}
   }
   function onOffline() { __online = false; updateSyncBadge(); }
 
@@ -23056,6 +23710,12 @@
   // ----------- Realtime listener -------------
   let __realtimeChannel = null;
   let __realtimeFirstStatusLogged = false;
+  // v84: reconnect state. The Supabase SDK does NOT automatically
+  // resurrect a channel after CHANNEL_ERROR / TIMED_OUT / CLOSED — we
+  // have to do it ourselves. Track attempts for exponential backoff,
+  // and the pending timer so we can cancel it during clean shutdown.
+  let __realtimeReconnectAttempts = 0;
+  let __realtimeReconnectTimer = null;
 
   function startRealtimeListener() {
     if (__realtimeChannel) return;
@@ -23117,10 +23777,27 @@
           }
           updateSyncBadge();
           if (status === 'SUBSCRIBED') {
+            // Channel is healthy — reset reconnect backoff so a future
+            // disconnect starts the backoff sequence fresh.
+            __realtimeReconnectAttempts = 0;
             // On reconnect, do a delta pull to catch any events we missed
             // while disconnected. This is the safety net for realtime
             // reliability gaps.
             schedulePullDelta();
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            // v84: the channel dropped (network blip, OS killed the
+            // WebSocket while backgrounded, or a server-side timeout).
+            // Schedule an automatic reconnect — without this, users
+            // report "entries don't show up until I refresh."
+            // Exponential backoff so we don't hammer a broken endpoint.
+            const attempt = (__realtimeReconnectAttempts = (__realtimeReconnectAttempts || 0) + 1);
+            const delayMs = Math.min(30000, Math.pow(2, Math.min(attempt, 5)) * 500);
+            if (__realtimeReconnectTimer) clearTimeout(__realtimeReconnectTimer);
+            __realtimeReconnectTimer = setTimeout(() => {
+              __realtimeReconnectTimer = null;
+              try { stopRealtimeListener(); } catch (_) {}
+              try { startRealtimeListener(); } catch (_) {}
+            }, delayMs);
           }
         });
     } catch (e) {
@@ -23129,6 +23806,10 @@
   }
 
   function stopRealtimeListener() {
+    if (__realtimeReconnectTimer) {
+      clearTimeout(__realtimeReconnectTimer);
+      __realtimeReconnectTimer = null;
+    }
     if (__realtimeChannel) {
       try { sb().removeChannel(__realtimeChannel); } catch (_) {}
       __realtimeChannel = null;
@@ -23986,10 +24667,16 @@
       toDb: (r) => ({
         id: r.id, business_id: r.businessId,
         name: r.name, sort_order: r.sortOrder || null,
+        // v85: optional shortcut alias for fast search/auto-pick in
+        // the +Entry category field. Persisted as short_name on the
+        // cloud table (also used as a stable column name in case
+        // 'shortcut' becomes a Postgres reserved word in future).
+        short_name: r.shortcut || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
         name: r.name, sortOrder: r.sort_order,
+        shortcut: r.short_name || undefined,
       }),
     },
     entries: {
@@ -24017,6 +24704,19 @@
           // Two or three entries share a transferId so the user can
           // reverse them as a group. Null for normal entries.
           transfer_id: r.transferId || null,
+          // v84: NEVER send entry_no on writes. The server trigger
+          // assigns it atomically on INSERT; UPDATEs preserve the
+          // existing value because we omit the column entirely.
+          // Sending a client value (even our own previously-assigned
+          // optimistic one) creates a race: if a rapid second edit
+          // fires before the realtime echo updated our optimistic
+          // value, we'd overwrite the server's correct number with
+          // the stale guess. Omitting the column avoids that.
+          //
+          // PostgREST treats a missing column in an upsert body as
+          // "don't include in INSERT column list / don't include in
+          // UPDATE SET clause" — exactly what we want.
+          // (entry_no intentionally absent here)
           // Column on the table is edited_at_local (not edited_at). Same
           // pattern as created_at_local: the *_local columns carry the
           // client's wall-clock timestamp, while created_at / updated_at
@@ -24038,6 +24738,13 @@
         createdByName: r.created_by_name || '',
         editedBy: r.edited_by || undefined,
         editedByName: r.edited_by_name || '',
+        // v83: pull entry_no from cloud. The server trigger / backfill
+        // is the authoritative source. If null (legacy row that hasn't
+        // been backfilled yet), leave entryNo undefined and the client
+        // badge renders nothing until the cloud value arrives.
+        entryNo: (r.entry_no === null || r.entry_no === undefined)
+          ? undefined
+          : (Number.isFinite(Number(r.entry_no)) ? Number(r.entry_no) : undefined),
         editedAt: r.edited_at_local ? new Date(r.edited_at_local).getTime() : undefined,
         createdAt: r.created_at_local ? new Date(r.created_at_local).getTime() : Date.now(),
       }),
@@ -24365,6 +25072,13 @@
         // !suppressReload, which meant a brand-new account would show
         // the sidebar role briefly as "owner" (stale from initial paint)
         // before settling on the correct role. Now it re-renders cleanly.
+        // v83: also retry backfill for entry numbers — cloud entries may
+        // have arrived without entry_no if they were saved before the
+        // server trigger existed.
+        try {
+          try { localStorage.removeItem('hisabs_entry_no_v1'); } catch (_) {}
+          backfillEntryNumbers();
+        } catch (e) { console.warn('Post-pull entryNo backfill:', e.message); }
         try { renderAll(); } catch (_) {}
       }
       return true;

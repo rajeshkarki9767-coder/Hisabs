@@ -117,11 +117,16 @@ create table if not exists public.app_categories (
   business_id text not null references public.app_businesses(id) on delete cascade,
   name text not null,
   sort_order int,
+  -- v85: optional shortcut alias (e.g. "SB" for "Soyabean") so users
+  -- can quickly find and auto-pick a category in the +Entry modal.
+  short_name text,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   deleted_at timestamptz
 );
 create index if not exists idx_app_categories_business_id on public.app_categories(business_id);
+-- v85: idempotent migration for existing databases.
+alter table public.app_categories add column if not exists short_name text;
 
 create table if not exists public.app_members (
   id text primary key,
@@ -168,6 +173,14 @@ create table if not exists public.app_entries (
   edited_at_local timestamptz,
   edited_by uuid,
   edited_by_name text,
+  -- v83: invoice-style entry number, assigned server-side via trigger.
+  -- Scoped to (book_id, YYYY-MM of entry_date). Resets each month per
+  -- book. Set once at insert; preserved unless the date moves to a
+  -- different month (handled client-side by re-inserting with new
+  -- date — trigger reassigns). Two clients saving simultaneously
+  -- can't collide because the trigger reads + bumps a single counter
+  -- row inside a transaction.
+  entry_no integer,
   created_at timestamptz default now(),
   updated_at timestamptz default now(),
   deleted_at timestamptz
@@ -486,6 +499,13 @@ create index if not exists idx_app_transfers_business on public.app_transfers(bu
 alter table public.app_entries add column if not exists transfer_id text;
 create index if not exists idx_app_entries_transfer_id on public.app_entries(transfer_id) where transfer_id is not null;
 
+-- v83: invoice-style entry numbers. Add to existing databases. The
+-- column is set by the assign_entry_no trigger (defined below) at
+-- insert time. Existing rows get backfilled by the one-shot backfill
+-- block further down.
+alter table public.app_entries add column if not exists entry_no integer;
+create index if not exists idx_app_entries_book_month on public.app_entries(book_id, substring(entry_date, 1, 7)) where entry_date is not null;
+
 -- ----------------------------------------------------------------
 -- 2. REPLICA IDENTITY FULL
 -- ----------------------------------------------------------------
@@ -553,6 +573,11 @@ declare
     'app_audit_log',
     'app_quick_look',
     'app_announcements',
+    -- v83: announcement seen/reaction events need to push live so the
+    -- owner's receipt summary updates without a refresh. Previously
+    -- subscribed but missing from the publication list, so events
+    -- never reached the channel.
+    'app_announcement_views',
     'app_transfers',
     'app_push_subscriptions'
   ];
@@ -651,6 +676,132 @@ grant execute on function public.user_owns_business(text)        to anon, authen
 grant execute on function public.user_is_business_member(text)   to anon, authenticated;
 grant execute on function public.can_read_business(text)         to anon, authenticated;
 grant execute on function public.can_write_business(text)        to anon, authenticated;
+
+-- ----------------------------------------------------------------
+-- 3b. Atomic invoice-number assignment (v83)
+-- ----------------------------------------------------------------
+-- Goal: every cash entry gets a unique, monotonically increasing
+-- entry_no per (book_id, YYYY-MM bucket). Two clients saving at the
+-- same instant can't collide.
+--
+-- Approach: a BEFORE INSERT trigger reads max(entry_no) for the
+-- (book, month) bucket and writes max+1. We wrap the read+write in
+-- a transaction-scoped advisory lock keyed on a hash of
+-- (book_id, month) so concurrent INSERTs serialize. Cheaper than
+-- a full table lock; only blocks inserts to the same bucket.
+--
+-- Idempotent: if the row already has entry_no set (e.g. client-side
+-- backfill, or one-shot SQL backfill below), the trigger leaves it
+-- alone. This is important for the initial backfill not to fight
+-- with itself.
+create or replace function public.assign_entry_no()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  lock_key bigint;
+  next_no integer;
+begin
+  -- v84: server is the source of truth. We ALWAYS assign, regardless
+  -- of what the client sent. Trusting client-provided entry_no
+  -- created duplicates when:
+  --   (a) two clients saved simultaneously with stale local state,
+  --   (b) a client saved while behind on sync,
+  --   (c) offline replay after others had created entries.
+  -- The client uses its optimistic value only for immediate display;
+  -- the realtime echo of this INSERT carries the server-assigned
+  -- number, which overwrites the optimistic value on the client.
+  if new.entry_date is null or new.book_id is null then
+    return new;
+  end if;
+  -- Per-bucket advisory lock. hashtextextended produces a stable bigint.
+  -- Transaction-scoped: auto-released on commit/rollback.
+  lock_key := hashtextextended(new.book_id || '::' || substring(new.entry_date, 1, 7), 0);
+  perform pg_advisory_xact_lock(lock_key);
+  select coalesce(max(entry_no), 0) + 1 into next_no
+  from public.app_entries
+  where book_id = new.book_id
+    and substring(entry_date, 1, 7) = substring(new.entry_date, 1, 7)
+    and deleted_at is null;
+  new.entry_no := next_no;
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_app_entries_assign_entry_no on public.app_entries;
+create trigger trg_app_entries_assign_entry_no
+  before insert on public.app_entries
+  for each row execute function public.assign_entry_no();
+
+-- v84: aggressive backfill — fix duplicates AND fill nulls in one pass.
+--
+-- v83's backfill only filled NULL entry_no values. That leaves
+-- historical duplicates intact: if a previous bad client saved multiple
+-- rows with entry_no = 1, this block detects the duplicate and
+-- renumbers the entire bucket chronologically.
+--
+-- For each (book_id, month) bucket:
+--   1. Check if there are any duplicates OR any NULL entry_no values.
+--   2. If yes, renumber the entire bucket from 1..N in chronological
+--      order: (entry_date asc, created_at_local asc, id asc).
+--   3. If no, leave the bucket alone.
+--
+-- This runs every time the SQL is applied. After the first run on a
+-- broken database, all buckets are clean and subsequent runs do nothing.
+do $$
+declare
+  bucket record;
+  ent record;
+  n integer;
+  needs_fix boolean;
+  bucket_count integer;
+  distinct_count integer;
+begin
+  for bucket in
+    select distinct book_id, substring(entry_date, 1, 7) as ym
+    from public.app_entries
+    where entry_date is not null and deleted_at is null
+  loop
+    -- Detect: does this bucket need a fix?
+    -- (a) any NULL entry_no, or
+    -- (b) any duplicate entry_no, or
+    -- (c) numbers are non-contiguous starting from 1
+    --
+    -- We treat (a) and (b) as "definitely fix"; (c) we don't fix
+    -- automatically (numbers can legitimately have gaps from deletes,
+    -- which we preserve via the trigger).
+    select count(*), count(distinct entry_no)
+      into bucket_count, distinct_count
+    from public.app_entries
+    where book_id = bucket.book_id
+      and substring(entry_date, 1, 7) = bucket.ym
+      and deleted_at is null;
+    needs_fix := exists (
+      select 1 from public.app_entries
+      where book_id = bucket.book_id
+        and substring(entry_date, 1, 7) = bucket.ym
+        and deleted_at is null
+        and entry_no is null
+    ) or (distinct_count < bucket_count);
+    if not needs_fix then
+      continue;
+    end if;
+    -- Renumber the entire bucket chronologically.
+    n := 0;
+    for ent in
+      select id from public.app_entries
+      where book_id = bucket.book_id
+        and substring(entry_date, 1, 7) = bucket.ym
+        and deleted_at is null
+      order by entry_date asc, created_at_local asc nulls last, id asc
+    loop
+      n := n + 1;
+      update public.app_entries set entry_no = n where id = ent.id;
+    end loop;
+  end loop;
+end$$;
 
 -- ----------------------------------------------------------------
 -- 4. Enable RLS on every table
