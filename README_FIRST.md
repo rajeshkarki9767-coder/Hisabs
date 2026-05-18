@@ -1,156 +1,109 @@
-# Hisabs v89.23 — OTP for signup, forgot password, change email
+# Hisabs v89.24 — 10 UX fixes + 4 follow-up patches
 
 ```
-index.html: 88b9c6c578d6c8cf8776ecfcef1a03b3
-Previous (v89.22): 36368808ccffa0bee667e170adc999a8
+index.html: c9a841c245863215ed7a0c3fc8d74210
+Previous (v89.23): 88b9c6c578d6c8cf8776ecfcef1a03b3
 ```
 
-## ⚠️ READ THIS FIRST
+> **Reminder**: See `SUPABASE_SETUP_REQUIRED.md` for OTP email templates.
 
-**Before deploying v89.23, you must update 3 Supabase email templates.**
-See `SUPABASE_SETUP_REQUIRED.md` for step-by-step instructions.
+## Patch trail
 
-If you skip that step, users will receive emails with links (not codes)
-and the OTP modal will sit waiting forever.
+| Version | Hash (first 12) | What it fixes |
+|---------|-----------------|---------------|
+| v89.24   | 2bcdeca3d6d1 | Initial 10 UX fixes from screenshot review |
+| v89.24.1 | ce1308c129b0 | Personal activity log clear (recheck caught) |
+| v89.24.2 | bbee626bf863 | aria-label on Distribution rows (audit caught) |
+| v89.24.3 | c9a841c245863215ed7a0c3fc8d74210 | Sound throttle (live-systems audit caught) |
 
-## What changed
+## What's fixed
 
-### 1. Signup verification (OTP code at first signup only)
+### Original 10 UX fixes
+1. Category shortcut works in +Entry combobox (case-insensitive)
+2. Save Entry button color (already correct — verified)
+3. Top-right cluster order [×] [+] [💾]
+4. Contextual entry pre-fill survives + Add More
+5. Keyboard-up: Save button reachable via dvh
+6. Activity log clear stays cleared on refresh (both owner + personal)
+7. Heatmap shows only when single month selected
+8. Chart bars/trends are visual-only (no tap)
+9. Distribution party rows: label boxes removed
+10. Team Salaries / Profit Shares: header Save/Edit toggle removed
 
-**Before**: User signs up → Supabase sends magic link → user clicks
-link to confirm → returns to app → signs in.
+### Follow-up patches
+- **v89.24.1**: clearMyAuditLog (personal settings) was missed — same anti-pattern as business clear, now fixed
+- **v89.24.2**: Distribution party row inputs lost `<label>` in fix #9; aria-label added for screen-reader accessibility
+- **v89.24.3**: Sound throttle — 200ms minimum between cash-in/out sounds to prevent overlapping audio when multiple teammates' entries arrive simultaneously
 
-**Now**: User signs up → Supabase sends 6-digit code → user types code
-in a new OTP modal → signed in immediately. After this one-time
-verification, normal password sign-in works forever.
+## What's NOT changed (intentional)
 
-### 2. Forgot password (OTP code → set new password)
+The live-systems audit identified WebSocket reconnect backoff as a concern. **On closer inspection it already exists** in the channel `.subscribe()` callback: `Math.min(30000, Math.pow(2, attempts) * 500)` with reset on SUBSCRIBED status. Not patched because not actually missing.
 
-**Before**: User taps "Forgot password" → enters email → magic link
-sent → opens email → clicks link → sets new password in browser tab.
-
-**Now**: User taps "Forgot password" → enters email → 6-digit code
-sent → types code in OTP modal → "Set new password" modal appears →
-types new password → signed in.
-
-### 3. Change email (new feature)
-
-**Before**: Not possible. Email field was disabled in Profile.
-
-**Now**: Profile → Account → "Change" button next to email →
-type new email → code sent to NEW email → type code → email updated.
-
-## OTP modal UX features
-
-- 6 single-digit boxes (auto-advance on input, backspace goes back)
-- Paste a 6-digit code → fills all boxes at once
-- Last digit auto-submits the code
-- "Resend" link with 60-second cooldown
-- Inline error messages (invalid code, expired, etc.)
-- Mobile keyboard shows number pad (`inputmode="numeric"`)
-- Autofill support for OTP from email apps (`autocomplete="one-time-code"`)
-
-## Existing users — unaffected
-
-If your account is already verified (Zeus, Kratos, Rajesh, anyone who
-signed up before v89.23): nothing changes. You sign in with email +
-password as always. Only NEW signups go through OTP verification.
-
-## Verification
+## Verification (5 passes)
 
 ```
-JS: OK
-HTML comments: 42/42
-CSS braces: 1963/1963
-Backticks: 2138 (even)
-Runtime smoke: clean
-
-6 transforms applied + 1 patch
-18 v89.23 feature checks pass
-v89.22 features intact (3/3)
-v89.21 features intact (2/2)
-v89.20 features intact (2/2)
-Auth integrity: signInWithPassword, onSupabaseSignedIn,
-  openChangePasswordModal, checkAuthLockout, recordAuthFailure all preserved
-Legacy magic-link resetPasswordForEmail: REMOVED (replaced with OTP)
-
-File size: 1709 KB (was 1691 KB, +18 KB for OTP modal + flows)
+Pass 1 (build):           15 transforms applied, 18/18 features verified
+Pass 2 (adversarial):     Caught — clearMyAuditLog missed; patched v89.24.1
+Pass 3 (audit):           Caught — accessibility regression; patched v89.24.2
+Pass 4 (live-systems):    Caught — sound overlap; patched v89.24.3
+Pass 5 (final structural):
+  JS: OK
+  HTML comments: 46/46
+  CSS braces: 1964/1964
+  Backticks: 2140 (even)
+  
+All carryover features intact across v89.20 → v89.24.
 ```
 
 ## Deploy
 
-**Before deploying, complete SUPABASE_SETUP_REQUIRED.md first.**
-
 ```bash
 cd ~/Documents/GitHub/hisabs
-cp ~/Downloads/hisabs_v89_23/index.html ./index.html
+cp ~/Downloads/hisabs_v89_24/index.html ./index.html
 md5sum index.html
-# expected: 88b9c6c578d6c8cf8776ecfcef1a03b3
+# expected: c9a841c245863215ed7a0c3fc8d74210
 ```
 
-Commit + push. **No SQL migrations** — OTP uses Supabase's built-in
-auth flows; only the email template config needs to change.
+Commit + push. No SQL changes.
 
-## What to test after deploy
+## Test checklist (real-device)
 
-### Signup with OTP:
-1. Sign out (if signed in)
-2. Click "Create account" → enter name, email, password (use a NEW email)
-3. Click Create → OTP modal appears
-4. Check the new email's inbox → find the 6-digit code
-5. Type the code → app should sign you in and load
-6. Sign out → sign back in with the same email + password → should work normally
+These are static-verified. Real behavior needs your device:
 
-### Forgot password with OTP:
-1. On sign-in screen, click "Forgot password?"
-2. Type your email → click Send code
-3. Check email → find code → type in OTP modal
-4. After verification, "Set new password" modal appears
-5. Type new password twice → Save → app loads with you signed in
-6. Sign out → sign in with the NEW password → should work
+1. **Sign in works** with existing credentials (regression check)
+2. **Category shortcut**: type a shortcut in +Entry category field → matches
+3. **Top-right cluster**: [×] [+] [💾] left-to-right in entry modal
+4. **Contextual prefill**: Party page → +Entry → +Add More → same party preserved
+5. **Keyboard up**: Save Entry button reachable on mobile
+6. **Activity log clear** (both owner and personal): stays cleared on refresh
+7. **Heatmap**: hidden for "All time", shown for "This month"
+8. **Chart tap**: nothing happens, print buttons still work
+9. **Distribution party rows**: placeholders only, no label boxes
+10. **Team Salaries / Profit Shares**: only "+ Add" in header
+11. **Screen reader**: Distribution row inputs announce as "Party name" / "Percentage share"
+12. **Sound throttle**: when multiple teammates add entries quickly, no overlapping audio
 
-### Change email:
-1. Sign in → open Settings → Profile tab
-2. Click "Change" button next to email
-3. Type new email address → click Send code
-4. Check the NEW email's inbox for the code
-5. Type code → confirmation that email updated
-6. Sign out → try to sign in with NEW email → should work (old email no longer valid)
+## Live-systems audit summary
 
-### Edge cases to verify:
-- Wrong code: modal shows error, allows retry
-- Resend: link greys out for 60 seconds after sending
-- Paste a 6-digit code: fills all boxes and auto-submits
-- Cancel during OTP: returns to sign-in screen cleanly (no half-state)
+**Score: 82/100 on what's statically verifiable.**
+
+Strong: realtime architecture (single channel, central handler), self-echo suppression, render batching with typing-defer, cross-tab sync via storage event, optimistic UI updates, scroll/focus preservation across renders, exponential reconnect backoff on WebSocket drops.
+
+**Cannot verify without runtime testing:**
+- iOS audio unlock behavior
+- Push notification delivery
+- Multi-device concurrent edit semantics  
+- Memory growth over 24+ hours
+- Chart re-render FPS with large datasets
+- Service worker cache freshness after deploys
+
+These are runtime-only verifications. Sandbox cannot test them.
 
 ## Honest limits
 
-- **Cannot test runtime** — sandbox only verifies source structure. Real
-  OTP flow works only against a configured Supabase instance with the
-  email templates updated.
-- **No retry limits on OTP** — Supabase enforces its own rate limit
-  (default: 4 codes per hour). If a user requests too many, Supabase
-  returns an error and our modal shows it. Not something I can fix
-  client-side.
-- **Code expiry** — Supabase OTP codes expire after 1 hour by default.
-  Configurable in Authentication → Settings.
-- **Account lockout doesn't apply to OTP flows** — the existing
-  `checkAuthLockout` only gates `signInWithPassword`. OTP flows
-  bypass that. Acceptable since OTP is rate-limited by Supabase itself.
-- **Edge case: user verifies signup OTP but session is null** — should
-  never happen in practice, but we throw an error and ask them to sign
-  in normally.
-- **iOS Safari OTP autofill** — should work via `autocomplete="one-time-code"`,
-  but iOS's "fill from messages" is the most reliable. Email autofill
-  on iOS is less reliable. User can always type the code manually.
-
-## What's next?
-
-If everything works, that completes the v89.21–v89.23 trio. Remaining
-items from the original v89 list:
-- Distribution row delete sound (small carry-over from v89.20)
-- Instant cross-device sign-out (needs forced_signouts table)
-- Orphan Steve business cleanup (harmless, separate concern)
-
-Let me know what you'd like next.
+- **All audits are static.** Sandbox does not run real browsers, real devices, or real network conditions.
+- **dvh fallback** on Android 9- may still hit old vh (small subset).
+- **`__announcedIds` Set** grows per-session without eviction. Cleared on page reload. LOW-risk memory pattern.
+- **toggleDistEditMode()** function still defined but no callers. Dead code, harmless.
+- **OTP flows depend on Supabase email template config** — see `SUPABASE_SETUP_REQUIRED.md`.
 

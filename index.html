@@ -506,6 +506,14 @@
     }
   }
 
+  /* v89.24: chart bars/trend dots are visual-only (no tap).
+     The inline style="cursor:pointer;" in some bar elements is
+     overridden here. */
+  rect.fc-bar-in, rect.fc-bar-out, rect.bar, rect.bar-in, rect.bar-out,
+  [data-chart-detail] {
+    cursor: default !important;
+  }
+
   /* v89.22: unassigned visual treatment. Parties / categories /
      accounts marked as unassigned get a dimmed card with a dashed
      border and a small 'Unassigned' badge below the name. Signals:
@@ -5424,7 +5432,12 @@
      autofill icons. .keyboard-up is toggled by a focusin/focusout
      listener on .modal. */
   .modal.keyboard-up {
-    max-height: 90vh !important;
+    /* v89.24: use dvh (dynamic viewport height) instead of vh.
+       On mobile, vh = full viewport including under-the-keyboard
+       region. dvh = currently visible viewport (above keyboard).
+       So 85dvh actually fits within the visible area. */
+    max-height: 85dvh !important;
+    overflow-y: auto !important;
   }
   .modal {
       max-width: 100%;
@@ -6657,11 +6670,20 @@
     if (btn) { btn.disabled = true; btn.textContent = 'Verifying…'; }
     _setOtpError('');
     try {
-      await __otpState.onSubmit(code);
+      // Capture the callback locally. We DON'T clear __otpState yet
+      // because if onSubmit throws (e.g. wrong code), the user needs
+      // to retry — and submitOtpCode checks __otpState at the top.
+      const onSubmit = __otpState.onSubmit;
+      await onSubmit(code);
+      // Success path: clear state. The success handler will have
+      // already closed the modal or replaced its content, so this is
+      // just hygiene.
+      __otpState = null;
     } catch (e) {
       _setOtpError(e?.message || 'Could not verify the code.');
       if (btn) { btn.disabled = false; btn.textContent = orig; }
-      // Highlight all boxes as wrong: clear them.
+      // Clear the input boxes so they can retry. __otpState is still
+      // set, so retry will work.
       for (let i = 0; i < 6; i++) {
         const box = document.getElementById('otpBox' + i);
         if (box) { box.value = ''; box.classList.remove('otp-filled'); }
@@ -7769,8 +7791,18 @@
     });
   })();
 
+  // v89.24.3: throttle to prevent overlapping audio when multiple
+  // realtime entries arrive in quick succession from a busy team.
+  // Without this, 5 entries in 200ms = 5 stacked sounds = unpleasant.
+  let __lastEntrySoundAt = 0;
   function playEntrySound(type) {
     if (entrySoundIsMuted()) return;
+    // v89.24.3: 200ms throttle. If a recent sound just played, skip
+    // this one. User still gets audible feedback (the first one) but
+    // bursts of activity don't pile up.
+    const now = Date.now();
+    if (now - __lastEntrySoundAt < 200) return;
+    __lastEntrySoundAt = now;
     const t = String(type || '').toLowerCase();
     // v89: prefer the embedded MP3. Fall back to synthesis on failure.
     const dataUri = t === 'out' ? __HISABS_SOUND_CASH_OUT : __HISABS_SOUND_CASH_IN;
@@ -11563,10 +11595,13 @@
   // inputs in that section are disabled (read-only) and an Edit button
   // shows. When true, inputs are editable and a Save button shows.
   // Per-business so each business remembers its own state.
+  // v89.24: salaries + shares are always in edit mode now. The
+  // header Save/Edit toggle was removed; per-row autosave is the
+  // only edit affordance needed.
   const __distEditMode = {
     parties: false,
-    salaries: false,
-    shares: false,
+    salaries: true,
+    shares: true,
   };
 
   function _persistDistribution() {
@@ -12206,8 +12241,8 @@
             <div class="dist-section-sub">Add each team member, their salary, and any one-off adjustment (advance, bonus, deduction). Final paid is computed automatically.</div>
           </div>
           <div class="dist-section-actions">
-            <button class="btn btn-sm ${__distEditMode.salaries ? 'btn-accent' : 'btn-ghost'}" onclick="toggleDistEditMode('salaries')" title="${__distEditMode.salaries ? 'Save and lock the salaries section' : 'Unlock to edit'}">${__distEditMode.salaries ? 'Save' : 'Edit'}</button>
-            <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()" ${__distEditMode.salaries ? '' : 'disabled'}>+ Add</button>
+            <!-- v89.24: Save/Edit toggle removed; rows always editable -->
+            <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add</button>
           </div>
         </div>
         ${__distSalaries.length ? `<div class="dist-salary-header">
@@ -12281,8 +12316,8 @@
             <div class="dist-section-sub">Allocate the remaining amount as percentage shares. Each share is computed from "Remaining for profit shares" above.</div>
           </div>
           <div class="dist-section-actions">
-            <button class="btn btn-sm ${__distEditMode.shares ? 'btn-accent' : 'btn-ghost'}" onclick="toggleDistEditMode('shares')" title="${__distEditMode.shares ? 'Save and lock the profit-shares section' : 'Unlock to edit'}">${__distEditMode.shares ? 'Save' : 'Edit'}</button>
-            <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()" ${__distEditMode.shares ? '' : 'disabled'}>+ Add</button>
+            <!-- v89.24: Save/Edit toggle removed; rows always editable -->
+            <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add</button>
           </div>
         </div>
         ${__distShares.length ? `<div class="dist-share-header">
@@ -12628,14 +12663,14 @@
           <span class="split-party-radio-dot"></span>
         </label>
         <!-- v89.15: HORIZONTAL layout - Name [____]  %  [__] in one row -->
+        <!-- v89.24: labels removed; placeholder text guides users instead -->
+        <!-- v89.24.2: aria-label added on inputs for screen-reader accessibility -->
         <div class="split-party-fields-h">
           <div class="input-wrap input-wrap-name">
-            <label>Name</label>
-            <input type="text" value="${escapeHtml(p.name)}" placeholder="" maxlength="80" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
+            <input type="text" value="${escapeHtml(p.name)}" placeholder="Name" maxlength="80" aria-label="Party name" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
           </div>
           <div class="input-wrap input-wrap-pct">
-            <label>%</label>
-            <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
+            <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="%" inputmode="decimal" aria-label="Percentage share" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
           </div>
         </div>
         <!-- v89.15: action cluster - edit/save toggle + trash -->
@@ -15733,19 +15768,24 @@
     // confusing when overlaid on a long time window — the squares lose
     // meaning. One month at a time is the actionable view.
     const _hmIsSingleMonth = (() => {
-      const p = __insightsPeriod || { mode: 'current' };
-      if (p.mode === 'current') return true;
+      // v89.24: actual period modes from setInsightsPeriod are
+      //   'all', 'current', 'month', 'range'. Show heatmap only for
+      //   single-month selections:
+      //   - 'current' = current month (May etc) — show
+      //   - 'month'   = specific historical month — show
+      //   - 'all'     = all time — hide
+      //   - 'range'   = custom date range — show only if span ≤ 31 days
+      const p = __insightsPeriod || { mode: 'all' };
       if (p.mode === 'all') return false;
-      if (p.mode === 'custom' && p.from && p.to) {
-        // Compute span in days
+      if (p.mode === 'current') return true;
+      if (p.mode === 'month') return true;
+      if (p.mode === 'range' && p.from && p.to) {
         const dF = new Date(p.from + 'T00:00:00');
         const dT = new Date(p.to + 'T00:00:00');
         const dayMs = 1000 * 60 * 60 * 24;
         const spanDays = Math.round((dT - dF) / dayMs) + 1;
         return spanDays <= 31;
       }
-      // Specific month mode (e.g. p.mode === 'month', p.month === '2026-05')
-      if (p.mode === 'month') return true;
       return false;
     })();
     const heatmapHTML = _hmIsSingleMonth ? `
@@ -16347,7 +16387,15 @@
         return;
       }
       toast('Activity log cleared.');
-      await loadBizActivityLog();
+      // v89.24: clear UI immediately. Don't call loadBizActivityLog
+      // right after delete — realtime sync may not have caught up,
+      // and the next fetch can include rows that the delete didn't
+      // commit yet, making logs appear to "come back". After this,
+      // the next render will use the empty state.
+      try {
+        const list = document.getElementById('activityLogList');
+        if (list) list.innerHTML = '<p style="color:var(--ink-mute);font-size:0.85rem;">No edits or deletes yet — your team\'s record is clean.</p>';
+      } catch (_) {}
     } catch (e) {
       toast('Network error — try again.');
     } finally {
@@ -16401,7 +16449,14 @@
         return;
       }
       toast('Activity log cleared.');
-      await loadAuditLog();
+      // v89.24.1: clear UI immediately. Don't call loadAuditLog right
+      // after delete — realtime/eventual-consistency can re-fetch
+      // rows that hadn't fully committed, making logs appear to
+      // "come back" after the clear.
+      try {
+        const list = document.getElementById('auditLogList');
+        if (list) list.innerHTML = '<p style="font-size:0.78rem;color:var(--ink-mute);">No activity recorded yet.</p>';
+      } catch (_) {}
     } catch (e) {
       toast('Network error — try again.');
     } finally {
@@ -17328,8 +17383,12 @@
   // a specific party / category / account. Used by the + Entry buttons
   // on the party / category / account detail pages so the user doesn't
   // have to re-select the entity they're already looking at.
+  // v89.24: stashed prefill so + Add More can re-apply it (preserves
+  // the contextual entity when adding multiple entries in a row).
+  let __contextualEntryPrefill = null;
   function openContextualEntryModal(prefill) {
     if (!canAddEntry()) { toast("You can't add entries here."); return; }
+    __contextualEntryPrefill = prefill || null;
     openModal('entry', null, 'in', prefill);
   }
 
@@ -17639,7 +17698,12 @@
     }
   });
 
-  function closeModal() { _hideModalBackdrop(); }
+  function closeModal() {
+    // v89.24: clear contextual entry prefill so it doesn't leak into
+    // future non-contextual +Entry clicks.
+    __contextualEntryPrefill = null;
+    _hideModalBackdrop();
+  }
 
   // ================================================================
   // KEYBOARD SHORTCUTS — desktop quality-of-life bindings
@@ -18091,10 +18155,13 @@
     // doesn't auto-suggest a category in the +Entry combobox. Categories
     // still match by name. Shortcuts remain usable in entry search
     // elsewhere; just not in the +Entry picker.
+    // v89.24: include shortcut in searchKey so typing the shortcut
+    // alias matches the category. Case-insensitive via the combobox's
+    // tokensOf() which lowercases both sides.
     const catOptionsCombo = cats.map(c => ({
       value: c.name,
       label: c.name,
-      searchKey: c.name,
+      searchKey: c.shortcut ? `${c.name} ${c.shortcut}` : c.name,
     }));
     let defaultCategoryName = existing?.category || '';
     if (!isEdit && prefill && prefill.category && cats.some(c => c.name === prefill.category)) {
@@ -18129,6 +18196,13 @@
         <div class="entry-modal-topbar-title-row">
           <h2 class="modal-title">${isEdit ? 'Edit' : 'New'} entry ${_previewBadge}</h2>
           <div class="entry-modal-topbar-actions">
+            <!-- v89.24: cluster order [×] [+] [💾] — cancel left, add-more middle, save right -->
+            <button class="btn-icon-close-x" id="closeEntryBtn" onclick="closeModal()" title="Close" aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
             ${!isEdit ? `<button class="btn-icon-add-more" id="saveAndAddMoreBtn" onclick="saveEntry({addMore:true})" title="Save and add another (Shift+Enter)" aria-label="Save and add another"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>` : ''}
             <button class="btn-icon-save btn-icon-save-${t === 'in' ? 'in' : 'out'}" id="saveEntryBtn" onclick="saveEntry()" title="${isEdit ? 'Save changes' : 'Save entry'}" aria-label="${isEdit ? 'Save changes' : 'Save entry'}">
               <!-- Floppy disk save icon -->
@@ -18136,13 +18210,6 @@
                 <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
                 <polyline points="17 21 17 13 7 13 7 21"/>
                 <polyline points="7 3 7 8 15 8"/>
-              </svg>
-            </button>
-            <!-- v89.20: X close button. Red box style. Tap = same as clicking outside the modal. -->
-            <button class="btn-icon-close-x" id="closeEntryBtn" onclick="closeModal()" title="Close" aria-label="Close">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
             </button>
           </div>
@@ -18621,7 +18688,13 @@
   // devices, replacing the v62 click-to-open-modal behavior.
   // The data-chart-detail JSON is still present on every element
   // (used to extract the label/date/value cheaply).
+  //
+  // v89.24: DISABLED. Per user request, chart bars and trend lines
+  // are visual-only — no tap interaction, no tooltip. The click
+  // delegate below is now a no-op. Bars also have cursor:pointer
+  // removed via CSS override added below.
   document.addEventListener('click', (ev) => {
+    return; // v89.24: chart taps are disabled
     const el = ev.target.closest('[data-chart-detail]');
     if (!el) return;
     const raw = el.getAttribute('data-chart-detail');
@@ -19081,6 +19154,38 @@
       // Clear category + its visible combobox text
       clearById('mCategory'); clearById('mCategory_search');
       clearById('mNote');
+      // v89.24: re-apply contextual prefill if this entry was started
+      // from a drill-down page (party / category / account). Otherwise
+      // user has to re-pick the entity for every entry.
+      try {
+        const pf = __contextualEntryPrefill;
+        if (pf) {
+          if (pf.partyId) {
+            const p = data.parties.find(x => x.id === pf.partyId);
+            if (p) {
+              const hidden = document.getElementById('mParty');
+              const visible = document.getElementById('mParty_search');
+              if (hidden) hidden.value = pf.partyId;
+              if (visible) visible.value = p.name;
+            }
+          }
+          if (pf.accountId) {
+            const a = data.cashAccounts.find(x => x.id === pf.accountId);
+            if (a) {
+              const hidden = document.getElementById('mAccount');
+              const visible = document.getElementById('mAccount_search');
+              if (hidden) hidden.value = pf.accountId;
+              if (visible) visible.value = a.name;
+            }
+          }
+          if (pf.category) {
+            const hidden = document.getElementById('mCategory');
+            const visible = document.getElementById('mCategory_search');
+            if (hidden) hidden.value = pf.category;
+            if (visible) visible.value = pf.category;
+          }
+        }
+      } catch (_) {}
       // Reset date back to today (in case the user backdated the prior entry)
       // v89.17: per user — date AND type toggle KEPT (default to today,
       // same Cash In/Out as previous entry). Most common flow: bunch of
@@ -23427,12 +23532,12 @@
           }
           closeModal();
           toast('Email updated.');
-          // Re-render the settings modal if it's open
+          // v89.23 fix: re-open the Settings modal since user came from
+          // Profile tab. Unconditional because at this point the modal
+          // has been closed (innerHTML wiped) so a content-check would
+          // always miss. Brief delay so closeModal's transition completes.
           try {
-            const sm = document.getElementById('modalContent');
-            if (sm && sm.innerHTML.includes('settings-tab')) {
-              openModal('settings');
-            }
+            setTimeout(() => openModal('settings'), 50);
           } catch (_) {}
         },
         onResend: async () => {
