@@ -212,24 +212,29 @@
   .insights-chart-interactive { touch-action: pan-y; }
   .insights-chart-interactive.is-scrubbing { touch-action: none; }
 
-  /* v89.5: bigger charts on mobile — taller containers and larger
-     text inside SVG. Desktop sizes unchanged. */
+  /* v89.7: bigger charts on mobile (bumped from v89.5's 280px).
+     Taller containers + larger text inside SVG for readability and
+     bigger tap targets. Desktop sizes unchanged. */
   @media (max-width: 720px) {
     .insights-chart-interactive {
-      min-height: 280px;
+      min-height: 340px;
     }
     .insights-chart-interactive svg {
-      font-size: 13px;
+      font-size: 15px;
     }
     .insights-chart-interactive svg text {
-      font-size: 12px;
+      font-size: 14px;
+    }
+    /* Bigger tap targets on individual bars/points/cells */
+    .insights-chart-interactive .bar,
+    .insights-chart-interactive .line-point,
+    .insights-chart-interactive .heatmap-cell {
+      cursor: pointer;
     }
     .chart-touch-tooltip {
-      font-size: 0.9rem;
-      padding: 0.55rem 0.8rem;
+      font-size: 1rem;
+      padding: 0.7rem 1rem;
     }
-    /* Forecast bars + heatmap labels too */
-    .fc-bar-in, .fc-bar-out { /* sizing is via SVG height attrs */ }
   }
 
   /* v89.1: entry-modal top-bar V2. Title sits left-of-buttons in
@@ -352,8 +357,9 @@
      editable now, so no lock styling needed. Spacing matches
      Salaries / Profit Shares (vertical breathing room). */
   .split-party-row-v895 {
+    /* v89.7: added Save column (right side) */
     display: grid;
-    grid-template-columns: 28px 1fr 32px;
+    grid-template-columns: 28px 1fr 32px auto;
     gap: 0.6rem;
     align-items: start;
     padding: 0.8rem 0.7rem;
@@ -397,6 +403,101 @@
     outline: none;
   }
   .split-party-remove { margin-top: 0.45rem; }
+
+  /* v89.7: per-row Save button used on Parties / Salaries / Profit Shares.
+     Stays disabled (greyed) until a field is edited. Turns accent when
+     dirty. Flashes "Saved" briefly on commit. */
+
+  /* v89.8: manager devices show Distribution as read-only.
+     Inputs locked, Save buttons hidden, add buttons hidden. */
+  body.dist-view-only .split-party-row-v895 input,
+  body.dist-view-only .split-party-row-v895 select,
+  body.dist-view-only .dist-row-card input,
+  body.dist-view-only .dist-row-card select,
+  body.dist-view-only #splitCurInput,
+  body.dist-view-only #splitRateInput,
+  body.dist-view-only #splitPctInput {
+    pointer-events: none;
+    background: var(--paper-deep) !important;
+    color: var(--ink-mute) !important;
+    cursor: default;
+  }
+  body.dist-view-only .dist-row-save-btn,
+  body.dist-view-only #splitCurSaveBtn,
+  body.dist-view-only .split-party-remove,
+  body.dist-view-only [onclick*="addDistSalaryRow"],
+  body.dist-view-only [onclick*="addDistShareRow"],
+  body.dist-view-only [onclick*="addSplitParty"] {
+    display: none !important;
+  }
+  .dist-view-only-banner {
+    background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+    color: var(--ink);
+    padding: 0.7rem 1rem;
+    border-radius: var(--r-sm);
+    margin-bottom: 0.85rem;
+    font-size: 0.88rem;
+  }
+  .dist-view-only-banner strong { color: var(--accent); }
+  .dist-row-save-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.4rem 0.85rem;
+    margin-top: 0.45rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink-mute);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.1s;
+    min-height: 36px;
+    white-space: nowrap;
+  }
+  .dist-row-save-btn:disabled {
+    cursor: default;
+    opacity: 0.55;
+  }
+  .dist-row-save-btn.is-dirty {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+    opacity: 1;
+    cursor: pointer;
+  }
+  .dist-row-save-btn.is-dirty:hover { filter: brightness(1.08); }
+  .dist-row-save-btn.is-saved {
+    background: var(--gain);
+    color: #fff;
+    border-color: var(--gain);
+    opacity: 1;
+  }
+  .dist-row-save-btn.is-saved::before { content: "✓ "; }
+
+  /* v89.8: inline total % indicator for parties. */
+  .party-total-status {
+    font-size: 0.82rem;
+    margin: 0.4rem 0 0.5rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    display: inline-block;
+    transition: background 0.15s, color 0.15s;
+  }
+  .party-total-status:empty { display: none; }
+  .party-total-status.ok {
+    background: color-mix(in srgb, var(--gain) 14%, transparent);
+    color: var(--gain);
+    font-weight: 600;
+  }
+  .party-total-status.err {
+    background: color-mix(in srgb, var(--loss) 14%, transparent);
+    color: var(--loss);
+    font-weight: 600;
+  }
+  .split-party-save-btn { margin-top: 0.45rem; }
 
   /* v89.6: percent-prefix input wrapper. Shows '%' inside the input
      on the left, with the number padded right of it. */
@@ -3567,7 +3668,22 @@
     border-color: var(--accent-readable); color: var(--ink); background: var(--paper-deep);
   }
   /* Heatmap */
+  /* v89.7: heatmap stays at natural size on mobile + scrolls horizontally
+     so cells stay readable. On desktop the SVG shrinks to fit the column. */
   .insights-heatmap-svg { width: 100%; height: auto; max-width: 100%; }
+  .heatmap-scroll-wrap { width: 100%; }
+  @media (max-width: 720px) {
+    .heatmap-scroll-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      width: 100%;
+    }
+    .heatmap-scroll-wrap .insights-heatmap-svg {
+      width: auto;
+      max-width: none;
+      height: 280px;
+    }
+  }
   /* WoW grid — 4 cells on desktop, 2 on tablet */
   .insights-wow-grid {
     display: grid;
@@ -9151,7 +9267,10 @@
     const statusCls = _status.cls ? ' ' + _status.cls : '';
     const statusDot = entryStatusDotsHTML(_status);
     const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
-    const partyClick = e.partyId ? `onclick="event.stopPropagation();entryChipMenu(event,'party','${jsAttr(e.partyId)}','${jsAttr(e.party || '')}')"` : '';
+    // v89.7: chips no longer trigger any action on tap. Removed
+    // partyClick generation so the .entry-party div has no onclick.
+    // Use the search bar to filter by party.
+    const partyClick = '';
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
     const acct = e.accountId ? (accountMap ? accountMap.get(e.accountId) : data.cashAccounts.find(a => a.id === e.accountId)) : null;
@@ -10484,8 +10603,14 @@
   // v89.6: write current __distSalaries / __distShares to data arrays
   // scoped to the active business. saveData() then queues sync ops to
   // Supabase. If Supabase is offline, localStorage is the fallback.
+  //
+  // v89.8: ONLY owners can write distribution data. Manager devices
+  // skip this entirely — their RLS-rejected writes were the source of
+  // the yellow sync dot. Reads still work; managers see the owner's
+  // data via the realtime subscription.
   function _syncDistributionArrays(bizId) {
     if (!bizId) return;
+    if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
     try {
       // Replace the slice of data.distSalaries that belongs to this biz
       data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId)
@@ -10511,8 +10636,10 @@
   }
 
   // v89.6: mirror __splitParties to data.splitParties (similar pattern)
+  // v89.8: owner-only gate (same reason as _syncDistributionArrays).
   function _syncSplitPartiesArray(bizId) {
     if (!bizId) return;
+    if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
     try {
       data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId)
         .concat(__splitParties.map(r => ({
@@ -10573,7 +10700,72 @@
     _persistDistribution();
     renderDistributionCard();
   }
+  // v89.7: dirty-tracking buffer for distribution rows. Each row id
+  // gets a slot of pending edits. Save commits to the canonical state
+  // and triggers a math refresh. Inputs are still always editable —
+  // we just defer state mutation until Save is pressed.
+  const __distDirty = { salaries: {}, shares: {}, parties: {} };
+  function _distBufferGet(kind, id) {
+    if (!__distDirty[kind]) __distDirty[kind] = {};
+    if (!__distDirty[kind][id]) __distDirty[kind][id] = {};
+    return __distDirty[kind][id];
+  }
+  function _distBufferClear(kind, id) {
+    if (__distDirty[kind]) delete __distDirty[kind][id];
+  }
+  function _distRowDirty(kind, id) {
+    return !!(__distDirty[kind] && __distDirty[kind][id] && Object.keys(__distDirty[kind][id]).length);
+  }
+  function _markRowDirtyUI(kind, id) {
+    // Flash the Save button label/state. Cheap CSS toggle.
+    const btn = document.querySelector(`[data-dist-save="${kind}:${id}"]`);
+    if (btn) {
+      btn.classList.add('is-dirty');
+      btn.disabled = false;
+    }
+  }
+  function _markRowSavedUI(kind, id) {
+    const btn = document.querySelector(`[data-dist-save="${kind}:${id}"]`);
+    if (btn) {
+      btn.classList.remove('is-dirty');
+      btn.classList.add('is-saved');
+      btn.disabled = true;
+      setTimeout(() => { btn.classList.remove('is-saved'); }, 1400);
+    }
+  }
+
+  // v89.7: BUFFERED field update — typing only updates the dirty buffer.
+  // Save commits the buffer. Old direct-mutation path retained as
+  // _commitDistSalaryRow used by the Save button.
   function updateDistSalaryField(id, field, value) {
+    const buf = _distBufferGet('salaries', id);
+    buf[field] = value;
+    _markRowDirtyUI('salaries', id);
+  }
+  function saveDistSalaryRow(id) {
+    const row = __distSalaries.find(r => r.id === id);
+    if (!row) return;
+    const buf = (__distDirty.salaries && __distDirty.salaries[id]) || {};
+    // Commit each pending field
+    if ('name' in buf) row.name = String(buf.name || '').slice(0, 120);
+    if ('salary' in buf) {
+      const n = Number(buf.salary);
+      row.salary = (Number.isFinite(n) && n >= 0) ? n : 0;
+    }
+    if ('adjustmentType' in buf) row.adjustmentType = buf.adjustmentType === 'addition' ? 'addition' : 'deduction';
+    if ('adjustmentAmount' in buf) {
+      const n = Number(buf.adjustmentAmount);
+      row.adjustmentAmount = (Number.isFinite(n) && n >= 0) ? n : 0;
+    }
+    if ('note' in buf) row.note = String(buf.note || '').slice(0, 280);
+    _distBufferClear('salaries', id);
+    _persistDistribution();
+    refreshDistributionTotals();
+    _markRowSavedUI('salaries', id);
+  }
+
+  // legacy direct-mutation entrypoint, used internally by Save above.
+  function _updateDistSalaryFieldImmediate(id, field, value) {
     const row = __distSalaries.find(r => r.id === id);
     if (!row) return;
     if (field === 'name') {
@@ -10626,7 +10818,29 @@
     _persistDistribution();
     renderDistributionCard();
   }
+  // v89.7: BUFFERED shares field update — same pattern as salaries.
   function updateDistShareField(id, field, value) {
+    const buf = _distBufferGet('shares', id);
+    buf[field] = value;
+    _markRowDirtyUI('shares', id);
+  }
+  function saveDistShareRow(id) {
+    const row = __distShares.find(r => r.id === id);
+    if (!row) return;
+    const buf = (__distDirty.shares && __distDirty.shares[id]) || {};
+    if ('name' in buf) row.name = String(buf.name || '').slice(0, 120);
+    if ('pct' in buf) {
+      const n = Number(buf.pct);
+      row.pct = (Number.isFinite(n) && n >= 0 && n <= 100) ? n : 0;
+    }
+    if ('note' in buf) row.note = String(buf.note || '').slice(0, 280);
+    _distBufferClear('shares', id);
+    _persistDistribution();
+    refreshDistributionTotals();
+    _markRowSavedUI('shares', id);
+  }
+
+  function _updateDistShareFieldImmediate(id, field, value) {
     const row = __distShares.find(r => r.id === id);
     if (!row) return;
     if (field === 'name') {
@@ -10646,6 +10860,9 @@
   // keystroke. Adds a "valid" or "over" class on remaining to give
   // visual feedback when total shares exceed 100%.
   function refreshDistributionTotals() {
+    // v89.7: bail early if any distribution input is focused. Same
+    // safety net as the broader gate, defensive in case this is called
+    // during a render path.
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     const bizCur = currencyDisplay(biz.currency);
@@ -10716,10 +10933,26 @@
   // rows where the row count changes. Field-level changes use
   // refreshDistributionTotals() to avoid losing focus.
   function renderDistributionCard() {
-    // v89.6.1: ensure __distSalaries / __distShares reflect the latest
-    // state — preferring cloud over localStorage when both exist.
-    // This makes manager devices see owner edits in real-time.
-    try { loadDistributionFromCloudOrLocal(session.activeBizId); } catch (_) {}
+    // v89.6.1: prefer cloud-synced data over localStorage.
+    // v89.7: skip the reload if a dist input is focused (keyboard glitch).
+    const _ae = document.activeElement;
+    const _editingDist = _ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA') && _ae.closest && (
+      _ae.closest('.split-party-row') ||
+      _ae.closest('.split-calc-cur-row') ||
+      _ae.closest('.dist-row-card')
+    );
+    if (!_editingDist) {
+      try { loadDistributionFromCloudOrLocal(session.activeBizId); } catch (_) {}
+    }
+    // v89.8: expose role for the template — used to disable inputs and
+    // hide Save buttons on non-owner devices.
+    window.__distViewerIsOwner = (roleFor(session.activeBizId) === 'owner');
+    // Toggle body class for CSS-driven disabling.
+    if (window.__distViewerIsOwner) {
+      document.body.classList.remove('dist-view-only');
+    } else {
+      document.body.classList.add('dist-view-only');
+    }
     const wrap = document.getElementById('distributionCard');
     if (!wrap) return;
     wrap.innerHTML = distributionCardBody();
@@ -10847,19 +11080,21 @@
       const adjLabel = r.adjustmentType === 'addition' ? 'addition' : 'deduction';
       return `<div class="dist-row-card ${salEditing ? 'is-editing' : 'is-locked'}" data-dist-row="${escapeHtml(r.id)}">
         <div class="dist-salary-row">
-          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${salDis} oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
-          <input type="number" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal" ${salDis} oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
-          <select data-field="adjustmentType" ${salDis} onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120"  oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal"  oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
+          <select data-field="adjustmentType"  onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
             <option value="deduction" ${r.adjustmentType === 'deduction' ? 'selected' : ''}>− Deduction</option>
             <option value="addition" ${r.adjustmentType === 'addition' ? 'selected' : ''}>+ Addition</option>
           </select>
-          <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" ${salDis} oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
+          <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal"  oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
           <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
-          <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ${salDis}><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" ${salDis} oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
+          <!-- v89.7: per-row Save. Always-editable inputs; Save commits buffered changes + refreshes math. -->
+          <button class="dist-row-save-btn" data-dist-save="salaries:${jsAttr(r.id)}" onclick="saveDistSalaryRow('${jsAttr(r.id)}')" title="Save this row" disabled>Save</button>
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
@@ -10933,14 +11168,16 @@
       const noteVal = escapeHtml(r.note || '');
       return `<div class="dist-row-card ${shrEditing ? 'is-editing' : 'is-locked'}" data-dist-share="${escapeHtml(r.id)}">
         <div class="dist-share-row">
-          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${shrDis} oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
-          <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" ${shrDis} oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120"  oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal"  oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
           <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
-          <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ${shrDis}><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${shrDis} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
+          <!-- v89.7: per-row Save for profit shares. -->
+          <button class="dist-row-save-btn" data-dist-save="shares:${jsAttr(r.id)}" onclick="saveDistShareRow('${jsAttr(r.id)}')" title="Save this row" disabled>Save</button>
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
@@ -10995,45 +11232,64 @@
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
   }
+  // v89.7: typing in Currency only buffers. Save commits + recalculates.
+  let __splitCurrencyPending = null;
   function onSplitCurInput(v) {
-    __splitCurrency = (v || '').slice(0, 6); // hard cap
-    saveSplitStateFor(session.activeBizId);
-    // Update the rate-label currency name without a full re-render.
-    // Label format: "1 [business] = ? [picked]" — type 150 means 1 business
-    // unit converts to 150 picked units. Math: business × rate = picked.
+    __splitCurrencyPending = (v || '').slice(0, 6);
+    // Visual feedback only — update the rate-label live so the user
+    // sees what the saved currency will become. Real state stays old
+    // until Save fires.
     const rateInput = document.getElementById('splitRateInput');
     if (rateInput) {
       const lbl = rateInput.closest('.input-wrap')?.querySelector('label');
-      if (lbl) lbl.textContent = `Rate (1 ${__splitBusinessCurrency} = ? ${__splitCurrency || 'unit'})`;
+      if (lbl) lbl.textContent = `Rate (1 ${__splitBusinessCurrency} = ? ${__splitCurrencyPending || 'unit'})`;
     }
-    updateSplitCalc();
+    const btn = document.getElementById('splitCurSaveBtn');
+    if (btn) { btn.classList.add('is-dirty'); btn.disabled = false; }
   }
+  // v89.7: typing in Rate only buffers. Save commits + recalculates.
+  let __splitRatePending = null;
   function onSplitRateInput(v) {
-    if (v === '' || v === null || v === undefined) { __splitRate = 0; saveSplitStateFor(session.activeBizId); updateSplitCalc(); return; }
-    let n = parseFloat(v);
-    if (!Number.isFinite(n) || n < 0) n = 0;
-    __splitRate = n;
-    saveSplitStateFor(session.activeBizId);
-    updateSplitCalc();
+    if (v === '' || v === null || v === undefined) { __splitRatePending = 0; }
+    else {
+      let n = parseFloat(v);
+      if (!Number.isFinite(n) || n < 0) n = 0;
+      __splitRatePending = n;
+    }
+    const btn = document.getElementById('splitCurSaveBtn');
+    if (btn) { btn.classList.add('is-dirty'); btn.disabled = false; }
   }
 
-  // v89.4: explicit save for Currency + Rate. The values are already
-  // auto-saved on every keystroke; this handler just confirms it
-  // visually (and forces a recalculation in case the user typed
-  // something the oninput didn't process cleanly).
+  // v89.7: explicit Save commits the buffered Currency + Rate values
+  // to state, persists, and triggers calculation. Typing into the
+  // inputs no longer auto-saves; only Save does.
   function saveSplitCurRate() {
-    // Re-read the live input values in case they're newer than state
     const curInp = document.getElementById('splitCurInput');
     const rateInp = document.getElementById('splitRateInput');
-    if (curInp) { __splitCurrency = (curInp.value || '').slice(0, 6); }
-    if (rateInp) {
+    // Flush buffered values (or fall back to live input value)
+    if (__splitCurrencyPending !== null) {
+      __splitCurrency = __splitCurrencyPending;
+      __splitCurrencyPending = null;
+    } else if (curInp) {
+      __splitCurrency = (curInp.value || '').slice(0, 6);
+    }
+    if (__splitRatePending !== null) {
+      __splitRate = Number(__splitRatePending) || 0;
+      __splitRatePending = null;
+    } else if (rateInp) {
       let n = parseFloat(rateInp.value);
       if (!Number.isFinite(n) || n < 0) n = 0;
       __splitRate = n;
     }
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
-    // Visual confirmation
+    const btn = document.getElementById('splitCurSaveBtn');
+    if (btn) {
+      btn.classList.remove('is-dirty');
+      btn.classList.add('is-saved');
+      btn.disabled = true;
+      setTimeout(() => { btn.classList.remove('is-saved'); btn.disabled = false; }, 1400);
+    }
     const status = document.getElementById('splitCurSaveStatus');
     if (status) {
       status.textContent = '✓ Saved';
@@ -11266,6 +11522,8 @@
     };
     // v89.5: parties are always editable now (Save/Edit lock removed).
     // The remaining lock state on Salaries and Profit Shares is unchanged.
+    // v89.8: refresh the total-% indicator on every render
+    try { setTimeout(_v898_validatePartyTotal, 0); } catch (_) {}
     listEl.innerHTML = __splitParties.map(p => {
       const isSelected = p.id === __splitSelectedPartyId;
       return `<div class="split-party-row split-party-row-v895 ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
@@ -11290,6 +11548,8 @@
         <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
           <svg width="12" height="12"><use href="#ico-trash"/></svg>
         </button>
+        <!-- v89.7: per-row Save for split parties. -->
+        <button class="dist-row-save-btn split-party-save-btn" data-dist-save="parties:${jsAttr(p.id)}" onclick="saveSplitPartyRow('${jsAttr(p.id)}')" title="Save this party" disabled>Save</button>
       </div>`;
     }).join('');
   }
@@ -11347,7 +11607,65 @@
       updateSplitCalc();
     }
   }
+  // v89.7: BUFFERED party update — same pattern.
   function updateSplitParty(id, field, value) {
+    const buf = _distBufferGet('parties', id);
+    buf[field] = value;
+    _markRowDirtyUI('parties', id);
+  }
+  function saveSplitPartyRow(id) {
+    const row = __splitParties.find(r => r.id === id);
+    if (!row) return;
+    const buf = (__distDirty.parties && __distDirty.parties[id]) || {};
+    if ('name' in buf) row.name = String(buf.name || '').slice(0, 80);
+    if ('pct' in buf) {
+      const n = Number(buf.pct);
+      row.pct = (Number.isFinite(n) && n >= 0 && n <= 100) ? n : 0;
+    }
+    _distBufferClear('parties', id);
+    saveSplitStateFor(session.activeBizId);
+    updateSplitCalc();
+    _markRowSavedUI('parties', id);
+
+    // v89.8: after saving, check the total. If there are 2+ parties
+    // and the total isn't 100%, surface a warning. The save still
+    // commits (so the user keeps their work) — they just get told.
+    try { _v898_validatePartyTotal(); } catch (_) {}
+  }
+
+  // v89.8: returns the sum of all party % values, rounded to 2dp.
+  function _v898_partyTotalPct() {
+    return Math.round(__splitParties.reduce((sum, p) => sum + (Number(p.pct) || 0), 0) * 100) / 100;
+  }
+
+  // v89.8: validate total = 100% and surface a toast if not. Also
+  // updates a small inline status element next to the parties list
+  // when present.
+  function _v898_validatePartyTotal() {
+    if (!__splitParties || __splitParties.length < 2) return; // nothing to validate
+    const total = _v898_partyTotalPct();
+    const offBy = Math.round((total - 100) * 100) / 100;
+    // Update the inline status if present
+    const status = document.getElementById('partyTotalStatus');
+    if (status) {
+      if (Math.abs(offBy) < 0.01) {
+        status.textContent = `✓ Total: 100%`;
+        status.className = 'party-total-status ok';
+      } else if (offBy > 0) {
+        status.textContent = `⚠ Total: ${total}% (${offBy}% over)`;
+        status.className = 'party-total-status err';
+      } else {
+        status.textContent = `⚠ Total: ${total}% (${Math.abs(offBy)}% short)`;
+        status.className = 'party-total-status err';
+      }
+    }
+    if (Math.abs(offBy) >= 0.01) {
+      const dir = offBy > 0 ? 'over' : 'short';
+      toast(`Parties total ${total}% — must be exactly 100% (${Math.abs(offBy)}% ${dir}).`);
+    }
+  }
+
+  function _updateSplitPartyImmediate(id, field, value) {
     const party = __splitParties.find(p => p.id === id);
     if (!party) return;
     if (field === 'name') {
@@ -12291,6 +12609,8 @@
             <div class="split-parties-title">Parties</div>
             <button class="btn btn-sm btn-ghost" onclick="addSplitParty()">+ Add party</button>
           </div>
+          <!-- v89.8: live total % indicator for parties. -->
+          <div class="party-total-status" id="partyTotalStatus"></div>
           <div id="splitPartiesList">
             <!-- filled by renderSplitParties() -->
           </div>
@@ -14306,7 +14626,7 @@
       <div class="insights-section">
         <h3 class="insights-section-title">Daily activity heatmap <span class="insights-chart-sub">— last 12 weeks</span></h3>
         <p class="insights-section-help">Each square is a day. Green = net positive, red = net negative. Hover to see the value.</p>
-        ${insightsHeatmapSVG(heatmapDays)}
+        <div class="heatmap-scroll-wrap">${insightsHeatmapSVG(heatmapDays)}</div>
       </div>`;
     // ===== Week-over-week (last 4 weeks) =====
     const weekBuckets = [];
@@ -25378,6 +25698,35 @@
   // The queue: array of op envelopes. An op envelope is:
   //   { id: uuid, table: 'app_entries', kind: 'upsert' | 'delete', recordId: '...', row: {...}, ts: 12345, attempts: 0 }
   let __syncQueue = [];
+
+  // v89.8: one-time cleanup of stuck distribution ops left from
+  // v89.6/v89.7 where manager devices queued writes that the server
+  // RLS rejected. Runs once per release; localStorage flag prevents
+  // re-running. Only purges ops for the 3 distribution tables AND
+  // only if the current user isn't the owner of the relevant business.
+  function _v898_dropStuckDistOps() {
+    const FLAG = 'hisabs_v898_dist_purge_done';
+    try { if (localStorage.getItem(FLAG) === '1') return; } catch (_) {}
+    try {
+      const distTables = new Set(['app_distribution_salaries', 'app_distribution_shares', 'app_split_parties']);
+      const before = __syncQueue.length;
+      __syncQueue = __syncQueue.filter(op => {
+        if (!distTables.has(op.table)) return true;
+        // Owner of the row's business gets to keep their ops
+        const bizId = op.row && (op.row.business_id || op.row.bizId);
+        if (bizId && roleFor(bizId) === 'owner') return true;
+        return false;
+      });
+      const dropped = before - __syncQueue.length;
+      if (dropped > 0) {
+        console.log(`v89.8: purged ${dropped} stuck distribution sync op(s)`);
+        try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
+      }
+      localStorage.setItem(FLAG, '1');
+    } catch (e) {
+      console.warn('_v898_dropStuckDistOps:', e?.message || e);
+    }
+  }
   try {
     const raw = localStorage.getItem(SYNC_QUEUE_KEY);
     if (raw) __syncQueue = JSON.parse(raw) || [];
@@ -25394,6 +25743,9 @@
     const raw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
     if (raw) __syncSnapshot = JSON.parse(raw);
   } catch (_) { __syncSnapshot = null; }
+
+  // v89.8: purge stuck distribution ops on boot. Idempotent — runs once.
+  try { _v898_dropStuckDistOps(); } catch (_) {}
 
   function persistSnapshot() {
     try {
