@@ -16,8 +16,8 @@
   the OS-level accessibility text size, which PWAs respect.
 -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-<meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#1c1b18" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f5f5f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e0e0e" media="(prefers-color-scheme: dark)">
 <title>Hisabs — your cash, in order</title>
 <!-- F8: SEO meta description. F9: Open Graph tags so shared links show
      a readable card on chat apps and social. Image is the existing PWA
@@ -51,11 +51,13 @@
   :root {
     /* These are written by applyTheme() at runtime. The values here are
        the initial Terracotta/Light theme so the page can render before JS runs. */
-    --paper: #f5f1e8;
-    --paper-deep: #ede7d8;
-    --ink: #1a1612;
-    --ink-soft: #4a4239;
-    --ink-mute: #8a8275;
+    /* v89.17: neutral greyscale defaults (matches buildPalette light mode).
+       Prevents flash of cream on first paint before JS-driven applyTheme runs. */
+    --paper: #f5f5f5;
+    --paper-deep: #ededed;
+    --ink: #1a1a1a;
+    --ink-soft: #4a4a4a;
+    --ink-mute: #8a8a8a;
     --accent: #b8482a;
     --accent-readable: #b8482a;
     --accent-soft: #d96c4a;
@@ -73,32 +75,33 @@
     --chart-cash-out-soft: #c25742;
     --chart-profit: #2e5d3a;
     --chart-profit-soft: #4a8157;
-    --line: #d4cdb8;
-    --line-soft: #e4ddc8;
+    --line: #d9d9d9;
+    --line-soft: #e8e8e8;
     --shadow: 0 1px 0 rgba(26,22,18,0.04), 0 8px 24px -8px rgba(26,22,18,0.12);
     --shadow-lg: 0 2px 0 rgba(26,22,18,0.04), 0 24px 48px -16px rgba(26,22,18,0.18);
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
-    --bg-gradient-1: rgba(184,72,42,0.04);
-    --bg-gradient-2: rgba(46,93,58,0.03);
-    --noise-opacity: 0.4;
-    --input-bg-focus: rgba(255,255,255,0.3);
-    --surface-1: rgba(255,255,255,0.4);
-    --surface-2: rgba(255,255,255,0.5);
-    --surface-3: rgba(255,255,255,0.55);
+    /* v89.17: gradient tints removed — neutral white background. */
+    --bg-gradient-1: rgba(0,0,0,0);
+    --bg-gradient-2: rgba(0,0,0,0);
+    --noise-opacity: 0;
+    --input-bg-focus: #ffffff;
+    --surface-1: #ffffff;
+    --surface-2: #ffffff;
+    --surface-3: #fafafa;
     --modal-overlay: rgba(26,22,18,0.45);
-    --sidebar-bg: #1a1612;
-    --sidebar-text: #f5f1e8;
-    --sidebar-text-mute: rgba(245,241,232,0.5);
+    --sidebar-bg: #1a1a1a;
+    --sidebar-text: #ededed;
+    --sidebar-text-mute: rgba(237,237,237,0.5);
     /* Font stacks. Each is a system-only stack: no Google Fonts request,
        no @font-face, no network. Modern OSes have excellent fonts of every kind. */
     --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
     --font-serif: "Iowan Old Style", "Charter", "Georgia Pro", Georgia, "Times New Roman", serif;
     --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-    --sidebar-text-faint: rgba(245,241,232,0.4);
-    --sidebar-divider: rgba(245,241,232,0.1);
-    --sidebar-hover: rgba(245,241,232,0.05);
-    --sidebar-active: rgba(245,241,232,0.08);
+    --sidebar-text-faint: rgba(237,237,237,0.4);
+    --sidebar-divider: rgba(237,237,237,0.1);
+    --sidebar-hover: rgba(237,237,237,0.05);
+    --sidebar-active: rgba(237,237,237,0.08);
     /* Border radii — subtle rounding, CashBook-like. Set once here so changes
        cascade. */
     --r-sm: 4px;
@@ -426,6 +429,70 @@
      Stays disabled (greyed) until a field is edited. Turns accent when
      dirty. Flashes "Saved" briefly on commit. */
 
+  /* v89.19: prevent hover styles from sticking on touch devices.
+     On a tap, mobile browsers briefly trigger :hover and keep it
+     applied until the next tap elsewhere. This causes buttons,
+     cards, and entry rows to look "stuck" in their hovered state.
+     The (hover: none) media query gates this fix to touch-only
+     devices; mouse users (hover: hover) keep the existing hover
+     styles unchanged.
+
+     We override the most visible hover styles back to their non-
+     hover values. Backgrounds, filters, transforms, opacity,
+     borders — the four things that typically change on :hover. */
+  @media (hover: none) {
+    button:hover, .btn:hover, .btn-accent:hover, .btn-gain:hover,
+    .btn-loss:hover, .btn-ghost:hover, .btn-danger-outline:hover,
+    .icon-btn-light:hover, .btn-icon-ghost:hover, .btn-icon-add-more:hover,
+    .btn-icon-save:hover, .dist-row-edit-btn:hover, .sidebar-nav-item:hover,
+    .combo-input:hover, .entry-row:hover, .party-row:hover, .category-row:hover,
+    .account-row:hover, .biz-card:hover, .book-card:hover, .invite-pill:hover,
+    .modal-full-close:hover, .party-detail-back:hover {
+      filter: none !important;
+      transform: none !important;
+    }
+    /* Don't unset background — many components use accent fills on hover
+       that look fine even if briefly stuck. The filter/transform restore
+       is the part users actually notice as "stuck". */
+  }
+
+  /* v89.15: hide number-input spinner arrows on:
+     - Entry amount, Audit Tax %, Split rate
+     - Party %, Salary, Deduction amount, Profit share %
+     One global rule because users wanted them gone everywhere. */
+  input.no-spin[type="number"]::-webkit-inner-spin-button,
+  input.no-spin[type="number"]::-webkit-outer-spin-button,
+  .split-party-row-v895 input[type="number"]::-webkit-inner-spin-button,
+  .split-party-row-v895 input[type="number"]::-webkit-outer-spin-button,
+  .dist-row-card input[type="number"]::-webkit-inner-spin-button,
+  .dist-row-card input[type="number"]::-webkit-outer-spin-button,
+  #splitCurInput::-webkit-inner-spin-button,
+  #splitRateInput::-webkit-inner-spin-button,
+  #splitPctInput::-webkit-inner-spin-button,
+  #auditTaxInput::-webkit-inner-spin-button,
+  #auditTaxInput::-webkit-outer-spin-button,
+  #mAmount::-webkit-inner-spin-button,
+  #mAmount::-webkit-outer-spin-button,
+  #mAuditAmt::-webkit-inner-spin-button,
+  #mAuditAmt::-webkit-outer-spin-button,
+  input.entry-amount-input[type="number"]::-webkit-inner-spin-button,
+  input.entry-amount-input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input.no-spin[type="number"],
+  .split-party-row-v895 input[type="number"],
+  .dist-row-card input[type="number"],
+  #splitCurInput[type="number"],
+  #splitRateInput[type="number"],
+  #splitPctInput[type="number"],
+  #auditTaxInput[type="number"],
+  #mAmount[type="number"],
+  #mAuditAmt[type="number"],
+  input.entry-amount-input[type="number"] {
+    -moz-appearance: textfield; /* Firefox */
+  }
+
   /* v89.8: manager devices show Distribution as read-only.
      Inputs locked, Save buttons hidden, add buttons hidden. */
   body.dist-view-only .split-party-row-v895 input,
@@ -441,7 +508,7 @@
     cursor: default;
   }
   body.dist-view-only .dist-row-save-btn,
-  body.dist-view-only #splitCurSaveBtn,
+  body.dist-view-only #splitCurEditBtn,
   body.dist-view-only .split-party-remove,
   body.dist-view-only [onclick*="addDistSalaryRow"],
   body.dist-view-only [onclick*="addDistShareRow"],
@@ -532,6 +599,134 @@
   .dist-row-actions .dist-row-edit-hint,
   .dist-row-actions .dist-row-save-btn {
     margin-top: 0;
+  }
+
+  /* v89.15: Edit/Save toggle button — replaces v89.10's pencil+save pair.
+     Single button that shows pencil (locked) or floppy (editing). */
+  .dist-row-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    margin-top: 0.45rem;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--paper);
+    color: var(--ink-mute);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .dist-row-edit-btn svg { display: block; }
+  .dist-row-edit-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 6%, var(--paper));
+  }
+  .dist-row-edit-btn:active { transform: scale(0.94); }
+  /* When the row is in editing mode, the button shows the floppy icon
+     and gets the accent color to signal "saveable". */
+  .dist-row-card.is-editing .dist-row-edit-btn,
+  .split-party-row-v895.is-editing .dist-row-edit-btn {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .dist-row-card.is-editing .dist-row-edit-btn:hover,
+  .split-party-row-v895.is-editing .dist-row-edit-btn:hover {
+    filter: brightness(1.08);
+  }
+  /* v89.16: dirty/saved indicator for the Edit/Save toggle button.
+     Triggered by the Cur+Rate input handlers while typing. */
+  .dist-row-edit-btn.is-dirty {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .dist-row-edit-btn.is-saved {
+    background: var(--gain);
+    color: #fff;
+    border-color: var(--gain);
+  }
+  .dist-row-edit-btn.is-saved svg { display: none; }
+  .dist-row-edit-btn.is-saved::after {
+    content: "\2713";
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  /* Row visual state — locked rows look slightly dim */
+  .dist-row-card.is-locked input[readonly],
+  .dist-row-card.is-locked select[disabled],
+  .split-party-row-v895.is-locked input[readonly] {
+    background: var(--paper-deep) !important;
+    color: var(--ink-mute) !important;
+    cursor: default;
+    border-color: var(--line-soft) !important;
+  }
+  .split-party-row-v895.is-editing input,
+  .dist-row-card.is-editing input,
+  .dist-row-card.is-editing select {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--line)) !important;
+  }
+
+  /* v89.15: Party row HORIZONTAL layout — Name [____]  %  [__] */
+  .split-party-fields-h {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.7rem;
+    align-items: end;
+  }
+  .split-party-fields-h .input-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .split-party-fields-h .input-wrap > label {
+    font-size: 0.65rem;
+    color: var(--ink-mute);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    position: static !important;
+    transform: none !important;
+  }
+  .split-party-fields-h .input-wrap-name input {
+    width: 100%;
+    padding: 0.5rem 0.7rem !important;
+    font-size: 0.92rem !important;
+  }
+  .split-party-fields-h .input-wrap-pct {
+    width: 80px;
+  }
+  .split-party-fields-h .input-wrap-pct input {
+    width: 100%;
+    padding: 0.5rem 0.55rem !important;
+    font-size: 0.92rem !important;
+    text-align: right;
+  }
+  /* Update grid columns for the party row to match new layout */
+  .split-party-row-v895 {
+    grid-template-columns: 28px 1fr auto !important;
+  }
+  .split-party-actions {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+  }
+  .split-party-actions .dist-row-edit-btn,
+  .split-party-actions .split-party-remove {
+    margin-top: 0;
+  }
+  @media (max-width: 720px) {
+    .split-party-fields-h {
+      grid-template-columns: 1fr 80px;
+    }
   }
 
   /* v89.11: Distribution visual polish.
@@ -678,8 +873,8 @@
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-ghost { background: transparent; color: var(--ink); }
   .btn-ghost:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
-  .btn-accent { background: var(--accent); border-color: var(--accent-readable); color: #f5f1e8; }
-  .btn-accent:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-soft); color: #f5f1e8; }
+  .btn-accent { background: var(--accent); border-color: var(--accent-readable); color: #ffffff; }
+  .btn-accent:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent-soft); color: #ffffff; }
   .btn-sm { padding: 0.42rem 0.85rem; font-size: 0.72rem; border-radius: var(--r-sm); }
   /* Icon-only square button: used for Print / PDF / CSV actions where
      the icon glyph alone represents the action. Hover state uses the
@@ -743,10 +938,10 @@
   }
   .btn-icon-ghost:hover { border-color: var(--ink-soft); background: var(--paper-deep); }
   .btn-icon-ghost:active { background: var(--line-soft); }
-  .btn-gain { background: var(--gain); border-color: var(--gain); color: #f5f1e8; }
-  .btn-loss { background: var(--loss); border-color: var(--loss); color: #f5f1e8; }
+  .btn-gain { background: var(--gain); border-color: var(--gain); color: #ffffff; }
+  .btn-loss { background: var(--loss); border-color: var(--loss); color: #ffffff; }
   .btn-danger-outline { background: transparent; color: var(--loss); border-color: var(--loss); }
-  .btn-danger-outline:hover:not(:disabled) { background: var(--loss); color: #f5f1e8; }
+  .btn-danger-outline:hover:not(:disabled) { background: var(--loss); color: #ffffff; }
 
   .input-wrap { position: relative; }
   .input-wrap label {
@@ -1174,7 +1369,7 @@
     color: var(--sidebar-text-faint); margin-bottom: 0.5rem; padding-left: 0.4rem;
     display: flex; justify-content: space-between; align-items: center; font-weight: 600;
   }
-  .invite-pill { background: var(--accent); color: #f5f1e8; font-size: 0.55rem; padding: 0.12rem 0.4rem; font-weight: 700; letter-spacing: 0.05em; border-radius: var(--r-sm); }
+  .invite-pill { background: var(--accent); color: #ffffff; font-size: 0.55rem; padding: 0.12rem 0.4rem; font-weight: 700; letter-spacing: 0.05em; border-radius: var(--r-sm); }
   .business-switcher, .book-list { display: flex; flex-direction: column; gap: 0.1rem; }
   .biz-item, .book-item { display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.12s; gap: 0.4rem; color: var(--sidebar-text-mute); border-radius: var(--r-sm); }
   .biz-item { padding: 0.5rem 0.65rem; font-size: 0.82rem; border-left: 2px solid transparent; }
@@ -1236,7 +1431,7 @@
   .invite-card-meta { font-size: 0.62rem; color: var(--sidebar-text-mute); margin-bottom: 0.45rem; }
   .invite-actions { display: flex; gap: 0.3rem; }
   .invite-btn { flex: 1; padding: 0.32rem; border: none; cursor: pointer; font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 600; transition: opacity 0.12s; border-radius: var(--r-sm); }
-  .invite-btn.accept { background: var(--gain-soft); color: #f5f1e8; }
+  .invite-btn.accept { background: var(--gain-soft); color: #ffffff; }
   .invite-btn.decline { background: var(--sidebar-divider); color: var(--sidebar-text-mute); }
   .invite-btn:hover { opacity: 0.85; }
 
@@ -1248,7 +1443,7 @@
     gap: 0.4rem; background: var(--sidebar-bg);
   }
   .user-chip { display: flex; align-items: center; gap: 0.55rem; font-size: 0.78rem; min-width: 0; flex: 1; }
-  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; color: #f5f1e8; font-weight: 600; font-size: 0.78rem; font-family: var(--font-sans); flex-shrink: 0; }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; color: #ffffff; font-weight: 600; font-size: 0.78rem; font-family: var(--font-sans); flex-shrink: 0; }
   .user-chip > div:last-child { min-width: 0; flex: 1; }
   .user-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.78rem; }
   .user-role { font-size: 0.62rem; color: var(--sidebar-text-faint); }
@@ -2666,7 +2861,7 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     background: var(--accent);
-    color: #f5f1e8;
+    color: #ffffff;
     padding: 0.12rem 0.45rem;
     border-radius: var(--r-sm);
     font-weight: 600;
@@ -4538,8 +4733,8 @@
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
   .type-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--line); border-radius: var(--r); overflow: hidden; }
   .type-toggle button { padding: 0.65rem; background: transparent; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.07em; transition: all 0.12s; }
-  .type-toggle button.active.in { background: var(--gain); color: #f5f1e8; }
-  .type-toggle button.active.out { background: var(--loss); color: #f5f1e8; }
+  .type-toggle button.active.in { background: var(--gain); color: #ffffff; }
+  .type-toggle button.active.out { background: var(--loss); color: #ffffff; }
   .modal-actions { display: flex; gap: 0.55rem; margin-top: 1.1rem; justify-content: flex-end; }
   .modal-handle { display: none; }
 
@@ -4655,11 +4850,11 @@
   .staff-info > div:last-child { min-width: 0; flex: 1; }
   .staff-meta { font-size: 0.78rem; color: var(--ink-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .role-badge { font-size: 0.65rem; padding: 0.2rem 0.5rem; background: var(--ink); color: var(--paper); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
-  .role-badge.viewer { background: var(--ink-mute); color: #f5f1e8; }
-  .role-badge.staff { background: var(--accent); color: #f5f1e8; }
-  .role-badge.manager { background: var(--gain); color: #f5f1e8; }
+  .role-badge.viewer { background: var(--ink-mute); color: #ffffff; }
+  .role-badge.staff { background: var(--accent); color: #ffffff; }
+  .role-badge.manager { background: var(--gain); color: #ffffff; }
   .role-badge.pending { background: var(--paper-deep); color: var(--ink-mute); border: 1px dashed var(--line); }
-  .role-badge.declined { background: var(--loss); color: #f5f1e8; }
+  .role-badge.declined { background: var(--loss); color: #ffffff; }
   .info-box { padding: 0.9rem 1rem; background: var(--paper-deep); border: 1px solid var(--line); font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 1rem; line-height: 1.55; }
   .info-box strong { color: var(--ink); }
 
@@ -4972,7 +5167,7 @@
     .entries-sticky-plus:disabled { opacity: 0.45; pointer-events: none; }
     /* Single-FAB layout: center the button, give it a max width so it
        doesn't stretch the full screen on tablets. */
-    .fab-btn { padding: 0.85rem 1.4rem; border: none; cursor: pointer; color: #f5f1e8; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; box-shadow: 0 8px 24px -4px rgba(26,22,18,0.5); display: flex; align-items: center; justify-content: center; gap: 0.35rem; text-transform: uppercase; border-radius: var(--r); min-width: 160px; max-width: 320px; }
+    .fab-btn { padding: 0.85rem 1.4rem; border: none; cursor: pointer; color: #ffffff; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.04em; box-shadow: 0 8px 24px -4px rgba(26,22,18,0.5); display: flex; align-items: center; justify-content: center; gap: 0.35rem; text-transform: uppercase; border-radius: var(--r); min-width: 160px; max-width: 320px; }
     .fab-btn:disabled { opacity: 0.5; }
     .fab-btn.in { background: var(--gain); }
     .fab-btn.out { background: var(--loss); }
@@ -5335,7 +5530,7 @@
        empty outlined boxes. */
     .audit-balances-total, .acct-grand-total {
       background: #1a1612 !important;
-      color: #f5f1e8 !important;
+      color: #ffffff !important;
     }
     .audit-balances-total .pos, .acct-grand-total.pos .acct-grand-value {
       color: #8cbf95 !important;
@@ -5872,14 +6067,16 @@
       const accentReadable = l < 0.35
         ? hslStr(h, Math.min(s, 0.6), 0.72)
         : accentHex;
+      // v89.17: backgrounds are pure greyscale — no hue mixed in. Themes
+      // differ only in the accent color (buttons, focus rings, charts).
       return {
-        paper:       hslStr(h, paperSat * 0.4, 0.09),
-        paperDeep:   hslStr(h, paperSat * 0.4, 0.11),
-        ink:         hslStr(h, inkSat * 0.5, 0.92),
-        inkSoft:     hslStr(h, inkSat * 0.5, 0.76),
-        inkMute:     hslStr(h, inkSat * 0.3, 0.50),
-        line:        hslStr(h, paperSat * 0.3, 0.20),
-        lineSoft:    hslStr(h, paperSat * 0.3, 0.14),
+        paper:       '#0e0e0e',
+        paperDeep:   '#171717',
+        ink:         '#ededed',
+        inkSoft:     '#bdbdbd',
+        inkMute:     '#7d7d7d',
+        line:        '#2a2a2a',
+        lineSoft:    '#1f1f1f',
         accent:      accentHex,
         accentReadable,
         accentSoft:  hslStr(h, Math.min(s, 0.7), 0.65),
@@ -5900,25 +6097,29 @@
         // (In light mode, --ink is near-black and these go bright.)
         gainOnDark:  '#2e5d3a',
         lossOnDark:  '#a8351f',
-        sidebarBg:   hslStr(h, paperSat * 0.4, 0.05),
-        sidebarText: '#f0e9d8',
+        sidebarBg:   '#0a0a0a',
+        sidebarText: '#ededed',
         modalOverlay: 'rgba(0,0,0,0.7)',
         shadow:      '0 1px 0 rgba(0,0,0,0.2), 0 8px 24px -8px rgba(0,0,0,0.5)',
         shadowLg:    '0 2px 0 rgba(0,0,0,0.2), 0 24px 48px -16px rgba(0,0,0,0.6)',
-        surface1:    'rgba(245,241,232,0.025)',
-        surface2:    'rgba(245,241,232,0.04)',
-        surface3:    'rgba(245,241,232,0.06)',
-        inputFocus:  'rgba(245,241,232,0.04)',
+        // v89.17: neutral greyscale surfaces (no warm tint)
+        surface1:    'rgba(255,255,255,0.03)',
+        surface2:    'rgba(255,255,255,0.05)',
+        surface3:    'rgba(255,255,255,0.07)',
+        inputFocus:  'rgba(255,255,255,0.04)',
       };
     }
+    // v89.17: light mode backgrounds are pure greyscale — page #f5f5f5,
+    // cards #ffffff. No warm cream tint regardless of theme. Themes
+    // differ only in the accent color.
     return {
-      paper:       hslStr(h, paperSat, 0.95),
-      paperDeep:   hslStr(h, paperSat, 0.91),
-      ink:         hslStr(h, inkSat, 0.10),
-      inkSoft:     hslStr(h, inkSat * 0.7, 0.27),
-      inkMute:     hslStr(h, inkSat * 0.4, 0.52),
-      line:        hslStr(h, paperSat * 0.6, 0.78),
-      lineSoft:    hslStr(h, paperSat * 0.6, 0.88),
+      paper:       '#f5f5f5',
+      paperDeep:   '#ededed',
+      ink:         '#1a1a1a',
+      inkSoft:     '#4a4a4a',
+      inkMute:     '#8a8a8a',
+      line:        '#d9d9d9',
+      lineSoft:    '#e8e8e8',
       accent:      accentHex,
       // In light mode the page background is cream, so a very light accent
       // (e.g. pastel custom color) would be invisible. accentReadable darkens
@@ -5945,15 +6146,16 @@
       // (#4a8157 muted forest) both fail AA on near-black.
       gainOnDark:  '#8cbf95',
       lossOnDark:  '#ff9580',
-      sidebarBg:   hslStr(h, inkSat, 0.10),
-      sidebarText: hslStr(h, paperSat, 0.95),
+      sidebarBg:   '#1a1a1a',
+      sidebarText: '#ededed',
       modalOverlay: 'rgba(26,22,18,0.45)',
       shadow:      '0 1px 0 rgba(26,22,18,0.04), 0 8px 24px -8px rgba(26,22,18,0.12)',
       shadowLg:    '0 2px 0 rgba(26,22,18,0.04), 0 24px 48px -16px rgba(26,22,18,0.18)',
-      surface1:    'rgba(255,255,255,0.4)',
-      surface2:    'rgba(255,255,255,0.5)',
-      surface3:    'rgba(255,255,255,0.55)',
-      inputFocus:  'rgba(255,255,255,0.3)',
+      // v89.17: light-mode surfaces — solid white (no transparency over cream).
+      surface1:    '#ffffff',
+      surface2:    '#ffffff',
+      surface3:    '#fafafa',
+      inputFocus:  '#ffffff',
     };
   }
 
@@ -6042,6 +6244,21 @@
   //
   // We only register over https — Chrome blocks SW registration over
   // http (other than localhost). On file:// (used for local testing
+  // v89.19: global error handlers. Without these, uncaught errors
+  // and unhandled promise rejections are silent — only visible in
+  // DevTools. With these, at least the console gets a clear trace,
+  // and we could later add reporting to a service if needed.
+  window.addEventListener('error', (ev) => {
+    try {
+      console.error('[GlobalError]', ev.message, 'at', (ev.filename || '').split('/').pop() + ':' + ev.lineno, ev.error);
+    } catch (_) {}
+  });
+  window.addEventListener('unhandledrejection', (ev) => {
+    try {
+      console.error('[UnhandledRejection]', ev.reason);
+    } catch (_) {}
+  });
+
   // of the static bundle), the check below makes us skip silently.
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     window.addEventListener('load', () => {
@@ -8816,8 +9033,13 @@
     // ALL periods — gives a sense of how active the book is overall).
     // Period-filtered counts are already shown by the cash-in / cash-out
     // stat cards below.
+    // v89.17: count now respects the active period filter (today, yesterday,
+    // this month, all time, custom range) instead of always showing all-time.
     const totalEntries = book
-      ? data.entries.filter(e => e.bookId === book.id).length
+      ? (() => {
+          const pred = periodPredicate();
+          return data.entries.filter(e => e.bookId === book.id && pred(e)).length;
+        })()
       : 0;
     // Announcement quick-access icon. Owners jump to the manage page
     // (Management → Announcements), everyone else jumps to the read
@@ -8834,7 +9056,7 @@
       </button>`;
     }
     const titleHtml = book
-      ? `${escapeHtml(book.name)}${totalEntries > 0 ? ` <span class="page-title-count" title="Total entries in this book (all time)">${totalEntries}</span>` : ''}`
+      ? `${escapeHtml(book.name)}${totalEntries > 0 ? ` <span class="page-title-count" title="Entries in the current period filter">${totalEntries}</span>` : ''}`
       : 'No book selected';
     return `
       <div class="page-header">
@@ -10803,8 +11025,9 @@
   // Add a blank salary row. Focuses the name input afterwards.
   function addDistSalaryRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
+    const _newSalId = uid();
     __distSalaries.push({
-      id: uid(),
+      id: _newSalId,
       name: '',
       salary: 0,
       adjustmentType: 'deduction',
@@ -10814,6 +11037,8 @@
       // + PDF + CSV exports too.
       note: '',
     });
+    // v89.15: new salary row starts in edit mode
+    _distRowMarkUnlocked('salaries', _newSalId);
     _persistDistribution();
     renderDistributionCard();
     // Focus the just-added row's name input so the user can type
@@ -10825,6 +11050,8 @@
     }, 0);
   }
   async function deleteDistSalaryRow(id) {
+    // v89.19: clean up the row's lock state from localStorage
+    try { _distRowMarkLocked('salaries', id); } catch (_) {}
     const row = __distSalaries.find(r => r.id === id);
     if (!row) return;
     // If the row was never filled in, there's nothing to lose — skip
@@ -10877,6 +11104,75 @@
       btn.classList.add('is-saved');
       btn.disabled = true;
       setTimeout(() => { btn.classList.remove('is-saved'); }, 1400);
+    }
+  }
+
+  // v89.15: per-row lock state. Each row in Parties / Salaries / Shares /
+  // SplitCurRate starts locked; tap Edit to unlock, Save to lock again.
+  // Newly-added rows start UNLOCKED so the user can fill them in.
+  // Persisted in localStorage so locks survive page reloads.
+  const _DIST_LOCKS_KEY = 'hisabs_dist_row_locks_v1';
+  // Read fresh from storage each call so concurrent saves don't lose state.
+  function _distLocksLoad() {
+    try {
+      const raw = localStorage.getItem(_DIST_LOCKS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (_) { return {}; }
+  }
+  function _distLocksSave(obj) {
+    try { localStorage.setItem(_DIST_LOCKS_KEY, JSON.stringify(obj)); } catch (_) {}
+  }
+  // Default: rows are LOCKED. Only newly-added rows (registered via
+  // _distRowMarkUnlocked) are unlocked initially.
+  function _distRowIsLocked(kind, id) {
+    const locks = _distLocksLoad();
+    const k = `${kind}:${id}`;
+    // If the row has an explicit state, use it; otherwise default to LOCKED.
+    return locks[k] !== 'editing';
+  }
+  function _distRowMarkUnlocked(kind, id) {
+    const locks = _distLocksLoad();
+    locks[`${kind}:${id}`] = 'editing';
+    _distLocksSave(locks);
+  }
+  function _distRowMarkLocked(kind, id) {
+    const locks = _distLocksLoad();
+    delete locks[`${kind}:${id}`]; // remove = default-locked
+    _distLocksSave(locks);
+  }
+
+  // v89.15: toggle between Edit and Save. Called from the Edit/Save
+  // button in the row template. Edit → unlock + re-render. Save →
+  // commit the dirty buffer + lock + re-render + refresh math.
+  function distRowToggleEdit(kind, id) {
+    if (roleFor(session.activeBizId) !== 'owner') {
+      toast('Only the owner can edit.');
+      return;
+    }
+    const wasLocked = _distRowIsLocked(kind, id);
+    if (wasLocked) {
+      // Switch to edit mode
+      _distRowMarkUnlocked(kind, id);
+    } else {
+      // Commit save based on kind
+      if (kind === 'salaries') {
+        saveDistSalaryRow(id);
+      } else if (kind === 'shares') {
+        saveDistShareRow(id);
+      } else if (kind === 'parties') {
+        saveSplitPartyRow(id);
+      } else if (kind === 'splitcurate') {
+        saveSplitCurRate();
+      }
+      _distRowMarkLocked(kind, id);
+    }
+    // Re-render the distribution view to refresh button states.
+    if (session.view === 'distribution') {
+      const root = document.getElementById('mainContent');
+      if (root) renderDistributionView(root);
+    } else {
+      // Audit page also shows split parties
+      try { renderSplitParties(); } catch (_) {}
     }
   }
 
@@ -10938,7 +11234,10 @@
 
   function addDistShareRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
-    __distShares.push({ id: uid(), name: '', pct: 0, note: '' });
+    // v89.15: new row starts in edit mode
+    const _newShrId = uid();
+    __distShares.push({ id: _newShrId, name: '', pct: 0, note: '' });
+    _distRowMarkUnlocked('shares', _newShrId);
     _persistDistribution();
     renderDistributionCard();
     setTimeout(() => {
@@ -10948,6 +11247,8 @@
     }, 0);
   }
   async function deleteDistShareRow(id) {
+    // v89.19: clean up the row's lock state from localStorage
+    try { _distRowMarkLocked('shares', id); } catch (_) {}
     const row = __distShares.find(r => r.id === id);
     if (!row) return;
     const hasContent = (row.name && row.name.trim()) || row.pct > 0;
@@ -11099,6 +11400,28 @@
     } else {
       document.body.classList.add('dist-view-only');
     }
+    // v89.15: apply readonly state to splitCurInput / splitRateInput based on lock
+    setTimeout(() => {
+      const isLocked = _distRowIsLocked('splitcurate', 'main');
+      const cur = document.getElementById('splitCurInput');
+      const rate = document.getElementById('splitRateInput');
+      if (cur) {
+        if (isLocked) cur.setAttribute('readonly', ''); else cur.removeAttribute('readonly');
+        cur.parentElement?.classList.toggle('is-locked', isLocked);
+        cur.parentElement?.classList.toggle('is-editing', !isLocked);
+      }
+      if (rate) {
+        if (isLocked) rate.setAttribute('readonly', ''); else rate.removeAttribute('readonly');
+      }
+      const btn = document.getElementById('splitCurEditBtn');
+      if (btn) {
+        btn.setAttribute('title', isLocked ? 'Edit currency and rate' : 'Save currency and rate');
+        btn.setAttribute('aria-label', isLocked ? 'Edit' : 'Save');
+        btn.innerHTML = isLocked
+          ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>';
+      }
+    }, 0);
     const wrap = document.getElementById('distributionCard');
     if (!wrap) return;
     wrap.innerHTML = distributionCardBody();
@@ -11224,26 +11547,32 @@
       const final = r.salary + signedAdj;
       const noteVal = escapeHtml(r.note || '');
       const adjLabel = r.adjustmentType === 'addition' ? 'addition' : 'deduction';
-      return `<div class="dist-row-card ${salEditing ? 'is-editing' : 'is-locked'}" data-dist-row="${escapeHtml(r.id)}">
+      const isLocked = _distRowIsLocked('salaries', r.id);
+      const lockClass = isLocked ? 'is-locked' : 'is-editing';
+      const readonly = isLocked ? 'readonly' : '';
+      const selDisabled = isLocked ? 'disabled' : '';
+      return `<div class="dist-row-card ${lockClass}" data-dist-row="${escapeHtml(r.id)}">
         <div class="dist-salary-row">
-          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120"  oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
-          <input type="number" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal"  oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
-          <select data-field="adjustmentType"  onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" class="no-spin" data-field="salary" value="${r.salary || ''}" placeholder="Salary" min="0" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','salary',this.value)">
+          <select data-field="adjustmentType" ${selDisabled} onchange="updateDistSalaryField('${jsAttr(r.id)}','adjustmentType',this.value)">
             <option value="deduction" ${r.adjustmentType === 'deduction' ? 'selected' : ''}>− Deduction</option>
             <option value="addition" ${r.adjustmentType === 'addition' ? 'selected' : ''}>+ Addition</option>
           </select>
-          <input type="number" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal"  oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
+          <input type="number" class="no-spin" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
           <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
           <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.10: row action cluster. Pencil is visual-only (no click).
-               Save is functional (icon-only). Trash already on the top row. -->
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
+          <!-- v89.15: Edit/Save lock toggle -->
           <div class="dist-row-actions">
-            <span class="dist-row-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
-            <button class="dist-row-save-btn" data-dist-save="salaries:${jsAttr(r.id)}" onclick="saveDistSalaryRow('${jsAttr(r.id)}')" title="Save this row" aria-label="Save row" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+            <button class="dist-row-edit-btn" data-dist-edit="salaries:${jsAttr(r.id)}" onclick="distRowToggleEdit('salaries','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
+              ${isLocked
+                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            </button>
           </div>
         </div>
       </div>`;
@@ -11312,24 +11641,31 @@
     const shrEditing = __distEditMode.shares;
     const shrDis = shrEditing ? '' : 'disabled';
     const shareRows = __distShares.length ? __distShares.map(r => {
+      // v89.15: row lock state
+      const isLocked = _distRowIsLocked('shares', r.id);
+      const lockClass = isLocked ? 'is-locked' : 'is-editing';
+      const readonly = isLocked ? 'readonly' : '';
       const amt = (r.pct / 100) * remaining;
       totalSharePct += r.pct;
       totalShareAmount += amt;
       const noteVal = escapeHtml(r.note || '');
-      return `<div class="dist-row-card ${shrEditing ? 'is-editing' : 'is-locked'}" data-dist-share="${escapeHtml(r.id)}">
+      return `<div class="dist-row-card ${lockClass}" data-dist-share="${escapeHtml(r.id)}">
         <div class="dist-share-row">
-          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120"  oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
-          <input type="number" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal"  oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
+          <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
+          <input type="number" class="no-spin" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
           <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
           <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.10: row action cluster — pencil hint + small Save icon. -->
+          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
+          <!-- v89.15: Edit/Save lock toggle -->
           <div class="dist-row-actions">
-            <span class="dist-row-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
-            <button class="dist-row-save-btn" data-dist-save="shares:${jsAttr(r.id)}" onclick="saveDistShareRow('${jsAttr(r.id)}')" title="Save this row" aria-label="Save row" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+            <button class="dist-row-edit-btn" data-dist-edit="shares:${jsAttr(r.id)}" onclick="distRowToggleEdit('shares','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
+              ${isLocked
+                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            </button>
           </div>
         </div>
       </div>`;
@@ -11397,7 +11733,7 @@
       const lbl = rateInput.closest('.input-wrap')?.querySelector('label');
       if (lbl) lbl.textContent = `Rate (1 ${__splitBusinessCurrency} = ? ${__splitCurrencyPending || 'unit'})`;
     }
-    const btn = document.getElementById('splitCurSaveBtn');
+    const btn = document.getElementById('splitCurEditBtn');
     if (btn) { btn.classList.add('is-dirty'); btn.disabled = false; }
   }
   // v89.7: typing in Rate only buffers. Save commits + recalculates.
@@ -11409,7 +11745,8 @@
       if (!Number.isFinite(n) || n < 0) n = 0;
       __splitRatePending = n;
     }
-    const btn = document.getElementById('splitCurSaveBtn');
+    // v89.16: was splitCurSaveBtn (renamed in v89.15)
+    const btn = document.getElementById('splitCurEditBtn');
     if (btn) { btn.classList.add('is-dirty'); btn.disabled = false; }
   }
 
@@ -11436,7 +11773,8 @@
     }
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
-    const btn = document.getElementById('splitCurSaveBtn');
+    // v89.16: was splitCurSaveBtn (renamed in v89.15)
+    const btn = document.getElementById('splitCurEditBtn');
     if (btn) {
       btn.classList.remove('is-dirty');
       btn.classList.add('is-saved');
@@ -11679,31 +12017,36 @@
     try { setTimeout(_v898_validatePartyTotal, 0); } catch (_) {}
     listEl.innerHTML = __splitParties.map(p => {
       const isSelected = p.id === __splitSelectedPartyId;
-      return `<div class="split-party-row split-party-row-v895 ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
+      const isLocked = _distRowIsLocked('parties', p.id);
+      const lockClass = isLocked ? 'is-locked' : 'is-editing';
+      const readonly = isLocked ? 'readonly' : '';
+      return `<div class="split-party-row split-party-row-v895 ${lockClass} ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
         <label class="split-party-radio" title="Use this party as the Amount source in Distribution">
           <input type="radio" name="splitSelectedParty" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
           <span class="split-party-radio-dot"></span>
         </label>
-        <div class="split-party-fields">
-          <div class="input-wrap">
+        <!-- v89.15: HORIZONTAL layout - Name [____]  %  [__] in one row -->
+        <div class="split-party-fields-h">
+          <div class="input-wrap input-wrap-name">
             <label>Name</label>
-            <input type="text" value="${escapeHtml(p.name)}" placeholder="" maxlength="80" oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
+            <input type="text" value="${escapeHtml(p.name)}" placeholder="" maxlength="80" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
           </div>
-          <div class="input-wrap">
+          <div class="input-wrap input-wrap-pct">
             <label>%</label>
-            <!-- v89.6: visual % prefix inside the input wrapper -->
-            <div class="pct-input-wrap">
-              <span class="pct-input-prefix" aria-hidden="true">%</span>
-              <input type="number" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
-            </div>
+            <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
           </div>
         </div>
-        <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
-          <svg width="12" height="12"><use href="#ico-trash"/></svg>
-        </button>
-        <!-- v89.10: pencil hint (decorative) + small Save icon -->
-        <span class="dist-row-edit-hint split-party-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
-        <button class="dist-row-save-btn split-party-save-btn" data-dist-save="parties:${jsAttr(p.id)}" onclick="saveSplitPartyRow('${jsAttr(p.id)}')" title="Save this party" aria-label="Save party" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+        <!-- v89.15: action cluster - edit/save toggle + trash -->
+        <div class="dist-row-actions split-party-actions">
+          <button class="dist-row-edit-btn" data-dist-edit="parties:${jsAttr(p.id)}" onclick="distRowToggleEdit('parties','${jsAttr(p.id)}')" title="${isLocked ? 'Edit this party' : 'Save this party'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
+            ${isLocked
+              ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+              : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+          </button>
+          <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
+            <svg width="12" height="12"><use href="#ico-trash"/></svg>
+          </button>
+        </div>
       </div>`;
     }).join('');
   }
@@ -11715,10 +12058,13 @@
     // edit). If less than 100, give the new party the leftover.
     const totalPct = __splitParties.reduce((s, p) => s + (Number(p.pct) || 0), 0);
     const remain = Math.max(0, 100 - totalPct);
-    __splitParties.push({ id: uid(), name: '', pct: remain });
+    // v89.15: new party row starts in edit mode
+    const _newPartyId = uid();
+    __splitParties.push({ id: _newPartyId, name: '', pct: remain });
+    _distRowMarkUnlocked('parties', _newPartyId);
     // If this is the first party added, auto-select it as the Distribution source
     if (__splitParties.length === 1) {
-      __splitSelectedPartyId = __splitParties[0].id;
+      __splitSelectedPartyId = _newPartyId;
     }
     saveSplitStateFor(session.activeBizId);
     // Re-render Distribution view to pick up the layout change
@@ -11737,6 +12083,8 @@
   }
   async function removeSplitParty(id) {
     if (roleFor(session.activeBizId) !== 'owner') return;
+    // v89.19: clean up the row's lock state from localStorage
+    try { _distRowMarkLocked('parties', id); } catch (_) {}
     const party = __splitParties.find(p => p.id === id);
     if (!party) return;
     const hasContent = (party.name && party.name.trim()) || Number(party.pct) > 0;
@@ -12751,11 +13099,8 @@
              auto-save on keystroke (existing); this button is a visible
              confirmation that flashes "Saved" feedback. -->
         <div class="split-cur-save-row">
-          <!-- v89.11: pencil hint (decorative) + small Save icon matching v89.10 Parties pattern -->
-          <span class="dist-row-edit-hint split-cur-edit-hint" aria-hidden="true" title="Edit currency or rate above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
-          <button class="dist-row-save-btn split-cur-save-btn" id="splitCurSaveBtn"
-                  onclick="saveSplitCurRate()"
-                  title="Save currency and rate" aria-label="Save currency and rate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+          <!-- v89.15: Edit/Save toggle for Currency + Rate -->
+          <button class="dist-row-edit-btn split-cur-edit-btn" id="splitCurEditBtn" onclick="distRowToggleEdit('splitcurate','main')" title="Edit currency and rate" aria-label="Edit"><svg width="14" height="14"><use href="#ico-edit"/></svg></button>
           <span class="split-cur-save-status" id="splitCurSaveStatus"></span>
         </div>
 
@@ -17920,18 +18265,29 @@
     // Keep the modal open and refresh the next invoice number. The user
     // wanted this to feel like a brand-new entry, not a carryover of
     // the previous one's date/account/category.
+    //
+    // v89.17 fix: the visible combobox input is '${id}_search', not
+    // '${id}_display'. The old code targeted '_display' (which doesn't
+    // exist), so the underlying value cleared but the visible name
+    // stayed on screen. Now we clear both the hidden ID input AND the
+    // visible search input.
     if (addMore && !editId) {
       const clearById = (id) => { const el = document.getElementById(id); if (el) el.value = ''; };
       clearById('mAmount');
-      clearById('mParty'); clearById('mParty_display');
-      clearById('mAccount'); clearById('mAccount_display');
-      clearById('mCategory'); clearById('mCategory_display');
+      // Clear party + its visible combobox text
+      clearById('mParty'); clearById('mParty_search');
+      // Clear account + its visible combobox text
+      clearById('mAccount'); clearById('mAccount_search');
+      // Clear category + its visible combobox text
+      clearById('mCategory'); clearById('mCategory_search');
       clearById('mNote');
       // Reset date back to today (in case the user backdated the prior entry)
+      // v89.17: per user — date AND type toggle KEPT (default to today,
+      // same Cash In/Out as previous entry). Most common flow: bunch of
+      // similar entries for one day.
       const dateEl = document.getElementById('mDate');
       if (dateEl) dateEl.value = today();
-      // Reset type to Cash In (default)
-      try { setEntryType('in'); } catch (_) {}
+      // (Type toggle intentionally NOT reset — keeps current Cash In/Out.)
       // Refresh the invoice-number preview in the modal header
       try { updateEntryNoPreview(); } catch (_) {}
       // Refresh date hint (today/yesterday/etc)
