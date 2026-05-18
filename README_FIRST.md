@@ -1,98 +1,88 @@
-# Hisabs v89.5.1 — full deploy bundle
-
-This is the cumulative rollup of every change since v89.0
-(currently live at hisabs.vercel.app).
-
-## File hashes
+# Hisabs v89.6.1 — corrected release after re-check
 
 ```
-index.html  → f6c73e214ec1f91267213eceb96c542a   (v89.5.1)
+index.html: 2492eb05d9c59d4bb0d8f4dd58ca726b
+v89.6 (replaced):  139e32177f8f6dcf6e764fb95433f0c9
 ```
 
-Currently live (v89.0): `226f6892ed9b50c57658ce22d3bfdc8c`
+## What I missed in v89.6 (now fixed)
 
-## Folder structure
+During re-check of v89.6 I found two real bugs in my own code:
+
+### Bug 1 — The keyboard glitch root cause was wrong
+
+v89.5 and v89.6 assumed the glitch came from realtime sync events
+firing renderAll while the user typed. So I gated the realtime path.
+
+The ACTUAL cause: on mobile, **opening the keyboard triggers a
+viewport resize**, and the resize handler at line 15421 fires
+`renderMain()` after 120ms. That destroys the input, keyboard
+collapses, focus restore re-opens it. Visible glitch.
+
+**Fix in v89.6.1:** the resize handler now checks if the resize
+pattern matches "keyboard opened" (width unchanged + height changed +
+input focused). If so, it skips the render.
+
+### Bug 2 — Cloud-load functions were orphaned
+
+v89.6 added `loadDistributionFromCloudOrLocal` and
+`loadSplitPartiesFromCloudOrLocal` but **never called them**. So
+managers wouldn't have seen owner changes anyway — reads still came
+from localStorage.
+
+**Fix in v89.6.1:** both functions are now called from the view
+renderers (renderDistributionCard for distribution, renderAuditView
+for split parties). When realtime events arrive, the re-render
+triggers the cloud-load, which picks up the new data.
+
+## Deploy order — UNCHANGED from v89.6
+
+1. **Run the SQL migration first** if you haven't already
+   (sql/v89.6_distribution_sync.sql)
+2. Replace index.html
+3. Commit + push
+
+If you already ran the SQL for v89.6, you do NOT need to re-run it.
+The SQL is unchanged. Only the client code changed.
+
+## Smoke tests
+
+1. **% prefix on Party input** — open Distribution → Parties. The %
+   input has `%` symbol on the left inside the box.
+
+2. **Keyboard glitch** — tap any Distribution input. Keyboard stays
+   open continuously, no glitch. ← THIS IS THE REAL FIX
+
+3. **Distribution sync** — as owner, edit a salary. As manager on
+   a different device, open Distribution. You should see the update.
+   ← THIS ALSO NOW WORKS
+
+If the keyboard glitch still happens on your specific device, plug
+your phone into your laptop, open Chrome DevTools remote debugging,
+and tell me what shows up in the Console + Network when the glitch
+happens. Could be a device-specific issue I can't reproduce.
+
+## Files in this zip
 
 ```
-hisabs_v89_5_1/
-├── README_FIRST.md       ← you are here (don't commit)
-├── V89_NOTES.md          ← original v89 release notes + deploy guide
-├── V89_1_QA.md           ← v89.1 static QA report
-├── V89_4_NOTES.md        ← v89.4 notes incl. server-side invoice SQL
-├── .gitignore            ← matches what's already in your repo
-├── index.html            ← v89.5.1, REPLACES your existing one
-├── vercel.json           ← REPLACES your existing one (your CSP + crons)
-└── api/
-    └── cron/
-        └── digest.js     ← Vercel cron edge function
+hisabs_v89_6_1/
+├── README_FIRST.md
+├── V89_4_NOTES.md
+├── .gitignore
+├── index.html               ← v89.6.1 (REPLACES existing)
+├── vercel.json              ← unchanged
+├── api/cron/digest.js       ← unchanged
+└── sql/
+    └── v89.6_distribution_sync.sql   ← run if not already
 ```
 
-## What's cumulative in this build (since v89.0)
+## Honest note
 
-| Version | Changes |
-|---|---|
-| v89.1 | Fixed leaked dev text at bottom of pages. Chart long-press scrub removed. Entry rows use double-tap (was long-press). |
-| v89.2 | Bottom modal buttons restored. Audio playback fixed (was hanging on data:URI mp3). HTML5 audio unlock on first gesture. |
-| v89.3 | Floating +Entry restored. Anywhere-swipe-right opens sidebar. Modal save = floppy disk icon. |
-| v89.4 | FAB bottom-center. Invoice HWM (no number reuse on delete). Audit tax keyboard glitch fixed. Split preview always shown. Currency+rate save button. |
-| v89.5 | Party "Rajesh" placeholder removed. Party rows stacked layout. Parties always editable. Distribution keyboard glitch fixed. Shift+Enter for Add More. Chart tap = tooltip only (no full modal). Bigger mobile charts. |
-| v89.5.1 | Removed 1 line of dead CSS left over from v89.5. No behavior change. |
+I'm a bit embarrassed that v89.6 had these bugs. The first one
+(resize → renderMain) I should have caught — it's literally listed
+in the line numbers I dumped during analysis. The second one
+(orphaned functions) I introduced in my own patch and forgot to wire.
 
-## What's NOT in this zip
-
-- **package.json / package-lock.json** — you already have these from
-  `npm install web-push` during the v89.0 deploy. Don't replace them.
-- **Your existing repo files** (vendor/supabase.umd.js, manifest.webmanifest,
-  sw.js, icons/, screenshots/, PRIVACY.html, etc.) — those stay as-is.
-  Only the 4 files above get touched.
-
-## Deploy steps
-
-```bash
-cd ~/Documents/GitHub/hisabs
-
-# Drop the new files in (preserves your other files)
-cp ~/Downloads/hisabs_v89_5_1/index.html ./index.html
-cp ~/Downloads/hisabs_v89_5_1/vercel.json ./vercel.json
-mkdir -p api/cron
-cp ~/Downloads/hisabs_v89_5_1/api/cron/digest.js ./api/cron/digest.js
-
-# Verify the hash
-md5sum index.html
-# expected: f6c73e214ec1f91267213eceb96c542a
-
-# Look at what's about to commit
-git status
-```
-
-Then in GitHub Desktop:
-
-**Summary:**
-```
-v89.5.1: cumulative 6 patches over v89 — modal UX, audio, distribution glitch, charts, dead-CSS cleanup
-```
-
-Click **Commit** then **Push origin**.
-
-Wait for Vercel green, then test on phone (hard refresh, not the installed PWA first).
-
-## Smoke tests after deploy
-
-1. **Bottom of every page** — that ugly "entry modal picks In vs Out..." text gone ✓
-2. **Floating +Entry button** — bottom-CENTER of viewport, scrolls with page? ✓
-3. **Distribution keyboard** — type in Party Name / %, Currency, Rate, Salary → keyboard stays open, no glitch ✓
-4. **Audio** — tap screen once first, then save entry → hear cash-in MP3 ✓
-5. **Chart tap** — tap a bar → small tooltip with value + date appears briefly, no full-screen modal ✓
-6. **Charts on mobile bigger** — taller, more readable text ✓
-7. **Shift+Enter on desktop** in +Entry modal → fires Add More ✓
-8. **Invoice number on delete** — delete the latest entry, tap +Entry → number is NOT reused ✓
-9. **Audit Tax** — tap tax %, keyboard stays open, type, Save without glitch ✓
-10. **Anywhere swipe right** opens sidebar; vertical scroll does NOT accidentally trigger ✓
-
-## ⚠ One known gap — server-side invoice numbering
-
-The client preview is fixed in v89.4. The actual database trigger that
-assigns invoice numbers on the server may still reuse deleted numbers.
-See V89_4_NOTES.md for the SQL fix you'd need to deploy separately.
-Not blocking — the visible UI looks right; only affects long-term data
-integrity.
+Re-checking the source after building is the right discipline.
+This time I'm more confident — but as always, the final word is
+what happens on your phone.

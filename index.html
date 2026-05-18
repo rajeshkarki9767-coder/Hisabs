@@ -397,6 +397,27 @@
     outline: none;
   }
   .split-party-remove { margin-top: 0.45rem; }
+
+  /* v89.6: percent-prefix input wrapper. Shows '%' inside the input
+     on the left, with the number padded right of it. */
+  .pct-input-wrap {
+    position: relative;
+    display: block;
+  }
+  .pct-input-wrap > .pct-input-prefix {
+    position: absolute;
+    left: 0.6rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--ink-mute);
+    font-size: 0.95rem;
+    font-weight: 600;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .pct-input-wrap > input {
+    padding-left: 1.65rem !important;
+  }
   .dist-row-card.is-locked input,
   .dist-row-card.is-locked select,
   .split-party-row.is-locked input[type="text"],
@@ -5886,7 +5907,9 @@
   migrateFromV4();
 
   let accounts = [];
-  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], quickLook: [], announcements: [], transfers: [] };
+  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], quickLook: [], announcements: [], transfers: [],
+    // v89.6: distribution data now syncs to Supabase (was localStorage only)
+    distSalaries: [], distShares: [], splitParties: [] };
   // parties: [{ id, businessId, name, kind: 'customer'|'vendor'|'both', createdAt }]
   // categories: [{ id, businessId, name }]
   // accountGroups: [{ id, businessId, name, kind: 'cash'|'wallet'|'bank'|'card'|'other', sortOrder }]
@@ -10303,6 +10326,8 @@
       };
       localStorage.setItem(SPLIT_STATE_KEY, JSON.stringify(all));
     } catch (_) {}
+    // v89.6: also mirror split parties to data.splitParties for cloud sync
+    try { _syncSplitPartiesArray(bizId); } catch (_) {}
   }
   let __splitPct = 100;           // legacy: single-% scalar. Used when __splitParties is empty.
   let __splitCurrency = '';       // free-text currency code/symbol
@@ -10383,6 +10408,59 @@
   let __distSalaries = [];
   let __distShares = [];
 
+  // v89.6: load distribution from cloud-synced data array if present,
+  // else fall back to localStorage. Called when activeBizId changes
+  // or on initial load.
+  function loadDistributionFromCloudOrLocal(bizId) {
+    if (!bizId) {
+      __distSalaries = [];
+      __distShares = [];
+      return;
+    }
+    // Prefer cloud-synced data if it has rows for this business
+    const cloudSal = (data.distSalaries || []).filter(r => r.businessId === bizId);
+    const cloudShares = (data.distShares || []).filter(r => r.businessId === bizId);
+    if (cloudSal.length || cloudShares.length) {
+      __distSalaries = cloudSal.map(r => ({
+        id: r.id, name: r.name, salary: r.salary,
+        adjustmentType: r.adjustmentType, adjustmentAmount: r.adjustmentAmount,
+        note: r.note, createdAt: r.createdAt,
+      }));
+      __distShares = cloudShares.map(r => ({
+        id: r.id, name: r.name, pct: r.pct, note: r.note, createdAt: r.createdAt,
+      }));
+      return;
+    }
+    // Fallback to localStorage
+    const local = loadDistributionStateFor(bizId);
+    __distSalaries = local.salaries || [];
+    __distShares = local.shares || [];
+  }
+
+  function loadSplitPartiesFromCloudOrLocal(bizId) {
+    if (!bizId) {
+      __splitParties = [];
+      __splitSelectedPartyId = '';
+      return;
+    }
+    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId);
+    if (cloudParties.length) {
+      __splitParties = cloudParties.map(r => ({
+        id: r.id, name: r.name, pct: r.pct,
+      }));
+      const sel = cloudParties.find(r => r.isSelected);
+      __splitSelectedPartyId = sel ? sel.id : '';
+      return;
+    }
+    // Fallback to localStorage
+    const local = loadSplitStateFor(bizId);
+    __splitParties = local.parties || [];
+    __splitSelectedPartyId = local.selectedPartyId || '';
+    __splitPct = (typeof local.pct === 'number') ? local.pct : 100;
+    __splitCurrency = local.currency || '';
+    __splitRate = Number(local.rate) || 0;
+  }
+
   // v89: per-section edit-mode flags for Distribution. When false, all
   // inputs in that section are disabled (read-only) and an Edit button
   // shows. When true, inputs are editable and a Save button shows.
@@ -10394,10 +10472,59 @@
   };
 
   function _persistDistribution() {
+    // v89.6: Mirror to localStorage (fallback / offline) AND to the
+    // data arrays (which sync to Supabase via __syncQueue).
     saveDistributionStateFor(session.activeBizId, {
       salaries: __distSalaries,
       shares: __distShares,
     });
+    _syncDistributionArrays(session.activeBizId);
+  }
+
+  // v89.6: write current __distSalaries / __distShares to data arrays
+  // scoped to the active business. saveData() then queues sync ops to
+  // Supabase. If Supabase is offline, localStorage is the fallback.
+  function _syncDistributionArrays(bizId) {
+    if (!bizId) return;
+    try {
+      // Replace the slice of data.distSalaries that belongs to this biz
+      data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId)
+        .concat(__distSalaries.map(r => ({
+          id: r.id, businessId: bizId,
+          name: r.name || '', salary: Number(r.salary) || 0,
+          adjustmentType: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
+          adjustmentAmount: Number(r.adjustmentAmount) || 0,
+          note: r.note || '',
+          createdAt: r.createdAt || new Date().toISOString(),
+        })));
+      data.distShares = (data.distShares || []).filter(r => r.businessId !== bizId)
+        .concat(__distShares.map(r => ({
+          id: r.id, businessId: bizId,
+          name: r.name || '', pct: Number(r.pct) || 0,
+          note: r.note || '',
+          createdAt: r.createdAt || new Date().toISOString(),
+        })));
+      saveData();
+    } catch (e) {
+      console.warn('_syncDistributionArrays:', e?.message || e);
+    }
+  }
+
+  // v89.6: mirror __splitParties to data.splitParties (similar pattern)
+  function _syncSplitPartiesArray(bizId) {
+    if (!bizId) return;
+    try {
+      data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId)
+        .concat(__splitParties.map(r => ({
+          id: r.id, businessId: bizId,
+          name: r.name || '', pct: Number(r.pct) || 0,
+          isSelected: r.id === __splitSelectedPartyId,
+          createdAt: r.createdAt || new Date().toISOString(),
+        })));
+      saveData();
+    } catch (e) {
+      console.warn('_syncSplitPartiesArray:', e?.message || e);
+    }
   }
 
   // Add a blank salary row. Focuses the name input afterwards.
@@ -10589,6 +10716,10 @@
   // rows where the row count changes. Field-level changes use
   // refreshDistributionTotals() to avoid losing focus.
   function renderDistributionCard() {
+    // v89.6.1: ensure __distSalaries / __distShares reflect the latest
+    // state — preferring cloud over localStorage when both exist.
+    // This makes manager devices see owner edits in real-time.
+    try { loadDistributionFromCloudOrLocal(session.activeBizId); } catch (_) {}
     const wrap = document.getElementById('distributionCard');
     if (!wrap) return;
     wrap.innerHTML = distributionCardBody();
@@ -11149,7 +11280,11 @@
           </div>
           <div class="input-wrap">
             <label>%</label>
-            <input type="number" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
+            <!-- v89.6: visual % prefix inside the input wrapper -->
+            <div class="pct-input-wrap">
+              <span class="pct-input-prefix" aria-hidden="true">%</span>
+              <input type="number" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="0" inputmode="decimal" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
+            </div>
           </div>
         </div>
         <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
@@ -11693,6 +11828,9 @@
       // Staff role can't see audit — bounce them back to entries silently.
       session.view = 'entries'; saveSession(); renderAll(); return;
     }
+    // v89.6.1: prefer cloud-synced split parties if available. Falls
+    // back to localStorage if cloud data is empty or sync hasn't run.
+    try { loadSplitPartiesFromCloudOrLocal(biz.id); } catch (_) {}
     // Hydrate the split-calc state from localStorage so the user
     // doesn't lose their split % every time they navigate away.
     // Per-business so each business remembers its own split.
@@ -15286,11 +15424,35 @@
 
   // Debounce resize: only re-render after the user has stopped resizing for 120ms.
   // This avoids janky continuous renders during window drags or mobile zoom.
+  //
+  // v89.6.1: skip the resize render if it was triggered by the mobile
+  // keyboard opening (width unchanged, height shrank) AND any input is
+  // currently focused. That was the real cause of the Distribution
+  // typing glitch — every keystroke caused the keyboard to briefly
+  // collapse and re-open. v89.5/v89.6 only fixed the realtime path;
+  // this fixes the resize path.
   let __resizeTimer = null;
+  let __lastViewportW = (typeof window !== 'undefined') ? window.innerWidth : 0;
+  let __lastViewportH = (typeof window !== 'undefined') ? window.innerHeight : 0;
   window.addEventListener('resize', () => {
     if (__resizeTimer) clearTimeout(__resizeTimer);
     __resizeTimer = setTimeout(() => {
       __resizeTimer = null;
+      const curW = window.innerWidth;
+      const curH = window.innerHeight;
+      const widthSame = Math.abs(curW - __lastViewportW) < 5;
+      const heightChanged = Math.abs(curH - __lastViewportH) > 50;
+      const ae = document.activeElement;
+      const isEditing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT');
+      // Mobile keyboard pattern: width unchanged + height changed + input focused.
+      const looksLikeKeyboard = widthSame && heightChanged && isEditing;
+      __lastViewportW = curW;
+      __lastViewportH = curH;
+      if (looksLikeKeyboard) {
+        // Skip the render — the resize is the keyboard opening, not
+        // a layout change that needs a re-render.
+        return;
+      }
       if (session.userId) renderMain();
     }, 120);
   });
@@ -25782,6 +25944,16 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_transfers' },
           (payload) => onRealtimeEvent('transfers', payload))
+        // v89.6: distribution sync — owner edits propagate live to managers
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_distribution_salaries' },
+          (payload) => onRealtimeEvent('distSalaries', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_distribution_shares' },
+          (payload) => onRealtimeEvent('distShares', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_split_parties' },
+          (payload) => onRealtimeEvent('splitParties', payload))
         .subscribe((status) => {
           // v88: guard against stale callbacks. If our channel ref was
           // cleared (stopRealtimeListener ran) or swapped (rapid stop/
@@ -25904,29 +26076,36 @@
     }, 150);
   }
 
-  // v89.5: helper that runs renderAll, unless the user is mid-edit
-  // in a distribution or audit-tax input — in which case we defer
-  // the render until they blur. 30s safety timeout so the render
-  // never gets stuck forever if the user walks away mid-edit.
+  // v89.6: defer renderAll while user is typing in ANY input that
+  // belongs to the Distribution view OR the Audit Tax input. v89.5
+  // only gated specific selectors; v89.6 catches every focused input
+  // by checking the input's containing view. The 30s safety timeout
+  // ensures the render eventually fires even if the user walks away
+  // with focus still active.
   let __renderDeferredHandler = null;
   function _runRenderAllOrDeferIfTyping() {
     const ae = document.activeElement;
-    const isDistInput = ae && ae.closest && (
-      ae.closest('.split-party-row') ||
-      ae.closest('.split-calc-cur-row') ||
-      ae.closest('.dist-row-card') ||
-      ae.closest('#splitCurInput') ||
-      ae.closest('#splitRateInput') ||
-      ae.closest('#splitPctInput')
-    );
-    const isTaxInput = ae && ae.id === 'auditTaxInput';
-    if (!isDistInput && !isTaxInput) {
+    let shouldDefer = false;
+    if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) {
+      // Defer if active element is the Audit Tax input
+      if (ae.id === 'auditTaxInput') shouldDefer = true;
+      // Defer if active element is inside the Distribution view (any input there)
+      else if (session?.view === 'distribution') shouldDefer = true;
+      // Defer if active element is inside any known distribution sub-container
+      // (covers cases where session.view is briefly stale during navigation)
+      else if (ae.closest && (
+        ae.closest('.split-party-row') ||
+        ae.closest('.split-calc-cur-row') ||
+        ae.closest('.dist-row-card') ||
+        ae.closest('.split-cur-save-row') ||
+        ae.closest('.distribution-wrap') ||
+        ae.closest('.split-parties')
+      )) shouldDefer = true;
+    }
+    if (!shouldDefer) {
       try { renderAll(); } catch (_) {}
       return;
     }
-    // Defer: wait until the user blurs, then render. If a NEW remote
-    // event arrives while we're already deferring, reuse the same
-    // deferral (no need to stack listeners).
     if (__renderDeferredHandler) return;
     const blurEl = ae;
     const safetyTimer = setTimeout(() => {
@@ -25935,7 +26114,6 @@
     }, 30000);
     const onBlur = () => {
       cleanup();
-      // Render on the next tick so any final keystroke commits first.
       setTimeout(() => { try { renderAll(); } catch (_) {} }, 0);
     };
     function cleanup() {
@@ -26913,6 +27091,68 @@
     // This row carries the metadata that lets us reverse the transfer
     // as a unit on any device: which entries belong to it, the from/to
     // accounts, fee, and the user's description.
+    // v89.6: Distribution syncs to Supabase
+    distSalaries: {
+      table: 'app_distribution_salaries',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        name: r.name || '',
+        salary: Number(r.salary) || 0,
+        adjustment_type: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
+        adjustment_amount: Number(r.adjustmentAmount) || 0,
+        note: r.note || '',
+        sort_order: r.sortOrder || null,
+        created_at_local: r.createdAt || null,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        name: r.name || '',
+        salary: Number(r.salary) || 0,
+        adjustmentType: r.adjustment_type === 'addition' ? 'addition' : 'deduction',
+        adjustmentAmount: Number(r.adjustment_amount) || 0,
+        note: r.note || '',
+        sortOrder: r.sort_order,
+        createdAt: r.created_at_local || '',
+      }),
+    },
+    distShares: {
+      table: 'app_distribution_shares',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        name: r.name || '',
+        pct: Number(r.pct) || 0,
+        note: r.note || '',
+        sort_order: r.sortOrder || null,
+        created_at_local: r.createdAt || null,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        name: r.name || '',
+        pct: Number(r.pct) || 0,
+        note: r.note || '',
+        sortOrder: r.sort_order,
+        createdAt: r.created_at_local || '',
+      }),
+    },
+    splitParties: {
+      table: 'app_split_parties',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        name: r.name || '',
+        pct: Number(r.pct) || 0,
+        is_selected: !!r.isSelected,
+        sort_order: r.sortOrder || null,
+        created_at_local: r.createdAt || null,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        name: r.name || '',
+        pct: Number(r.pct) || 0,
+        isSelected: !!r.is_selected,
+        sortOrder: r.sort_order,
+        createdAt: r.created_at_local || '',
+      }),
+    },
     transfers: {
       table: 'app_transfers',
       toDb: (r) => ({
@@ -26988,6 +27228,8 @@
   const cloudPushOrder = [
     'businesses', 'books', 'accountGroups', 'cashAccounts',
     'parties', 'categories', 'members', 'entries', 'auditExpenses', 'quickLook', 'announcements', 'transfers',
+    // v89.6: distribution sync — businesses must come first because of FK
+    'distSalaries', 'distShares', 'splitParties',
   ];
 
   async function cloudPushAll(opts) {
