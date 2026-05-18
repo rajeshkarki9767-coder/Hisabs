@@ -1,88 +1,84 @@
-# Hisabs v89.6.1 — corrected release after re-check
+# Hisabs v89.6.2 — schema-corrected release
 
 ```
-index.html: 2492eb05d9c59d4bb0d8f4dd58ca726b
-v89.6 (replaced):  139e32177f8f6dcf6e764fb95433f0c9
+index.html: e31cb4b6b72e0d0b28f512f9dfd51355
 ```
 
-## What I missed in v89.6 (now fixed)
+## Why this exists
 
-During re-check of v89.6 I found two real bugs in my own code:
+You ran the diagnostic queries and they revealed my v89.6 SQL had
+two assumptions wrong:
 
-### Bug 1 — The keyboard glitch root cause was wrong
+1. **IDs are TEXT, not UUID.** Your schema uses text IDs (from `uid()`),
+   not Postgres UUIDs. The FK references would have failed.
+2. **No `sort_order` column** in your existing dist-adjacent table
+   (`app_audit_expenses`). I matched its pattern instead.
+3. **RLS pattern uses `user_is_business_member()` helper** for SELECT,
+   not an inline JOIN. Cleaner and matches what you've already tested.
 
-v89.5 and v89.6 assumed the glitch came from realtime sync events
-firing renderAll while the user typed. So I gated the realtime path.
+The corrected SQL is in `sql/v89.6.2_distribution_sync.sql`. It:
 
-The ACTUAL cause: on mobile, **opening the keyboard triggers a
-viewport resize**, and the resize handler at line 15421 fires
-`renderMain()` after 120ms. That destroys the input, keyboard
-collapses, focus restore re-opens it. Visible glitch.
+- Uses `TEXT PRIMARY KEY` for the new tables
+- Uses `TEXT REFERENCES app_businesses(id)` for FKs
+- Stores `created_at_local` as TEXT (matches your existing convention)
+- Uses your existing `user_is_business_member()` helper for SELECT
+- Uses `owner_id = auth.uid()` for INSERT/UPDATE/DELETE (matches
+  your existing app_businesses pattern)
+- Has 4 separate policies per table (SELECT/INSERT/UPDATE/DELETE)
+  matching your app_businesses style
 
-**Fix in v89.6.1:** the resize handler now checks if the resize
-pattern matches "keyboard opened" (width unchanged + height changed +
-input focused). If so, it skips the render.
+The client code was also patched to remove `sort_order` from the
+toDb/fromDb mappings, otherwise every write would fail with
+"column sort_order does not exist".
 
-### Bug 2 — Cloud-load functions were orphaned
+## Deploy order
 
-v89.6 added `loadDistributionFromCloudOrLocal` and
-`loadSplitPartiesFromCloudOrLocal` but **never called them**. So
-managers wouldn't have seen owner changes anyway — reads still came
-from localStorage.
+1. **Run the corrected SQL** (`sql/v89.6.2_distribution_sync.sql`)
+   in Supabase SQL Editor
 
-**Fix in v89.6.1:** both functions are now called from the view
-renderers (renderDistributionCard for distribution, renderAuditView
-for split parties). When realtime events arrive, the re-render
-triggers the cloud-load, which picks up the new data.
+   If you tried running my v89.6 SQL earlier and got an error,
+   nothing was committed (BEGIN/COMMIT block). Safe to run the
+   new one.
 
-## Deploy order — UNCHANGED from v89.6
+2. **Verify** with the queries at the bottom of the SQL file.
+   You should see:
+   - 3 new tables created
+   - 12 policies (4 per table)
+   - 3 publication entries
 
-1. **Run the SQL migration first** if you haven't already
-   (sql/v89.6_distribution_sync.sql)
-2. Replace index.html
-3. Commit + push
+3. **Replace index.html** and deploy:
+   ```bash
+   cd ~/Documents/GitHub/hisabs
+   cp ~/Downloads/hisabs_v89_6_2/index.html ./index.html
+   md5sum index.html
+   # expected: e31cb4b6b72e0d0b28f512f9dfd51355
+   ```
 
-If you already ran the SQL for v89.6, you do NOT need to re-run it.
-The SQL is unchanged. Only the client code changed.
+4. Commit + push.
+
+## Cumulative changes from v89.0 → v89.6.2
+
+| Version | Changes |
+|---|---|
+| v89.1 | Leak text fix, double-tap entries, long-press removed |
+| v89.2 | Bottom modal buttons, audio fix |
+| v89.3 | Floating button, anywhere swipe, modal icons |
+| v89.4 | FAB center, invoice HWM, tax glitch, split preview, save buttons |
+| v89.5 | Party UX, distribution glitch v1, Shift+Enter, chart tap, bigger mobile charts |
+| v89.5.1 | Dead CSS cleanup |
+| v89.6 | Distribution sync (had SQL/client bugs) |
+| v89.6.1 | Resize-keyboard glitch fix (the REAL keyboard glitch root cause) + orphan function fix |
+| v89.6.2 | **THIS RELEASE** — schema-matched SQL + sort_order removed from client |
 
 ## Smoke tests
 
-1. **% prefix on Party input** — open Distribution → Parties. The %
-   input has `%` symbol on the left inside the box.
+After the SQL runs and code deploys:
 
-2. **Keyboard glitch** — tap any Distribution input. Keyboard stays
-   open continuously, no glitch. ← THIS IS THE REAL FIX
+1. **% prefix on Party input** ✓
+2. **Distribution keyboard stays open on mobile** ← the resize-keyboard fix
+3. **Owner edits → manager sees them on a different device** ← the actual sync working
 
-3. **Distribution sync** — as owner, edit a salary. As manager on
-   a different device, open Distribution. You should see the update.
-   ← THIS ALSO NOW WORKS
+## ⚠ Still outstanding
 
-If the keyboard glitch still happens on your specific device, plug
-your phone into your laptop, open Chrome DevTools remote debugging,
-and tell me what shows up in the Console + Network when the glitch
-happens. Could be a device-specific issue I can't reproduce.
+- Server-side invoice number reuse on delete (see V89_4_NOTES.md)
 
-## Files in this zip
-
-```
-hisabs_v89_6_1/
-├── README_FIRST.md
-├── V89_4_NOTES.md
-├── .gitignore
-├── index.html               ← v89.6.1 (REPLACES existing)
-├── vercel.json              ← unchanged
-├── api/cron/digest.js       ← unchanged
-└── sql/
-    └── v89.6_distribution_sync.sql   ← run if not already
-```
-
-## Honest note
-
-I'm a bit embarrassed that v89.6 had these bugs. The first one
-(resize → renderMain) I should have caught — it's literally listed
-in the line numbers I dumped during analysis. The second one
-(orphaned functions) I introduced in my own patch and forgot to wire.
-
-Re-checking the source after building is the right discipline.
-This time I'm more confident — but as always, the final word is
-what happens on your phone.

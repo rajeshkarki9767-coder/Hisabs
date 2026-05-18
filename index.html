@@ -27101,7 +27101,6 @@
         adjustment_type: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
         adjustment_amount: Number(r.adjustmentAmount) || 0,
         note: r.note || '',
-        sort_order: r.sortOrder || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -27111,7 +27110,6 @@
         adjustmentType: r.adjustment_type === 'addition' ? 'addition' : 'deduction',
         adjustmentAmount: Number(r.adjustment_amount) || 0,
         note: r.note || '',
-        sortOrder: r.sort_order,
         createdAt: r.created_at_local || '',
       }),
     },
@@ -27122,7 +27120,6 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         note: r.note || '',
-        sort_order: r.sortOrder || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -27130,7 +27127,6 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         note: r.note || '',
-        sortOrder: r.sort_order,
         createdAt: r.created_at_local || '',
       }),
     },
@@ -27141,7 +27137,6 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         is_selected: !!r.isSelected,
-        sort_order: r.sortOrder || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -27149,7 +27144,6 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         isSelected: !!r.is_selected,
-        sortOrder: r.sort_order,
         createdAt: r.created_at_local || '',
       }),
     },
