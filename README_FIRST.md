@@ -1,163 +1,156 @@
-# Hisabs v89.19 — score-improving fixes
+# Hisabs v89.23 — OTP for signup, forgot password, change email
 
 ```
-index.html: 57d17999caaa69ce22ff0698628e8d5e
-Previous (v89.18): 12107eace9b457038ecb2b8873e84d34
+index.html: 88b9c6c578d6c8cf8776ecfcef1a03b3
+Previous (v89.22): 36368808ccffa0bee667e170adc999a8
 ```
 
-## What this release does
+## ⚠️ READ THIS FIRST
 
-Apply the fixes identified in the v89.18 audit that take the
-statically-verifiable score from **85/100 → ~91/100**.
+**Before deploying v89.23, you must update 3 Supabase email templates.**
+See `SUPABASE_SETUP_REQUIRED.md` for step-by-step instructions.
 
-## Fixes shipped
+If you skip that step, users will receive emails with links (not codes)
+and the OTP modal will sit waiting forever.
 
-### 1. Hover-on-touch sticky bug (MEDIUM → fixed)
+## What changed
 
-On phones, tapping a button briefly triggered :hover, and the
-hover state would "stick" until the next tap somewhere else.
-Buttons looked half-pressed even when they weren't.
+### 1. Signup verification (OTP code at first signup only)
 
-Added one global `@media (hover: none)` override at the end of
-the stylesheet that resets `filter` and `transform` on 23
-hover-affecting selectors. Backgrounds left alone (they look fine
-even stuck).
+**Before**: User signs up → Supabase sends magic link → user clicks
+link to confirm → returns to app → signs in.
 
-Mouse users with `(hover: hover)` keep all existing hover styles
-unchanged.
+**Now**: User signs up → Supabase sends 6-digit code → user types code
+in a new OTP modal → signed in immediately. After this one-time
+verification, normal password sign-in works forever.
 
-### 2. Global error handler (MEDIUM → fixed)
+### 2. Forgot password (OTP code → set new password)
 
-Added two window-level listeners:
-- `window.addEventListener('error', ...)` — catches uncaught errors
-- `window.addEventListener('unhandledrejection', ...)` — catches
-  uncaught promise rejections
+**Before**: User taps "Forgot password" → enters email → magic link
+sent → opens email → clicks link → sets new password in browser tab.
 
-Both log to console with tagged prefixes (`[GlobalError]`,
-`[UnhandledRejection]`). No automatic reporting; the point is so
-silent failures become visible at all when you have DevTools open.
+**Now**: User taps "Forgot password" → enters email → 6-digit code
+sent → types code in OTP modal → "Set new password" modal appears →
+types new password → signed in.
 
-### 3. Distribution row delete cleanup (3× LOW → fixed)
+### 3. Change email (new feature)
 
-When you delete a row from Team Salaries, Profit Shares, or Split
-Parties, the row's lock state in localStorage now gets cleaned up
-properly. Previously, an orphan key would remain.
+**Before**: Not possible. Email field was disabled in Profile.
 
-Was harmless in practice (<50 bytes each, only after thousands of
-deletions would it matter), but worth fixing.
+**Now**: Profile → Account → "Change" button next to email →
+type new email → code sent to NEW email → type code → email updated.
 
-## Audit corrections — items I was wrong about in v89.18
+## OTP modal UX features
 
-I should be transparent about my own audit mistakes:
+- 6 single-digit boxes (auto-advance on input, backspace goes back)
+- Paste a 6-digit code → fills all boxes at once
+- Last digit auto-submits the code
+- "Resend" link with 60-second cooldown
+- Inline error messages (invalid code, expired, etc.)
+- Mobile keyboard shows number pad (`inputmode="numeric"`)
+- Autofill support for OTP from email apps (`autocomplete="one-time-code"`)
 
-1. **drainSyncQueue reentrant guard**: I flagged it as missing.
-   Actually `__syncDraining` exists at line 26493 and the guard at
-   line 26627 (`if (__syncDraining) return;`). My audit's regex
-   searched for `drainSyncQueue` but the function is named
-   `drainQueueOnce`. **False alarm — no fix needed.**
+## Existing users — unaffected
 
-2. **signOut interval cleanup**: I flagged it as possibly missing.
-   Actually signOut() at line 7923 already clears `__dateStripTimer`
-   at line 7953. **False alarm — no fix needed.**
+If your account is already verified (Zeus, Kratos, Rajesh, anyone who
+signed up before v89.23): nothing changes. You sign in with email +
+password as always. Only NEW signups go through OTP verification.
 
-3. **Screen reader labels**: I said "few sr-only labels".
-   The app uses `aria-label` (90 references) instead — a valid
-   strategy that doesn't need sr-only spans. **Overstated severity.**
-
-When I do these audits I'll keep flagging things I'm uncertain about,
-but I'll also keep correcting myself when re-inspection shows the
-flag was wrong.
-
-## Updated score projection
-
-After v89.19:
+## Verification
 
 ```
-v89.18 base:             85.0
-+3.0  hover-on-touch fix
-+3.0  global error handler
-+1.5  lock state cleanup (3 × 0.5)
-+1.5  audit corrections (drain, signOut, sr-only false alarms)
------
-v89.19 projected:        ~94/100
+JS: OK
+HTML comments: 42/42
+CSS braces: 1963/1963
+Backticks: 2138 (even)
+Runtime smoke: clean
+
+6 transforms applied + 1 patch
+18 v89.23 feature checks pass
+v89.22 features intact (3/3)
+v89.21 features intact (2/2)
+v89.20 features intact (2/2)
+Auth integrity: signInWithPassword, onSupabaseSignedIn,
+  openChangePasswordModal, checkAuthLockout, recordAuthFailure all preserved
+Legacy magic-link resetPasswordForEmail: REMOVED (replaced with OTP)
+
+File size: 1709 KB (was 1691 KB, +18 KB for OTP modal + flows)
 ```
-
-I'd score this conservatively at **91–94/100** statically. The
-remaining gap to 100:
-
-- Modal focus-trap not implemented (referenced but undefined)
-- localStorage capacity ceiling unchanged (architectural)
-- Console.log/warn/error count still high (58 — debug noise, harmless)
-- All RUNTIME-ONLY checks still unverifiable from static analysis
-
-## What's still RUNTIME-ONLY (can't push score higher without)
-
-- WebSocket reconnect under network failure
-- Audio playback on iOS Safari
-- Memory over hours
-- Frame drops under load
-- Cross-tab sync timing in practice
-- Push delivery on locked phones
-- Two-user concurrent edits
-- Service worker cache across deploys
-
-Doing those means using the app on real devices. No code change can
-substitute for that.
 
 ## Deploy
 
+**Before deploying, complete SUPABASE_SETUP_REQUIRED.md first.**
+
 ```bash
 cd ~/Documents/GitHub/hisabs
-cp ~/Downloads/hisabs_v89_19/index.html ./index.html
+cp ~/Downloads/hisabs_v89_23/index.html ./index.html
 md5sum index.html
-# expected: 57d17999caaa69ce22ff0698628e8d5e
+# expected: 88b9c6c578d6c8cf8776ecfcef1a03b3
 ```
 
-Commit + push. No SQL changes.
+Commit + push. **No SQL migrations** — OTP uses Supabase's built-in
+auth flows; only the email template config needs to change.
 
-## Quick test after deploy
+## What to test after deploy
 
-1. **Hover-on-touch fix**: tap any button on phone — should not look
-   stuck in "pressed" state after release. Buttons return to normal
-   immediately.
+### Signup with OTP:
+1. Sign out (if signed in)
+2. Click "Create account" → enter name, email, password (use a NEW email)
+3. Click Create → OTP modal appears
+4. Check the new email's inbox → find the 6-digit code
+5. Type the code → app should sign you in and load
+6. Sign out → sign back in with the same email + password → should work normally
 
-2. **Error handler**: open DevTools console on desktop. If anything
-   ever crashes, you'll see clear `[GlobalError]` or
-   `[UnhandledRejection]` tags. Nothing visible if no errors.
+### Forgot password with OTP:
+1. On sign-in screen, click "Forgot password?"
+2. Type your email → click Send code
+3. Check email → find code → type in OTP modal
+4. After verification, "Set new password" modal appears
+5. Type new password twice → Save → app loads with you signed in
+6. Sign out → sign in with the NEW password → should work
 
-3. **Lock state cleanup**: in Distribution → Team Salaries, add a
-   row, delete it. The row should disappear cleanly with no lingering
-   state. (Functionally identical to before — just no orphan
-   localStorage keys.)
+### Change email:
+1. Sign in → open Settings → Profile tab
+2. Click "Change" button next to email
+3. Type new email address → click Send code
+4. Check the NEW email's inbox for the code
+5. Type code → confirmation that email updated
+6. Sign out → try to sign in with NEW email → should work (old email no longer valid)
 
-4. **All v89.1-v89.18 features**: verified intact at the code level
-   (26/26 cumulative features present). Test as you normally would
-   to confirm runtime.
+### Edge cases to verify:
+- Wrong code: modal shows error, allows retry
+- Resend: link greys out for 60 seconds after sending
+- Paste a 6-digit code: fills all boxes and auto-submits
+- Cancel during OTP: returns to sign-in screen cleanly (no half-state)
 
-## Verification summary
+## Honest limits
 
-```
-JS: ✅
-HTML comments: 41/41
-CSS braces: 1923/1923
-Backticks: 2092 (even)
-Runtime smoke: clean
+- **Cannot test runtime** — sandbox only verifies source structure. Real
+  OTP flow works only against a configured Supabase instance with the
+  email templates updated.
+- **No retry limits on OTP** — Supabase enforces its own rate limit
+  (default: 4 codes per hour). If a user requests too many, Supabase
+  returns an error and our modal shows it. Not something I can fix
+  client-side.
+- **Code expiry** — Supabase OTP codes expire after 1 hour by default.
+  Configurable in Authentication → Settings.
+- **Account lockout doesn't apply to OTP flows** — the existing
+  `checkAuthLockout` only gates `signInWithPassword`. OTP flows
+  bypass that. Acceptable since OTP is rate-limited by Supabase itself.
+- **Edge case: user verifies signup OTP but session is null** — should
+  never happen in practice, but we throw an error and ask them to sign
+  in normally.
+- **iOS Safari OTP autofill** — should work via `autocomplete="one-time-code"`,
+  but iOS's "fill from messages" is the most reliable. Email autofill
+  on iOS is less reliable. User can always type the code manually.
 
-Deep recheck of v89.19 changes:
-  • hover override: 23 selectors, filter+transform reset ✓
-  • window.error listener ✓
-  • unhandledrejection listener ✓
-  • Both log via console.error with tags ✓
-  • deleteDistSalaryRow cleans lock state ✓
-  • deleteDistShareRow cleans lock state ✓
-  • removeSplitParty cleans lock state ✓
+## What's next?
 
-Cumulative: 21/21 features intact
-```
+If everything works, that completes the v89.21–v89.23 trio. Remaining
+items from the original v89 list:
+- Distribution row delete sound (small carry-over from v89.20)
+- Instant cross-device sign-out (needs forced_signouts table)
+- Orphan Steve business cleanup (harmless, separate concern)
 
-## What's still pending (unchanged)
-
-- Activity log clear (needs your SQL diagnostic results)
-- Instant cross-device sign-out (would need new infra)
-- Orphan Steve business (harmless)
+Let me know what you'd like next.
 
