@@ -212,18 +212,23 @@
   .insights-chart-interactive { touch-action: pan-y; }
   .insights-chart-interactive.is-scrubbing { touch-action: none; }
 
-  /* v89.7: bigger charts on mobile (bumped from v89.5's 280px).
-     Taller containers + larger text inside SVG for readability and
-     bigger tap targets. Desktop sizes unchanged. */
+  /* v89.13: even bigger Insights charts on mobile (bumped from
+     v89.7's 340px). Wider tap targets, larger axis text, more breathing
+     room. Desktop sizes unchanged. */
   @media (max-width: 720px) {
     .insights-chart-interactive {
-      min-height: 340px;
+      min-height: 420px;
     }
     .insights-chart-interactive svg {
-      font-size: 15px;
+      font-size: 17px;
     }
     .insights-chart-interactive svg text {
-      font-size: 14px;
+      font-size: 16px;
+    }
+    /* Make x-axis labels readable — they were getting squeezed */
+    .insights-chart-interactive svg .fc-xlabel,
+    .insights-chart-interactive svg .fc-ylabel {
+      font-size: 13px !important;
     }
     /* Bigger tap targets on individual bars/points/cells */
     .insights-chart-interactive .bar,
@@ -232,8 +237,21 @@
       cursor: pointer;
     }
     .chart-touch-tooltip {
-      font-size: 1rem;
-      padding: 0.7rem 1rem;
+      font-size: 1.05rem;
+      padding: 0.8rem 1.1rem;
+      font-weight: 600;
+    }
+    /* Insights sections get extra bottom margin so charts don't crowd
+       the next section's heading */
+    .insights-section {
+      margin-bottom: 1.5rem;
+    }
+    .insights-section-title {
+      font-size: 1.05rem;
+    }
+    .insights-section-help {
+      font-size: 0.85rem;
+      line-height: 1.5;
     }
   }
 
@@ -357,10 +375,10 @@
      editable now, so no lock styling needed. Spacing matches
      Salaries / Profit Shares (vertical breathing room). */
   .split-party-row-v895 {
-    /* v89.7: added Save column (right side) */
+    /* v89.10: added decorative pencil column; final: radio | fields | trash | pencil | save */
     display: grid;
-    grid-template-columns: 28px 1fr 32px auto;
-    gap: 0.6rem;
+    grid-template-columns: 28px 1fr 32px auto auto;
+    gap: 0.5rem;
     align-items: start;
     padding: 0.8rem 0.7rem;
     background: var(--paper-deep);
@@ -440,26 +458,29 @@
     font-size: 0.88rem;
   }
   .dist-view-only-banner strong { color: var(--accent); }
+  /* v89.10: per-row Save button — now ICON ONLY, ~30px square.
+     Used on Parties / Salaries / Profit Shares. Greyed when clean,
+     accent when dirty, green flash when saved. */
   .dist-row-save-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 0.4rem 0.85rem;
+    width: 30px;
+    height: 30px;
+    padding: 0;
     margin-top: 0.45rem;
     border: 1px solid var(--line);
     border-radius: 6px;
     background: var(--paper);
     color: var(--ink-mute);
-    font-size: 0.78rem;
-    font-weight: 600;
     cursor: pointer;
-    transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.1s;
-    min-height: 36px;
-    white-space: nowrap;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    flex-shrink: 0;
   }
+  .dist-row-save-btn svg { display: block; }
   .dist-row-save-btn:disabled {
     cursor: default;
-    opacity: 0.55;
+    opacity: 0.45;
   }
   .dist-row-save-btn.is-dirty {
     background: var(--accent);
@@ -468,14 +489,97 @@
     opacity: 1;
     cursor: pointer;
   }
-  .dist-row-save-btn.is-dirty:hover { filter: brightness(1.08); }
+  .dist-row-save-btn.is-dirty:hover { filter: brightness(1.1); }
   .dist-row-save-btn.is-saved {
     background: var(--gain);
     color: #fff;
     border-color: var(--gain);
     opacity: 1;
   }
-  .dist-row-save-btn.is-saved::before { content: "✓ "; }
+  /* Replace the floppy icon with a check briefly when saved. */
+  .dist-row-save-btn.is-saved svg { display: none; }
+  .dist-row-save-btn.is-saved::after {
+    content: "\2713";
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  /* v89.10: decorative pencil hint next to Save. NOT a button. */
+  .dist-row-edit-hint {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-top: 0.45rem;
+    color: var(--ink-mute);
+    opacity: 0.5;
+    pointer-events: none;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .dist-row-edit-hint svg { display: block; }
+
+  /* v89.10: row-actions container for Salary and Share rows. The pencil
+     and save sit side-by-side inside the note-row. */
+  .dist-row-actions {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+    margin-top: 0.4rem;
+  }
+  .dist-row-actions .dist-row-edit-hint,
+  .dist-row-actions .dist-row-save-btn {
+    margin-top: 0;
+  }
+
+  /* v89.11: Distribution visual polish.
+     - Section headers stand out more (background tint + thicker border)
+     - Salary rows breathe (more vertical padding)
+     - Profit share total has an accent border
+     - Positive amounts use the Cash In green for consistency */
+  .dist-section .dist-section-head {
+    background: color-mix(in srgb, var(--accent) 8%, var(--paper-deep));
+    border-bottom: 2px solid color-mix(in srgb, var(--accent) 35%, var(--line));
+    padding: 0.95rem 1.05rem;
+    border-radius: var(--r-sm) var(--r-sm) 0 0;
+  }
+  .dist-section .dist-section-titles h3 {
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  /* Salary rows get a touch more breathing room */
+  .dist-row-card {
+    padding: 0.95rem 0.9rem;
+    margin-bottom: 0.7rem;
+  }
+  .dist-row-card .dist-row-note {
+    margin-top: 0.6rem;
+  }
+
+  /* Profit share section total gets an accent border highlight */
+  .dist-section-shares .dist-total-row,
+  .dist-section-shares .dist-totals-line,
+  .dist-section-shares .dist-section-total {
+    border: 1.5px solid color-mix(in srgb, var(--accent) 40%, var(--line));
+    border-radius: var(--r-sm);
+    padding: 0.7rem 0.95rem;
+    background: color-mix(in srgb, var(--accent) 5%, var(--paper));
+  }
+
+  /* Positive amounts use Cash In green throughout Distribution */
+  .dist-salary-final:not(.neg),
+  .dist-share-amount,
+  .dist-total-positive {
+    color: var(--gain);
+    font-weight: 600;
+  }
+  .dist-salary-final.neg {
+    color: var(--loss);
+    font-weight: 600;
+  }
 
   /* v89.8: inline total % indicator for parties. */
   .party-total-status {
@@ -4874,19 +4978,57 @@
     .fab-btn.out { background: var(--loss); }
     .fab-btn:active:not(:disabled) { transform: scale(0.97); }
 
+    /* v89.12: smaller bottom-sheet modal on mobile.
+       Was 80vh; now 60vh — feels like a card, not a takeover.
+       Padding, gaps, and inner sizes scaled down proportionally so
+       the modal still feels natural at the smaller height. */
     .modal-backdrop { padding: 0; align-items: flex-end; }
-    .modal { max-width: 100%; max-height: 80vh; animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1); padding: 0.7rem 0.9rem calc(0.85rem + var(--safe-bottom)); border-top-left-radius: 16px; border-top-right-radius: 16px; border-bottom-left-radius: 0; border-bottom-right-radius: 0; width: 100%; }
-    .modal-title { font-size: 1.05rem; margin-bottom: 0.15rem; }
-    .modal-sub { margin-bottom: 0.65rem; font-size: 0.72rem; line-height: 1.4; }
-    .modal-handle { display: block; width: 36px; height: 4px; background: var(--line); border-radius: 2px; margin: -0.15rem auto 0.55rem; }
-    .form-grid { gap: 0.6rem; }
-    .form-row { grid-template-columns: 1fr; gap: 0.6rem; }
-    .input-wrap label { font-size: 0.58rem; top: -0.4rem; padding: 0 0.3rem; }
-    input, select, textarea { padding: 0.55rem 0.7rem; }
-    select { padding-right: 2rem; }
-    .type-toggle button { padding: 0.5rem; font-size: 0.74rem; }
-    .modal-actions { flex-direction: column-reverse; gap: 0.4rem; margin-top: 0.75rem; }
-    .modal-actions .btn { width: 100%; padding: 0.6rem 1rem; }
+    .modal {
+      max-width: 100%;
+      max-height: 60vh;
+      animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      padding: 0.55rem 0.75rem calc(0.65rem + var(--safe-bottom));
+      border-top-left-radius: 14px;
+      border-top-right-radius: 14px;
+      border-bottom-left-radius: 0;
+      border-bottom-right-radius: 0;
+      width: 100%;
+    }
+    .modal-title { font-size: 0.98rem; margin-bottom: 0.1rem; }
+    .modal-sub { margin-bottom: 0.5rem; font-size: 0.68rem; line-height: 1.35; }
+    .modal-handle {
+      display: block;
+      width: 32px;
+      height: 3.5px;
+      background: var(--line);
+      border-radius: 2px;
+      margin: -0.1rem auto 0.4rem;
+    }
+    .form-grid { gap: 0.5rem; }
+    .form-row { grid-template-columns: 1fr; gap: 0.5rem; }
+    .input-wrap label {
+      font-size: 0.55rem;
+      top: -0.35rem;
+      padding: 0 0.28rem;
+    }
+    input, select, textarea {
+      padding: 0.45rem 0.6rem;
+      font-size: 0.88rem;
+    }
+    select { padding-right: 1.8rem; }
+    .type-toggle button { padding: 0.42rem; font-size: 0.7rem; }
+    .modal-actions {
+      flex-direction: column-reverse;
+      gap: 0.35rem;
+      margin-top: 0.6rem;
+    }
+    .modal-actions .btn { width: 100%; padding: 0.5rem 0.85rem; font-size: 0.82rem; }
+    /* Modal-action icons also a touch smaller to match */
+    .modal-actions svg,
+    .modal-header-icons svg {
+      width: 16px;
+      height: 16px;
+    }
 
     .month-grid { grid-template-columns: repeat(3, 1fr); }
     .period-picker-tabs button { padding: 0.5rem; font-size: 0.68rem; }
@@ -7780,7 +7922,8 @@
     function shouldIgnoreTarget(t) {
       if (!t || !t.closest) return false;
       if (t.closest('input, textarea, select')) return true;
-      if (t.closest('.modal-backdrop.open')) return true;
+      // v89.9: was '.modal-backdrop.open' — same bug as the Shift+Enter handler.
+      if (t.closest('.modal-backdrop.active')) return true;
       if (t.closest('.split-party-row')) return true;
       // Don't interfere with horizontally-scrolling areas (charts, tables).
       if (t.closest('.insights-chart-interactive')) return true;
@@ -7851,9 +7994,12 @@
       if (e.key !== 'Enter') return;
       // Only fire when the entry modal is actually open AND we have a
       // saveAndAddMoreBtn (which only exists for new entries, not edits).
+      // v89.9: was '.modal-backdrop.open' — that class doesn't exist.
+      // The modal uses '.active' (see line 4399 of the stylesheet).
+      // So the check always failed and the shortcut never fired.
       const btn = document.getElementById('saveAndAddMoreBtn');
       if (!btn) return;
-      const modal = document.querySelector('.modal-backdrop.open');
+      const modal = document.querySelector('.modal-backdrop.active');
       if (!modal) return;
       // Don't intercept inside textareas — Shift+Enter is the standard
       // "insert newline" combo there.
@@ -11093,8 +11239,12 @@
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
           <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.7: per-row Save. Always-editable inputs; Save commits buffered changes + refreshes math. -->
-          <button class="dist-row-save-btn" data-dist-save="salaries:${jsAttr(r.id)}" onclick="saveDistSalaryRow('${jsAttr(r.id)}')" title="Save this row" disabled>Save</button>
+          <!-- v89.10: row action cluster. Pencil is visual-only (no click).
+               Save is functional (icon-only). Trash already on the top row. -->
+          <div class="dist-row-actions">
+            <span class="dist-row-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
+            <button class="dist-row-save-btn" data-dist-save="salaries:${jsAttr(r.id)}" onclick="saveDistSalaryRow('${jsAttr(r.id)}')" title="Save this row" aria-label="Save row" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+          </div>
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
@@ -11176,8 +11326,11 @@
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
           <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.7: per-row Save for profit shares. -->
-          <button class="dist-row-save-btn" data-dist-save="shares:${jsAttr(r.id)}" onclick="saveDistShareRow('${jsAttr(r.id)}')" title="Save this row" disabled>Save</button>
+          <!-- v89.10: row action cluster — pencil hint + small Save icon. -->
+          <div class="dist-row-actions">
+            <span class="dist-row-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
+            <button class="dist-row-save-btn" data-dist-save="shares:${jsAttr(r.id)}" onclick="saveDistShareRow('${jsAttr(r.id)}')" title="Save this row" aria-label="Save row" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
+          </div>
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
@@ -11548,8 +11701,9 @@
         <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
           <svg width="12" height="12"><use href="#ico-trash"/></svg>
         </button>
-        <!-- v89.7: per-row Save for split parties. -->
-        <button class="dist-row-save-btn split-party-save-btn" data-dist-save="parties:${jsAttr(p.id)}" onclick="saveSplitPartyRow('${jsAttr(p.id)}')" title="Save this party" disabled>Save</button>
+        <!-- v89.10: pencil hint (decorative) + small Save icon -->
+        <span class="dist-row-edit-hint split-party-edit-hint" aria-hidden="true" title="Edit fields above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
+        <button class="dist-row-save-btn split-party-save-btn" data-dist-save="parties:${jsAttr(p.id)}" onclick="saveSplitPartyRow('${jsAttr(p.id)}')" title="Save this party" aria-label="Save party" disabled><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
       </div>`;
     }).join('');
   }
@@ -12597,9 +12751,11 @@
              auto-save on keystroke (existing); this button is a visible
              confirmation that flashes "Saved" feedback. -->
         <div class="split-cur-save-row">
-          <button class="btn btn-sm btn-accent" id="splitCurSaveBtn"
+          <!-- v89.11: pencil hint (decorative) + small Save icon matching v89.10 Parties pattern -->
+          <span class="dist-row-edit-hint split-cur-edit-hint" aria-hidden="true" title="Edit currency or rate above"><svg width="14" height="14"><use href="#ico-edit"/></svg></span>
+          <button class="dist-row-save-btn split-cur-save-btn" id="splitCurSaveBtn"
                   onclick="saveSplitCurRate()"
-                  title="Confirm currency and rate">Save</button>
+                  title="Save currency and rate" aria-label="Save currency and rate"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg></button>
           <span class="split-cur-save-status" id="splitCurSaveStatus"></span>
         </div>
 
@@ -15815,6 +15971,15 @@
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
     if (view !== 'accounts') __acctTransfersExpanded = false;
+    // v89.14: clear the dist-view-only body class when leaving Distribution.
+    // Added in v89.8 to disable Distribution inputs on manager devices;
+    // was only being removed inside renderDistributionCard for owners,
+    // so a manager who opened Distribution then navigated away left
+    // the class on the body. Harmless today (CSS selectors target
+    // Distribution-specific elements only) but bad hygiene.
+    if (view !== 'distribution' && document.body) {
+      document.body.classList.remove('dist-view-only');
+    }
     // When leaving insights, reset both period filters back to default
     // (This month). Previously this reset to 'all' which is why the
     // view appeared to default to All time on every return visit.
@@ -21882,7 +22047,7 @@
         </div>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;">
           <button class="btn btn-sm btn-ghost" onclick="loadDevicesList()" title="Refresh device list">Refresh list</button>
-          <button class="btn btn-sm btn-danger-outline" onclick="signOutAllOtherDevices()" title="Sign out every device except this one">Sign out all other devices</button>
+          <button class="btn btn-sm btn-danger-outline" onclick="signOutAllOtherDevices()" title="Other devices sign out within ~1 hour (when their access token expires)">Sign out all other devices</button>
         </div>
       </div>
       <div class="settings-section">
@@ -23967,15 +24132,26 @@
   }
 
   async function signOutAllOtherDevices() {
-    if (!(await uiConfirm('Sign out every device except this one? Other devices will need to sign in again.', { destructive: true, confirmLabel: 'Sign out others' }))) return;
+    // v89.13: be honest about what this does. Supabase invalidates the
+    // refresh tokens server-side, but each device's CURRENT access
+    // token stays valid until it expires (~1 hour). So "instant"
+    // sign-out isn't possible without extra infrastructure (a forced-
+    // signouts table + realtime subscription on every device).
+    if (!(await uiConfirm(
+      'Sign out other devices?\n\nThey will be signed out within an hour. To sign them out instantly, sign out from each device directly.',
+      { destructive: true, confirmLabel: 'Sign out others' }
+    ))) return;
     try {
-      // Supabase's built-in: scope 'others' signs out all sessions except
-      // the one making the call. Works without our Edge Functions.
       const { error } = await sb().auth.signOut({ scope: 'others' });
       if (error) { console.warn('signOut(others) failed:', error); toast('Could not sign out other devices.'); return; }
-      toast('Other devices signed out.');
-      // Refresh the list to show only this device.
-      if (typeof loadDevicesList === 'function') loadDevicesList();
+      toast('Other devices will sign out within ~1 hour.');
+      // Refresh the list to show only this device. Repeat after a short
+      // delay because Supabase's server may need a moment to update its
+      // session list response.
+      if (typeof loadDevicesList === 'function') {
+        loadDevicesList();
+        setTimeout(() => { try { loadDevicesList(); } catch (_) {} }, 1500);
+      }
     } catch (e) {
       console.warn('signOut(others) threw:', e);
       toast('Could not sign out other devices.');
@@ -25699,6 +25875,18 @@
   //   { id: uuid, table: 'app_entries', kind: 'upsert' | 'delete', recordId: '...', row: {...}, ts: 12345, attempts: 0 }
   let __syncQueue = [];
 
+  // v89.11: ring buffer of record IDs we just pushed to Supabase.
+  // Used to suppress self-echo from the realtime subscription, which
+  // causes a flicker on the Distribution view (every Save triggers
+  // a re-render of the same data we just rendered locally).
+  const __recentSelfWrites = new Set();
+  const __SELF_WRITE_TTL_MS = 3000;
+  function _markSelfWrite(recordId) {
+    if (!recordId) return;
+    __recentSelfWrites.add(recordId);
+    setTimeout(() => { __recentSelfWrites.delete(recordId); }, __SELF_WRITE_TTL_MS);
+  }
+
   // v89.8: one-time cleanup of stuck distribution ops left from
   // v89.6/v89.7 where manager devices queued writes that the server
   // RLS rejected. Runs once per release; localStorage flag prevents
@@ -26183,7 +26371,12 @@
             earlyExit = true;
             break;
           } else {
-            successfulOps.push(...slot.ops.filter(o => o.kind === 'upsert'));
+            // v89.11: track these IDs so we can suppress the realtime echo.
+          const upsertedOps = slot.ops.filter(o => o.kind === 'upsert');
+          for (const op of upsertedOps) {
+            if (op.row && op.row.id) _markSelfWrite(op.row.id);
+          }
+          successfulOps.push(...upsertedOps);
           }
         }
         if (slot.deletes.length) {
@@ -26204,7 +26397,12 @@
             earlyExit = true;
             break;
           } else {
-            successfulOps.push(...slot.ops.filter(o => o.kind === 'delete'));
+            // v89.11: track these IDs so we can suppress the realtime echo.
+            const deletedOps = slot.ops.filter(o => o.kind === 'delete');
+            for (const op of deletedOps) {
+              if (op.row && op.row.id) _markSelfWrite(op.row.id);
+            }
+            successfulOps.push(...deletedOps);
           }
         }
       }
@@ -26379,6 +26577,37 @@
   let __remoteApplyTimer = null;
   let __remoteApplied = []; // [{localKey, recordId, kind: 'upsert'|'delete'}]
   function scheduleRemoteRender(localKey, recordId, kind) {
+    // v89.11: self-echo suppression. When the user's own Save triggers
+    // a Supabase INSERT/UPDATE, that write is broadcast back over the
+    // realtime channel. Without this gate, every Save fires a re-render
+    // 150ms later, causing visible flicker on the Distribution view.
+    //
+    // We track every ID we successfully push to Supabase. If a realtime
+    // event arrives with one of those IDs within 3 seconds, it's our
+    // own echo — apply the snapshot update but skip the re-render
+    // (we already rendered the local state when the user pressed Save).
+    if (recordId && __recentSelfWrites && __recentSelfWrites.has(recordId)) {
+      // Still apply the snapshot update so future diffs are correct.
+      // Just skip the actual re-render call.
+      if (__syncSnapshot) {
+        const list = __syncSnapshot[localKey];
+        if (Array.isArray(list)) {
+          if (kind === 'delete') {
+            const idx = list.findIndex(r => r.id === recordId);
+            if (idx !== -1) list.splice(idx, 1);
+          } else {
+            const live = (data[localKey] || []).find(r => r.id === recordId);
+            if (live) {
+              const idx = list.findIndex(r => r.id === recordId);
+              if (idx === -1) list.push({ ...live });
+              else list[idx] = { ...live };
+            }
+          }
+          try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(__syncSnapshot)); } catch (_) {}
+        }
+      }
+      return;
+    }
     if (localKey && recordId && kind) {
       __remoteApplied.push({ localKey, recordId, kind });
     }
