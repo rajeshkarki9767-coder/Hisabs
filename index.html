@@ -429,6 +429,83 @@
      Stays disabled (greyed) until a field is edited. Turns accent when
      dirty. Flashes "Saved" briefly on commit. */
 
+  /* v89.28: OTP sending splash — shown while the verification email
+     is being dispatched. Distinct visual from boot splash: animated
+     envelope with pulsing dot + progress bar. Brand terracotta. */
+  .otp-sending-splash {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5rem 1.5rem 2rem;
+    min-height: 240px;
+    text-align: center;
+  }
+  .otp-sending-envelope {
+    position: relative;
+    color: var(--accent);
+    margin-bottom: 1.25rem;
+    animation: otp-envelope-float 1.8s ease-in-out infinite;
+  }
+  .otp-sending-envelope svg {
+    display: block;
+  }
+  .otp-sending-dot {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    top: 14px;
+    right: -8px;
+    box-shadow: 0 0 0 0 rgba(184, 72, 42, 0.6);
+    animation: otp-dot-pulse 1.4s ease-out infinite;
+  }
+  .otp-sending-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 0.4rem 0;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .otp-sending-sub {
+    font-size: 0.85rem;
+    color: var(--ink-mute);
+    margin: 0 0 1.6rem 0;
+    line-height: 1.4;
+    word-break: break-all;
+  }
+  .otp-sending-progress {
+    width: 100%;
+    max-width: 240px;
+    height: 3px;
+    background: var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    position: relative;
+  }
+  .otp-sending-bar {
+    position: absolute;
+    inset: 0;
+    width: 40%;
+    background: var(--accent);
+    border-radius: 2px;
+    animation: otp-bar-slide 1.4s ease-in-out infinite;
+  }
+  @keyframes otp-envelope-float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  @keyframes otp-dot-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(184, 72, 42, 0.6); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 14px rgba(184, 72, 42, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(184, 72, 42, 0); }
+  }
+  @keyframes otp-bar-slide {
+    0% { left: -40%; }
+    100% { left: 100%; }
+  }
+
   /* v89.23: OTP code entry modal. The modal shows 6 single-digit
      input boxes side by side. Typing a digit advances focus to the
      next box; backspace on an empty box goes back. Pasting a 6-digit
@@ -531,46 +608,6 @@
       opacity: 0.55;
     }
   }
-  .unassigned-badge {
-    display: inline-block;
-    font-size: 0.62rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-mute);
-    background: var(--line);
-    padding: 0.1rem 0.4rem;
-    border-radius: 3px;
-    margin-top: 0.3rem;
-    line-height: 1.3;
-  }
-  .entity-unassigned-toggle {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-    padding: 0.6rem;
-    background: var(--paper-deep, var(--paper));
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    margin-top: 0.5rem;
-  }
-  .entity-unassigned-toggle input[type=checkbox] {
-    margin-top: 0.2rem;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .entity-unassigned-toggle label {
-    cursor: pointer;
-    font-size: 0.85rem;
-    line-height: 1.4;
-  }
-  .entity-unassigned-toggle .toggle-hint {
-    display: block;
-    font-size: 0.72rem;
-    color: var(--ink-mute);
-    margin-top: 0.2rem;
-    font-weight: 400;
-  }
 
   /* v89.21: print-chart styles. When the user clicks a chart's
      print icon, we clone the chart card into a #print-chart-overlay
@@ -611,8 +648,12 @@
     display: none;
   }
   @media print {
-    /* Hide the entire app... */
-    body > *:not(#print-chart-overlay) {
+    /* v89.26 fix #11: scope the chart-print hide rule to body.printing-chart.
+       Without this guard, ANY window.print() call (including the page-level
+       printPage()) would hide everything in body — resulting in blank PDFs
+       on every page. The chart-print path adds .printing-chart to body
+       before window.print(); the page-print path does not. */
+    body.printing-chart > *:not(#print-chart-overlay) {
       display: none !important;
     }
     /* ...except the overlay. */
@@ -1259,6 +1300,14 @@
   .input-wrap.input-error .combo input.combo-input,
   .combo.input-error input { border-color: var(--loss) !important; box-shadow: 0 0 0 3px rgba(168,53,31,0.12); }
   .input-wrap.input-error label { color: var(--loss); }
+  /* v89.25 fix #1: hide browser-native password reveal icons.
+     Chrome/Edge/IE add their own eye icon to password inputs which
+     overlapped with our custom .pwd-toggle button (visible as two eyes). */
+  .pwd-wrap input::-ms-reveal,
+  .pwd-wrap input::-ms-clear { display: none !important; width: 0 !important; height: 0 !important; }
+  .pwd-wrap input::-webkit-credentials-auto-fill-button,
+  .pwd-wrap input::-webkit-contacts-auto-fill-button { visibility: hidden !important; display: none !important; pointer-events: none !important; position: absolute !important; right: 0; }
+
   /* Password field with an eye toggle on the right. The button is a
      transparent overlay; the input inside keeps full styling and just
      gets extra right padding so the typed characters don't run under
@@ -1944,7 +1993,7 @@
     }
     body.printing-member-activity-page .member-activity-amount.in  { color: #2e5d3a !important; }
     body.printing-member-activity-page .member-activity-amount.out { color: #a8351f !important; }
-    @page { margin: 1.2cm; }
+    @page { margin: 1.2cm; size: landscape; }
     /* v69: team-activity leaderboard print — display:none everything
        except the page-header + the leaderboard section. Uses the same
        pattern as member-activity above: display:none cleanly drops
@@ -3197,6 +3246,26 @@
      Each card gets a 4px colored left stripe to signal what it is at
      a glance. Border-left chosen over background tints to keep the
      paper-deep cream surface consistent with the rest of the app. */
+  /* v89.25 fix #10: Distribution section color coding.
+     Each section gets a distinct color title + faint tinted row background
+     so they're visually separable at a glance.
+       - Amount: green (cash being distributed)
+       - Team Salaries: blue
+       - Profit Shares: green
+       - Split & Convert: orange (terracotta brand)
+       - Total %: skyblue
+  */
+  .dist-section-amount .dist-section-title { color: #2e5d3a !important; }
+  .dist-section-salaries .dist-section-title { color: #2b5f8a !important; }
+  .dist-section-salaries .dist-row,
+  .dist-section-salaries .dist-row-edit { background: rgba(43, 95, 138, 0.04); }
+  .dist-section-shares .dist-section-title { color: #2e5d3a !important; }
+  .dist-section-shares .dist-row,
+  .dist-section-shares .dist-row-edit { background: rgba(46, 93, 58, 0.04); }
+  .split-calc-title { color: #b8482a !important; }
+  .split-parties-total-label,
+  .split-parties-total-val { color: #2b5f8a !important; }
+
   .dist-section {
     padding: 0.95rem 1.1rem;
     background: var(--surface-1);
@@ -3708,41 +3777,6 @@
     text-transform: uppercase; letter-spacing: 0.04em;
     text-align: center; line-height: 1.2; margin-bottom: 0.2rem;
   }
-  .forecast-6m-val {
-    font-family: var(--font-mono); font-size: 0.66rem; font-weight: 600;
-    text-align: center;
-  }
-  .forecast-6m-val.pos { color: var(--gain); }
-  /* Below-line value strip for 6-month trend. Replaces the old bar grid. */
-  .forecast-6m-strip {
-    display: grid; grid-template-columns: repeat(6, 1fr);
-    gap: 0.4rem; margin-top: 0.3rem;
-  }
-  .forecast-6m-strip-cell {
-    text-align: center; padding: 0.4rem 0.25rem;
-    background: var(--paper-deep); border: 1px solid var(--line-soft);
-    border-radius: var(--r-sm); min-width: 0;
-  }
-  .forecast-6m-strip-cell.is-current {
-    border-color: var(--accent-readable);
-    background: var(--paper);
-  }
-  .forecast-6m-strip-label {
-    font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.04em;
-    color: var(--ink-mute); font-weight: 600; margin-bottom: 0.2rem;
-  }
-  .forecast-6m-strip-val {
-    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
-    font-variant-numeric: tabular-nums;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .forecast-6m-strip-val.pos { color: var(--gain); }
-  .forecast-6m-strip-val.neg { color: var(--loss); }
-  @media (max-width: 600px) {
-    .forecast-6m-strip-label { font-size: 0.55rem; }
-    .forecast-6m-strip-val { font-size: 0.68rem; }
-  }
-  .forecast-6m-val.neg { color: var(--loss); }
   .forecast-methods-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 0.6rem;
@@ -4114,6 +4148,13 @@
     border-radius: var(--r); padding: 0.85rem 1rem;
     margin-bottom: 0.95rem;
   }
+  /* v89.25 fix #9: cap chart wrap width on desktop so charts don't sprawl.
+     Mobile (< 881px) still uses full width. */
+  @media (min-width: 881px) {
+    .insights-chart-wrap, .forecast-chart-wrap {
+      max-width: 760px;
+    }
+  }
   .insights-chart-head {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 0.85rem; flex-wrap: wrap; margin-bottom: 0.6rem;
@@ -4213,23 +4254,6 @@
   }
   .insights-ranking-toggle:hover {
     border-color: var(--accent-readable); color: var(--ink); background: var(--paper-deep);
-  }
-  /* Heatmap */
-  /* v89.7: heatmap stays at natural size on mobile + scrolls horizontally
-     so cells stay readable. On desktop the SVG shrinks to fit the column. */
-  .insights-heatmap-svg { width: 100%; height: auto; max-width: 100%; }
-  .heatmap-scroll-wrap { width: 100%; }
-  @media (max-width: 720px) {
-    .heatmap-scroll-wrap {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      width: 100%;
-    }
-    .heatmap-scroll-wrap .insights-heatmap-svg {
-      width: auto;
-      max-width: none;
-      height: 280px;
-    }
   }
   /* WoW grid — 4 cells on desktop, 2 on tablet */
   .insights-wow-grid {
@@ -5671,7 +5695,7 @@
      ================================================================ */
   @media print {
     /* Reset page geometry */
-    @page { margin: 0.5in; size: auto; }
+    @page { margin: 0.5in; size: landscape; }
     html, body { background: #fff !important; color: #000 !important; }
     body { font-size: 11pt; line-height: 1.4; }
 
@@ -5770,7 +5794,6 @@
     .fc-swatch-current, .fc-swatch-currentneg,
     .chart-bar, .chart-bar.in, .chart-bar.out,
     .chart-legend-swatch, .chart-legend-swatch.in, .chart-legend-swatch.out,
-    .forecast-6m-strip-cell, .forecast-6m-strip-val,
     .kpi-tile, .kpi-tile-value,
     .insights-kpi, .insights-kpi-card, .insights-kpi-value,
     .split-calc-result, .split-calc-result-val,
@@ -6509,43 +6532,12 @@
   // when its .unassigned field is true. Owner-only field, default false.
   // Used by Insights to skip entries linked to unassigned entities, and
   // by list views to soft-style their cards.
-  function isPartyUnassigned(partyId) {
-    if (!partyId) return false;
-    const p = data.parties.find(x => x.id === partyId);
-    return !!(p && p.unassigned);
-  }
-  function isAccountUnassigned(accountId) {
-    if (!accountId) return false;
-    const a = data.cashAccounts.find(x => x.id === accountId);
-    return !!(a && a.unassigned);
-  }
-  function isCategoryUnassigned(catName, bizId) {
-    if (!catName) return false;
-    const c = data.categories.find(x => x.businessId === bizId && x.name === catName);
-    return !!(c && c.unassigned);
-  }
-  // Returns true if entry should be EXCLUDED from Insights because at
-  // least one of its linked entities is unassigned.
-  function entryHasUnassignedLink(e, bizId) {
-    if (isPartyUnassigned(e.partyId)) return true;
-    if (isAccountUnassigned(e.accountId)) return true;
-    if (isCategoryUnassigned(e.category, bizId)) return true;
-    return false;
-  }
-  function unassignedBadgeHTML() {
-    return '<div class="unassigned-badge">Unassigned</div>';
-  }
-  function unassignedToggleHTML(checked, entityLabel) {
-    const _checked = checked ? 'checked' : '';
-    return `
-      <div class="entity-unassigned-toggle">
-        <input type="checkbox" id="mEntityUnassigned" ${_checked}>
-        <label for="mEntityUnassigned">
-          Mark as unassigned
-          <span class="toggle-hint">When on, this ${entityLabel} is excluded from Insights charts. Entries linked to it still appear on the Entries page.</span>
-        </label>
-      </div>`;
-  }
+  // v89.25 fix #2: unassigned feature removed. Helpers neutered so all
+  // call sites silently drop their effect. Existing data with .unassigned
+  // is ignored on read. No data migration needed.
+  function entryHasUnassignedLink(_e, _bizId) { return false; }
+  function unassignedBadgeHTML() { return ''; }
+  function unassignedToggleHTML(_checked, _entityLabel) { return ''; }
 
   // v89.23: OTP modal infrastructure. The same 6-digit modal is used
   // by signup, forgot-password, and change-email flows. Different
@@ -6558,6 +6550,37 @@
   // Render the OTP modal. `kind` is 'signup' | 'reset' | 'change'.
   // `onSubmit(code)` is called when the user enters all 6 digits.
   // `onResend(email)` resends the code via the appropriate API.
+  // v89.28: instant feedback splash for OTP-triggering actions.
+  // Shown the moment the user clicks Create account / Forgot password
+  // / Change email, BEFORE the Supabase network call. Replaced by
+  // openOtpModal once Supabase confirms the email was sent.
+  //
+  // Visual: branded loading state with a custom OTP-themed animation
+  // (envelope with pulsing dot) distinct from the boot splash.
+  function showOtpSendingSplash(email) {
+    const modal = document.getElementById('modalContent');
+    if (!modal) return;
+    modal.classList.remove('modal-full');
+    modal.innerHTML = `
+      <div class="modal-handle"></div>
+      <div class="otp-sending-splash">
+        <div class="otp-sending-envelope">
+          <svg viewBox="0 0 64 48" width="80" height="60" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="6" width="56" height="36" rx="3" />
+            <path d="M4 10 L32 28 L60 10" />
+          </svg>
+          <div class="otp-sending-dot"></div>
+        </div>
+        <h2 class="otp-sending-title">Sending verification code</h2>
+        <p class="otp-sending-sub">to <strong>${escapeHtml(email)}</strong></p>
+        <div class="otp-sending-progress">
+          <div class="otp-sending-bar"></div>
+        </div>
+      </div>
+    `;
+    _showModalBackdrop();
+  }
+
   function openOtpModal({ email, kind, headline, sub, onSubmit, onResend }) {
     const modal = document.getElementById('modalContent');
     if (!modal) {
@@ -6787,6 +6810,13 @@
     headerDiv.innerHTML = headerLines.map(l => '<div>' + escapeHtml(l) + '</div>').join('');
     overlay.appendChild(headerDiv);
     overlay.appendChild(cloned);
+    // v89.25 fix #3: save scroll position before print so we can
+    // restore it after. Some mobile browsers reset scroll when the
+    // print dialog opens, leaving the user at the top of the page.
+    const __savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+    // v89.26 fix #11: add body.printing-chart so the @media print rule
+    // that hides everything except the overlay only fires for THIS path.
+    document.body.classList.add('printing-chart');
     document.body.appendChild(overlay);
     // Let the browser paint the print-media rules, then call print()
     setTimeout(() => {
@@ -6795,6 +6825,11 @@
       // unreliable across browsers — also use a 2s fallback.
       const cleanup = () => {
         try { overlay.remove(); } catch (_) {}
+        // v89.26 fix #11: clean up the body class so subsequent prints work.
+        try { document.body.classList.remove('printing-chart'); } catch (_) {}
+        // v89.25 fix #3: restore scroll so user lands where they left off.
+        try { window.scrollTo({ top: __savedScrollY, behavior: 'instant' }); }
+        catch (_) { try { window.scrollTo(0, __savedScrollY); } catch (_) {} }
         window.removeEventListener('afterprint', cleanup);
       };
       window.addEventListener('afterprint', cleanup);
@@ -8492,42 +8527,6 @@
   // The previous local-password handler has been removed because cloud auth
   // is now mandatory.
 
-  // Simulated Google sign-in. Real OAuth needs a backend + Google client ID.
-  // This shows a fake account picker that creates/uses a google-provider account.
-  function googleSignIn() {
-    const modal = document.getElementById('modalContent');
-    const googleAccounts = accounts.filter(a => a.provider === 'google');
-    modal.innerHTML = `
-      <div class="modal-handle"></div>
-      <div style="display:flex;align-items:center;gap:0.6rem;margin-bottom:0.25rem;">
-        <svg width="22" height="22" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2c-.72.45-1.64.75-2.7.75-2.08 0-3.84-1.4-4.47-3.3H1.83v2.07A7.99 7.99 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.51a4.8 4.8 0 0 1 0-3.07V5.37H1.83a8 8 0 0 0 0 7.27l2.67-2.13z"/><path fill="#EA4335" d="M8.98 4.13c1.17 0 2.23.4 3.06 1.2l2.31-2.31A7.97 7.97 0 0 0 8.98 1a7.99 7.99 0 0 0-7.15 4.37l2.67 2.07c.63-1.9 2.4-3.3 4.48-3.3z"/></svg>
-        <h2 class="modal-title" style="font-size:1.4rem;">Choose an account</h2>
-      </div>
-      <p class="modal-sub">to continue to <strong>Hisabs</strong></p>
-      <div class="g-picker">
-        ${googleAccounts.length ? googleAccounts.map(a => `
-          <div class="g-account" onclick="googleLogin('${a.id}')">
-            <div class="g-avatar" style="background:${a.gColor || '#4285F4'};">${escapeHtml((a.name && a.name.trim() ? a.name.trim()[0] : '?').toUpperCase())}</div>
-            <div class="g-account-info">
-              <div class="g-account-name">${escapeHtml(a.name)}</div>
-              <div class="g-account-email">${escapeHtml(a.login)}</div>
-            </div>
-          </div>
-        `).join('') : ''}
-        <div class="g-account" onclick="googleNewAccount()">
-          <div class="g-avatar g-avatar-add">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          </div>
-          <div class="g-account-info">
-            <div class="g-account-name">Use another account</div>
-          </div>
-        </div>
-      </div>
-      <p class="auth-sim-note">Simulated for prototype — real Google OAuth requires a backend.</p>
-      <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>
-    `;
-    _showModalBackdrop();
-  }
   function googleLogin(userId) {
     const acct = accounts.find(a => a.id === userId);
     if (!acct) { toast('Account not found.'); return; }
@@ -9076,6 +9075,21 @@
     const now = new Date();
     const day = now.toLocaleDateString(undefined, { weekday: 'long' });
     const date = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+    // v89.27 fix #12: prefer surgical text updates over full innerHTML
+    // rebuild so the 60-second periodic refresh doesn't cause sub-pixel
+    // reflow / scroll jumps on long-scrolled views (notably Distribution).
+    // Fall back to full rebuild only when the spans don't exist yet.
+    const dayEl = el.querySelector('.date-strip-day');
+    const dateEl = el.querySelector('.date-strip-date');
+    if (dayEl && dateEl) {
+      if (dayEl.textContent !== day) dayEl.textContent = day;
+      if (dateEl.textContent !== date) dateEl.textContent = date;
+      // Schedule next tick if not yet scheduled (defensive — usually set).
+      if (!__dateStripTimer) {
+        __dateStripTimer = setInterval(updateDateStrip, 60 * 1000);
+      }
+      return;
+    }
     // Desktop: day · [sync badge centered] · date
     // The sync badge gets the id `syncBadge` so updateSyncBadge keeps
     // finding it. It's hidden on first render (until cloud sign-in
@@ -11771,11 +11785,10 @@
   // Default: rows are LOCKED. Only newly-added rows (registered via
   // _distRowMarkUnlocked) are unlocked initially.
   function _distRowIsLocked(kind, id) {
-    // v89.20: Team Salaries + Profit Shares no longer use the lock
-    // pattern. They go back to v89.7-style always-editable rows.
-    // Parties + Split & Convert KEEP the lock pattern (% validation +
-    // currency-conversion math need a deliberate edit gesture).
-    if (kind === 'salaries' || kind === 'shares') return false;
+    // v89.27 fix #13b: restored lock pattern for salaries + shares (was
+    // short-circuited in v89.20). v89.26 added edit/save toggle UI for
+    // these rows; without the lock pattern, the toggle had no effect and
+    // mobile users saw inputs that wouldn't accept keyboard focus reliably.
     const locks = _distLocksLoad();
     const k = `${kind}:${id}`;
     // If the row has an explicit state, use it; otherwise default to LOCKED.
@@ -11857,31 +11870,6 @@
     _markRowSavedUI('salaries', id);
   }
 
-  // legacy direct-mutation entrypoint, used internally by Save above.
-  function _updateDistSalaryFieldImmediate(id, field, value) {
-    const row = __distSalaries.find(r => r.id === id);
-    if (!row) return;
-    if (field === 'name') {
-      row.name = String(value || '').slice(0, 120);
-    } else if (field === 'salary') {
-      const n = Number(value);
-      row.salary = (Number.isFinite(n) && n >= 0) ? n : 0;
-    } else if (field === 'adjustmentType') {
-      row.adjustmentType = value === 'addition' ? 'addition' : 'deduction';
-    } else if (field === 'adjustmentAmount') {
-      const n = Number(value);
-      row.adjustmentAmount = (Number.isFinite(n) && n >= 0) ? n : 0;
-    } else if (field === 'note') {
-      // v88: free-form description (e.g. why the adjustment exists).
-      // Cap length at 280 chars — like a short note, not an essay.
-      row.note = String(value || '').slice(0, 280);
-    }
-    _persistDistribution();
-    // Recompute totals + remaining + share amounts. Don't full re-
-    // render — that loses input focus on every keystroke. Just patch
-    // the math in place.
-    refreshDistributionTotals();
-  }
 
   function addDistShareRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
@@ -11936,21 +11924,6 @@
     _persistDistribution();
     refreshDistributionTotals();
     _markRowSavedUI('shares', id);
-  }
-
-  function _updateDistShareFieldImmediate(id, field, value) {
-    const row = __distShares.find(r => r.id === id);
-    if (!row) return;
-    if (field === 'name') {
-      row.name = String(value || '').slice(0, 120);
-    } else if (field === 'pct') {
-      const n = Number(value);
-      row.pct = (Number.isFinite(n) && n >= 0 && n <= 100) ? n : Math.max(0, Math.min(100, n || 0));
-    } else if (field === 'note') {
-      row.note = String(value || '').slice(0, 280);
-    }
-    _persistDistribution();
-    refreshDistributionTotals();
   }
 
   // Recompute totals + remaining + per-share amounts and patch the
@@ -12212,12 +12185,19 @@
           </select>
           <input type="number" class="no-spin" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
           <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
-          <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          <div class="dist-row-actions">
+            <button class="dist-row-edit-btn" data-dist-edit="salaries:${jsAttr(r.id)}" onclick="distRowToggleEdit('salaries','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
+              ${isLocked
+                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            </button>
+            <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          </div>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
           <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.20: edit button removed for salaries — rows always editable -->
+          <!-- v89.26 fix #13a: edit/save toggle restored, matches Parties pattern -->
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
@@ -12298,12 +12278,19 @@
           <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
           <input type="number" class="no-spin" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
           <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
-          <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          <div class="dist-row-actions">
+            <button class="dist-row-edit-btn" data-dist-edit="shares:${jsAttr(r.id)}" onclick="distRowToggleEdit('shares','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
+              ${isLocked
+                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
+                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            </button>
+            <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+          </div>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
           <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.20: edit button removed for shares — rows always editable -->
+          <!-- v89.26 fix #13a: edit/save toggle restored, matches Parties pattern -->
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
@@ -12461,31 +12448,6 @@
     }
   }
 
-  // v89: Save/Edit lock pattern for Distribution sections. Sections
-  // are locked by default — clicking Edit unlocks inputs; clicking
-  // Save locks them and persists. Persistence already happens on
-  // every input via existing handlers, so Save here is mainly a UX
-  // affordance ("I'm done editing").
-  function toggleDistEditMode(section) {
-    if (!__distEditMode.hasOwnProperty(section)) return;
-    __distEditMode[section] = !__distEditMode[section];
-    // Re-render the affected piece. Parties live in the split-calc
-    // (renderSplitParties); salaries + shares live in
-    // renderDistributionCard.
-    if (section === 'parties') {
-      renderSplitParties();
-      // Show / hide save toolbar button.
-      try { updateSplitCalcMathOnly(); } catch (_) {}
-    } else {
-      try { renderDistributionCard(); } catch (_) {}
-    }
-    // Toast to confirm the new state.
-    const verb = __distEditMode[section] ? 'editing' : 'saved';
-    const label = section === 'parties' ? 'Split parties'
-                : section === 'salaries' ? 'Salaries'
-                : 'Profit shares';
-    if (verb === 'saved') toast(`${label} saved.`);
-  }
 
   // v88: multi-party split rendering. Renders preview, party list inputs,
   // total %, and per-party result lines (in business currency + converted).
@@ -14352,17 +14314,8 @@
         <h3 class="forecast-section-title">6-month operating profit trend ${chartPrintBtnHTML('chart-forecast-6mo')}</h3>
         <p class="forecast-section-sub">Operating profit (cash in − cash out − expenses, before tax) by month. Current month is the projection above; the rest are actuals.</p>
         ${insightsLineSVG(sixMonthPoints.map(p => ({ label: p.label, value: p.value })), null)}
-        <div class="forecast-6m-strip">
-          ${sixMonthPoints.map(m => {
-            const isPos = m.value >= 0;
-            return `
-              <div class="forecast-6m-strip-cell ${m.isCurrent ? 'is-current' : ''}">
-                <div class="forecast-6m-strip-label">${escapeHtml(m.label)}${m.isCurrent ? ' (proj)' : ''}</div>
-                <div class="forecast-6m-strip-val ${isPos ? 'pos' : 'neg'}">${cur} ${isPos ? '' : '−'}${fmt(Math.abs(m.value))}</div>
-              </div>`;
-          }).join('')}
-        </div>
       </div>`;
+      // v89.25 fix #5: forecast-6m-strip removed — user wanted chart only.
     const methodsHTML = `
       <div class="forecast-section">
         <h3 class="forecast-section-title">Projection methods compared</h3>
@@ -14606,7 +14559,7 @@
                  x="${xStart.toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}"
                  width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"
                  fill="var(--chart-cash-in)" rx="1">
-             <title>${escapeHtml(b.label)} — Cash in: ${cur} ${fmt(b.in)}</title>
+             <!-- v89.26 fix #7: <title> hover tooltip removed -->
            </rect>`
         );
       }
@@ -14618,7 +14571,7 @@
                  x="${(xStart + barW + 2).toFixed(1)}" y="${(padT + innerH - bh).toFixed(1)}"
                  width="${barW.toFixed(1)}" height="${bh.toFixed(1)}"
                  fill="var(--chart-cash-out)" rx="1">
-             <title>${escapeHtml(b.label)} — Cash out: ${cur} ${fmt(b.out)}</title>
+             <!-- v89.26 fix #7: <title> hover tooltip removed -->
            </rect>`
         );
       }
@@ -14719,7 +14672,7 @@
       const sign = p.value >= 0 ? '+' : '−';
       const detail = JSON.stringify({ kind: 'monthIn', label: p.label, monthKey: points[i].monthKey || '', value: p.value });
       return `<g class="line-point" data-chart-detail='${escapeHtml(detail)}'>
-        <title>${escapeHtml(p.label)}: ${sign}${fmt(Math.abs(p.value))}</title>
+        <!-- v89.26 fix #7: <title> hover tooltip removed -->
         <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="12" fill="transparent"/>
         <circle class="line-point-dot" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5"
                 fill="${p.value >= 0 ? 'var(--gain)' : 'var(--loss)'}"
@@ -14745,195 +14698,6 @@
     </svg>`;
   }
 
-  // Daily heatmap: last N days as a calendar-grid heatmap. Each day
-  // is a small square colored by net activity that day (gain = green,
-  // loss = red, intensity proportional to magnitude relative to the
-  // period's max-abs net).
-  // v62: redesigned heatmap with calendar-month layout. Each cell is
-  // a day; columns are weeks (Mon-start); rows are weekdays. A muted
-  // month-name banner sits above the first column of each month so
-  // the user can find e.g. "April" at a glance. Cell shows the day-
-  // of-month number (just "15" not "2026-05-15") and is clickable —
-  // tapping opens the day detail modal with all entries from that
-  // date. Native <title> gives a hover tooltip showing the date +
-  // net amount.
-  function insightsHeatmapSVG(dailyNets) {
-    if (!dailyNets.length) {
-      return `<svg viewBox="0 0 720 200" class="insights-heatmap-svg"><text x="360" y="100" text-anchor="middle" fill="var(--ink-mute)" font-size="11">No daily activity</text></svg>`;
-    }
-    // Build a map by YYYY-MM-DD so we can do quick lookups while
-    // laying out the calendar grid.
-    const byDate = new Map();
-    let maxAbs = 0;
-    for (const d of dailyNets) {
-      byDate.set(d.date, d);
-      const a = Math.abs(d.net);
-      if (a > maxAbs) maxAbs = a;
-    }
-    if (maxAbs === 0) maxAbs = 1;
-    // Sort dates oldest → newest so columns build left-to-right
-    // chronologically. Parse each as local (not UTC) by appending
-    // T00:00:00 so the weekday matches the user's calendar.
-    const sortedDates = [...byDate.keys()].sort();
-    if (!sortedDates.length) {
-      return `<svg viewBox="0 0 720 200" class="insights-heatmap-svg"><text x="360" y="100" text-anchor="middle" fill="var(--ink-mute)" font-size="11">No daily activity</text></svg>`;
-    }
-    const firstDate = new Date(sortedDates[0] + 'T00:00:00');
-    const lastDate = new Date(sortedDates[sortedDates.length - 1] + 'T00:00:00');
-    const todayYmd = today();
-    // Walk Mon-Sun columns from the Monday of firstDate's week through
-    // the Sunday of lastDate's week. JS weekday: 0=Sun..6=Sat. We
-    // want Mon=row 0, Sun=row 6.
-    const jsDay = (d) => (d.getDay() + 6) % 7; // 0=Mon..6=Sun
-    const gridStart = new Date(firstDate);
-    gridStart.setDate(gridStart.getDate() - jsDay(firstDate));
-    const gridEnd = new Date(lastDate);
-    gridEnd.setDate(gridEnd.getDate() + (6 - jsDay(lastDate)));
-    const dayMs = 24 * 60 * 60 * 1000;
-    const totalDays = Math.round((gridEnd - gridStart) / dayMs) + 1;
-    const totalCols = Math.ceil(totalDays / 7);
-    // Visual upgrade: bigger cells, more rounded, more breathing room.
-    const cellSize = 26, gap = 4;
-    const padL = 42, padT = 42;            // room for weekday labels + month banner
-    const padB = 52; // room for legend at bottom (swatches + label row + descender)
-    const w = Math.max(720, padL + totalCols * (cellSize + gap) + 8);
-    const h = padT + 7 * (cellSize + gap) + padB;
-    const cells = [];
-    const monthBanners = [];
-    let lastMonthIdx = -1;
-    let lastMonthBannerX = -1;
-    for (let col = 0; col < totalCols; col++) {
-      for (let row = 0; row < 7; row++) {
-        const idx = col * 7 + row;
-        const cellDate = new Date(gridStart);
-        cellDate.setDate(cellDate.getDate() + idx);
-        if (cellDate > lastDate) continue;
-        const ymd = `${cellDate.getFullYear()}-${String(cellDate.getMonth() + 1).padStart(2, '0')}-${String(cellDate.getDate()).padStart(2, '0')}`;
-        const dayOfMonth = cellDate.getDate();
-        const isWeekend = row >= 5; // Sat/Sun
-        const isToday = ymd === todayYmd;
-        const x = padL + col * (cellSize + gap);
-        const y = padT + row * (cellSize + gap);
-        // Month banner: render once per calendar month at top of the
-        // column where the 1st falls. Skip overlap if the 1st is in
-        // a previously banner'd month, or if the new banner would
-        // overlap visually with the previous one.
-        if (dayOfMonth === 1 || (col === 0 && row === 0 && cellDate.getMonth() !== lastMonthIdx)) {
-          const monthName = cellDate.toLocaleString('default', { month: 'short' });
-          const bannerX = x + cellSize / 2;
-          if (bannerX - lastMonthBannerX > 32) {
-            monthBanners.push(
-              `<text x="${bannerX.toFixed(1)}" y="${(padT - 22).toFixed(1)}"
-                    text-anchor="middle" font-size="10" font-weight="700"
-                    fill="var(--ink)" letter-spacing="0.09em">${escapeHtml(monthName.toUpperCase())}</text>
-               <line x1="${(x - 1).toFixed(1)}" y1="${(padT - 12).toFixed(1)}" x2="${(x - 1).toFixed(1)}" y2="${(padT + 7 * (cellSize + gap) - gap).toFixed(1)}"
-                    stroke="var(--line-soft)" stroke-width="0.7" stroke-dasharray="2 3" />`
-            );
-            lastMonthBannerX = bannerX;
-          }
-          lastMonthIdx = cellDate.getMonth();
-        }
-        const d = byDate.get(ymd);
-        const net = d ? d.net : 0;
-        const intensity = Math.min(1, Math.abs(net) / maxAbs);
-        // Color: improved gradient — softer at low intensity, more
-        // vibrant at high. Empty cells get a faint tint on weekends so
-        // the eye separates work-week patterns.
-        let color, strokeColor = 'var(--line)', strokeWidth = 0.6;
-        if (net > 0) {
-          // Green: pale → saturated. Curve makes mid-range pop.
-          const t = Math.pow(intensity, 0.7);
-          const alpha = 0.12 + t * 0.78;
-          color = `rgba(46, 110, 55, ${alpha.toFixed(3)})`;
-        } else if (net < 0) {
-          // Red: same curve.
-          const t = Math.pow(intensity, 0.7);
-          const alpha = 0.12 + t * 0.78;
-          color = `rgba(168, 53, 31, ${alpha.toFixed(3)})`;
-        } else {
-          color = isWeekend ? 'var(--surface-1)' : 'var(--paper-deep)';
-        }
-        // Today: stronger border, accent colour.
-        if (isToday) {
-          strokeColor = 'var(--accent)';
-          strokeWidth = 1.6;
-        }
-        // Text colour: dark for muted cells, white for saturated.
-        const textColour = (net !== 0 && intensity > 0.55) ? 'var(--paper)' : 'var(--ink-soft)';
-        const titleText = d
-          ? `${cellDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}: ${net >= 0 ? '+' : '−'}${fmt(Math.abs(net))}`
-          : `${cellDate.toLocaleDateString('default', { month: 'short', day: 'numeric', year: 'numeric' })}: no activity`;
-        // Each cell is clickable — wrap in a <g class="heatmap-cell">
-        // with data-chart-detail so the click delegate can drill in.
-        const detail = JSON.stringify({ kind: 'day', label: titleText, date: ymd, value: net });
-        cells.push(
-          `<g class="heatmap-cell" data-chart-detail='${escapeHtml(detail)}'>
-            <title>${escapeHtml(titleText)}</title>
-            <rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" fill="${color}" rx="5" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
-            <text x="${(x + cellSize / 2).toFixed(1)}" y="${(y + cellSize / 2 + 3.8).toFixed(1)}"
-                  text-anchor="middle" font-size="11" font-weight="${isToday ? '700' : '500'}" fill="${textColour}"
-                  pointer-events="none">${dayOfMonth}</text>
-          </g>`
-        );
-      }
-    }
-    // Weekday labels (left edge). Mon-Sun.
-    const dow = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const dowLabels = dow.map((lbl, i) => {
-      const y = padT + i * (cellSize + gap) + cellSize / 2 + 3.8;
-      const isWk = i >= 5;
-      return `<text x="${(padL - 10).toFixed(1)}" y="${y.toFixed(1)}"
-                    text-anchor="end" font-size="10" font-weight="${isWk ? '600' : '500'}"
-                    fill="var(--ink-mute)" letter-spacing="0.02em">${lbl}</text>`;
-    });
-    // Legend at the bottom: a compact gradient from low → high (both
-    // hues), and a "Today" indicator with the accent ring.
-    const legendY = padT + 7 * (cellSize + gap) + 14;
-    const legendBoxes = [];
-    // Net loss gradient (right→left becomes left→right red-to-mid)
-    for (let i = 0; i < 5; i++) {
-      const t = Math.pow(i / 4, 0.7);
-      const alpha = 0.12 + t * 0.78;
-      legendBoxes.push(
-        `<rect x="${(padL + (4 - i) * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
-              fill="rgba(168, 53, 31, ${alpha.toFixed(3)})" stroke="var(--line)" stroke-width="0.5"/>`
-      );
-    }
-    // Mid blank
-    legendBoxes.push(
-      `<rect x="${(padL + 5 * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
-            fill="var(--paper-deep)" stroke="var(--line)" stroke-width="0.5"/>`
-    );
-    // Gain gradient
-    for (let i = 0; i < 5; i++) {
-      const t = Math.pow(i / 4, 0.7);
-      const alpha = 0.12 + t * 0.78;
-      legendBoxes.push(
-        `<rect x="${(padL + (6 + i) * 14).toFixed(1)}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
-              fill="rgba(46, 110, 55, ${alpha.toFixed(3)})" stroke="var(--line)" stroke-width="0.5"/>`
-      );
-    }
-    const legendLabels = `
-      <text x="${(padL).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" letter-spacing="0.04em">LOSS</text>
-      <text x="${(padL + 5 * 14 + 6).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" text-anchor="middle">0</text>
-      <text x="${(padL + 10 * 14 + 12).toFixed(1)}" y="${(legendY + 24).toFixed(1)}" font-size="9" fill="var(--ink-mute)" text-anchor="end" letter-spacing="0.04em">PROFIT</text>
-    `;
-    // "Today" indicator on the right of the legend
-    const todayIndX = padL + 11 * 14 + 24;
-    const todayInd = `
-      <rect x="${todayIndX}" y="${legendY.toFixed(1)}" width="12" height="12" rx="2.5"
-            fill="var(--paper-deep)" stroke="var(--accent)" stroke-width="1.6"/>
-      <text x="${todayIndX + 18}" y="${(legendY + 9).toFixed(1)}" font-size="9" fill="var(--ink-mute)" letter-spacing="0.04em">TODAY</text>
-    `;
-    return `<svg viewBox="0 0 ${w} ${h}" class="insights-heatmap-svg insights-chart-interactive" role="img" aria-label="Daily activity heatmap">
-      ${monthBanners.join('')}
-      ${dowLabels.join('')}
-      ${cells.join('')}
-      ${legendBoxes.join('')}
-      ${legendLabels}
-      ${todayInd}
-    </svg>`;
-  }
 
   function renderInsightsView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -15762,42 +15526,9 @@
       const day = allDailyMap.get(ymd) || { in: 0, out: 0 };
       heatmapDays.push({ date: ymd, net: day.in - day.out });
     }
-    // v89.20: heatmap shows only when the filter is a single month.
-    // For "All time" or multi-month custom ranges, show a stub asking
-    // the user to narrow the filter. Rationale: a 12-week heatmap is
-    // confusing when overlaid on a long time window — the squares lose
-    // meaning. One month at a time is the actionable view.
-    const _hmIsSingleMonth = (() => {
-      // v89.24: actual period modes from setInsightsPeriod are
-      //   'all', 'current', 'month', 'range'. Show heatmap only for
-      //   single-month selections:
-      //   - 'current' = current month (May etc) — show
-      //   - 'month'   = specific historical month — show
-      //   - 'all'     = all time — hide
-      //   - 'range'   = custom date range — show only if span ≤ 31 days
-      const p = __insightsPeriod || { mode: 'all' };
-      if (p.mode === 'all') return false;
-      if (p.mode === 'current') return true;
-      if (p.mode === 'month') return true;
-      if (p.mode === 'range' && p.from && p.to) {
-        const dF = new Date(p.from + 'T00:00:00');
-        const dT = new Date(p.to + 'T00:00:00');
-        const dayMs = 1000 * 60 * 60 * 24;
-        const spanDays = Math.round((dT - dF) / dayMs) + 1;
-        return spanDays <= 31;
-      }
-      return false;
-    })();
-    const heatmapHTML = _hmIsSingleMonth ? `
-      <div class="insights-section">
-        <h3 class="insights-section-title">Daily activity heatmap <span class="insights-chart-sub">— last 12 weeks</span></h3>
-        <p class="insights-section-help">Each square is a day. Green = net positive, red = net negative. Hover to see the value.</p>
-        <div class="heatmap-scroll-wrap">${insightsHeatmapSVG(heatmapDays)}</div>
-      </div>` : `
-      <div class="insights-section">
-        <h3 class="insights-section-title">Daily activity heatmap</h3>
-        <p class="insights-section-help" style="margin:0.5rem 0 0 0;">Filter to one month above to see the daily heatmap.</p>
-      </div>`;
+    // v89.25 fix #6: Daily activity heatmap removed entirely — user found
+    // it not useful. The gating logic and SVG rendering are bypassed.
+    const heatmapHTML = '';
     // ===== Week-over-week (last 4 weeks) =====
     const weekBuckets = [];
     for (let w = 3; w >= 0; w--) {
@@ -18920,7 +18651,16 @@
     _showModalBackdrop();
   }
 
+  // v89.27.1: prevent double-submit. Rapid taps (especially on mobile)
+  // could otherwise create duplicate entries before the modal closes.
+  let __savingEntryAt = 0;
   async function saveEntry(opts) {
+    // v89.27.1: 500ms guard. If the user just submitted within the last
+    // 500ms, ignore this click. Far more than any reasonable click-debounce
+    // window. Reset happens via timestamp — no flag to clear on error paths.
+    const _now = Date.now();
+    if (_now - __savingEntryAt < 500) return;
+    __savingEntryAt = _now;
     opts = opts || {};
     const addMore = !!opts.addMore;
     // Clear previous error states
@@ -23500,6 +23240,8 @@
     const orig = btn ? btn.textContent : '';
     if (btn) { btn.disabled = true; btn.textContent = 'Sending…'; }
     try {
+      // v89.28: show instant feedback splash before the network call.
+      showOtpSendingSplash(newEmail);
       // updateUser({email}) triggers Supabase to send a confirmation
       // code to the NEW email. The email template at Dashboard →
       // Email Templates → Change Email Address must use {{ .Token }}
@@ -23507,6 +23249,10 @@
       const { error } = await sb().auth.updateUser({ email: newEmail });
       if (error) {
         toast('Could not send code: ' + error.message);
+        // v89.28: close the splash on error so user isn't stuck looking
+        // at the sending-screen with a toast on top. They can re-open
+        // the change-email form from Profile and try again.
+        closeModal();
         if (btn) { btn.disabled = false; btn.textContent = orig; }
         return;
       }
@@ -23548,6 +23294,8 @@
     } catch (e) {
       toast('Network error: ' + (e?.message || String(e)));
       if (btn) { btn.disabled = false; btn.textContent = orig; }
+      // v89.28: close splash on throw so user isn't stuck
+      try { closeModal(); } catch (_) {}
     }
   }
 
@@ -23665,11 +23413,17 @@
     ))) return;
     closeModal();
     try {
+      // v89.28: show instant feedback splash before the network call.
+      // (closeModal above doesn't tear down modalContent — splash takes over.)
+      // Re-show backdrop since closeModal hid it.
+      const _modalEl = document.getElementById('modalContent');
+      if (_modalEl) _modalEl.classList.add('open');
+      showOtpSendingSplash(u.login);
       const { error } = await sb().auth.signInWithOtp({
         email: u.login,
         options: { shouldCreateUser: false },
       });
-      if (error) { toast('Could not send code: ' + error.message); return; }
+      if (error) { toast('Could not send code: ' + error.message); closeModal(); return; }
       openOtpModal({
         email: u.login,
         kind: 'reset',
@@ -23696,6 +23450,8 @@
       });
     } catch (e) {
       toast('Reset failed: ' + (e.message || e));
+      // v89.28: close splash on throw so user isn't stuck
+      try { closeModal(); } catch (_) {}
     }
   }
 
@@ -25797,13 +25553,20 @@
       </div>`;
   }
 
+  // v89.29: prevent double-fire on slow exports; show progress feedback.
+  let __exportInFlight = false;
   function exportPDF() {
+    if (__exportInFlight) return;
     if (!session.activeBookId) { toast('No book selected.'); return; }
     if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
     if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+    __exportInFlight = true;
+    toast('Generating PDF…');
+    // Safety: auto-clear flag after 30s in case generation throws unexpectedly
+    setTimeout(() => { __exportInFlight = false; }, 30000);
     const book = data.books.find(b => b.id === session.activeBookId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!book || !biz) { toast('Book or business missing.'); return; }
+    if (!book || !biz) { __exportInFlight = false; toast('Book or business missing.'); return; }
     const cur = currencyDisplay(biz.currency || 'NPR');
     // Export ALL entries for this book, ignoring the active on-screen
     // period filter. The user expects "Download" to capture the full
@@ -25819,7 +25582,7 @@
         if (ad !== bd) return ad < bd ? -1 : 1;
         return (a.createdAt || 0) - (b.createdAt || 0);
       });
-    if (!entries.length) { toast('Nothing to export.'); return; }
+    if (!entries.length) { __exportInFlight = false; toast('Nothing to export.'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     doc.setFontSize(20); doc.setFont('helvetica', 'normal'); doc.text(book.name, 14, 22);
@@ -25847,14 +25610,14 @@
     });
     const inSum = entries.reduce((a, e) => a + (e.type === 'in' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
     const outSum = entries.reduce((a, e) => a + (e.type === 'out' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
-    if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
+    if (typeof doc.autoTable !== 'function') { __exportInFlight = false; toast('PDF table plugin failed to load.'); return; }
     doc.autoTable({
-      head: [['No.', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
+      head: [['Invoice #', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
       body: rows, startY: 35,
       headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 7 },
       columnStyles: {
-        0: { halign: 'left', fontStyle: 'bold', cellWidth: 12 },                // Entry No. — left, bold
+        0: { halign: 'left', fontStyle: 'bold', cellWidth: 18 },                // Invoice # — left, bold
         // v80: amount columns shifted +1 since No. is now first.
         6: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
         7: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
@@ -25865,14 +25628,20 @@
     });
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
     doc.save(`${bookPart}_all.pdf`);
+    __exportInFlight = false;
     toast('PDF downloaded.');
   }
   function exportExcel() {
+    if (__exportInFlight) return;
     if (!session.activeBookId) { toast('No book selected.'); return; }
     if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
+    __exportInFlight = true;
+    toast('Generating CSV…');
+    // Safety: auto-clear flag after 30s in case generation throws unexpectedly
+    setTimeout(() => { __exportInFlight = false; }, 30000);
     const book = data.books.find(b => b.id === session.activeBookId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!book || !biz) { toast('Book or business missing.'); return; }
+    if (!book || !biz) { __exportInFlight = false; toast('Book or business missing.'); return; }
     // Export ALL entries for this book, ignoring the active on-screen
     // period filter. See exportPDF for rationale.
     const entries = data.entries
@@ -25884,7 +25653,7 @@
         if (ad !== bd) return ad < bd ? -1 : 1;
         return (a.createdAt || 0) - (b.createdAt || 0);
       });
-    if (!entries.length) { toast('Nothing to export.'); return; }
+    if (!entries.length) { __exportInFlight = false; toast('Nothing to export.'); return; }
     // CSV-safe cell escaper: prevent formula injection (a cell starting with = + - @ \t \r
     // is treated as a formula by Excel/Sheets — prefix with single quote to defuse).
     // Strip leading whitespace before the formula-prefix check, so "  =CMD()" is also caught.
@@ -25937,6 +25706,7 @@
     // Q2: revoke after the click has had time to register the download. Revoking
     // synchronously raced the download in some browsers and produced a broken file.
     setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
+    __exportInFlight = false;
     toast('CSV downloaded.');
   }
 
@@ -26960,7 +26730,12 @@
           // template that Supabase sends should be configured to
           // include the 6-digit token (Dashboard → Email Templates →
           // Confirm signup → use {{ .Token }}).
+          // v89.28: hideBootSplash() returns first so the modal can render.
           hideBootSplash(true);
+          // (No send-splash needed here — signUp() already returned by this
+          // point. The send-splash applies to actions where we await a
+          // network call BEFORE this point. Signup's network was the
+          // signUp() call above, which we can't splash from boot-splash.)
           openOtpModal({
             email: login,
             kind: 'signup',
@@ -27035,11 +26810,13 @@
     try {
       // signInWithOtp with shouldCreateUser:false means it only sends
       // to existing accounts (won't auto-create on typo).
+      // v89.28: show instant feedback splash before the network call.
+      showOtpSendingSplash(email);
       const { error } = await sb().auth.signInWithOtp({
         email,
         options: { shouldCreateUser: false },
       });
-      if (error) { toast('Could not send code: ' + error.message); return; }
+      if (error) { toast('Could not send code: ' + error.message); closeModal(); return; }
       // Open OTP modal
       openOtpModal({
         email,
@@ -27068,6 +26845,8 @@
       });
     } catch (e) {
       toast('Network error: ' + e.message);
+      // v89.28: close splash on throw so user isn't stuck
+      try { closeModal(); } catch (_) {}
     }
   }
 
@@ -28241,7 +28020,30 @@
   // Track which announcements we've already alerted on, to dedupe in
   // case multiple realtime events fire for the same row (UPDATE after
   // INSERT) or the same payload bounces through realtime twice.
+  //
+  // v89.29: bounded LRU. Without this, the Set grows unbounded for
+  // users who keep the tab open for weeks across many announcements.
+  // We cap at 500 — easily enough to dedupe any realistic session,
+  // and at ~36-byte UUID strings = ~18KB max. Insertion order in JS
+  // Sets is preserved, so deleting the first key removes the oldest.
+  const __ANNOUNCED_IDS_CAP = 500;
   const __announcedIds = new Set();
+  function __announcedIdsAdd(id) {
+    if (!id) return;
+    // If already in the set, refresh its position to most-recent by
+    // re-inserting (delete then add).
+    if (__announcedIds.has(id)) {
+      __announcedIds.delete(id);
+      __announcedIds.add(id);
+      return;
+    }
+    // Drop oldest if at cap before adding the new one.
+    if (__announcedIds.size >= __ANNOUNCED_IDS_CAP) {
+      const oldest = __announcedIds.values().next().value;
+      if (oldest !== undefined) __announcedIds.delete(oldest);
+    }
+    __announcedIds.add(id);
+  }
   // Author of each fresh announcement, captured locally when we post.
   // Used to suppress self-notifications even if our local copy hasn't
   // synced back through realtime yet.
@@ -28389,7 +28191,7 @@
     // Dedupe — same announcement might arrive twice (INSERT + UPDATE on
     // server-side defaults like updated_at).
     if (__announcedIds.has(restoredAnnouncement.id)) return;
-    __announcedIds.add(restoredAnnouncement.id);
+    __announcedIdsAdd(restoredAnnouncement.id);
     // Self-suppression: if the current user is the author, no alert.
     // Two checks: the locally-tracked set we populate on saveAnnouncement,
     // and a userId match against the announcement row's author_id.
@@ -28913,8 +28715,11 @@
       if (labelEl) labelEl.textContent = label;
       const countEl = el.querySelector('.sync-badge-count');
       if (countEl) {
-        countEl.textContent = countDetail;
-        countEl.style.display = countDetail ? '' : 'none';
+        // v89.27 fix #12: use visibility instead of display so the layout
+        // doesn't shift when the count appears or disappears.
+        countEl.textContent = countDetail || '';
+        countEl.style.visibility = countDetail ? 'visible' : 'hidden';
+        countEl.style.display = '';
       }
     }
   }

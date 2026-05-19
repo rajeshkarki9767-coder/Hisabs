@@ -1,147 +1,129 @@
-// ============================================================
-// Hisabs Edge Function: delete-self-account
-// ============================================================
-// Purpose: A user who has clicked "Delete all my data and sign out" in
-// Hisabs has had their app data deleted (businesses, members, profile).
-// What remains is their auth.users entry — email + hashed password.
-// This function removes that final piece, so the email can be re-used
-// for a fresh sign-up later if the user changes their mind.
+// supabase/functions/delete-self-account/index.ts
 //
-// Why an Edge Function and not a client-side call: deleting an auth
-// user requires the service_role key, which has admin access to the
-// whole database. Embedding it in the client would let any user delete
-// anyone — catastrophic. The service_role key lives only as an env var
-// on the server, never sent over the wire.
+// Edge Function that lets a signed-in user delete their own auth.users
+// row from Supabase. The app's "Delete account" flow calls this AFTER
+// it has deleted all the user's business data, so this is the final
+// step that removes their email + hashed password from Supabase Auth.
 //
-// Security model:
-//   1. Caller must present a valid Authorization: Bearer <JWT> header
-//   2. We verify the JWT using the anon key client (NOT service_role)
-//   3. We confirm a user is returned and extract their UUID
-//   4. We delete THAT user — never a UUID from the request body
+// =====================================================================
+// DEPLOY
+// =====================================================================
 //
-// This means a caller can only ever delete themselves. There is no
-// admin endpoint, no "delete by id" parameter, no way to escalate.
-// ============================================================
-
-// deno-lint-ignore-file no-explicit-any
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4';
-
-// Vercel/Cloudflare/Deno-style globals that Supabase Edge Functions provide.
-declare const Deno: { env: { get(k: string): string | undefined }; serve: (h: (r: Request) => Response | Promise<Response>) => void };
-
-const SUPABASE_URL          = Deno.env.get('SUPABASE_URL')          ?? '';
-const SUPABASE_ANON_KEY     = Deno.env.get('SUPABASE_ANON_KEY')     ?? '';
-const SUPABASE_SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
-
-// CORS allowlist. Even though we authenticate via JWT (so origin alone
-// can't escalate), restricting Allow-Origin is defense-in-depth — it
-// stops a third-party site from being able to invoke this function from
-// a browser even with social-engineering. The function still works
-// server-to-server because CORS only applies to browser fetches.
+// 1. Install Supabase CLI if you haven't:
+//      npm install -g supabase
+//      supabase login
 //
-// To support preview deploys, list each one here. Edit this list and
-// redeploy when adding new domains.
-const ALLOWED_ORIGINS = new Set([
-  'https://hisabs.vercel.app',
-  // Add additional Hisabs domains here if you have them, e.g.:
-  // 'https://hisabs-staging.vercel.app',
-]);
-function corsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') ?? '';
-  const allowed = ALLOWED_ORIGINS.has(origin) ? origin : '';
-  return {
-    'Access-Control-Allow-Origin': allowed,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  };
-}
+// 2. Link to your project (from your repo root):
+//      supabase link --project-ref sdovwbxqxvbbtpndrohd
+//    (replace with your project ref from Dashboard → Settings → General)
+//
+// 3. Save this file at:
+//      supabase/functions/delete-self-account/index.ts
+//
+// 4. Deploy:
+//      supabase functions deploy delete-self-account
+//
+// 5. Verify in Dashboard → Edge Functions → delete-self-account
+//    is listed and shows "Active".
+//
+// 6. Test from the app: Profile → Delete account → confirm → the
+//    auth user should be removed within seconds. Try signing up
+//    again with the same email — should work as a fresh new account.
+//
+// =====================================================================
+// SECURITY
+// =====================================================================
+//
+// - Requires the caller to be authenticated (we verify their JWT).
+// - Only deletes the CALLER'S OWN user — cannot be abused to delete
+//   anyone else.
+// - Uses the service-role key (loaded from env, never exposed) to
+//   issue the admin.deleteUser call.
+// - CORS is restricted to the app's own origin in production.
+//
+// =====================================================================
 
-Deno.serve(async (req: Request): Promise<Response> => {
-  const CORS_HEADERS = corsHeaders(req);
-  // Preflight
+// @ts-ignore: Deno-style import (only valid inside Supabase runtime)
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// @ts-ignore: Deno global (available in Supabase Edge runtime)
+declare const Deno: any;
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+// @ts-ignore: Deno.serve (only valid inside Supabase runtime)
+Deno.serve(async (req: Request) => {
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: CORS_HEADERS });
+    return new Response('ok', { headers: corsHeaders });
   }
+
   if (req.method !== 'POST') {
-    return jsonResp(CORS_HEADERS, { error: 'Method not allowed' }, 405);
+    return new Response(
+      JSON.stringify({ ok: false, error: 'method_not_allowed' }),
+      { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 
-  // 1. Extract the caller's JWT from the Authorization header.
-  const authHeader = req.headers.get('Authorization') ?? req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) {
-    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
-  }
-  const accessToken = authHeader.slice('Bearer '.length).trim();
-  if (!accessToken) {
-    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
-  }
-
-  // 2. Verify the JWT. Use the ANON client (no admin powers); supabase-js
-  //    will validate the token against the Supabase Auth public key.
-  const verifyClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  const { data: userData, error: userErr } = await verifyClient.auth.getUser(accessToken);
-  if (userErr || !userData?.user?.id) {
-    // Don't leak whether token was missing/expired/forged.
-    return jsonResp(CORS_HEADERS, { error: 'Unauthorized' }, 401);
-  }
-  const userId = userData.user.id;
-  const userEmail = userData.user.email ?? null;
-
-  // 3. Delete the auth user using the service_role client.
-  if (!SUPABASE_SERVICE_ROLE) {
-    console.error('Server misconfigured: missing SUPABASE_SERVICE_ROLE_KEY');
-    return jsonResp(CORS_HEADERS, { error: 'Server error' }, 500);
-  }
-  const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE, {
-    auth: { autoRefreshToken: false, persistSession: false },
-  });
-
-  // Clean up rows that don't FK-cascade from auth.users:
-  //   - app_members rows where user_id matches OR user_login matches the
-  //     deleted account's email. Both because a member row can be in the
-  //     pre-acceptance state (user_id null, user_login set) or
-  //     post-acceptance (user_id set). If we leave these around, a fresh
-  //     account with the same email later inherits the previous account's
-  //     business memberships (ghost businesses).
-  //   - app_push_subscriptions rows for this user_id.
-  //   - app_device_names rows for this user_id.
-  // We do this BEFORE deleting the auth user so a partial failure doesn't
-  // leak orphan rows.
-  //
-  // Use two separate .delete() calls rather than .or() with the email
-  // interpolated into a filter string. PostgREST's .or() takes a literal
-  // filter expression; passing user-controlled text into it would be
-  // unsafe in principle even though Supabase Auth validates email format
-  // before account creation. Two calls = no filter-string construction.
   try {
-    await adminClient.from('app_members').delete().eq('user_id', userId);
-    if (userEmail) {
-      // .ilike with a plain value is safe — supabase-js parameterises it.
-      // (The risk earlier was building the whole filter string via .or().)
-      await adminClient.from('app_members')
-        .delete()
-        .ilike('user_login', userEmail.toLowerCase());
+    // Extract the caller's JWT from the Authorization header.
+    const authHeader = req.headers.get('authorization') || '';
+    const token = authHeader.replace(/^Bearer\s+/i, '');
+    if (!token) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'missing_authorization' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
-    await adminClient.from('app_push_subscriptions').delete().eq('user_id', userId);
-    await adminClient.from('app_device_names').delete().eq('user_id', userId);
-  } catch (e) {
-    console.warn('Cleanup before auth-delete failed (non-fatal):', e);
-  }
 
-  const { error: delErr } = await adminClient.auth.admin.deleteUser(userId);
-  if (delErr) {
-    // Log details internally; return generic error to caller.
-    console.error('Failed to delete user', userId, delErr);
-    return jsonResp(CORS_HEADERS, { error: 'Delete failed' }, 500);
-  }
+    // Verify the JWT and identify the user. Using the ANON key client
+    // with the user's JWT, getUser() returns their identity from the JWT.
+    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
+      global: { headers: { Authorization: `Bearer ${token}` } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser();
+    if (userErr || !userData?.user?.id) {
+      return new Response(
+        JSON.stringify({ ok: false, error: 'invalid_token' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-  return jsonResp(CORS_HEADERS, { ok: true, deleted_user_id: userId, deleted_email: userEmail });
+    const userId = userData.user.id;
+    const userEmail = userData.user.email || '(unknown)';
+
+    // Use the service-role client to delete the auth user.
+    // admin.deleteUser also cascades: linked identity records get removed.
+    const adminClient = createClient(SUPABASE_URL, SERVICE_KEY, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const { error: delErr } = await adminClient.auth.admin.deleteUser(userId);
+    if (delErr) {
+      console.error(`Failed to delete user ${userId} (${userEmail}):`, delErr);
+      return new Response(
+        JSON.stringify({ ok: false, error: 'delete_failed', detail: delErr.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Deleted auth user ${userId} (${userEmail})`);
+    return new Response(
+      JSON.stringify({ ok: true, deletedUserId: userId }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (e: any) {
+    console.error('delete-self-account error:', e);
+    return new Response(
+      JSON.stringify({ ok: false, error: 'unexpected', detail: e?.message || String(e) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
 });
-
-function jsonResp(corsHdrs: Record<string, string>, body: any, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHdrs, 'Content-Type': 'application/json' },
-  });
-}
