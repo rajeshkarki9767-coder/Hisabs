@@ -3343,7 +3343,8 @@
   .dist-salary-header,
   .dist-salary-row {
     display: grid;
-    grid-template-columns: minmax(140px, 1.5fr) 110px 130px 110px 130px 32px;
+    /* v89.30 fix #7: narrower name column, wider action column to fit edit+trash */
+    grid-template-columns: minmax(120px, 1fr) 100px 120px 100px 120px 70px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -3356,6 +3357,8 @@
   /* v88: card wraps the grid row + note line so they read as one
      unit. The grid row no longer needs its own background — the card
      owns it. */
+  /* v89.30 fix #7c: row color tints matching section accents.
+     Salaries: blue. Shares: green. Subtle 6% opacity. */
   .dist-row-card {
     background: var(--paper-deep);
     border: 1px solid var(--line);
@@ -3364,6 +3367,14 @@
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
+  }
+  .dist-section-salaries .dist-row-card {
+    background: rgba(43, 95, 138, 0.06);
+    border-color: rgba(43, 95, 138, 0.25);
+  }
+  .dist-section-shares .dist-row-card {
+    background: rgba(46, 93, 58, 0.06);
+    border-color: rgba(46, 93, 58, 0.25);
   }
   .dist-row-card .dist-salary-row,
   .dist-row-card .dist-share-row {
@@ -3528,7 +3539,7 @@
   .dist-share-header,
   .dist-share-row {
     display: grid;
-    grid-template-columns: minmax(140px, 2fr) 100px 1fr 32px;
+    grid-template-columns: 1fr 90px 110px 70px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -3554,9 +3565,9 @@
     .dist-salary-header { display: none; }
     .dist-share-header { display: none; }
     .dist-salary-row {
-      grid-template-columns: 1fr 1fr 32px;
+      grid-template-columns: 1fr 1fr 70px;
       grid-template-areas:
-        "name name del"
+        "name name actions"
         "salary type type"
         "adj final final";
       gap: 0.4rem;
@@ -3566,18 +3577,20 @@
     .dist-salary-row select[data-field="adjustmentType"] { grid-area: type; }
     .dist-salary-row input[data-field="adjustmentAmount"] { grid-area: adj; }
     .dist-salary-row .dist-salary-final { grid-area: final; }
-    .dist-salary-row > button { grid-area: del; }
+    /* v89.30 fix #7: action area (edit + trash) now occupies right column */
+    .dist-salary-row .dist-row-actions { grid-area: actions; }
     .dist-share-row {
-      grid-template-columns: 1fr 80px 32px;
+      grid-template-columns: 1fr 80px 70px;
       grid-template-areas:
-        "name pct del"
+        "name pct actions"
         "amt amt amt";
       gap: 0.4rem;
     }
     .dist-share-row input[data-field="name"] { grid-area: name; }
     .dist-share-row input[data-field="pct"] { grid-area: pct; }
     .dist-share-row .dist-share-amount { grid-area: amt; text-align: right; }
-    .dist-share-row > button { grid-area: del; }
+    /* v89.30 fix #7: action area now occupies right column */
+    .dist-share-row .dist-row-actions { grid-area: actions; }
   }
 
   /* ============================================================
@@ -4148,11 +4161,30 @@
     border-radius: var(--r); padding: 0.85rem 1rem;
     margin-bottom: 0.95rem;
   }
+  /* v89.30 fix #4: tighter padding + min-height for charts on mobile
+     so the chart line dominates the card rather than empty whitespace.
+     Reduces the perceived "huge gap above and below the chart". */
+  @media (max-width: 880px) {
+    .insights-chart-wrap,
+    .forecast-chart-wrap,
+    .forecast-section {
+      padding: 0.6rem 0.7rem 0.7rem;
+    }
+    .insights-bar-svg,
+    .insights-line-svg,
+    .forecast-chart {
+      min-height: 180px;
+    }
+  }
   /* v89.25 fix #9: cap chart wrap width on desktop so charts don't sprawl.
+     v89.30 fix #4+5+6: reduced from 760px to 580px AND now also applies to
+     .forecast-section (which contains the 6-month operating profit chart).
      Mobile (< 881px) still uses full width. */
   @media (min-width: 881px) {
-    .insights-chart-wrap, .forecast-chart-wrap {
-      max-width: 760px;
+    .insights-chart-wrap,
+    .forecast-chart-wrap,
+    .forecast-section {
+      max-width: 580px;
     }
   }
   .insights-chart-head {
@@ -5698,6 +5730,10 @@
     @page { margin: 0.5in; size: landscape; }
     html, body { background: #fff !important; color: #000 !important; }
     body { font-size: 11pt; line-height: 1.4; }
+
+    /* v89.30 fix #2 (print): hide entry-no-badge when printing — matches
+       the removed Invoice # column in PDF/CSV exports. */
+    .entry-no-badge { display: none !important; }
 
     /* Hide app chrome */
     .sidebar, .sidebar-drawer-backdrop,
@@ -11847,6 +11883,28 @@
     const buf = _distBufferGet('salaries', id);
     buf[field] = value;
     _markRowDirtyUI('salaries', id);
+    // v89.30 fix #8: also mirror to __distSalaries so the per-row final
+    // amount and section totals update live. The buffer still tracks
+    // which rows need to be persisted on Save (cloud sync).
+    const row = __distSalaries.find(r => r.id === id);
+    if (row) {
+      if (field === 'name') row.name = String(value || '').slice(0, 120);
+      else if (field === 'salary') {
+        const n = Number(value);
+        row.salary = (Number.isFinite(n) && n >= 0) ? n : 0;
+      }
+      else if (field === 'adjustmentType') {
+        row.adjustmentType = value === 'addition' ? 'addition' : 'deduction';
+      }
+      else if (field === 'adjustmentAmount') {
+        const n = Number(value);
+        row.adjustmentAmount = (Number.isFinite(n) && n >= 0) ? n : 0;
+      }
+      else if (field === 'note') row.note = String(value || '').slice(0, 280);
+      // Recompute totals + per-row final amount. This updates the DOM
+      // text content directly without re-rendering inputs (preserves focus).
+      try { refreshDistributionTotals(); } catch (_) {}
+    }
   }
   function saveDistSalaryRow(id) {
     const row = __distSalaries.find(r => r.id === id);
@@ -11905,10 +11963,21 @@
     renderDistributionCard();
   }
   // v89.7: BUFFERED shares field update — same pattern as salaries.
+  // v89.30 fix #8: also mirror to __distShares for live calc preview.
   function updateDistShareField(id, field, value) {
     const buf = _distBufferGet('shares', id);
     buf[field] = value;
     _markRowDirtyUI('shares', id);
+    const row = __distShares.find(r => r.id === id);
+    if (row) {
+      if (field === 'name') row.name = String(value || '').slice(0, 120);
+      else if (field === 'pct') {
+        const n = Number(value);
+        row.pct = (Number.isFinite(n) && n >= 0) ? n : 0;
+      }
+      else if (field === 'note') row.note = String(value || '').slice(0, 280);
+      try { refreshDistributionTotals(); } catch (_) {}
+    }
   }
   function saveDistShareRow(id) {
     const row = __distShares.find(r => r.id === id);
@@ -18014,6 +18083,12 @@
       saveBtn.classList.toggle('btn-gain', t === 'in');
       saveBtn.classList.toggle('btn-loss', t === 'out');
     }
+    // v89.30 fix #1: also toggle the bottom full-width Save button
+    const saveBtnBottom = document.getElementById('saveEntryBtnBottom');
+    if (saveBtnBottom) {
+      saveBtnBottom.classList.toggle('btn-gain', t === 'in');
+      saveBtnBottom.classList.toggle('btn-loss', t === 'out');
+    }
   }
 
   // ================================================================
@@ -23079,13 +23154,12 @@
       </div>
       <div class="settings-section">
         <h3 class="settings-heading">Activity log</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Recent significant actions on your account — sign-ins, business creates, deletions. Use this to spot anything you don't recognise. You can clear it manually below.</p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Recent significant actions on your account — sign-ins, business creates, deletions. Use this to spot anything you don't recognise.</p>
         <div id="auditLogList" style="min-height:60px;font-size:0.8rem;">
           <p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>
         </div>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.6rem;">
           <button class="btn btn-sm btn-ghost" onclick="loadAuditLog()" title="Refresh activity log">Refresh log</button>
-          <button class="btn btn-sm btn-danger-outline" onclick="clearMyAuditLog()" id="myAuditLogClearBtn" title="Permanently delete your activity log">Clear activity log</button>
         </div>
       </div>` : ''}
       <div class="settings-section">
@@ -25595,7 +25669,7 @@
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
-        e.entryNo ? formatEntryNo(e.entryNo) : '',
+        // v89.30 fix #2: Invoice # column removed from exports.
         e.date || '',
         e.note || '',
         e.party || '',
@@ -25612,18 +25686,17 @@
     const outSum = entries.reduce((a, e) => a + (e.type === 'out' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
     if (typeof doc.autoTable !== 'function') { __exportInFlight = false; toast('PDF table plugin failed to load.'); return; }
     doc.autoTable({
-      head: [['Invoice #', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
+      head: [['Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
       body: rows, startY: 35,
       headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 7 },
+      // v89.30 fix #2: Invoice # column removed — indices shift left by 1.
       columnStyles: {
-        0: { halign: 'left', fontStyle: 'bold', cellWidth: 18 },                // Invoice # — left, bold
-        // v80: amount columns shifted +1 since No. is now first.
-        6: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
-        7: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
-        8: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
+        5: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
+        6: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
+        7: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
       },
-      foot: [['', '', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), '']],
+      foot: [['', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), '']],
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
@@ -25665,14 +25738,14 @@
       return '"' + s.replace(/"/g, '""') + '"';
     }
     let bal = 0;
-    const headers = ['No.', 'Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
+    const headers = ['Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
     const rows = entries.map(e => {
       const amt = Number(e.amount);
       const safeAmt = Number.isFinite(amt) ? amt : 0;
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
-        e.entryNo ? formatEntryNo(e.entryNo) : '',
+        // v89.30 fix #2: Invoice # column removed from exports.
         e.date || '',
         e.note || '',
         e.party || '',
