@@ -4176,17 +4176,18 @@
       min-height: 180px;
     }
   }
-  /* v89.25 fix #9: cap chart wrap width on desktop so charts don't sprawl.
-     v89.30 fix #4+5+6: reduced from 760px to 580px AND now also applies to
-     .forecast-section (which contains the 6-month operating profit chart).
-     Mobile (< 881px) still uses full width. */
-  @media (min-width: 881px) {
-    .insights-chart-wrap,
-    .forecast-chart-wrap,
-    .forecast-section {
-      max-width: 580px;
-    }
-  }
+  /* v89.25 fix #9 → v89.30 → v89.30.1:
+     Desktop chart sizing history:
+       - v89.25: max-width 760px (charts felt too wide on big monitors)
+       - v89.30: reduced to 580px (overcorrected — charts felt cramped,
+                                    leaving huge whitespace on right)
+       - v89.30.1: REMOVED max-width. Let charts span the natural
+                   content area. The "right-side gap" the user originally
+                   reported was about sparse data on the chart axis
+                   (e.g., May data only on days 14-19 of 31), not
+                   container sprawl. Container width should follow the
+                   page layout naturally.
+     Mobile (< 881px) still uses full width as before. */
   .insights-chart-head {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 0.85rem; flex-wrap: wrap; margin-bottom: 0.6rem;
