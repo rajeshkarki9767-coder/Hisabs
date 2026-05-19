@@ -1,82 +1,101 @@
-# Hisabs v89.30.1 — desktop chart width fix
+# Hisabs v89.30.2 — CSP audio fix
 
 ```
-index.html: 7174d13bc3a1f2ab7a8f9c7544f106e7
+index.html:  7174d13bc3a1f2ab7a8f9c7544f106e7 (unchanged from v89.30.1)
+vercel.json: UPDATED — adds media-src directive to CSP
 ```
 
-## What changed from v89.30
+## What changed in this revision
 
-### Desktop chart width cap REMOVED
+### Console error fix: sounds blocked by CSP
 
-In v89.30 I capped desktop chart cards at `max-width: 580px`. On wide
-monitors (laptop/desktop) this made charts feel cramped on the left and
-left huge empty whitespace on the right side of the card.
-
-v89.30.1 removes the cap entirely. Chart cards now span the natural
-content width on desktop, which matches the surrounding cards.
-
-This affects:
-- Insights: Daily cash flow, Daily Net Profit Graph, Cash flow by month,
-  Net Profit Graph by Months, Cumulative profit
-- Forecast: 6-month operating profit trend
-
-Mobile rules unchanged — chart cards still use tighter padding
-(0.6rem 0.7rem 0.7rem) and min-height: 180px on mobile from v89.30.
-
-### About the "right-side gap" issue
-
-The original user complaint of "huge gap on right side of the graph"
-was actually about sparse data on the chart x-axis (e.g., May data
-only on days 14-19 of 31), not container sprawl. The chart canvas
-correctly shows the full month range, with data clustered where it
-exists. This is correct behavior — capping the container width doesn't
-help and actually hurts visual proportion.
-
-If you'd prefer the chart to zoom to the data range only (showing only
-the days/months that have data), that's a different feature request
-involving chart logic changes, not container CSS.
-
-## All previous fixes preserved
-
-All 41 fixes from v89.13 through v89.30 verified intact, including
-all 8 v89.30 user-requested fixes:
-
-1. Save Entry button red on Cash Out tab ✓
-2. Invoice # removed from PDF/CSV/print ✓
-3. Clear activity log button removed ✓
-4. Mobile chart vertical gap fixed (tighter padding + min-height) ✓
-5. ~~Desktop chart max-width 580px~~ → REMOVED in v89.30.1
-6. ~~Forecast 6m chart max-width~~ → REMOVED in v89.30.1
-7. Distribution row redesign (trash inside, narrower name, color tints) ✓
-8. Live calc on distribution rows ✓
-
-Fixes 5 and 6 still apply but via removal of the cap, not reduction.
-Charts on desktop now use the natural content width — which is what
-"fitting properly" looks like on big monitors.
-
-## Verification
-
+Browser console showed:
 ```
-JS syntax:      OK
-HTML comments:  49/49 balanced
-CSS braces:     1974/1974 balanced
-Backticks:      2096 (even)
-File:           1,746,062 bytes / 29,644 lines
+Loading media from 'data:audio/wav;base64,...' violates the following CSP
+directive: "default-src 'self'". Note that 'media-src' was not explicitly
+set, so 'default-src' is used as a fallback. The action has been blocked.
 ```
 
-## Setup steps still required (unchanged)
+**Cause**: The CSP in vercel.json had no `media-src` directive, so it
+fell back to `default-src 'self'`, which blocks `data:` URIs. Hisabs
+embeds 4 sound effects (cash-in, cash-out, delete, announcement) as
+inline base64 `data:audio/wav` — they were being blocked entirely.
 
-See **V89_28_SETUP.md**:
-- 3 Supabase email templates
-- delete-self-account Edge Function deploy
+**Fix**: Added `media-src 'self' data: blob:` to the CSP in vercel.json.
+
+After redeploy, sounds will work in the browser.
+
+### Other console messages — diagnosed
+
+**1. Google Analytics blocked by CSP** ⚠️ Investigate source
+```
+Connecting to '<URL>' violates CSP directive: "connect-src 'self' ..."
+Fetch API cannot load https://www.google-analytics.com/mp/collect...
+```
+
+The index.html has ZERO Google Analytics code (verified by grep).
+The blocked call must come from one of:
+- A browser extension you have installed
+- A cached old build from before you cleaned analytics
+- Some 3rd-party tool injection
+
+**The CSP is correctly blocking it** — protecting your users' privacy.
+No code change needed. To identify the source:
+
+1. Test in Incognito mode with no extensions → if errors disappear,
+   it's an extension
+2. If still there in Incognito → check Network tab to see which page
+   resource is loading the GA script
+
+**2. Beforeinstallprompt banner not shown** ✅ Normal
+This is your code intentionally suppressing Chrome's default install
+banner so you can show your own custom prompt later. Not an error.
+
+**3. Realtime: SUBSCRIBED** ✅ Success log
+Your realtime sync is connecting properly.
+
+**4. AudioContext autoplay block** ✅ Expected
+Browsers require user interaction before audio plays. Your
+`unlockEntrySound()` handles this — it tries on page load (fails
+silently), then succeeds after first user click. No action needed.
+
+## Final CSP (vercel.json)
+
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' blob:;
+script-src-elem 'self' 'unsafe-inline' blob:;
+worker-src 'self' blob:;
+style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+font-src 'self' https://fonts.gstatic.com data:;
+img-src 'self' data: blob:;
+media-src 'self' data: blob:;             ← NEW (v89.30.2)
+connect-src 'self' https://*.supabase.co wss://*.supabase.co;
+frame-ancestors 'self';
+base-uri 'self';
+form-action 'self';
+manifest-src 'self';
+upgrade-insecure-requests
+```
+
+## All v89.30 fixes still intact
+
+Everything from v89.30.1 preserved — only vercel.json changed.
 
 ## Deploy
 
 ```bash
 cd ~/Documents/GitHub/hisabs
-cp ~/Downloads/hisabs_v89_27_final/index.html ./index.html
-md5sum index.html
-# expected: 7174d13bc3a1f2ab7a8f9c7544f106e7
-git add . && git commit -m "v89.30.1: remove desktop chart max-width cap" && git push
+cp ~/Downloads/hisabs_v89_27_final/vercel.json ./vercel.json
+# index.html unchanged from v89.30.1 — no need to copy again unless you skipped it
+git add vercel.json
+git commit -m "v89.30.2: add media-src to CSP for inline audio data URIs"
+git push
 ```
+
+After Vercel deploys (~30s), test in browser:
+1. Hard reload (Cmd+Shift+R / Ctrl+Shift+R) to bypass cache
+2. Open DevTools → Console → make a cash-in entry
+3. The CSP media error should be gone, sound should play after first
+   click on the page (autoplay rule)
 
