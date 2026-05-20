@@ -4194,45 +4194,16 @@
       min-height: 180px;
     }
   }
-  /* v89.30.3 chart sizing — tiered by device:
-       Mobile  (<=880px): SVG aspect 3.27:1 renders ~100px → boosted to
-                          min-height: 180px (kept from v89.30 fix #4).
-                          Card padding tighter.
-       Tablet  (881-1280px): cap chart height at 240px so charts don't
-                             dominate the viewport on iPad-class devices.
-       Desktop (>=1281px):   cap chart height at 280px AND cap card
-                             width at 720px so charts feel proportional
-                             on large monitors without leaving giant gaps.
-     Charts remain fully interactive at all sizes — sizing rules only
-     affect dimensions, not pointer events. */
-
-  /* Tablet — moderate cap */
-  @media (min-width: 881px) and (max-width: 1280px) {
-    .insights-bar-svg,
-    .insights-line-svg,
-    .forecast-chart {
-      max-height: 240px;
-    }
-    .insights-chart-wrap,
-    .forecast-chart-wrap,
-    .forecast-section {
-      max-width: 760px;
-    }
-  }
-
-  /* Desktop — tighter cap on both axes */
-  @media (min-width: 1281px) {
-    .insights-bar-svg,
-    .insights-line-svg,
-    .forecast-chart {
-      max-height: 280px;
-    }
-    .insights-chart-wrap,
-    .forecast-chart-wrap,
-    .forecast-section {
-      max-width: 720px;
-    }
-  }
+  /* v89.30.6 chart sizing — uniform across all devices.
+     The user wants the mobile look applied everywhere: chart cards fill
+     the available column width naturally, with chart SVG aspect ratio
+     governing height. No max-width caps that leave empty space on
+     wide monitors. No max-height caps that fight the natural aspect.
+     The min-height: 180px from v89.30 fix #4 stays for narrow viewports
+     so the chart line doesn't get squished. On wider viewports the
+     natural SVG aspect ratio takes over and charts grow proportionally.
+     Mobile rules (min-height + tighter padding) still apply via the
+     earlier @media (max-width: 880px) block above. */
   .insights-chart-head {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 0.85rem; flex-wrap: wrap; margin-bottom: 0.6rem;
