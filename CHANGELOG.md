@@ -12,6 +12,68 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [v89.31.5] — 2026-05-21
+
+A small follow-up batch: team-management refinements, a polished post-sign-in splash, and profile pictures.
+
+### Added
+- **Edit a team member's role inline** — on the Team & access page, each member who has joined now has a role dropdown (Manager / Team / Viewer). Changing it prompts for confirmation and propagates to that person on their next sync. (Ownership transfer remains a separate flow.)
+- **Per-member "sees totals" control** — whether a Team member can see totals (Cash In / Cash Out / Net and balances) on the Entries view is now set **per person** on the Team & access page, and is **off by default**. Managers and viewers always see totals. This replaces the old single business-wide toggle.
+- **Profile picture** — Settings → Profile now has a profile-picture uploader. The chosen image is center-cropped, downscaled (≤256px) and compressed client-side to a small JPEG, shown as your circular sidebar avatar, and synced so it follows you across devices. A Remove option clears it.
+- **Polished full-page splash after sign-in / account creation** — the branded splash now reliably holds for ~2 seconds measured from the moment you tap Sign in (or finish entering your account-creation code), not just from page load. The splash got a visual upgrade: a layered accent-gradient wash, a faint ledger-ruling texture, and a thin indeterminate progress bar — clearly covering the whole page. Honors reduced-motion.
+
+### Changed
+- **Business Settings** no longer has the "Team can see totals on entries view" toggle — that control moved to Team & access (per member). A short note in business settings points there.
+- **Documentation** — the User Guide now covers inline role editing, the per-member totals control, and the profile-picture uploader. The Privacy Policy notes that an optional profile picture is stored (compressed) in your cloud profile row.
+
+### Migration required
+Run BOTH in the Supabase SQL editor **before** deploying this build (the sync maps now reference these columns; without them, member/profile pushes would fail). Both are idempotent (`ADD COLUMN IF NOT EXISTS`).
+- **`sql/v89.31.5_app_members_sees_totals.sql`** — adds `member_sees_totals boolean NOT NULL DEFAULT false` to `app_members`.
+- **`sql/v89.31.5_app_accounts_avatar.sql`** — adds `avatar_url text` to `app_accounts`.
+
+### Notes
+- The old business-wide `app_businesses.staff_sees_totals` column is now unused but left in place (harmless) so older clients don't error. It can be dropped in a later cleanup.
+- Profile pictures are stored as base64 data URLs in the profile row (a few KB to ~30KB after compression; the client refuses anything over ~500KB). If avatar sizes ever grow, the field can migrate to Supabase Storage with no app change (it's treated as an opaque string).
+
+### Hash
+`65a7405259fb3ca58442655d2e04488d`
+
+---
+
+## [v89.31.4] — 2026-05-21
+
+A 13-item batch of user-requested fixes and refinements gathered after living with v89.31.x for a few days. Spans parties, exports, printing, sounds, distribution access, and documentation.
+
+### Added
+- **Party contact details & green dot** — each party can store optional phone numbers, emails, date of birth, and notes. A small green dot appears next to a party's name on the Parties list when it has at least one saved phone or email.
+- **Country-code suggestion in New Party** — the phone field in the New Party form is pre-filled with a suggested dialing code (e.g. `+977`). The suggestion follows the business currency by default, and the owner can pin a specific code in **Business settings → Business identity → Default country code**. A code-only entry (no actual number) is never saved.
+- **Invoice number in exports** — both the PDF and CSV (Excel) exports now include each entry's invoice number (`#1`, `#2`…), matching exactly what's shown on the entries list. Reverses the v89.30 removal.
+- **Full-page colour print** — the print / Save-as-PDF action now produces a faithful, full-page colour copy of the current view: app chrome (sidebar, topbar, FAB) is hidden, on-screen colours/backgrounds are preserved (`print-color-adjust: exact`), and long entry lists are expanded to print every row. Implemented as dependency-free print CSS (no html2canvas, keeping the bundle lean and offline-first).
+- **Distribution for managers & viewers (read-only)** — the Distribution view is now visible to managers and viewers, not just the owner. They see exactly how the owner has configured salaries, profit shares, and the split, with all inputs disabled and a "View only" banner. Owner retains full edit; staff still don't see it.
+- **Entry-count chip per filter** — each filtered entries view shows a count chip for the active filter.
+- **"Recently added" sort for parties.**
+- **Self-test coverage** — `window.hisabsSelfTest()` extended to 45 checks, adding cases for `isMeaningfulPhone()` and `bizPhoneCodeSuggestion()`.
+
+### Changed
+- **Action sounds are now consistent** — cash-in, cash-out, and delete each play the same dedicated sound every time. Root causes fixed: (1) the MP3→Web-Audio-synthesis fallback produced a *different* sound when the embedded clip didn't resolve in time — the synth fallback is removed, so a given action always plays one deterministic sound; (2) each action now uses one preloaded, reusable `Audio` element rewound per play, eliminating per-play construction races on mobile; (3) the delete sound previously read the *Announcement* mute key while cash sounds read the *Entry* key — all three action sounds now follow the single **Entry** toggle in **Settings → Notifications**.
+- **Amount field input hardening** — pressing `ArrowLeft` sets the entry type to Cash In and `ArrowRight` to Cash Out (matching the on-screen button order); the letter `e` (and `+`/`-`) can no longer be typed or pasted into the amount field.
+- **Pagination** — the entries list shows the first 200 rows with a "Show next 200" control; verified the clamp and increment behaviour.
+- **Documentation** — the User Guide gained sections on party contact details + green dot, the country-code suggestion, action sounds, full-page printing, invoice numbers in exports, and read-only Distribution for managers/viewers. The Privacy Policy now discloses that optional party contact metadata (phone, email, DOB, notes) and per-business preferences (currency, default phone country code) are stored in the cloud.
+
+### Fixed
+- **Drag-to-select no longer closes the card** — selecting text by dragging inside an entry/modal input could close the modal when the drag ended over the backdrop (a `click` fired on the backdrop). The backdrop now only dismisses when the press *began* on the backdrop itself (pointerdown-origin guard), so text selection that starts inside the modal never closes it.
+
+### Migration required
+- **`sql/v89.31.4_app_businesses_phone_code.sql`** — adds the `phone_country_code` column to `app_businesses`. **Run this in the Supabase SQL editor BEFORE deploying this build**, since the businesses sync map now references the column; without it, pushes that include a business row would fail. The migration is idempotent (`ADD COLUMN IF NOT EXISTS`).
+
+### Notes
+- The full-page print is a faithful print-CSS rendering, not a raster screenshot; html2canvas was deliberately not bundled (~200KB) to preserve the single-file, offline-first design.
+
+### Hash
+`3f79e0f9300bc3f5cd8ec2bfd41de1e6`
+
+---
+
 ## [v89.31.2] — 2026-05-20
 
 Risk-mitigation release. No new features; addresses production-readiness items flagged by the post-v89.31.1 audit.

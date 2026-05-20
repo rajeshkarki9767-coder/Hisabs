@@ -1409,14 +1409,63 @@
   .boot-splash {
     position: fixed; inset: 0; z-index: 200;
     display: grid; place-items: center;
-    background: var(--paper);
+    /* v89.31.5: layered wash so the full-page splash feels intentional
+       rather than a blank page with a logo. A soft accent glow rises
+       from the lower-centre over the paper base. */
+    background:
+      radial-gradient(120% 90% at 50% 115%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%),
+      radial-gradient(80% 60% at 50% -10%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 55%),
+      var(--paper);
     transition: opacity 0.4s ease;
+    overflow: hidden;
+  }
+  /* A faint, very large ledger-ruling texture behind the mark, drawn
+     with repeating linear gradient so it reads as accounting paper. */
+  .boot-splash::before {
+    content: '';
+    position: absolute; inset: 0;
+    background-image: repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 38px,
+      color-mix(in srgb, var(--ink) 4%, transparent) 38px,
+      color-mix(in srgb, var(--ink) 4%, transparent) 39px
+    );
+    opacity: 0.5;
+    pointer-events: none;
+    mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
+    -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
   }
   .boot-splash.fading { opacity: 0; pointer-events: none; }
   .boot-splash-inner {
     display: flex; flex-direction: column; align-items: center;
     gap: 1.25rem;
     animation: bootSplashRise 0.5s ease-out;
+    position: relative; z-index: 1;
+  }
+  /* Thin indeterminate progress bar pinned near the bottom of the
+     splash. A small accent segment sweeps across a faint track. */
+  .boot-splash-progress {
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    bottom: clamp(40px, 12vh, 110px);
+    width: min(220px, 60vw); height: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 8%, transparent);
+    overflow: hidden;
+    z-index: 1;
+  }
+  .boot-splash-progress::after {
+    content: '';
+    position: absolute; top: 0; left: 0; height: 100%;
+    width: 40%;
+    border-radius: 999px;
+    background: var(--accent);
+    animation: bootSplashSweep 1.25s ease-in-out infinite;
+  }
+  @keyframes bootSplashSweep {
+    0%   { left: -40%; }
+    100% { left: 100%; }
   }
   /* The brand mark: ledger-book glyph, rendered larger and in the
      accent colour. The two horizontal lines (rows of a ledger) animate
@@ -1508,11 +1557,14 @@
     .boot-splash-name,
     .boot-splash-tag,
     .boot-splash-dots,
-    .boot-splash-dots span {
+    .boot-splash-dots span,
+    .boot-splash-progress::after {
       animation: none !important;
       opacity: 1 !important;
       stroke-dashoffset: 0 !important;
     }
+    /* Show the progress bar as a static, fully-filled accent track. */
+    .boot-splash-progress::after { left: 0 !important; width: 100% !important; }
     /* Globally tone down motion for users who've opted out. Keeps
        transitions feeling instant rather than animated. Uses a
        very small non-zero duration (0.01ms) instead of 0 because a
@@ -1789,6 +1841,24 @@
   }
   .user-chip { display: flex; align-items: center; gap: 0.55rem; font-size: 0.78rem; min-width: 0; flex: 1; }
   .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--accent); display: grid; place-items: center; color: #ffffff; font-weight: 600; font-size: 0.78rem; font-family: var(--font-sans); flex-shrink: 0; }
+  /* v89.31.5: when an avatar image is present, the element carries an
+     inline background-image and we hide its initial letter. The
+     .has-photo class is toggled by JS. background-size:cover keeps the
+     square image circular-cropped. */
+  .user-avatar.has-photo { background-size: cover; background-position: center; color: transparent; text-indent: -9999px; }
+  /* Profile-photo editor in Settings → Profile. */
+  .profile-photo-row { display: flex; align-items: center; gap: 1rem; }
+  .profile-photo-preview {
+    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent); color: #fff; display: grid; place-items: center;
+    font-weight: 600; font-size: 1.6rem; font-family: var(--font-sans);
+    background-size: cover; background-position: center;
+    border: 2px solid var(--line); overflow: hidden;
+  }
+  .profile-photo-preview.has-photo { color: transparent; }
+  .profile-photo-actions { display: flex; flex-direction: column; gap: 0.4rem; }
+  .profile-photo-actions .btn { white-space: nowrap; }
+  .profile-photo-hint { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; }
   .user-chip > div:last-child { min-width: 0; flex: 1; }
   .user-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.78rem; }
   .user-role { font-size: 0.62rem; color: var(--sidebar-text-faint); }
@@ -1888,6 +1958,60 @@
   /* Print mode for the activity log. Hide all app chrome, show only
      the page-title + filter bar + log rows. Page-action buttons are
      hidden too since they shouldn't appear on paper. */
+  /* v89.31.4 (item 8): Full-page print mode. printPage() adds
+     body.printing-fullpage before window.print() so the output is a
+     faithful colour copy of the current view (closest we can get to a
+     screenshot without bundling html2canvas). */
+  @media print {
+    body.printing-fullpage {
+      background: var(--paper) !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* Force colour fidelity on every element so backgrounds, badges,
+       chart fills, and status colours all survive the print. */
+    body.printing-fullpage * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+    /* Hide app chrome — keep only the main content column. */
+    body.printing-fullpage .sidebar,
+    body.printing-fullpage .topbar,
+    body.printing-fullpage .date-strip,
+    body.printing-fullpage .search-overlay,
+    body.printing-fullpage .drawer-backdrop,
+    body.printing-fullpage .fab-wrap,
+    body.printing-fullpage .fab,
+    body.printing-fullpage .toast-stack,
+    body.printing-fullpage .page-actions {
+      display: none !important;
+    }
+    /* Lay the app + main + content full width for paper. */
+    body.printing-fullpage .app,
+    body.printing-fullpage main,
+    body.printing-fullpage #mainContent {
+      display: block !important;
+      width: 100% !important;
+      max-width: 100% !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      position: static !important;
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+    }
+    /* Avoid awkward breaks through cards and chart blocks. */
+    body.printing-fullpage .insights-chart-wrap,
+    body.printing-fullpage .forecast-chart-wrap,
+    body.printing-fullpage .insights-section,
+    body.printing-fullpage .insights-ranking-row,
+    body.printing-fullpage .entry-row,
+    body.printing-fullpage .dist-row-card,
+    body.printing-fullpage .distribution-net-card {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+  }
   @media print {
     body.printing-activity * { visibility: hidden; }
     body.printing-activity .page-header,
@@ -5038,6 +5162,52 @@
   .chip-menu.card-menu .chip-menu-item.danger:hover { background: rgba(168,53,31,0.08); }
   .chip-menu.card-menu .chip-menu-item svg { flex-shrink: 0; }
   .party-card-name { font-family: var(--font-sans); font-size: 0.92rem; font-weight: 600; margin-bottom: 0.1rem; word-break: break-word; color: var(--ink); letter-spacing: -0.005em; padding-right: 3rem; }
+  /* v89.31.4: entry-count chip at the top-right of party/category/account
+     cards. Reflects the active period filter. Sits where the 3-dot menu
+     appears on hover, so on hover the menu replaces it visually (the menu
+     has a higher z-index and an opaque hit area). On touch devices the
+     menu is always visible, so we nudge the chip left to clear it. */
+  .card-count-chip {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.6rem;
+    z-index: 1;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.4rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  /* On hover (desktop), fade the chip so the action menu underneath is
+     clearly the focus. The menu sits at the same corner with z-index 2. */
+  .party-card:hover .card-count-chip { opacity: 0; transition: opacity 0.12s; }
+  @media (hover: none) {
+    /* Touch: menu is always visible at top-right, so move the chip to
+       sit just left of it rather than under it. */
+    .card-count-chip { right: 2.3rem; }
+  }
+  /* v89.31.4: small green dot shown after the party name when the party
+     has a phone or email saved. Lets the user scan the list and see at
+     a glance which parties still need contact details. */
+  .party-contact-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--gain);
+    margin-left: 0.4rem;
+    vertical-align: middle;
+    flex-shrink: 0;
+  }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
   .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
@@ -5629,6 +5799,31 @@
   .role-badge.manager { background: var(--gain); color: #ffffff; }
   .role-badge.pending { background: var(--paper-deep); color: var(--ink-mute); border: 1px dashed var(--line); }
   .role-badge.declined { background: var(--loss); color: #ffffff; }
+  /* v89.31.5: per-member controls in Team & Access — role editor +
+     "sees totals" toggle. The member row becomes a 2-line layout on
+     narrow screens so the controls don't crowd the name. */
+  .staff-row-controls { display: flex; flex-direction: column; gap: 0.4rem; align-items: flex-end; flex-shrink: 0; }
+  .staff-row-controls-top { display: flex; gap: 0.4rem; align-items: center; }
+  .staff-role-select {
+    font-size: 0.78rem; padding: 0.3rem 0.5rem; border: 1px solid var(--line);
+    background: var(--input-bg); color: var(--ink); border-radius: var(--r-sm);
+    cursor: pointer; max-width: 11rem;
+  }
+  .staff-role-select:disabled { opacity: 0.55; cursor: default; }
+  .staff-sees-row {
+    display: flex; align-items: center; gap: 0.5rem; font-size: 0.74rem;
+    color: var(--ink-mute); white-space: nowrap;
+  }
+  .staff-sees-row .toggle { transform: scale(0.82); transform-origin: right center; }
+  .staff-sees-label { letter-spacing: 0.02em; }
+  @media (max-width: 560px) {
+    .staff-row { flex-wrap: wrap; }
+    .staff-row-controls { align-items: stretch; width: 100%; }
+    .staff-row-controls-top { justify-content: space-between; }
+    .staff-role-select { max-width: none; flex: 1; }
+    .staff-sees-row { justify-content: space-between; }
+    .staff-sees-row .toggle { transform: scale(0.82); transform-origin: right center; }
+  }
   .info-box { padding: 0.9rem 1rem; background: var(--paper-deep); border: 1px solid var(--line); font-size: 0.85rem; color: var(--ink-soft); margin-bottom: 1rem; line-height: 1.55; }
   .info-box strong { color: var(--ink); }
 
@@ -6377,6 +6572,7 @@
     <div class="boot-splash-tag">हिसाब</div>
     <div class="boot-splash-dots"><span></span><span></span><span></span></div>
   </div>
+  <div class="boot-splash-progress" aria-hidden="true"></div>
 </div>
 
 <!-- Inline SVG sprite for hot-path icons (one definition shared by all entry rows) -->
@@ -6673,7 +6869,7 @@
   </div>
 </div>
 
-<div class="modal-backdrop" id="modalBackdrop" onclick="if(event.target===this){if(__asyncModalResolver){_asyncModalClose(__asyncModalKind==='prompt'?null:false);}else{closeModal();}}">
+<div class="modal-backdrop" id="modalBackdrop" onpointerdown="window.__modalPressOnBackdrop = (event.target===this);" onclick="if(event.target===this && window.__modalPressOnBackdrop){if(__asyncModalResolver){_asyncModalClose(__asyncModalKind==='prompt'?null:false);}else{closeModal();}} window.__modalPressOnBackdrop=false;">
   <div class="modal" id="modalContent" role="dialog" aria-modal="true" aria-label="Dialog"></div>
 </div>
 
@@ -6708,6 +6904,74 @@
   function currencyInfo(code) {
     const found = CURRENCIES.find(c => c.code === code);
     return found || { code, symbol: code, name: code };
+  }
+
+  // v89.31.4 (item 2): Country dialing codes for the New-Party phone
+  // suggestion. Each entry maps a country to its E.164 dialing prefix.
+  // The list intentionally covers the same regions as our CURRENCIES
+  // plus a few common extras, so the dropdown in Business Settings is
+  // short and relevant rather than an exhaustive 200-country list.
+  const PHONE_COUNTRY_CODES = [
+    { country: 'Nepal',            code: '+977' },
+    { country: 'India',            code: '+91'  },
+    { country: 'United States',    code: '+1'   },
+    { country: 'United Kingdom',   code: '+44'  },
+    { country: 'Eurozone',         code: '+'    },
+    { country: 'Japan',            code: '+81'  },
+    { country: 'China',            code: '+86'  },
+    { country: 'Australia',        code: '+61'  },
+    { country: 'Canada',           code: '+1'   },
+    { country: 'UAE',              code: '+971' },
+    { country: 'Saudi Arabia',     code: '+966' },
+    { country: 'Singapore',        code: '+65'  },
+    { country: 'Malaysia',         code: '+60'  },
+    { country: 'Thailand',         code: '+66'  },
+    { country: 'Bangladesh',       code: '+880' },
+    { country: 'Sri Lanka',        code: '+94'  },
+    { country: 'Pakistan',         code: '+92'  },
+    { country: 'Hong Kong',        code: '+852' },
+    { country: 'Switzerland',      code: '+41'  },
+    { country: 'South Korea',      code: '+82'  },
+  ];
+  // Default phone code derived from a currency, used when the owner
+  // hasn't explicitly chosen one in Business Settings.
+  const CURRENCY_TO_PHONE_CODE = {
+    NPR: '+977', INR: '+91',  USD: '+1',   EUR: '',    GBP: '+44',
+    JPY: '+81',  CNY: '+86',  AUD: '+61',  CAD: '+1',  AED: '+971',
+    SAR: '+966', SGD: '+65',  MYR: '+60',  THB: '+66', BDT: '+880',
+    LKR: '+94',  PKR: '+92',  HKD: '+852', CHF: '+41', KRW: '+82',
+  };
+  // Resolve the phone code suggestion for a business: explicit setting
+  // wins; otherwise fall back to the currency-derived default; finally
+  // empty string (no suggestion) if neither is known.
+  function bizPhoneCodeSuggestion(biz) {
+    if (!biz) return '';
+    if (typeof biz.phoneCountryCode === 'string' && biz.phoneCountryCode.trim()) {
+      return biz.phoneCountryCode.trim();
+    }
+    const fromCur = CURRENCY_TO_PHONE_CODE[biz.currency];
+    return (typeof fromCur === 'string') ? fromCur : '';
+  }
+  // Build the <option> list for the Business Settings country-code
+  // picker. The first option is "Auto (from currency)" which clears
+  // the explicit override. `selected` is the stored biz.phoneCountryCode
+  // (may be '' meaning auto).
+  function phoneCodeOptionsHTML(selected, currency) {
+    const auto = CURRENCY_TO_PHONE_CODE[currency];
+    const autoLabel = (typeof auto === 'string' && auto)
+      ? `Auto — from currency (${auto})`
+      : 'Auto — from currency';
+    const isAuto = !selected;
+    let html = `<option value=""${isAuto ? ' selected' : ''}>${autoLabel}</option>`;
+    // De-dup by code so e.g. US/Canada (+1) don't both clutter, but keep
+    // both country labels since they help the owner pick meaningfully.
+    html += PHONE_COUNTRY_CODES.map(pc => {
+      const val = pc.code;
+      const sel = (!isAuto && selected === val) ? ' selected' : '';
+      const label = pc.code ? `${pc.country} (${pc.code})` : `${pc.country}`;
+      return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(label)}</option>`;
+    }).join('');
+    return html;
   }
   function currencyDisplay(code) {
     const c = currencyInfo(code);
@@ -7932,6 +8196,10 @@
         __entriesShown = __entriesShownCache.length;
         try { renderEntriesList(); didExpand = true; } catch (_) {}
       }
+      // v89.31.4 (item 8): full-page print mode — colour-faithful copy
+      // of the current view. Add the class before printing, remove it
+      // after the dialog closes.
+      document.body.classList.add('printing-fullpage');
       // Tiny delay so the modal close + re-render complete before the
       // print dialog snapshots the DOM.
       setTimeout(() => {
@@ -7940,6 +8208,7 @@
         // closes. We delay so the dialog has a chance to capture
         // the DOM first.
         setTimeout(() => {
+          document.body.classList.remove('printing-fullpage');
           if (didExpand && prevEntriesShown !== null) {
             __entriesShown = prevEntriesShown;
             try { renderEntriesList(); } catch (_) {}
@@ -8003,6 +8272,35 @@
     const s = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
     return s.slice(0, 32); // cap length to prevent abuse
   }
+  // v89.31.4 (item 2): a phone is "meaningful" only if it has actual
+  // subscriber digits, not just a prefilled country code. New Party
+  // prefills e.g. "+977 " as a suggestion; if the user never types a
+  // number we must NOT store it. We strip a leading "+<code>" that
+  // matches one of our known dialing codes, then require at least 4
+  // remaining digits. As a backstop for unknown codes, we also require
+  // the raw string to contain >= 6 digits total.
+  function isMeaningfulPhone(p) {
+    const s = String(p == null ? '' : p).trim();
+    if (!s) return false;
+    const totalDigits = (s.match(/\d/g) || []).length;
+    // Try to strip a known leading country code.
+    let rest = s;
+    // Sort codes longest-first so "+977" wins over "+9".
+    const codes = Array.from(new Set(
+      (typeof PHONE_COUNTRY_CODES !== 'undefined' ? PHONE_COUNTRY_CODES.map(c => c.code) : [])
+        .concat(typeof CURRENCY_TO_PHONE_CODE !== 'undefined' ? Object.values(CURRENCY_TO_PHONE_CODE) : [])
+    )).filter(Boolean).sort((a, b) => b.length - a.length);
+    for (const code of codes) {
+      if (s.startsWith(code)) {
+        rest = s.slice(code.length);
+        break;
+      }
+    }
+    const restDigits = (rest.match(/\d/g) || []).length;
+    // Must have real subscriber digits beyond the code, OR (for unknown
+    // codes) enough digits overall to look like a real number.
+    return restDigits >= 4 || totalDigits >= 6;
+  }
   // Loose email validation. Real-world email validation is famously
   // tricky; we accept anything with one @ and a dot in the domain,
   // which catches typos without rejecting weird-but-valid addresses.
@@ -8053,7 +8351,7 @@
     const dob = normalizeDob(input?.dob);
     if (dob) meta.dob = dob;
     const phones = Array.isArray(input?.phones)
-      ? input.phones.map(normalizePhone).filter(p => p.length > 0)
+      ? input.phones.map(normalizePhone).filter(p => isMeaningfulPhone(p))
       : [];
     if (phones.length) meta.phones = phones.slice(0, 10); // cap at 10
     const emails = Array.isArray(input?.emails)
@@ -8430,9 +8728,28 @@
     check('mailto invalid',            mailtoHref('not-email') === '');
 
     // === Meta build ===
-    const m = buildPartyMeta({ dob: '1990-05-20', phones: ['+977 98', ''], emails: ['x@y.co'], description: 'Hi' });
-    check('buildMeta full',            !!(m && m.dob === '1990-05-20' && m.phones.length === 1 && m.emails.length === 1));
+    // v89.31.4: use a REAL phone number; a code-only fragment like
+    // '+977 98' is intentionally dropped by isMeaningfulPhone now.
+    const m = buildPartyMeta({ dob: '1990-05-20', phones: ['+977 9812345678', ''], emails: ['x@y.co'], description: 'Hi' });
+    check('buildMeta full',            !!(m && m.dob === '1990-05-20' && Array.isArray(m.phones) && m.phones.length === 1 && Array.isArray(m.emails) && m.emails.length === 1));
     check('buildMeta empty -> null',   buildPartyMeta({}) === null);
+    // Code-only phone is dropped, so no phones key at all.
+    const mCodeOnly = buildPartyMeta({ phones: ['+977 '] });
+    check('buildMeta code-only dropped', mCodeOnly === null);
+
+    // === Phone meaningfulness (item 2) ===
+    check('phone code-only "+977 " rejected', isMeaningfulPhone('+977 ') === false);
+    check('phone "+977 9812345678" ok',       isMeaningfulPhone('+977 9812345678') === true);
+    check('phone local "9812345678" ok',      isMeaningfulPhone('9812345678') === true);
+    check('phone "+91 99" rejected',          isMeaningfulPhone('+91 99') === false);
+    check('phone empty rejected',             isMeaningfulPhone('') === false);
+
+    // === Phone-code suggestion (item 2) ===
+    check('suggest NPR -> +977',   bizPhoneCodeSuggestion({ currency: 'NPR' }) === '+977');
+    check('suggest USD -> +1',     bizPhoneCodeSuggestion({ currency: 'USD' }) === '+1');
+    check('suggest EUR -> ""',     bizPhoneCodeSuggestion({ currency: 'EUR' }) === '');
+    check('suggest override wins', bizPhoneCodeSuggestion({ currency: 'NPR', phoneCountryCode: '+44' }) === '+44');
+    check('suggest null biz -> ""', bizPhoneCodeSuggestion(null) === '');
 
     // === Sum entries ===
     const sums = sumEntries([
@@ -8681,16 +8998,13 @@
   // ~21KB MP3 embedded as base64 so it works offline.
   const __HISABS_SOUND_DELETE = 'data:audio/mpeg;base64,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';
   function playDeleteSound() {
-    // Respect global chime mute. No-op if user has silenced sounds.
-    if (localStorage.getItem('hisabs_chime_muted') === '1') return;
-    try {
-      const audio = new Audio(__HISABS_SOUND_DELETE);
-      audio.volume = 0.55;
-      const p = audio.play();
-      if (p && typeof p.then === 'function') p.catch(() => {});
-      // iOS watchdog — kill if play() never resolves
-      setTimeout(() => { try { audio.pause(); } catch (_) {} }, 1500);
-    } catch (_) { /* silent */ }
+    // v89.31.4: delete is an ACTION sound, so it now follows the same
+    // "Entry" sound toggle as cash-in/cash-out (entrySoundIsMuted),
+    // not the separate Announcement toggle it used before. It also
+    // plays through the shared reusable-element path so it behaves
+    // identically every time — same root-cause fix as the cash sounds.
+    if (entrySoundIsMuted()) return;
+    __playActionSound('delete');
   }
   const __HISABS_SOUND_ANNOUNCEMENT = 'data:audio/mpeg;base64,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QZkxzzgvrRTP//+jGZYgmNEBkySGLpjZ9Mzr7Sq/W////Fgky1KAzGZChApeMYQQgGrWpTV5Vq////+Y//PkZIIoPfEAVc7sAB7rchQBlIgBsYgY8MWNQUmmHmwQAmHlAkbmIllmVVu1q1qrj/////+AkYwYvAQMYIQlBgYUSmPAZgJQYEBgUaGiowce5Vq2a2Xa1bKrj///////+Bh4LCpbIQBIsIggNAQyIxICAI6CBwcDQgBCwwHgUAJAP6tXlbX1q3cd/Vx5//////////4GIQQHmLBZCMGCBZIDGHgAVCjEwolFTAwwZBTDgULA5iQWQChggeIAAw8IEYEYiGCMPy/62Xd/9XHmv+tl3/+qAKEC19FsDFDwgFrXgb7OB9vdHAFgZOGCUWS4bKFzJLCbv8NuGPCyYL7C9r/yBENHaQEiJDv/y6ZG5DieI0vf/5RPEyTpSRMjYy///NiikYmpiamSJw2Mv///zY6ks1MTUyRUbGRsdSX/////oompxFSSReWkmis1OEihVUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV//PkZAAAAAGkAOAAAAAAA0gBwAAATEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVTEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV';
 
@@ -8754,6 +9068,9 @@
   function __wireEntrySoundUnlock() {
     const handler = () => {
       unlockEntrySound();
+      // v89.31.4: also prime the reusable HTML5 Audio elements for the
+      // action sounds so the first real play is instant + audible.
+      try { __unlockActionSounds(); } catch (_) {}
       document.removeEventListener('click', handler, true);
       document.removeEventListener('touchstart', handler, true);
       document.removeEventListener('keydown', handler, true);
@@ -8820,34 +9137,74 @@
   // realtime entries arrive in quick succession from a busy team.
   // Without this, 5 entries in 200ms = 5 stacked sounds = unpleasant.
   let __lastEntrySoundAt = 0;
+  // v89.31.4: One preloaded, reusable Audio element per action sound.
+  // Building `new Audio()` on every play introduced timing races on
+  // mobile (the element wasn't ready, play() rejected, and we fell
+  // back to Web Audio SYNTHESIS — a DIFFERENT sound). That was the
+  // root of "sometimes I hear a different sound / no sound". Now each
+  // action always plays the SAME embedded MP3 from a single element
+  // that's preloaded once and rewound (currentTime = 0) per play.
+  // No synthesis fallback => the sound for a given action is identical
+  // every single time.
+  const __actionSounds = {
+    in:     null,  // lazily created
+    out:    null,
+    delete: null,
+  };
+  function __getActionSound(kind) {
+    if (__actionSounds[kind]) return __actionSounds[kind];
+    let uri;
+    if (kind === 'out') uri = __HISABS_SOUND_CASH_OUT;
+    else if (kind === 'delete') uri = __HISABS_SOUND_DELETE;
+    else uri = __HISABS_SOUND_CASH_IN;
+    try {
+      const a = new Audio(uri);
+      a.preload = 'auto';
+      a.volume = kind === 'delete' ? 0.55 : 0.85;
+      __actionSounds[kind] = a;
+      return a;
+    } catch (_) { return null; }
+  }
+  // Preload + unlock all three on first gesture so the very first
+  // real play is instant and audible (mobile autoplay policy).
+  let __actionSoundsUnlocked = false;
+  function __unlockActionSounds() {
+    if (__actionSoundsUnlocked) return;
+    __actionSoundsUnlocked = true;
+    for (const k of ['in', 'out', 'delete']) {
+      const a = __getActionSound(k);
+      if (!a) continue;
+      // Play muted for a tick to satisfy the autoplay gesture rule,
+      // then immediately pause + rewind so it's silent and ready.
+      try {
+        const prevVol = a.volume;
+        a.volume = 0;
+        const p = a.play();
+        const reset = () => { try { a.pause(); a.currentTime = 0; a.volume = prevVol; } catch (_) {} };
+        if (p && typeof p.then === 'function') p.then(reset).catch(reset);
+        else reset();
+      } catch (_) {}
+    }
+  }
+  function __playActionSound(kind) {
+    const a = __getActionSound(kind);
+    if (!a) return;
+    try {
+      a.pause();
+      a.currentTime = 0;
+      const p = a.play();
+      if (p && typeof p.then === 'function') p.catch(() => {});
+    } catch (_) {}
+  }
   function playEntrySound(type) {
     if (entrySoundIsMuted()) return;
-    // v89.24.3: 200ms throttle. If a recent sound just played, skip
-    // this one. User still gets audible feedback (the first one) but
-    // bursts of activity don't pile up.
+    // 200ms throttle so bursts of activity don't pile up. User still
+    // gets audible feedback (the first one).
     const now = Date.now();
     if (now - __lastEntrySoundAt < 200) return;
     __lastEntrySoundAt = now;
     const t = String(type || '').toLowerCase();
-    // v89: prefer the embedded MP3. Fall back to synthesis on failure.
-    const dataUri = t === 'out' ? __HISABS_SOUND_CASH_OUT : __HISABS_SOUND_CASH_IN;
-    __playEmbeddedSound(dataUri, { volume: 0.85 }).then((ok) => {
-      if (ok) return;
-      // Fallback path: Web Audio synthesis (v88 behavior preserved)
-      if (!__entrySoundCtx) {
-        try { unlockEntrySound(); } catch (_) {}
-      }
-      if (!__entrySoundCtx) return;
-      try {
-        if (t === 'out') {
-          _playCashOutSound(__entrySoundCtx);
-        } else {
-          _playCashInSound(__entrySoundCtx);
-        }
-      } catch (e) {
-        console.warn('playEntrySound (fallback):', e?.message || e);
-      }
-    });
+    __playActionSound(t === 'out' ? 'out' : 'in');
   }
 
   // v88: Cash-IN — rebuilt to evoke a REAL cash register. Three voices:
@@ -9262,36 +9619,40 @@
     // Owner, manager, viewer always see totals — viewer is a trusted read-only role
     // (accountant, business partner). Staff is the only role gated by the owner toggle.
     if (role === 'owner' || role === 'manager' || role === 'viewer') return true;
-    // For staff, the gate is `business.staffSeesTotals`. We use a
-    // persistent snapshot so the answer is stable across the
-    // refresh→cloudPullAll race:
+    // v89.31.5: For staff, totals visibility is now a PER-MEMBER flag
+    // (`member.seesTotals`), set by the owner on the Team & Access page,
+    // and defaulting to OFF. (It used to be one business-wide toggle.)
     //
-    //   - On render #1 (loadAll cache): use the cached snapshot
-    //     if present. This is what we last saw the cloud say.
-    //   - On render #2 (after cloudPullAll): the snapshot was
-    //     just refreshed from the cloud; use that.
-    //
-    // If the owner just turned the toggle OFF, the snapshot is
-    // false from the moment cloudPullAll completes — staff will
-    // see hidden state without the "shows-for-a-second" flash on
-    // the NEXT refresh (because the snapshot is persisted to
-    // localStorage). For the current session, cloudPullAll's
-    // re-render still applies the new value.
+    // We find the current viewer's own accepted member row for this
+    // business and read its seesTotals. We also snapshot the answer to
+    // the persistent access cache so the result is stable across the
+    // refresh→cloudPullAll race (same reasoning as before: avoids a
+    // one-frame flash when the value changes).
     const u = me();
-    const cached = u ? _getAccess(u.id, businessId) : null;
-    const biz = data.businesses.find(b => b.id === businessId);
-    // Prefer live data when present; fall back to cached snapshot.
-    // Default to true only if neither source has an answer
-    // (backward compat for very old businesses).
+    if (!u) return false;
+    const myLogin = normalize(u.login);
+    const myMember = data.members.find(mm =>
+      mm.businessId === businessId
+      && mm.status === 'accepted'
+      && (mm.userId === u.id || normalize(mm.userLogin) === myLogin)
+    );
     let staffSees;
-    if (biz && biz.staffSeesTotals !== undefined) staffSees = biz.staffSeesTotals;
-    else if (cached && cached.staffSeesTotals !== undefined) staffSees = cached.staffSeesTotals;
-    else staffSees = true;
-    // Snapshot live answer to persistent cache for next refresh.
-    if (u && biz && biz.staffSeesTotals !== undefined) {
-      _setAccess(u.id, businessId, undefined, !!biz.staffSeesTotals);
+    if (myMember && myMember.seesTotals !== undefined) {
+      staffSees = !!myMember.seesTotals;
+    } else if (myMember) {
+      // Member row present but no flag yet (legacy/just-migrated) → OFF.
+      staffSees = false;
+    } else {
+      // No live member row this render (mid-pull) → fall back to the
+      // cached snapshot if we have one, else default OFF.
+      const cached = _getAccess(u.id, businessId);
+      staffSees = (cached && cached.staffSeesTotals !== undefined) ? !!cached.staffSeesTotals : false;
     }
-    return staffSees !== false;
+    // Snapshot the live answer for the next render.
+    if (myMember) {
+      _setAccess(u.id, businessId, undefined, staffSees);
+    }
+    return staffSees === true;
   }
   // Exports (PDF + Excel) are available to owner, manager, and viewer.
   // Staff is excluded — they're the front-of-house data entry role and
@@ -9337,6 +9698,29 @@
     if (!party) return false;
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager' || role === 'staff';
+  }
+  // v89.31.4: does a party have at least one phone or email saved?
+  // Used to show a small "has contact" dot next to the party name on
+  // the Parties list so the user can tell at a glance which parties
+  // still need contact details filled in. DOB and description do NOT
+  // count — the dot specifically signals "I can reach this person".
+  function partyHasContact(party) {
+    const meta = party && party.meta;
+    if (!meta) return false;
+    const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
+    const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
+    return hasPhone || hasEmail;
+  }
+  // v89.31.4: a small count chip shown at the top-right of party /
+  // category / account cards, reflecting how many entries fall in the
+  // active period filter (Today / This month / All time / custom). The
+  // count itself already came from period-filtered totals; this just
+  // surfaces it prominently on the right of the name rather than only
+  // in the muted sub-line. Visible to ALL roles (unlike the in/out
+  // money stats which stay owner/manager-only).
+  function cardCountChip(count) {
+    const n = count || 0;
+    return `<span class="card-count-chip" title="${n} ${n === 1 ? 'entry' : 'entries'} in the selected period">${n}</span>`;
   }
   // Who can see the Audit tab? Owner, manager, and viewer. Manager
   // has full operational authority over the business (add/edit/delete
@@ -9412,6 +9796,13 @@
   const __bootStartTs = Date.now();
   const BOOT_SPLASH_MIN_MS = 2000;
   let __splashHidePending = false;
+  // v89.31.5: timestamp of the last time the splash was (re-)shown via
+  // showLoadingSplash() — e.g. when the user taps Sign in or finishes
+  // account verification. The post-auth splash holds for at least
+  // BOOT_SPLASH_MIN_MS measured from THIS moment, so the 2-second
+  // branded screen is guaranteed regardless of how long the user sat
+  // on the auth form first. Defaults to boot time.
+  let __splashShownTs = Date.now();
 
   // Re-show the branded splash as an overlay. Used when a slow async
   // operation (sign-in → cloudPullAll, accept invite, etc) would
@@ -9420,6 +9811,7 @@
   // Pair every call with hideBootSplash() when the work completes.
   function showLoadingSplash() {
     let splash = document.getElementById('bootSplash');
+    __splashShownTs = Date.now(); // v89.31.5: reset the 2s hold window
     if (splash) {
       // Already in DOM (maybe fading out). Re-show it.
       splash.dataset.hidden = '0';
@@ -9447,6 +9839,7 @@
         <div class="boot-splash-tag">हिसाब</div>
         <div class="boot-splash-dots"><span></span><span></span><span></span></div>
       </div>
+      <div class="boot-splash-progress" aria-hidden="true"></div>
     `;
     document.body.appendChild(splash);
     __splashHidePending = false;
@@ -9469,8 +9862,13 @@
     if (!splash || splash.dataset.hidden === '1') return;
     if (__splashHidePending && !force) return;
     __splashHidePending = true;
-    const elapsed = Date.now() - __bootStartTs;
-    const wait = force ? 0 : Math.max(0, BOOT_SPLASH_MIN_MS - elapsed);
+    // v89.31.5: honour BOTH the page-load minimum and the re-show
+    // minimum, whichever ends later. `force` still skips the gate
+    // entirely (used on auth-failure to drop the splash immediately).
+    const sinceBoot  = Date.now() - __bootStartTs;
+    const sinceShown = Date.now() - __splashShownTs;
+    const remaining  = Math.max(BOOT_SPLASH_MIN_MS - sinceBoot, BOOT_SPLASH_MIN_MS - sinceShown);
+    const wait = force ? 0 : Math.max(0, remaining);
     setTimeout(() => {
       const s = document.getElementById('bootSplash');
       if (!s || s.dataset.hidden === '1') return;
@@ -9655,7 +10053,8 @@
     const u = me();
     if (!u) { setAuthMode('signin'); return; }
     document.getElementById('userName').textContent = u.name || '—';
-    document.getElementById('userAvatar').textContent = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    // v89.31.5: render the profile photo if set, else the initial.
+    applyAvatarToUI(u);
     const visible = visibleBusinesses();
     if (!visible.find(b => b.id === session.activeBizId)) session.activeBizId = visible[0]?.id || null;
     const booksOfBiz = data.books.filter(b => b.businessId === session.activeBizId);
@@ -10288,16 +10687,16 @@
       navForecast.style.display = canSeeForecast ? 'flex' : 'none';
       setActive('navForecast', session.view === 'forecast');
     }
-    // Distribution tab — owner-only. Manages how the first portion of
-    // net profit gets allocated to team salaries + profit shares.
-    // Owner-only because it's compensation data (sensitive) and the
-    // owner is the only one who can change tax/split inputs upstream
-    // anyway.
+    // Distribution tab. v89.31.4: now visible to owner + manager +
+    // viewer (same audience as Audit/Insights/Forecast), instead of
+    // owner-only. Owner retains full edit; manager and viewer see it
+    // READ-ONLY (the dist-view-only body class disables every input
+    // and hides the Save / Add buttons — see renderDistributionCard).
+    // Staff still don't see it (no financial roll-ups for staff).
     const navDistribution = document.getElementById('navDistribution');
     if (navDistribution) {
-      const isOwnerOfActive = session.activeBizId
-        && roleFor(session.activeBizId) === 'owner';
-      navDistribution.style.display = isOwnerOfActive ? 'flex' : 'none';
+      const canSeeDist = session.activeBizId && canSeeAudit(session.activeBizId);
+      navDistribution.style.display = canSeeDist ? 'flex' : 'none';
       setActive('navDistribution', session.view === 'distribution');
     }
     // Insights tab — visible to owner+manager+viewer (same gate as
@@ -11012,7 +11411,17 @@
     // "Show more" button. The full filtered set is cached so pagination
     // is O(1) — no re-filtering on each click.
     __entriesShownCache = entries;
-    if (__entriesShown > entries.length) __entriesShown = ENTRY_PAGE_SIZE;
+    // v89.31.4 fix: previously this reset __entriesShown back to
+    // ENTRY_PAGE_SIZE (200) whenever it exceeded entries.length. That
+    // broke "Show more" — clicking it set __entriesShown to 400, and if
+    // the filtered set was e.g. 350, 400 > 350 reset it to 200, so
+    // entries 201-350 could NEVER be revealed. The reset-on-filter-
+    // change is already handled separately (clearAllEntryFilters +
+    // the filter-change handlers). Here we only need to CLAMP the
+    // upper bound so slice() is well-behaved — never reset to page 1.
+    if (__entriesShown > entries.length) {
+      __entriesShown = Math.max(ENTRY_PAGE_SIZE, entries.length);
+    }
     const shownEntries = entries.slice(0, __entriesShown);
     const remainingCount = entries.length - shownEntries.length;
     const moreBtn = remainingCount > 0
@@ -11399,6 +11808,10 @@
         case 'recent':
           // Most recently active (latest entry creation time) first.
           return (tb.lastCreated || 0) - (ta.lastCreated || 0);
+        case 'recent-added':
+          // v89.31.4: most recently CREATED party first (when the party
+          // record itself was added, independent of entry activity).
+          return (b.createdAt || 0) - (a.createdAt || 0);
         case 'recent-date':
           // Most recent entry DATE first (the picked date, not creation).
           return (tb.lastDate || '').localeCompare(ta.lastDate || '');
@@ -11462,7 +11875,8 @@
       const _unassignedBadge = p.unassigned ? unassignedBadgeHTML() : '';
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
-        <div class="party-card-name">${escapeHtml(p.name)}</div>
+        ${cardCountChip(t.count)}
+        <div class="party-card-name">${escapeHtml(p.name)}${partyHasContact(p) ? '<span class="party-contact-dot" title="Has phone or email saved" aria-label="Has contact details"></span>' : ''}</div>
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
         ${createdByLine}
@@ -11503,6 +11917,7 @@
         <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
           <option value="name"        ${sortMode === 'name'        ? 'selected' : ''}>Sort: A → Z</option>
           <option value="name-z"      ${sortMode === 'name-z'      ? 'selected' : ''}>Sort: Z → A</option>
+          <option value="recent-added" ${sortMode === 'recent-added' ? 'selected' : ''}>Sort: Recently added</option>
           <option value="recent"      ${sortMode === 'recent'      ? 'selected' : ''}>Sort: Recently active</option>
           <option value="recent-date" ${sortMode === 'recent-date' ? 'selected' : ''}>Sort: Latest entry date</option>
           ${showTotals ? `<option value="most-in"  ${sortMode === 'most-in'  ? 'selected' : ''}>Sort: Most received</option>` : ''}
@@ -11829,6 +12244,7 @@
       const _unassignedBadge = (catRec && catRec.unassigned) ? unassignedBadgeHTML() : '';
       return `<div class="party-card${_unassignedCls}" onclick="openCategory('${jsAttr(name)}')">
         ${actions}
+        ${cardCountChip(t.count)}
         <div class="party-card-name">${escapeHtml(name)}${isOrphan ? ' <span class="cat-orphan-tag">unlisted</span>' : ''}</div>
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : (t.count ? '' : ' · never used')}</div>
@@ -11846,6 +12262,7 @@
         <span class="party-card-net-val ${(totals['__uncat__']?.in || 0) - (totals['__uncat__']?.out || 0) >= 0 ? 'positive' : 'negative'}">${cur} ${(totals['__uncat__']?.in || 0) - (totals['__uncat__']?.out || 0) >= 0 ? '+' : ''}${fmt((totals['__uncat__']?.in || 0) - (totals['__uncat__']?.out || 0))}</span>
       </div>` : '';
     const uncatCard = (hasUncat && (!q || '(uncategorized)'.includes(q))) ? `<div class="party-card" onclick="openCategory('__uncat__')">
+      ${cardCountChip(totals['__uncat__']?.count || 0)}
       <div class="party-card-name" style="color:var(--ink-soft);">(Uncategorized)</div>
       <div class="party-card-meta">${totals['__uncat__']?.count || 0} entries this period</div>
       ${uncatStatsBlock}
@@ -12247,6 +12664,7 @@
       const _unassignedBadge = a.unassigned ? unassignedBadgeHTML() : '';
       return `<div class="party-card account-mini-card ${a.hidden ? 'acct-hidden' : ''}${_unassignedCls}" onclick="openAccount('${jsAttr(a.id)}')">
         ${actions}
+        ${cardCountChip(t.count)}
         <div class="party-card-name">${escapeHtml(a.name)} ${hiddenBadge}</div>
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
@@ -14635,12 +15053,16 @@
       root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>';
       return;
     }
-    if (roleFor(biz.id) !== 'owner') {
+    // v89.31.4: Distribution is now visible to owner + manager + viewer.
+    // Non-owners get a READ-ONLY view (inputs disabled, Save/Add hidden
+    // via the dist-view-only body class set in renderDistributionCard).
+    // Staff and anyone without an audit-level role are still blocked.
+    if (!canSeeAudit(biz.id)) {
       root.innerHTML = `
         <div class="page-header"><div class="page-title-wrap"><h1 class="page-title">Distribution</h1></div></div>
         <div class="empty">
-          <div class="empty-headline">Owner only</div>
-          <div>Distribution data is visible to the business owner.</div>
+          <div class="empty-headline">Not available</div>
+          <div>Distribution data isn't available for your role.</div>
         </div>`;
       return;
     }
@@ -14715,6 +15137,10 @@
         </div>
       </div>
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
+      ${roleFor(biz.id) !== 'owner' ? `
+      <div class="dist-view-only-banner">
+        <strong>View only</strong> — you can see how the owner has set up the distribution, but only the owner can change the salary, profit-share, and split values.
+      </div>` : ''}
 
       <!-- v75: Net profit (after tax) summary card. Lives at the top
            of the Distribution page so the user sees the bottom-line
@@ -18309,6 +18735,7 @@
         document.getElementById('mAmount')?.focus();
         // Initial relative-date hint ("today", "yesterday", etc).
         try { updateDateRelativeHint(); } catch (_) {}
+        try { wireEntryAmountInput(); } catch (_) {}
       }, 50);
     } else if (kind === 'biz') { modal.innerHTML = bizModal(); setTimeout(() => document.getElementById('mBizName')?.focus(), 50); }
     else if (kind === 'book') {
@@ -19183,6 +19610,59 @@
     if (saveBtnBottom) {
       saveBtnBottom.classList.toggle('btn-gain', t === 'in');
       saveBtnBottom.classList.toggle('btn-loss', t === 'out');
+    }
+  }
+
+  // v89.31.4: wire up the amount input and arrow-key type switching
+  // for the New/Edit Entry modal.
+  //   - Block the letter "e"/"E" (and "+") in the amount field. A
+  //     type=number input natively accepts scientific notation like
+  //     "1e5", which is meaningless for a cash amount and confuses
+  //     users. We allow only digits, one decimal point, and editing
+  //     keys. The minus sign is also blocked (amounts are unsigned;
+  //     direction is set by the Cash In / Cash Out toggle).
+  //   - Left arrow → Cash In, Right arrow → Cash Out, but ONLY when
+  //     the keypress isn't inside a text field (so arrow keys still
+  //     move the cursor while typing an amount or note). We bind this
+  //     at the modal level and check the event target.
+  function wireEntryAmountInput() {
+    const amt = document.getElementById('mAmount');
+    if (amt && !amt.__wired) {
+      amt.__wired = true;
+      amt.addEventListener('keydown', (e) => {
+        // Allow control combos (copy/paste/select-all/etc) and editing keys.
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        const blocked = ['e', 'E', '+', '-'];
+        if (blocked.includes(e.key)) {
+          e.preventDefault();
+        }
+      });
+      // Defensive: also strip any "e"/"+"/"-" that sneaks in via paste
+      // or autofill, keeping only a valid unsigned decimal.
+      amt.addEventListener('input', () => {
+        const cleaned = amt.value.replace(/[eE+\-]/g, '');
+        if (cleaned !== amt.value) amt.value = cleaned;
+      });
+    }
+    // Arrow-key Cash In / Cash Out switching. Bound on the modal so it
+    // works regardless of which non-text element has focus. We skip the
+    // switch when the user is typing in an input/textarea/combobox so
+    // arrow keys keep their normal cursor-movement behaviour there.
+    const modal = document.getElementById('modal');
+    if (modal && !modal.__entryArrowsWired) {
+      modal.__entryArrowsWired = true;
+      modal.addEventListener('keydown', (e) => {
+        // Only while an entry modal is actually open.
+        if (!document.getElementById('mType')) return;
+        if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+        const el = e.target;
+        const tag = el && el.tagName;
+        const isTextField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
+          || (el && el.isContentEditable);
+        if (isTextField) return; // let the cursor move normally
+        if (e.key === 'ArrowLeft') { setEntryType('in'); e.preventDefault(); }
+        else if (e.key === 'ArrowRight') { setEntryType('out'); e.preventDefault(); }
+      });
     }
   }
 
@@ -20186,7 +20666,7 @@
       <p class="modal-sub">A customer, vendor, or person you transact with. All extra fields are optional.</p>
       <div class="form-grid">
         <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" placeholder="Ram Bahadur / Acme Wholesale"></div>
-        ${partyMetaFormHTML(null)}
+        ${partyMetaFormHTML(null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === session.activeBizId)) })}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -20197,8 +20677,9 @@
   // v89.31.0: shared rich-form fields for create + edit modals.
   // Pass an existing meta object to pre-fill (edit flow), or null/empty
   // for the create flow.
-  function partyMetaFormHTML(meta) {
+  function partyMetaFormHTML(meta, opts) {
     const m = meta || {};
+    const o = opts || {};
     const dob = m.dob || '';
     // DOB: split into month/day/year for a friendlier 3-field row.
     const dobParts = parseDobParts(dob) || { year: null, month: null, day: null };
@@ -20209,7 +20690,17 @@
     const phones = Array.isArray(m.phones) && m.phones.length ? m.phones : [''];
     const emails = Array.isArray(m.emails) && m.emails.length ? m.emails : [''];
     const desc   = m.description || '';
-    const phonesHTML = phones.map((p, i) => partyPhoneRowHTML(p, i)).join('');
+    // v89.31.4 (item 2): in the New Party flow we prefill an empty phone
+    // row with the business's default country code so the user only
+    // types the local number. We ONLY do this for a genuinely empty
+    // single starter row — never for existing phones (edit flow), and
+    // never if there's more than one row.
+    const suggestion = (typeof o.phoneSuggestion === 'string') ? o.phoneSuggestion.trim() : '';
+    const phonesHTML = phones.map((p, i) => {
+      const isEmptyStarter = phones.length === 1 && (!p || !String(p).trim());
+      const prefill = (isEmptyStarter && suggestion) ? (suggestion + ' ') : p;
+      return partyPhoneRowHTML(prefill, i);
+    }).join('');
     const emailsHTML = emails.map((e, i) => partyEmailRowHTML(e, i)).join('');
     return `
       <div class="meta-section">
@@ -21128,6 +21619,53 @@
     }
     data.members = data.members.filter(m => m.id !== id);
     saveData(); refreshStaffSurface(); toast(`${label} removed.`);
+  }
+  // v89.31.5: change an accepted member's role inline from Team & Access.
+  // Owner-only. The owner role is intentionally not selectable here —
+  // transferring ownership is a separate, deliberate flow.
+  async function changeStaffRole(id, newRole) {
+    const member = data.members.find(m => m.id === id);
+    if (!member) return;
+    if (!canManageBusiness(member.businessId)) { toast('Only the owner can change roles.'); refreshStaffSurface(); return; }
+    const allowed = ['manager', 'staff', 'viewer'];
+    if (!allowed.includes(newRole)) { refreshStaffSurface(); return; }
+    if (member.role === newRole) return;
+    const label = (member.displayName || member.userLogin || 'this member').trim();
+    const roleLabel = newRole === 'staff' ? 'Team' : (newRole.charAt(0).toUpperCase() + newRole.slice(1));
+    const ok = await uiConfirm(
+      `Change ${label}'s role to ${roleLabel}?`,
+      { title: 'Change role', confirmLabel: 'Change role' }
+    );
+    if (!ok) { refreshStaffSurface(); return; } // revert the select
+    member.role = newRole;
+    // When moving OUT of the Team (staff) role, the per-member
+    // "sees totals" flag no longer applies (managers/viewers always
+    // see totals). Leave the stored value untouched so demoting back
+    // to Team restores the prior choice.
+    // Refresh the access cache so totals visibility re-resolves now.
+    try {
+      const u = me();
+      if (u && (member.userId || member.userLogin)) {
+        // We only have the member's identity by login/userId; the cache
+        // is keyed per (viewer, business). The affected member will pick
+        // up the new role on their next pull. For the owner's own view,
+        // a re-render is enough.
+      }
+    } catch (_) {}
+    saveData(); refreshStaffSurface();
+    toast(`${label} is now ${roleLabel}.`);
+  }
+  // v89.31.5: toggle whether a specific Team (staff) member can see
+  // totals on the entries view. Replaces the old business-wide toggle.
+  // Default is OFF (set at invite time / absent => false).
+  function changeStaffSeesTotals(id, checked) {
+    const member = data.members.find(m => m.id === id);
+    if (!member) return;
+    if (!canManageBusiness(member.businessId)) { toast('Only the owner can change this.'); refreshStaffSurface(); return; }
+    member.seesTotals = !!checked;
+    saveData(); refreshStaffSurface();
+    const label = (member.displayName || member.userLogin || 'Member').trim();
+    toast(checked ? `${label} can now see totals.` : `${label} can no longer see totals.`);
   }
   // Re-render whichever surface is showing the staff list — full-page view
   // (session.view === 'staff') or the legacy modal. The modal is still kept
@@ -22295,6 +22833,28 @@
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
           else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
+          const isAccepted = m.status === 'accepted';
+          // v89.31.5: per-member role editor. Owner can change an accepted
+          // member's role inline. Pending/declined rows keep the static
+          // badge (they haven't joined yet). The owner role is never an
+          // option here — ownership transfer is a separate flow.
+          const roleControl = isAccepted
+            ? `<select class="staff-role-select" aria-label="Role for ${escapeHtml(displayName)}" onchange="changeStaffRole('${jsAttr(m.id)}', this.value)">
+                 <option value="manager"${m.role === 'manager' ? ' selected' : ''}>Manager</option>
+                 <option value="staff"${m.role === 'staff' ? ' selected' : ''}>Team</option>
+                 <option value="viewer"${m.role === 'viewer' ? ' selected' : ''}>Viewer</option>
+               </select>`
+            : `<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>`;
+          // v89.31.5: per-member "can see totals on entries" toggle. Only
+          // meaningful for the Team (staff) role — managers and viewers
+          // always see totals. Default OFF for staff. The toggle is shown
+          // only for accepted staff members.
+          const seesTotalsRow = (isAccepted && m.role === 'staff')
+            ? `<div class="staff-sees-row">
+                 <span class="staff-sees-label">Sees totals on entries</span>
+                 <label class="toggle"><input type="checkbox" ${m.seesTotals ? 'checked' : ''} onchange="changeStaffSeesTotals('${jsAttr(m.id)}', this.checked)"><span class="toggle-slider"></span></label>
+               </div>`
+            : '';
           return `<div class="staff-row">
             <div class="staff-info">
               <div class="user-avatar" style="background:var(--accent-soft);opacity:${m.status === 'accepted' ? 1 : 0.5};">${escapeHtml(displayName[0].toUpperCase())}</div>
@@ -22303,11 +22863,14 @@
                 <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined' + (m.respondedAt ? ' ' + m.respondedAt : '') : 'joined' + (m.respondedAt || m.addedAt ? ' ' + (m.respondedAt || m.addedAt) : '')}</div>
               </div>
             </div>
-            <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
-              ${statusBadge}<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>
-              <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${jsAttr(m.id)}')" aria-label="Remove">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
+            <div class="staff-row-controls">
+              <div class="staff-row-controls-top">
+                ${statusBadge}${roleControl}
+                <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${jsAttr(m.id)}')" aria-label="Remove">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              ${seesTotalsRow}
             </div>
           </div>`;
         }).join('')}
@@ -23154,10 +23717,13 @@
         <h3>What's stored in the cloud</h3>
         <ul>
           <li>Your sign-in email (for authentication; password is never stored in plain text — Supabase hashes it)</li>
-          <li>A user profile row in <code>app_accounts</code> with your display name</li>
+          <li>A user profile row in <code>app_accounts</code> with your display name and, if you set one, your profile picture (stored as a small compressed image embedded in that row)</li>
           <li>Every business you own, plus its books, entries, parties, categories, accounts, account groups, and audit expenses</li>
+          <li>Any optional contact details you add to a party — phone numbers, email addresses, date of birth, and free-form notes — stored alongside that party so they sync to your other devices and to teammates who can see the business</li>
+          <li>Per-business preferences such as the currency and the default phone country code used to suggest party phone numbers</li>
           <li>Team invitations you send and receive — including the inviter's display name and the business name shown on the invite card</li>
         </ul>
+        <p>The party contact details above are entirely optional — a party with no phone, email, DOB, or notes stores none of them. You can edit or clear them at any time, and deleting a party removes its contact details with it.</p>
 
         <h3>What stays in your browser only</h3>
         <ul>
@@ -23334,6 +23900,11 @@
         <h3>Parties</h3>
         <p>A party is anyone money moves to or from. Add a party from the <strong>Parties</strong> view (+ New party). Parties have a name and a kind (Customer, Supplier, Other).</p>
         <p>When making an entry, the <strong>Received from / Paid to</strong> field is a dropdown of the parties you've already added — you cannot type a new party inline. This keeps your list clean and prevents typo-duplicates.</p>
+        <h3>Contact details &amp; the green dot</h3>
+        <p>Each party can hold optional contact info: one or more <strong>phone numbers</strong>, <strong>email addresses</strong>, a <strong>date of birth</strong>, and a free-form <strong>description</strong>. Fill these in when you create a party or by editing one later. They're all optional.</p>
+        <p>On the Parties list, a small <strong>green dot</strong> appears to the right of a party's name whenever it has at least one saved phone number or email. No dot means no contact details yet — a quick way to scan which parties still need their numbers added.</p>
+        <h3>Country-code suggestion</h3>
+        <p>When you add a phone number to a new party, the field is pre-filled with a suggested <strong>country code</strong> (for example <code>+977</code>) so you only type the local number. The suggestion comes from the business's setting — by default it follows the business currency, and the owner can pin a specific code under <strong>Business settings → Business identity → Default country code</strong>. If you leave just the code and no number, nothing is saved.</p>
 
         <h3>Categories</h3>
         <p>Categories are labels like Sales, Rent, Salary. Each business has its own list. Manage them from the sidebar gear next to a business → <strong>Categories</strong>. You can add, rename, delete, and reorder; the order you set is the order shown in the entry form's category dropdown.</p>
@@ -23386,7 +23957,9 @@
         </div>
 
         <h3>Export</h3>
-        <p>The Entries view has <strong>PDF</strong> and <strong>Excel</strong> buttons (owner and manager only) that export the entries in the currently selected period.</p>
+        <p>The Entries view has <strong>PDF</strong> and <strong>Excel (CSV)</strong> buttons that export the full ledger for the active book. Both exports include the <strong>invoice number</strong> of each entry (the same <code>#1</code>, <code>#2</code>… you see on the entries list), the date, description, party, category, account, cash in/out, running balance, and who added it.</p>
+        <h3>Print or save as PDF</h3>
+        <p>The print icon on a page opens your browser's print dialog. Choosing <strong>Save as PDF</strong> there produces a faithful, full-page colour copy of what you're looking at — chrome like the sidebar and toolbar is hidden, and the on-screen colours and layout are preserved so the PDF reads like the page itself. Long entry lists are expanded to print every row, not just the part visible on screen.</p>
 
         <h2 id="ug-forecast">Forecast</h2>
         <p>The <strong>Forecast</strong> view projects this month's end totals from what's happened so far. Three methods are shown side by side:</p>
@@ -23414,11 +23987,14 @@
         <h3>Expenses</h3>
         <p>The <strong>Expenses</strong> view lists business costs not paid through a cash account (rent, utilities, supplies, etc.). They reduce the audit's Operating profit. Only the owner can add or change expenses or the tax rate; managers and viewers can see the totals but cannot modify them.</p>
 
+        <h3>Distribution</h3>
+        <p>The <strong>Distribution</strong> view (Analytics group) shows how the net profit (after tax) is allocated to team salaries and profit shares, and lets you split and convert it across currencies. The <strong>owner</strong> sets the salary, profit-share, and split values. <strong>Managers and viewers can now open Distribution too, but read-only</strong> — they see exactly how the owner has set it up, with all the inputs disabled and a "View only" banner at the top. Team members (staff) don't see Distribution.</p>
+
         <h3>Activity log</h3>
         <p>The <strong>Activity</strong> view (Records group, owner-only) shows every edit and delete your team has made to entries, with full before-and-after content and a timestamp. The log keeps the most recent 500 rows per business; older ones roll off automatically. Rows are immutable — you can read them but not modify them.</p>
 
         <h2 id="ug-team">Team &amp; roles</h2>
-        <p>To invite someone to a business, open the <strong>Team</strong> view (Management group, owner-only). Enter the invitee's email and pick a role. When that person signs into Hisabs with the same email, they see a pending invite at the top of their sidebar.</p>
+        <p>To invite someone to a business, open the <strong>Team &amp; access</strong> view (Management group, owner-only). Enter the invitee's email and pick a role. When that person signs into Hisabs with the same email, they see a pending invite at the top of their sidebar.</p>
 
         <h3>Roles</h3>
         <ul>
@@ -23427,7 +24003,10 @@
           <li><strong>Team</strong> — can add entries and edit their own. Can add parties but not categories or accounts.</li>
           <li><strong>Viewer</strong> — read-only.</li>
         </ul>
-        <p>The business owner can toggle whether staff and viewers see the totals (Cash In / Cash Out / Net) on the Entries view — find it in business settings. Totals on the Parties, Categories, and Accounts views are always hidden from non-owner roles.</p>
+        <h3>Changing a member's role</h3>
+        <p>On the <strong>Team &amp; access</strong> page, each member who has joined has a role dropdown next to their name. Pick a new role (Manager, Team, or Viewer) and confirm — the change takes effect for that person the next time their app syncs. Transferring <em>ownership</em> is a separate step in business settings.</p>
+        <h3>Who can see totals</h3>
+        <p>This is now set <strong>per team member</strong>, right on the Team &amp; access page. Each <strong>Team</strong>-role member has a <strong>"Sees totals on entries"</strong> toggle, and it's <strong>off by default</strong> — turn it on for the people you want to see Cash In / Cash Out / Net and balances on the Entries view. Managers and viewers always see totals. Totals on the Parties, Categories, and Accounts views are always hidden from Team members regardless of this toggle.</p>
 
         <h2 id="ug-announcements">Announcements</h2>
         <p>Owners can post short announcements to their team — open <strong>Announcements</strong> (What's new group) and tap <strong>+ Post announcement</strong>. Important announcements show a warning badge and surface on the Entries view as well. Team members can react with a heart (double-tap on mobile or click the ♥ chip).</p>
@@ -23441,14 +24020,14 @@
         </ul>
         <p>Vertical scrolling always takes priority — if you start scrolling vertically, the gesture cancels automatically.</p>
 
-        <h3>Entry sound</h3>
-        <p>When a teammate adds an entry to the business you're currently viewing, your device plays a soft chime so you notice without switching tabs. The sound never plays for your own entries.</p>
-        <p>Toggle it in <strong>Settings → Profile → Entry sound</strong>. The preference is local to each device — mute on your phone while keeping it on at your desk.</p>
+        <h3>Action sounds</h3>
+        <p>Hisabs plays a short, distinct sound for each action: one for <strong>Cash In</strong>, one for <strong>Cash Out</strong>, and one for <strong>deleting</strong> a record. The same sound plays every time for a given action, so you get reliable audible confirmation that something saved. A teammate adding an entry to the business you're viewing also triggers the relevant cash sound.</p>
+        <p>Toggle all action sounds with the <strong>Entry</strong> switch in <strong>Settings → Notifications</strong>. (Announcement chimes have their own separate switch.) Sound preferences are local to each device — mute on your phone while keeping it on at your desk.</p>
 
         <h2 id="ug-settings">Settings &amp; themes</h2>
         <p>Tap your avatar in the sidebar to open <strong>Settings</strong>. Three tabs:</p>
         <ul>
-          <li><strong>Profile</strong> — display name, password reset, entry sound, active sessions on this account.</li>
+          <li><strong>Profile</strong> — profile picture, display name, password reset, action sounds, active sessions on this account. Upload a photo and it's cropped to a circle and shown on your sidebar avatar; it follows you across devices.</li>
           <li><strong>Appearance</strong> — Light / Dark / Auto theme, and a choice of accent color. The whole app retints, including the brand mark.</li>
           <li><strong>Data</strong> — backups, auto-backups, the danger zone (delete account).</li>
         </ul>
@@ -23616,6 +24195,18 @@
       <div class="settings-section">
         <h3 class="settings-heading">Your account</h3>
         <div class="form-grid">
+          <div class="input-wrap">
+            <label>Profile picture</label>
+            <div class="profile-photo-row">
+              <div class="profile-photo-preview${u.avatar ? ' has-photo' : ''}" id="profilePhotoPreview"${u.avatar ? ` style="background-image:url('${u.avatar}')"` : ''}>${escapeHtml((u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase())}</div>
+              <div class="profile-photo-actions">
+                <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="onProfilePhotoSelected(event)">
+                <button type="button" class="btn btn-sm" onclick="document.getElementById('profilePhotoInput').click()">${u.avatar ? 'Change photo' : 'Upload photo'}</button>
+                ${u.avatar ? `<button type="button" class="btn btn-sm btn-ghost" onclick="removeProfilePhoto()">Remove</button>` : ''}
+                <div class="profile-photo-hint">JPG, PNG or WebP. Cropped to a circle.</div>
+              </div>
+            </div>
+          </div>
           <div class="input-wrap profile-name-row">
             <label>Name</label>
             <div class="profile-name-input-wrap">
@@ -23758,14 +24349,11 @@
           <div class="input-wrap"><label>Currency</label>
             <select id="setBizCur" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${currencyOptionsHTML(biz.currency)}</select>
           </div>
+          <div class="input-wrap"><label>Default country code <span style="font-weight:400;color:var(--ink-mute);font-size:0.78rem;">— suggested in new party phone</span></label>
+            <select id="setBizPhoneCode" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${phoneCodeOptionsHTML(biz.phoneCountryCode || '', biz.currency)}</select>
+          </div>
           ${isOwner ? `
-          <div class="toggle-row">
-            <div class="toggle-row-text">
-              <div class="toggle-row-title">Team can see totals on entries view</div>
-              <div class="toggle-row-desc">Show Cash In, Cash Out, Net, and balances to staff &amp; viewers on the entries view. Totals on Parties, Categories, and Accounts are always hidden from staff.</div>
-            </div>
-            <label class="toggle"><input type="checkbox" id="setStaffSeesTotals" ${biz.staffSeesTotals !== false ? 'checked' : ''}><span class="toggle-slider"></span></label>
-          </div>` : ''}
+          <p style="font-size:0.8rem;color:var(--ink-mute);margin:0.25rem 0 0.1rem;">Control whether each team member can see totals on the entries view from <strong>Team &amp; access</strong> — it's now set per person.</p>` : ''}
           ${isOwner ? `<div style="display:flex;justify-content:flex-end;"><button class="btn btn-sm" onclick="saveBizSettings('${biz.id}')">Save business</button></div>` : '<p style="font-size:0.8rem;color:var(--ink-mute);">Only the owner can edit this business.</p>'}
         </div>
       </div>
@@ -24482,8 +25070,8 @@
     saveAccounts(); saveData();
     const userNameEl = document.getElementById('userName');
     if (userNameEl) userNameEl.textContent = u.name;
-    const avatarEl = document.getElementById('userAvatar');
-    if (avatarEl) avatarEl.textContent = (u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    // v89.31.5: refresh the sidebar avatar (preserves any photo).
+    applyAvatarToUI(u);
     // Push the name to Supabase auth.users.user_metadata so the next
     // cloud session sees it.
     if (u.cloud) {
@@ -24499,6 +25087,110 @@
       }
     }
     toast('Name saved.');
+  }
+
+  // v89.31.5: Profile picture. We resize + compress the chosen image to
+  // a small square JPEG data URL so it's cheap to store in localStorage
+  // and to sync. Max ~256px, JPEG q0.8 — typically a few KB to ~30KB.
+  const PROFILE_AVATAR_MAX_PX = 256;
+  function onProfilePhotoSelected(event) {
+    const file = event && event.target && event.target.files && event.target.files[0];
+    // Reset the input so picking the same file again re-fires change.
+    if (event && event.target) event.target.value = '';
+    if (!file) return;
+    if (!/^image\/(png|jpe?g|webp)$/i.test(file.type)) {
+      toast('Please choose a JPG, PNG, or WebP image.'); return;
+    }
+    // Guard against absurdly large source files (before downscale).
+    if (file.size > 12 * 1024 * 1024) { toast('Image is too large (max 12MB).'); return; }
+    const reader = new FileReader();
+    reader.onerror = () => toast("Couldn't read that image.");
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => toast("Couldn't load that image.");
+      img.onload = () => {
+        try {
+          // Center-crop to a square, then scale down to <= MAX_PX.
+          const side = Math.min(img.width, img.height);
+          const sx = Math.floor((img.width - side) / 2);
+          const sy = Math.floor((img.height - side) / 2);
+          const target = Math.min(PROFILE_AVATAR_MAX_PX, side);
+          const canvas = document.createElement('canvas');
+          canvas.width = target; canvas.height = target;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, sx, sy, side, side, 0, 0, target, target);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          if (!dataUrl || dataUrl.length < 32) { toast("Couldn't process that image."); return; }
+          // Safety cap: if compression still produced something huge,
+          // bail rather than risk overflowing localStorage.
+          if (dataUrl.length > 500 * 1024) { toast('That image is too detailed to save — try a simpler one.'); return; }
+          saveProfileAvatar(dataUrl);
+        } catch (e) {
+          console.warn('avatar processing failed:', e);
+          toast("Couldn't process that image.");
+        }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+  async function saveProfileAvatar(dataUrl) {
+    const u = me();
+    if (!u) return;
+    u.avatar = dataUrl;
+    saveAccounts();
+    applyAvatarToUI(u);
+    pushProfileAvatar(u).catch(() => {});
+    toast('Profile picture updated.');
+    // Re-render the settings modal so the preview + buttons refresh.
+    if (document.getElementById('profilePhotoPreview')) {
+      try { openModal('settings'); } catch (_) {}
+    }
+  }
+  async function removeProfilePhoto() {
+    const u = me();
+    if (!u) return;
+    if (!u.avatar) return;
+    if (!(await uiConfirm('Remove your profile picture?', { confirmLabel: 'Remove', destructive: true }))) return;
+    delete u.avatar;
+    saveAccounts();
+    applyAvatarToUI(u);
+    pushProfileAvatar(u).catch(() => {});
+    toast('Profile picture removed.');
+    if (document.getElementById('profilePhotoPreview')) {
+      try { openModal('settings'); } catch (_) {}
+    }
+  }
+  // Apply the current user's avatar (or initial) to the sidebar avatar.
+  function applyAvatarToUI(u) {
+    const avatarEl = document.getElementById('userAvatar');
+    if (!avatarEl) return;
+    const initial = (u && u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase();
+    if (u && u.avatar) {
+      avatarEl.classList.add('has-photo');
+      avatarEl.style.backgroundImage = `url('${u.avatar}')`;
+      avatarEl.textContent = initial; // kept for a11y / fallback; hidden by CSS
+    } else {
+      avatarEl.classList.remove('has-photo');
+      avatarEl.style.backgroundImage = '';
+      avatarEl.textContent = initial;
+    }
+  }
+  // Push the avatar to the cloud profile row (app_accounts.avatar_url).
+  // Best-effort; the column is added by the v89.31.5 migration.
+  async function pushProfileAvatar(u) {
+    if (!u || !u.cloud) return;
+    try {
+      const { error } = await sb().from('app_accounts').upsert({
+        id: u.id,
+        display_name: u.name || null,
+        email: u.login || null,
+        avatar_url: u.avatar || null,
+      }, { onConflict: 'id' });
+      if (error) console.warn('Avatar push failed:', error.message || error);
+    } catch (e) {
+      console.warn('Avatar push threw:', e?.message || e);
+    }
   }
 
   // v89.23: change-email flow. The user types a new email; Supabase
@@ -24772,8 +25464,11 @@
     const cur = document.getElementById('setBizCur').value;
     if (!name) { toast('Business name required.'); return; }
     biz.name = name; biz.currency = cur || biz.currency;
-    const sssEl = document.getElementById('setStaffSeesTotals');
-    if (sssEl) biz.staffSeesTotals = !!sssEl.checked;
+    // v89.31.4 (item 2): persist the default phone country code. Empty
+    // string ('') means "auto from currency" — we store it explicitly
+    // so bizPhoneCodeSuggestion() can tell auto from a deliberate blank.
+    const pcEl = document.getElementById('setBizPhoneCode');
+    if (pcEl) biz.phoneCountryCode = pcEl.value || '';
     saveData(); renderAll();
     toast('Business saved.');
     openModal('settings');
@@ -24839,8 +25534,11 @@
       toast('You already have another business with that name.'); return;
     }
     biz.name = name; biz.currency = cur || biz.currency;
-    const sssEl = document.getElementById('setStaffSeesTotals');
-    if (sssEl) biz.staffSeesTotals = !!sssEl.checked;
+    // v89.31.4 (item 2): persist the default phone country code. Empty
+    // string ('') means "auto from currency" — we store it explicitly
+    // so bizPhoneCodeSuggestion() can tell auto from a deliberate blank.
+    const pcEl = document.getElementById('setBizPhoneCode');
+    if (pcEl) biz.phoneCountryCode = pcEl.value || '';
     saveData(); renderAll();
     toast('Business saved.');
     openBizSettings(bizId);
@@ -26966,7 +27664,9 @@
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
-        // v89.30 fix #2: Invoice # column removed from exports.
+        // v89.31.4: Invoice # column restored (exact same number shown
+        // on the entries list, via formatEntryNo).
+        formatEntryNo(e.entryNo) || '',
         e.date || '',
         e.note || '',
         e.party || '',
@@ -26983,17 +27683,19 @@
     const outSum = entries.reduce((a, e) => a + (e.type === 'out' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
     if (typeof doc.autoTable !== 'function') { __exportInFlight = false; toast('PDF table plugin failed to load.'); return; }
     doc.autoTable({
-      head: [['Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
+      head: [['Inv #', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By']],
       body: rows, startY: 35,
       headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
       styles: { fontSize: 7 },
-      // v89.30 fix #2: Invoice # column removed — indices shift left by 1.
+      // v89.31.4: Invoice # column restored at index 0 — money columns
+      // shift right by 1 (In=6, Out=7, Balance=8).
       columnStyles: {
-        5: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
-        6: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
-        7: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
+        0: { fontStyle: 'bold', textColor: [120, 120, 120] },                // Inv # = muted bold
+        6: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },  // Cash In = green
+        7: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' }, // Cash Out = red
+        8: { halign: 'right', fontStyle: 'bold' },                            // Balance = neutral bold
       },
-      foot: [['', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), '']],
+      foot: [['', '', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), '']],
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
@@ -27035,14 +27737,16 @@
       return '"' + s.replace(/"/g, '""') + '"';
     }
     let bal = 0;
-    const headers = ['Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
+    const headers = ['Invoice #', 'Date', 'Description', 'From/To', 'Category', 'Account', 'Cash In', 'Cash Out', 'Balance', 'Added By'];
     const rows = entries.map(e => {
       const amt = Number(e.amount);
       const safeAmt = Number.isFinite(amt) ? amt : 0;
       bal += e.type === 'in' ? safeAmt : -safeAmt;
       const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
       return [
-        // v89.30 fix #2: Invoice # column removed from exports.
+        // v89.31.4: Invoice # column restored (exact same number shown
+        // on the entries list, via formatEntryNo).
+        formatEntryNo(e.entryNo) || '',
         e.date || '',
         e.note || '',
         e.party || '',
@@ -28120,6 +28824,9 @@
               if (vErr) throw new Error(vErr.message || 'Invalid or expired code.');
               if (!vData.session) throw new Error('Verification succeeded but no session was returned. Please sign in.');
               closeModal();
+              // v89.31.5: account verified — re-show the full-page splash
+              // for the guaranteed ~2s branded moment before the app loads.
+              showLoadingSplash();
               await onSupabaseSignedIn(vData.session);
             },
             onResend: async (em) => {
@@ -28327,6 +29034,30 @@
     accounts = [localAcct];
     saveAccounts();
     session.userId = localAcct.id;
+    // v89.31.5: hydrate the profile picture (and a richer display name
+    // if present) from the cloud profile row, so they follow the user
+    // across devices. Best-effort and bounded — never blocks sign-in.
+    (async () => {
+      try {
+        const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 2500));
+        const q = sb().from('app_accounts')
+          .select('display_name, avatar_url')
+          .eq('id', localAcct.id)
+          .maybeSingle();
+        const { data: prof, error } = await Promise.race([q, timeout]);
+        if (error || !prof) return;
+        const cur = me();
+        if (!cur || cur.id !== localAcct.id) return;
+        let changed = false;
+        if (typeof prof.avatar_url === 'string' && prof.avatar_url && cur.avatar !== prof.avatar_url) {
+          cur.avatar = prof.avatar_url; changed = true;
+        }
+        if (prof.display_name && prof.display_name.trim() && !cur.name) {
+          cur.name = prof.display_name.trim(); changed = true;
+        }
+        if (changed) { saveAccounts(); try { applyAvatarToUI(cur); } catch (_) {} }
+      } catch (_) { /* offline / column missing — ignore */ }
+    })();
     if (!session.period) session.period = { mode: 'current' };
     if (!session.view) session.view = 'entries';
     saveSession();
@@ -30175,6 +30906,10 @@
         owner_id: ownerId,                    // always set to current user on push
         staff_sees_totals: r.staffSeesTotals !== false,
         tax_rate: Number(r.taxRate) || 0,
+        // v89.31.4 (item 2): default phone country code. '' = auto-from-
+        // currency. Requires the phone_country_code column added by the
+        // v89.31.4 migration (run before this code ships).
+        phone_country_code: typeof r.phoneCountryCode === 'string' ? r.phoneCountryCode : '',
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -30182,6 +30917,8 @@
         ownerId: r.owner_id,
         staffSeesTotals: r.staff_sees_totals,
         taxRate: Number(r.tax_rate) || 0,
+        // Tolerate the column being absent on older rows (undefined -> '').
+        phoneCountryCode: typeof r.phone_country_code === 'string' ? r.phone_country_code : '',
         createdAt: r.created_at_local || '',
       }),
     },
@@ -30516,6 +31253,10 @@
         // member render real names on the Team page and leaderboard
         // instead of falling back to email addresses.
         display_name: r.displayName || null,
+        // v89.31.5: per-member "can see totals on entries" flag. Set by
+        // the owner on Team & Access. Default false. Requires the
+        // member_sees_totals column (v89.31.5 migration).
+        member_sees_totals: !!r.seesTotals,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -30528,6 +31269,9 @@
         invitedByName: r.invited_by_name || undefined,
         businessName: r.business_name || undefined,
         displayName: r.display_name || undefined,
+        // v89.31.5: tolerate the column being absent on older rows
+        // (undefined/null -> false).
+        seesTotals: r.member_sees_totals === true,
       }),
     },
   };
@@ -30598,6 +31342,8 @@
         id: u.id,
         display_name: u.name || null,
         email: u.login || null,
+        // v89.31.5: profile picture (base64 data URL) or null.
+        avatar_url: u.avatar || null,
       }, { onConflict: 'id' });
       if (profErr) console.warn('Profile push failed:', profErr.message);
       if (!silent) toast('Push complete.');
