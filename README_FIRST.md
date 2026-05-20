@@ -1,101 +1,133 @@
-# Hisabs v89.30.2 — CSP audio fix
+# Hisabs v89.30.4 — distribution placement (refined)
 
 ```
-index.html:  7174d13bc3a1f2ab7a8f9c7544f106e7 (unchanged from v89.30.1)
-vercel.json: UPDATED — adds media-src directive to CSP
+index.html:  e121b93f023d17c6bd117c9755b7f6b7
+vercel.json: 28c00b0c24a3a0f7c910e816d2493cf9 (unchanged — media-src for sounds)
 ```
 
-## What changed in this revision
+## What's new in v89.30.4 (now with flaw-hunt refinements)
 
-### Console error fix: sounds blocked by CSP
+After applying initial v89.30.4 changes, I reviewed them critically and
+found 2 flaws to fix:
 
-Browser console showed:
-```
-Loading media from 'data:audio/wav;base64,...' violates the following CSP
-directive: "default-src 'self'". Note that 'media-src' was not explicitly
-set, so 'default-src' is used as a fallback. The action has been blocked.
-```
+### Flaw 1 (FIXED): Salary bottom + Add placement created weird reading flow
 
-**Cause**: The CSP in vercel.json had no `media-src` directive, so it
-fell back to `default-src 'self'`, which blocks `data:` URIs. Hisabs
-embeds 4 sound effects (cash-in, cash-out, delete, announcement) as
-inline base64 `data:audio/wav` — they were being blocked entirely.
+**Initial placement**: After the totals card, before the Remaining card.
 
-**Fix**: Added `media-src 'self' data: blob:` to the CSP in vercel.json.
+**Problem**: Reading order became:
+- Total final paid
+- + Add another (?)
+- Remaining for profit shares
 
-After redeploy, sounds will work in the browser.
+The Add button visually interrupted the flow between salary totals and
+the Remaining bridge to the next section.
 
-### Other console messages — diagnosed
+**Fix**: Moved bottom + Add to BEFORE the totals card (directly after
+the salary rows). New reading flow:
+- Salary rows
+- + Add another ← directly tied to "add another row"
+- Total salary / adjustment / final paid (section summary)
+- Remaining for profit shares (bridge to next section)
 
-**1. Google Analytics blocked by CSP** ⚠️ Investigate source
-```
-Connecting to '<URL>' violates CSP directive: "connect-src 'self' ..."
-Fetch API cannot load https://www.google-analytics.com/mp/collect...
-```
+Same fix applied to Profit Shares section for consistency.
 
-The index.html has ZERO Google Analytics code (verified by grep).
-The blocked call must come from one of:
-- A browser extension you have installed
-- A cached old build from before you cleaned analytics
-- Some 3rd-party tool injection
+### Flaw 2 (FIXED): + Add buttons would appear in printed output
 
-**The CSP is correctly blocking it** — protecting your users' privacy.
-No code change needed. To identify the source:
+**Problem**: When user prints the Distribution page, the top and bottom
++ Add buttons would render in the printout. Action UI doesn't belong
+in a financial document.
 
-1. Test in Incognito mode with no extensions → if errors disappear,
-   it's an extension
-2. If still there in Incognito → check Network tab to see which page
-   resource is loading the GA script
-
-**2. Beforeinstallprompt banner not shown** ✅ Normal
-This is your code intentionally suppressing Chrome's default install
-banner so you can show your own custom prompt later. Not an error.
-
-**3. Realtime: SUBSCRIBED** ✅ Success log
-Your realtime sync is connecting properly.
-
-**4. AudioContext autoplay block** ✅ Expected
-Browsers require user interaction before audio plays. Your
-`unlockEntrySound()` handles this — it tries on page load (fails
-silently), then succeeds after first user click. No action needed.
-
-## Final CSP (vercel.json)
-
-```
-default-src 'self';
-script-src 'self' 'unsafe-inline' blob:;
-script-src-elem 'self' 'unsafe-inline' blob:;
-worker-src 'self' blob:;
-style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-font-src 'self' https://fonts.gstatic.com data:;
-img-src 'self' data: blob:;
-media-src 'self' data: blob:;             ← NEW (v89.30.2)
-connect-src 'self' https://*.supabase.co wss://*.supabase.co;
-frame-ancestors 'self';
-base-uri 'self';
-form-action 'self';
-manifest-src 'self';
-upgrade-insecure-requests
+**Fix**: Added `@media print` rule:
+```css
+.dist-section-actions,
+.dist-section-add-bottom { display: none !important; }
 ```
 
-## All v89.30 fixes still intact
+This also hides the top + Add button (pre-existing print issue).
 
-Everything from v89.30.1 preserved — only vercel.json changed.
+## Summary of v89.30.4 changes (after refinements)
+
+1. **Bottom "+ Add another" button** on Salaries and Profit Shares
+   sections, placed BEFORE the totals card so it sits naturally with
+   the rows it adds to. Only shows when rows exist.
+2. **Section descriptions tightened** (~50% shorter, same meaning).
+3. **Print rule** to hide both + Add buttons during print.
+
+### What I left alone (and why)
+
+- Net Profit card position — bottom-line first is correct
+- Split & Convert ordering — bigger UX change, risks regressions
+- Edit/Save button row — would change click-target positioning
+- Section structure (Salaries before Shares) — correct logical chain
+- Row card layouts — already redesigned in v89.30, don't fix what works
+
+## Flaw hunt results (other findings)
+
+Checked these potential issues — all CLEAN:
+
+- **Permission gating**: The existing CSS selector
+  `[onclick*="addDistSalaryRow"]` uses substring matching, so it
+  covers BOTH the top + Add and my new bottom + Add buttons for
+  non-owner viewers. ✓
+- **Permission belt+suspenders**: `addDistSalaryRow()` and
+  `addDistShareRow()` also have owner-check at function entry. ✓
+- **Re-render**: Adding a row calls renderDistributionCard which
+  rebuilds the section DOM. The new row appears immediately. ✓
+- **Auto-focus**: Both add functions auto-focus the new row's first
+  input (existing behavior, not changed). ✓
+- **Theme**: `.btn-ghost` uses CSS variables, adapts to light/dark. ✓
+- **Mobile**: `.dist-section-add-bottom` uses flex+center, responsive
+  out of the box. ✓
+- **Empty state**: Bottom button hidden when no rows (conditional
+  template literal). Top button always present. ✓
+- **No save throttle conflict**: Adding rows is idempotent
+  (each click → new uid). ✓
+
+## All previous fixes preserved (16/16)
+
+| Version | What it fixed |
+|---------|---------------|
+| v89.30 #1 | Save Entry red on Cash Out |
+| v89.30 #2 | Invoice # removed from PDF/CSV/print |
+| v89.30 #3 | Clear activity log btn removed |
+| v89.30 #4 | Mobile chart padding + min-height 180px |
+| v89.30 #7 | Distribution row redesign (trash inside, color tints) |
+| v89.30 #8 | Live calc on distribution rows |
+| v89.30.1 | Removed broken 580px cap |
+| v89.30.2 | CSP media-src for inline audio |
+| v89.30.3 | Tiered chart sizing + hover shadow |
+| v89.30.4 | Distribution placement + section desc + print fix |
+
+## Verification
+
+```
+JS syntax:      OK
+HTML comments:  51/51 balanced
+CSS braces:     1984/1984 balanced
+Backticks:      2096 (even)
+```
+
+## Setup tasks still required (unchanged)
+
+See **V89_28_SETUP.md**:
+- 3 Supabase email templates
+- delete-self-account Edge Function deploy
 
 ## Deploy
 
 ```bash
 cd ~/Documents/GitHub/hisabs
-cp ~/Downloads/hisabs_v89_27_final/vercel.json ./vercel.json
-# index.html unchanged from v89.30.1 — no need to copy again unless you skipped it
-git add vercel.json
-git commit -m "v89.30.2: add media-src to CSP for inline audio data URIs"
+cp ~/Downloads/hisabs_v89_27_final/index.html ./index.html
+md5sum index.html
+# expected: e121b93f023d17c6bd117c9755b7f6b7
+git add . && git commit -m "v89.30.4: distribution placement polish"
 git push
 ```
 
-After Vercel deploys (~30s), test in browser:
-1. Hard reload (Cmd+Shift+R / Ctrl+Shift+R) to bypass cache
-2. Open DevTools → Console → make a cash-in entry
-3. The CSP media error should be gone, sound should play after first
-   click on the page (autoplay rule)
+After deploy, test in Distribution:
+1. Add 3+ salary rows → "+ Add another" button appears AFTER the rows
+   and BEFORE the totals card
+2. Same for Profit Shares
+3. Print → no + Add buttons appear in the output
+4. Section description text reads more concisely
 

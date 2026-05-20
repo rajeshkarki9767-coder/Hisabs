@@ -3354,19 +3354,37 @@
     padding: 0 0.25rem 0.3rem;
   }
   .dist-salary-list { display: flex; flex-direction: column; gap: 0.35rem; }
+  /* v89.30.4: bottom + Add button container.
+     Centered, with subtle top spacing so it sits clearly below the
+     totals card without crowding it. */
+  .dist-section-add-bottom {
+    display: flex;
+    justify-content: center;
+    padding: 0.6rem 0 0.2rem;
+    margin-top: 0.4rem;
+  }
+  .dist-section-add-bottom .btn {
+    min-width: 140px;
+  }
+
   /* v88: card wraps the grid row + note line so they read as one
      unit. The grid row no longer needs its own background — the card
      owns it. */
-  /* v89.30 fix #7c: row color tints matching section accents.
-     Salaries: blue. Shares: green. Subtle 6% opacity. */
+  /* v89.30 fix #7c + v89.30.3 polish:
+     Row color tints matching section accents (salaries blue, shares green).
+     Slight padding bump and shadow on hover for tactile feel. */
   .dist-row-card {
     background: var(--paper-deep);
     border: 1px solid var(--line);
     border-radius: var(--r-sm);
-    padding: 0.4rem 0.4rem 0.5rem;
+    padding: 0.5rem 0.55rem 0.6rem;
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .dist-row-card:hover {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
   }
   .dist-section-salaries .dist-row-card {
     background: rgba(43, 95, 138, 0.06);
@@ -4176,18 +4194,45 @@
       min-height: 180px;
     }
   }
-  /* v89.25 fix #9 → v89.30 → v89.30.1:
-     Desktop chart sizing history:
-       - v89.25: max-width 760px (charts felt too wide on big monitors)
-       - v89.30: reduced to 580px (overcorrected — charts felt cramped,
-                                    leaving huge whitespace on right)
-       - v89.30.1: REMOVED max-width. Let charts span the natural
-                   content area. The "right-side gap" the user originally
-                   reported was about sparse data on the chart axis
-                   (e.g., May data only on days 14-19 of 31), not
-                   container sprawl. Container width should follow the
-                   page layout naturally.
-     Mobile (< 881px) still uses full width as before. */
+  /* v89.30.3 chart sizing — tiered by device:
+       Mobile  (<=880px): SVG aspect 3.27:1 renders ~100px → boosted to
+                          min-height: 180px (kept from v89.30 fix #4).
+                          Card padding tighter.
+       Tablet  (881-1280px): cap chart height at 240px so charts don't
+                             dominate the viewport on iPad-class devices.
+       Desktop (>=1281px):   cap chart height at 280px AND cap card
+                             width at 720px so charts feel proportional
+                             on large monitors without leaving giant gaps.
+     Charts remain fully interactive at all sizes — sizing rules only
+     affect dimensions, not pointer events. */
+
+  /* Tablet — moderate cap */
+  @media (min-width: 881px) and (max-width: 1280px) {
+    .insights-bar-svg,
+    .insights-line-svg,
+    .forecast-chart {
+      max-height: 240px;
+    }
+    .insights-chart-wrap,
+    .forecast-chart-wrap,
+    .forecast-section {
+      max-width: 760px;
+    }
+  }
+
+  /* Desktop — tighter cap on both axes */
+  @media (min-width: 1281px) {
+    .insights-bar-svg,
+    .insights-line-svg,
+    .forecast-chart {
+      max-height: 280px;
+    }
+    .insights-chart-wrap,
+    .forecast-chart-wrap,
+    .forecast-section {
+      max-width: 720px;
+    }
+  }
   .insights-chart-head {
     display: flex; align-items: baseline; justify-content: space-between;
     gap: 0.85rem; flex-wrap: wrap; margin-bottom: 0.6rem;
@@ -5735,6 +5780,11 @@
     /* v89.30 fix #2 (print): hide entry-no-badge when printing — matches
        the removed Invoice # column in PDF/CSV exports. */
     .entry-no-badge { display: none !important; }
+
+    /* v89.30.4 (print): hide + Add buttons on Distribution when printing.
+       Top button is in .dist-section-actions, bottom is in .dist-section-add-bottom. */
+    .dist-section-actions,
+    .dist-section-add-bottom { display: none !important; }
 
     /* Hide app chrome */
     .sidebar, .sidebar-drawer-backdrop,
@@ -12288,7 +12338,7 @@
         <div class="dist-section-head">
           <div class="dist-section-titles">
             <div class="dist-section-title">Team Salaries${__distSalaries.length ? ` <span class="dist-section-count">${__distSalaries.length}</span>` : ''}</div>
-            <div class="dist-section-sub">Add each team member, their salary, and any one-off adjustment (advance, bonus, deduction). Final paid is computed automatically.</div>
+            <div class="dist-section-sub">Name, salary, and any adjustment (advance, bonus, deduction). Final paid auto-computes.</div>
           </div>
           <div class="dist-section-actions">
             <!-- v89.24: Save/Edit toggle removed; rows always editable -->
@@ -12305,6 +12355,10 @@
         </div>` : ''}
         <div class="dist-salary-list">${salaryRows}</div>
         ${__distSalaries.length ? `
+        <!-- v89.30.4: bottom + Add (after rows, before totals) -->
+        <div class="dist-section-add-bottom">
+          <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add another</button>
+        </div>
         <div class="dist-totals-card">
           <div class="dist-totals-card-row">
             <span class="dist-totals-card-label">Total salary</span>
@@ -12370,7 +12424,7 @@
         <div class="dist-section-head">
           <div class="dist-section-titles">
             <div class="dist-section-title">Profit Shares${__distShares.length ? ` <span class="dist-section-count">${__distShares.length}</span>` : ''}</div>
-            <div class="dist-section-sub">Allocate the remaining amount as percentage shares. Each share is computed from "Remaining for profit shares" above.</div>
+            <div class="dist-section-sub">Allocate the remaining amount by % share. Each amount auto-computes.</div>
           </div>
           <div class="dist-section-actions">
             <!-- v89.24: Save/Edit toggle removed; rows always editable -->
@@ -12385,6 +12439,10 @@
         </div>` : ''}
         <div class="dist-share-list">${shareRows}</div>
         ${__distShares.length ? `
+        <!-- v89.30.4: bottom + Add (after rows, before totals) -->
+        <div class="dist-section-add-bottom">
+          <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add another</button>
+        </div>
         <div class="dist-totals-card">
           <div class="dist-totals-card-row">
             <span class="dist-totals-card-label">Total %</span>
