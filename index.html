@@ -662,18 +662,66 @@
       position: static !important;
       background: #ffffff !important;
       color: #000000 !important;
-      padding: 1.5rem !important;
+      padding: 0.8rem 1rem !important;
       width: 100% !important;
       max-width: 100% !important;
+      /* v89.31.1: keep the overlay on a single page so it can't
+         spill the cloned chart card into a second page. */
+      page-break-after: avoid !important;
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     #print-chart-overlay h3,
     #print-chart-overlay h2,
     #print-chart-overlay p {
       color: #000000 !important;
     }
+    /* v89.31.1: cap SVG height so the card + header always fit on
+       one page. At landscape A4/Letter the printable area is roughly
+       18cm tall after margins. Leaving ~4cm for header/title/legend/
+       help text, the chart caps at ~14cm. This is the actual fix for
+       the "prints two pages" report — the previous version had no
+       height cap on print SVGs, so tall charts (e.g. line charts with
+       a steep y-axis range) overflowed onto a second page.
+       v89.31.2: cross-browser hardening. Some browsers (older Safari,
+       Firefox prior to 67) ignore one of the two break properties.
+       We set both. Also set explicit overlay max-height + overflow
+       hidden so any layout edge case can't push to a second page. */
     #print-chart-overlay svg {
       max-width: 100% !important;
+      max-height: 14cm !important;
       height: auto !important;
+      width: 100% !important;
+      display: block !important;
+    }
+    /* Cap the overlay's own height — belt-and-suspenders against the
+       SVG cap being overridden by a more-specific selector elsewhere. */
+    #print-chart-overlay {
+      max-height: 19cm !important;
+      overflow: hidden !important;
+    }
+    /* The chart card wrapper itself must avoid breaking across pages.
+       Both legacy + modern break properties for max compatibility. */
+    #print-chart-overlay .insights-chart-wrap,
+    #print-chart-overlay .forecast-chart-wrap,
+    #print-chart-overlay > div {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
+      page-break-before: avoid !important;
+      break-before: avoid !important;
+      page-break-after: avoid !important;
+      break-after: avoid !important;
+      box-shadow: none !important;
+      border: 1px solid #ccc !important;
+      padding: 0.6rem 0.85rem !important;
+      margin: 0 !important;
+    }
+    /* Belt: any descendant of the overlay also gets break-inside avoid.
+       Without this, a tall "help text" paragraph could still trigger a
+       page break in some browsers even with the wrap-level rule above. */
+    #print-chart-overlay * {
+      page-break-inside: avoid !important;
+      break-inside: avoid !important;
     }
     #print-chart-overlay .btn-icon-print-chart {
       display: none !important;
@@ -684,7 +732,7 @@
       color: #666666;
       border-bottom: 1px solid #cccccc;
       padding-bottom: 0.5rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
     }
   }
 
@@ -5062,6 +5110,372 @@
   .modal-sub { color: var(--ink-mute); margin-bottom: 1.1rem; font-size: 0.8rem; }
   .form-grid { display: grid; gap: 0.85rem; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.85rem; }
+  /* v89.31.0: party meta form fields (DOB, phones, emails, description).
+     Used inside Party Add/Edit modals. Designed to feel like the existing
+     .input-wrap children — consistent label, soft border, comfortable spacing. */
+  .meta-section { display: flex; flex-direction: column; gap: 0.35rem; }
+  .meta-section-label {
+    font-size: 0.78rem; font-weight: 500; color: var(--ink);
+  }
+  .meta-optional {
+    font-size: 0.72rem; font-weight: 400; color: var(--ink-mute);
+  }
+  .meta-dob-row {
+    display: grid;
+    grid-template-columns: 1.4fr 0.7fr 0.9fr;
+    gap: 0.45rem;
+  }
+  .meta-dob-row select,
+  .meta-dob-row input {
+    padding: 0.6rem 0.65rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    color: var(--ink);
+    min-width: 0;
+  }
+  .meta-multi-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .meta-multi-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.4rem;
+    align-items: stretch;
+  }
+  .meta-multi-input {
+    padding: 0.6rem 0.65rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    color: var(--ink);
+    min-width: 0;
+  }
+  .meta-multi-remove {
+    background: transparent;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    width: 38px;
+    color: var(--ink-mute);
+    cursor: pointer;
+    font-size: 1.05rem;
+    line-height: 1;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .meta-multi-remove:hover {
+    background: rgba(168,53,31,0.08);
+    color: var(--loss);
+    border-color: rgba(168,53,31,0.3);
+  }
+  .meta-add-btn {
+    align-self: flex-start;
+    background: transparent;
+    border: 1px dashed var(--line);
+    color: var(--ink-soft);
+    padding: 0.45rem 0.85rem;
+    font-size: 0.78rem;
+    border-radius: var(--r-sm);
+    cursor: pointer;
+    font-weight: 500;
+    margin-top: 0.1rem;
+  }
+  .meta-add-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .meta-section textarea {
+    padding: 0.6rem 0.65rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+    background: var(--surface-1);
+    color: var(--ink);
+    font-family: inherit;
+    resize: vertical;
+    min-height: 60px;
+  }
+  /* On narrow phones, stack DOB into a single column */
+  @media (max-width: 480px) {
+    .meta-dob-row { grid-template-columns: 1fr; }
+  }
+
+  /* v89.31.0: birthday banner on entries view.
+     Soft accent-tinted card with cake icon, headline, sub copy, and
+     a chip row for each celebrating party. Dismissible per-day via the
+     × button. Always renders inside the entries page flow — not fixed,
+     not modal — so it scrolls naturally with the rest of the page. */
+  .bday-banner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.85rem;
+    align-items: flex-start;
+    padding: 0.95rem 1.05rem;
+    margin-bottom: 0.95rem;
+    background: linear-gradient(135deg,
+                  rgba(184, 72, 42, 0.10),
+                  rgba(184, 72, 42, 0.04));
+    border: 1px solid rgba(184, 72, 42, 0.25);
+    border-radius: var(--r);
+  }
+  .bday-icon {
+    font-size: 1.8rem;
+    line-height: 1;
+    padding-top: 0.1rem;
+  }
+  .bday-body { min-width: 0; }
+  .bday-headline {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+  .bday-sub {
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    margin-top: 0.25rem;
+    line-height: 1.4;
+  }
+  .bday-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.6rem;
+  }
+  .bday-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--surface-1);
+    border: 1px solid rgba(184, 72, 42, 0.3);
+    color: var(--accent);
+    padding: 0.3rem 0.65rem;
+    border-radius: 100px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.12s, transform 0.12s;
+  }
+  .bday-chip:hover {
+    background: rgba(184, 72, 42, 0.08);
+    transform: translateY(-1px);
+  }
+  .bday-chip-name { font-weight: 600; }
+  .bday-chip-age {
+    font-size: 0.7rem;
+    color: var(--ink-mute);
+    font-weight: 400;
+  }
+  .bday-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--ink-mute);
+    cursor: pointer;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0.2rem 0.4rem;
+    border-radius: var(--r-sm);
+    align-self: flex-start;
+  }
+  .bday-dismiss:hover {
+    color: var(--ink);
+    background: rgba(0, 0, 0, 0.04);
+  }
+  /* Narrow viewports — stack chips below the body */
+  @media (max-width: 480px) {
+    .bday-banner { padding: 0.85rem 0.9rem; gap: 0.6rem; }
+    .bday-icon { font-size: 1.4rem; }
+    .bday-headline { font-size: 0.95rem; }
+  }
+
+  /* v89.31.0: birthday badge on party detail page (next to the name). */
+  .party-bday-badge {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    background: rgba(184, 72, 42, 0.10);
+    color: var(--accent);
+    border: 1px solid rgba(184, 72, 42, 0.25);
+    border-radius: 100px;
+    font-family: var(--font-sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    vertical-align: 0.2em;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .party-bday-badge.party-bday-today {
+    background: var(--accent);
+    color: #ffffff;
+    border-color: var(--accent);
+  }
+  .party-bday-badge.party-bday-soon {
+    background: rgba(184, 72, 42, 0.18);
+  }
+
+  /* v89.31.0: party contact card on detail page.
+     Two-column rows (Label | Value) with phones/emails laid out
+     vertically as click-to-call/wa/mail links. Designed to feel like
+     the existing party detail cards — same border, same radius. */
+  .party-contact-card {
+    background: var(--surface-1);
+    border: 1px solid var(--line);
+    border-radius: var(--r);
+    padding: 0.9rem 1.05rem;
+    margin-bottom: 1.1rem;
+  }
+  .party-contact-head {
+    margin-bottom: 0.55rem;
+    padding-bottom: 0.45rem;
+    border-bottom: 1px dashed var(--line-soft);
+  }
+  .party-contact-head-label {
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-weight: 600;
+  }
+  .contact-row {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 0.6rem;
+    padding: 0.35rem 0;
+    align-items: baseline;
+  }
+  .contact-row-label {
+    font-size: 0.72rem;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .contact-row-value {
+    font-size: 0.88rem;
+    color: var(--ink);
+    line-height: 1.4;
+    word-break: break-word;
+  }
+  .contact-row-multi .contact-row-value {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .contact-multi-item {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    flex-wrap: wrap;
+  }
+  .contact-multi-value {
+    font-family: var(--font-mono);
+    font-size: 0.84rem;
+  }
+  .contact-multi-links {
+    display: inline-flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .contact-link {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 100px;
+    text-decoration: none;
+    transition: transform 0.1s, background 0.12s;
+  }
+  .contact-link:hover { transform: translateY(-1px); }
+  /* v89.31.2: contact link buttons are now fully theme-adaptive.
+     Light mode uses the existing palette (gain green, chart blue, WhatsApp
+     brand). Dark mode lifts the saturation + alpha so they stay readable
+     on a near-black background. Each variant has explicit :hover state. */
+  .contact-link-call {
+    background: rgba(46, 93, 58, 0.10);
+    color: var(--gain);
+    border: 1px solid rgba(46, 93, 58, 0.25);
+  }
+  .contact-link-call:hover { background: rgba(46, 93, 58, 0.18); }
+  .contact-link-wa {
+    background: rgba(37, 211, 102, 0.10);
+    color: #128c7e;
+    border: 1px solid rgba(37, 211, 102, 0.3);
+  }
+  .contact-link-wa:hover { background: rgba(37, 211, 102, 0.20); }
+  .contact-link-mail {
+    background: rgba(43, 95, 138, 0.10);
+    color: #2b5f8a;
+    border: 1px solid rgba(43, 95, 138, 0.25);
+  }
+  .contact-link-mail:hover { background: rgba(43, 95, 138, 0.18); }
+  /* Dark mode overrides — the light-mode rgba tints (alpha 0.10-0.18 over
+     a near-black page) become nearly invisible. We bump alpha up and use
+     the dark-mode chart palette colours for the text so contrast stays
+     above WCAG AA. The light-mode rules above still apply for everything
+     not overridden here (radius, padding, hover transform). */
+  [data-theme="dark"] .contact-link-call {
+    background: rgba(111, 166, 122, 0.16);
+    color: var(--gain);
+    border-color: rgba(111, 166, 122, 0.40);
+  }
+  [data-theme="dark"] .contact-link-call:hover {
+    background: rgba(111, 166, 122, 0.26);
+  }
+  [data-theme="dark"] .contact-link-wa {
+    background: rgba(37, 211, 102, 0.18);
+    color: #5fd190;
+    border-color: rgba(37, 211, 102, 0.45);
+  }
+  [data-theme="dark"] .contact-link-wa:hover {
+    background: rgba(37, 211, 102, 0.28);
+  }
+  [data-theme="dark"] .contact-link-mail {
+    background: rgba(91, 143, 190, 0.18);
+    color: #7eaad0;
+    border-color: rgba(91, 143, 190, 0.40);
+  }
+  [data-theme="dark"] .contact-link-mail:hover {
+    background: rgba(91, 143, 190, 0.28);
+  }
+  /* Auto-theme: when no explicit setting, follow OS preference */
+  @media (prefers-color-scheme: dark) {
+    [data-theme="auto"] .contact-link-call {
+      background: rgba(111, 166, 122, 0.16);
+      color: var(--gain);
+      border-color: rgba(111, 166, 122, 0.40);
+    }
+    [data-theme="auto"] .contact-link-call:hover {
+      background: rgba(111, 166, 122, 0.26);
+    }
+    [data-theme="auto"] .contact-link-wa {
+      background: rgba(37, 211, 102, 0.18);
+      color: #5fd190;
+      border-color: rgba(37, 211, 102, 0.45);
+    }
+    [data-theme="auto"] .contact-link-wa:hover {
+      background: rgba(37, 211, 102, 0.28);
+    }
+    [data-theme="auto"] .contact-link-mail {
+      background: rgba(91, 143, 190, 0.18);
+      color: #7eaad0;
+      border-color: rgba(91, 143, 190, 0.40);
+    }
+    [data-theme="auto"] .contact-link-mail:hover {
+      background: rgba(91, 143, 190, 0.28);
+    }
+  }
+  .contact-row-desc .contact-row-value {
+    font-size: 0.84rem;
+    color: var(--ink-soft);
+    white-space: pre-wrap;
+  }
+  /* Narrow phones: stack label above value */
+  @media (max-width: 480px) {
+    .contact-row { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+
   .type-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--line); border-radius: var(--r); overflow: hidden; }
   .type-toggle button { padding: 0.65rem; background: transparent; border: none; cursor: pointer; font-size: 0.8rem; font-weight: 500; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.07em; transition: all 0.12s; }
   .type-toggle button.active.in { background: var(--gain); color: #ffffff; }
@@ -7544,6 +7958,485 @@
   }
 
   // ================================================================
+  // PARTY META — DOB, phones, emails, description (v89.31.0)
+  // ================================================================
+  // The `meta` JSONB field on a party row carries optional contact and
+  // bio data. The functions below normalize, validate, sanitize, and
+  // present that data. We treat meta as immutable from outside the
+  // helpers — always construct a fresh meta object via buildPartyMeta()
+  // when saving so we don't accidentally persist UI scratch fields.
+
+  // Strip a phone string down to a tidy display form:
+  // accepts free text, returns trimmed and collapsed whitespace.
+  // Stays permissive: people format phones differently across markets
+  // and validating too strictly leads to rejections of legitimate numbers.
+  function normalizePhone(raw) {
+    const s = String(raw == null ? '' : raw).trim().replace(/\s+/g, ' ');
+    return s.slice(0, 32); // cap length to prevent abuse
+  }
+  // Loose email validation. Real-world email validation is famously
+  // tricky; we accept anything with one @ and a dot in the domain,
+  // which catches typos without rejecting weird-but-valid addresses.
+  function isValidEmailLoose(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s) return false;
+    if (s.length > 254) return false; // RFC 5321 limit
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+  }
+  function normalizeEmail(raw) {
+    return String(raw == null ? '' : raw).trim().slice(0, 254);
+  }
+  // DOB: stored as ISO-ish string. Accepts:
+  //   * "YYYY-MM-DD" — full date with year
+  //   * "--MM-DD"    — month and day only, no year (ISO 8601 "month-day" form)
+  // Returns null if invalid.
+  function normalizeDob(raw) {
+    const s = String(raw == null ? '' : raw).trim();
+    if (!s) return null;
+    // Full date form
+    let m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) {
+      const y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+      if (y < 1900 || y > 2200) return null;
+      if (mo < 1 || mo > 12) return null;
+      if (d < 1 || d > 31) return null;
+      // Reject impossible date like Feb 30
+      const dt = new Date(Date.UTC(y, mo - 1, d));
+      if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+      return `${m[1]}-${m[2]}-${m[3]}`;
+    }
+    // Month-day form (no year)
+    m = s.match(/^--(\d{2})-(\d{2})$/);
+    if (m) {
+      const mo = parseInt(m[1], 10), d = parseInt(m[2], 10);
+      if (mo < 1 || mo > 12) return null;
+      if (d < 1 || d > 31) return null;
+      // Treat as year 2000 to validate impossible dates
+      const dt = new Date(Date.UTC(2000, mo - 1, d));
+      if (dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return null;
+      return `--${m[1]}-${m[2]}`;
+    }
+    return null;
+  }
+  // Build a clean meta object from raw form inputs.
+  function buildPartyMeta(input) {
+    const meta = {};
+    const dob = normalizeDob(input?.dob);
+    if (dob) meta.dob = dob;
+    const phones = Array.isArray(input?.phones)
+      ? input.phones.map(normalizePhone).filter(p => p.length > 0)
+      : [];
+    if (phones.length) meta.phones = phones.slice(0, 10); // cap at 10
+    const emails = Array.isArray(input?.emails)
+      ? input.emails.map(normalizeEmail).filter(e => isValidEmailLoose(e))
+      : [];
+    if (emails.length) meta.emails = emails.slice(0, 10);
+    const desc = String(input?.description || '').trim().slice(0, LIMITS.description);
+    if (desc) meta.description = desc;
+    return Object.keys(meta).length ? meta : null;
+  }
+  // Return the diff between two meta objects as a list of human-readable
+  // field labels that changed. Used by the activity log so we can write
+  // "Sneha edited Sita Magar (DOB, phone, email)" without leaking values.
+  function partyMetaDiffFields(oldMeta, newMeta) {
+    const o = oldMeta || {};
+    const n = newMeta || {};
+    const changed = [];
+    if ((o.dob || null) !== (n.dob || null)) changed.push('DOB');
+    const oP = JSON.stringify(o.phones || []);
+    const nP = JSON.stringify(n.phones || []);
+    if (oP !== nP) changed.push('phone');
+    const oE = JSON.stringify(o.emails || []);
+    const nE = JSON.stringify(n.emails || []);
+    if (oE !== nE) changed.push('email');
+    if ((o.description || '') !== (n.description || '')) changed.push('description');
+    return changed;
+  }
+  // Parse a DOB string and return { month, day, year (or null) }.
+  function parseDobParts(dob) {
+    if (!dob) return null;
+    let m = String(dob).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) return { year: parseInt(m[1], 10), month: parseInt(m[2], 10), day: parseInt(m[3], 10) };
+    m = String(dob).match(/^--(\d{2})-(\d{2})$/);
+    if (m) return { year: null, month: parseInt(m[1], 10), day: parseInt(m[2], 10) };
+    return null;
+  }
+  // Days until the next occurrence of this DOB, relative to today.
+  // 0 = today, 1 = tomorrow, etc. Returns null if dob is invalid.
+  // Wraps around year-end correctly (Jan birthdays from Dec, etc).
+  function daysUntilBirthday(dob, now) {
+    const parts = parseDobParts(dob);
+    if (!parts) return null;
+    const today = now || new Date();
+    const y = today.getFullYear();
+    let next = new Date(y, parts.month - 1, parts.day);
+    // If it's already passed this year, advance to next year
+    const startOfToday = new Date(y, today.getMonth(), today.getDate());
+    if (next < startOfToday) {
+      next = new Date(y + 1, parts.month - 1, parts.day);
+    }
+    const ms = next.getTime() - startOfToday.getTime();
+    return Math.round(ms / 86400000);
+  }
+  // Age the party turns on the NEXT birthday (or today if it's today).
+  // Returns null if year of birth is unknown.
+  function ageOnNextBirthday(dob, now) {
+    const parts = parseDobParts(dob);
+    if (!parts || !parts.year) return null;
+    const today = now || new Date();
+    const y = today.getFullYear();
+    let nextBirthdayYear = y;
+    const startOfToday = new Date(y, today.getMonth(), today.getDate());
+    const thisYearBirthday = new Date(y, parts.month - 1, parts.day);
+    if (thisYearBirthday < startOfToday) nextBirthdayYear = y + 1;
+    return nextBirthdayYear - parts.year;
+  }
+  // Format a DOB for display: "May 20, 1990" or "May 20" if no year.
+  function formatDobDisplay(dob) {
+    const parts = parseDobParts(dob);
+    if (!parts) return '';
+    const monthNames = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+    const monthStr = monthNames[parts.month - 1] || '';
+    const dayStr = parts.day;
+    if (parts.year) return `${monthStr} ${dayStr}, ${parts.year}`;
+    return `${monthStr} ${dayStr}`;
+  }
+  // Build a tel: URL — strips display formatting, keeps + and digits.
+  function telHref(phone) {
+    const s = String(phone || '').replace(/[^+\d]/g, '');
+    return s ? `tel:${s}` : '';
+  }
+  // Build a WhatsApp click-to-chat URL. Strips formatting, keeps digits
+  // and optional leading +. WhatsApp's web format uses NO + in the path.
+  function whatsappHref(phone) {
+    const s = String(phone || '').replace(/[^+\d]/g, '').replace(/^\+/, '');
+    return s ? `https://wa.me/${s}` : '';
+  }
+  function mailtoHref(email) {
+    const s = String(email || '').trim();
+    return isValidEmailLoose(s) ? `mailto:${s}` : '';
+  }
+
+  // ================================================================
+  // PARTY BIRTHDAY UI (v89.31.0)
+  // ================================================================
+  // Builds the "It's X's birthday today!" banner shown on the Entries
+  // view, and the "Birthday in N days" badge shown on the party detail.
+  // Both are deliberately gentle — accent-tinted card, friendly copy,
+  // no animation that would distract from cash data. Banner is
+  // dismissible per-day via localStorage; comes back the next day.
+
+  // localStorage key for "user dismissed the birthday banner today".
+  // Value is today's YYYY-MM-DD string. Stale dates auto-expire because
+  // we compare to today on every render.
+  const BDAY_DISMISS_KEY = 'hisabs_bday_banner_dismissed_v1';
+
+  // v89.31.2: birthday math is intentionally LOCAL-TIME based.
+  // We treat a stored DOB like "1990-05-20" as a calendar date (no
+  // time zone), and compare it to the user's local calendar date.
+  // This is the correct behaviour for birthdays — if it's May 20
+  // wherever the user is, Sita's birthday is today, regardless of
+  // what time it is in UTC. All consumers of this function
+  // (isBirthdayBannerDismissedToday, partiesWithBirthdayToday,
+  //  daysUntilBirthday) also use local time, so the comparison is
+  // self-consistent.
+  function todayYmd(now) {
+    const d = now || new Date();
+    return d.getFullYear() + '-'
+      + String(d.getMonth() + 1).padStart(2, '0') + '-'
+      + String(d.getDate()).padStart(2, '0');
+  }
+
+  function isBirthdayBannerDismissedToday() {
+    try {
+      return localStorage.getItem(BDAY_DISMISS_KEY) === todayYmd();
+    } catch (_) { return false; }
+  }
+
+  function dismissBirthdayBannerForToday() {
+    try { localStorage.setItem(BDAY_DISMISS_KEY, todayYmd()); } catch (_) {}
+    const el = document.getElementById('birthdayBanner');
+    if (el) el.remove();
+  }
+
+  // Find parties with a birthday today in the active business.
+  // Returns array of { party, age } — age is null if year unknown.
+  function partiesWithBirthdayToday() {
+    if (!session.activeBizId) return [];
+    const out = [];
+    const now = new Date();
+    for (const p of (data.parties || [])) {
+      if (p.businessId !== session.activeBizId) continue;
+      if (p.unassigned) continue; // hide soft-deleted/archived
+      const meta = p.meta || null;
+      if (!meta?.dob) continue;
+      const days = daysUntilBirthday(meta.dob, now);
+      if (days !== 0) continue;
+      const age = ageOnNextBirthday(meta.dob, now);
+      out.push({ party: p, age });
+    }
+    // Sort by name for stable ordering
+    out.sort((a, b) => (a.party.name || '').localeCompare(b.party.name || ''));
+    return out;
+  }
+
+  // Render the banner HTML. Returns '' if nothing to show
+  // (no birthdays today OR user dismissed it today).
+  function renderBirthdayBanner() {
+    const bdays = partiesWithBirthdayToday();
+    if (!bdays.length) return '';
+    if (isBirthdayBannerDismissedToday()) return '';
+    // Build the message. One party => personalised. Multiple => summary.
+    let inner;
+    if (bdays.length === 1) {
+      const { party, age } = bdays[0];
+      const name = escapeHtml(party.name);
+      if (age !== null && age > 0) {
+        inner = `<div class="bday-headline">🎂 ${name} turned ${age} today.</div>
+                 <div class="bday-sub">A quick note can go a long way — send your best wishes.</div>`;
+      } else {
+        inner = `<div class="bday-headline">🎂 It's ${name}'s birthday today!</div>
+                 <div class="bday-sub">A quick note can go a long way — send your best wishes.</div>`;
+      }
+    } else {
+      const names = bdays.map(b => escapeHtml(b.party.name));
+      // Up to 3 names inline; if more, " and N others"
+      let nameList;
+      if (names.length <= 3) {
+        nameList = names.length === 2
+          ? names.join(' and ')
+          : names.slice(0, -1).join(', ') + ' and ' + names[names.length - 1];
+      } else {
+        nameList = names.slice(0, 2).join(', ') + ` and ${names.length - 2} others`;
+      }
+      inner = `<div class="bday-headline">🎂 ${bdays.length} birthdays today: ${nameList}</div>
+               <div class="bday-sub">A quick note can go a long way — send your best wishes to each of them.</div>`;
+    }
+    // Build party chips that scroll to / open each party's detail
+    const chipsHTML = bdays.map(b => {
+      const safeId = jsAttr(b.party.id);
+      const ageBit = (b.age !== null && b.age > 0) ? ` <span class="bday-chip-age">turned ${b.age}</span>` : '';
+      return `<button class="bday-chip" onclick="viewParty('${safeId}')">
+        <span class="bday-chip-name">${escapeHtml(b.party.name)}</span>${ageBit}
+      </button>`;
+    }).join('');
+    return `
+      <div class="bday-banner" id="birthdayBanner" role="note" aria-label="Birthday today">
+        <div class="bday-icon" aria-hidden="true">🎂</div>
+        <div class="bday-body">
+          ${inner}
+          <div class="bday-chips">${chipsHTML}</div>
+        </div>
+        <button class="bday-dismiss" onclick="dismissBirthdayBannerForToday()" aria-label="Dismiss for today" title="Dismiss for today">×</button>
+      </div>`;
+  }
+
+  // Birthday badge shown next to a single party's name on the
+  // party detail view. Always show — today / past / upcoming all
+  // useful as context. Returns '' if no DOB.
+  function renderPartyBirthdayBadge(party) {
+    const meta = party?.meta || null;
+    if (!meta?.dob) return '';
+    const now = new Date();
+    const days = daysUntilBirthday(meta.dob, now);
+    if (days === null) return '';
+    const age = ageOnNextBirthday(meta.dob, now);
+    const ageSuffix = (age !== null && age > 0) ? ` · turns ${age}` : '';
+    let label;
+    let cls = 'party-bday-badge';
+    if (days === 0) {
+      const ageHere = (age !== null && age > 0) ? ` · turned ${age}` : '';
+      label = `🎂 Birthday today${ageHere}`;
+      cls += ' party-bday-today';
+    } else if (days === 1) {
+      label = `🎂 Birthday tomorrow${ageSuffix}`;
+      cls += ' party-bday-soon';
+    } else if (days <= 7) {
+      label = `🎂 Birthday in ${days} days${ageSuffix}`;
+      cls += ' party-bday-soon';
+    } else if (days <= 30) {
+      label = `🎂 Birthday in ${days} days${ageSuffix}`;
+    } else if (days <= 364) {
+      label = `🎂 Birthday in ${days} days`;
+    } else {
+      // 365 day (would be the next year's birthday today). Rare edge.
+      label = `🎂 Birthday next year`;
+    }
+    return `<span class="${cls}">${escapeHtml(label)}</span>`;
+  }
+
+  // Render the contact card section on party detail.
+  // Shown if the party has any meta filled in. Each phone/email gets
+  // a click-to-call/whatsapp/mail link. DOB shows as a friendly date.
+  function renderPartyContactCard(party) {
+    const meta = party?.meta || null;
+    if (!meta) return '';
+    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || meta.description;
+    if (!hasAny) return '';
+    const rows = [];
+    if (meta.dob) {
+      rows.push(`<div class="contact-row">
+        <div class="contact-row-label">DOB</div>
+        <div class="contact-row-value">${escapeHtml(formatDobDisplay(meta.dob))}</div>
+      </div>`);
+    }
+    if (Array.isArray(meta.phones) && meta.phones.length) {
+      const items = meta.phones.map(ph => {
+        const safe = escapeHtml(ph);
+        const tel = telHref(ph);
+        const wa = whatsappHref(ph);
+        const links = [];
+        if (tel) links.push(`<a class="contact-link contact-link-call" href="${escapeHtml(tel)}" title="Call" aria-label="Call ${safe}">Call</a>`);
+        if (wa) links.push(`<a class="contact-link contact-link-wa" href="${escapeHtml(wa)}" target="_blank" rel="noopener noreferrer" title="WhatsApp" aria-label="WhatsApp ${safe}">WhatsApp</a>`);
+        return `<div class="contact-multi-item">
+          <span class="contact-multi-value">${safe}</span>
+          <span class="contact-multi-links">${links.join('')}</span>
+        </div>`;
+      }).join('');
+      rows.push(`<div class="contact-row contact-row-multi">
+        <div class="contact-row-label">Phone</div>
+        <div class="contact-row-value">${items}</div>
+      </div>`);
+    }
+    if (Array.isArray(meta.emails) && meta.emails.length) {
+      const items = meta.emails.map(em => {
+        const safe = escapeHtml(em);
+        const href = mailtoHref(em);
+        const link = href ? `<a class="contact-link contact-link-mail" href="${escapeHtml(href)}" title="Email" aria-label="Email ${safe}">Email</a>` : '';
+        return `<div class="contact-multi-item">
+          <span class="contact-multi-value">${safe}</span>
+          <span class="contact-multi-links">${link}</span>
+        </div>`;
+      }).join('');
+      rows.push(`<div class="contact-row contact-row-multi">
+        <div class="contact-row-label">Email</div>
+        <div class="contact-row-value">${items}</div>
+      </div>`);
+    }
+    if (meta.description) {
+      rows.push(`<div class="contact-row contact-row-desc">
+        <div class="contact-row-label">Notes</div>
+        <div class="contact-row-value">${escapeHtml(meta.description)}</div>
+      </div>`);
+    }
+    return `<div class="party-contact-card">
+      <div class="party-contact-head">
+        <span class="party-contact-head-label">Contact details</span>
+      </div>
+      ${rows.join('')}
+    </div>`;
+  }
+
+  // ================================================================
+  // SELF-TEST SUITE (v89.31.2)
+  // ================================================================
+  // Runtime smoke tests for the pure-logic helpers. Call from DevTools:
+  //   window.hisabsSelfTest()         -> runs all tests, returns summary
+  //   window.hisabsSelfTest({verbose:true}) -> logs each pass/fail
+  //
+  // This is NOT a unit test framework — it's a diagnostic. The tests
+  // verify that the same helpers we shipped behave correctly on the
+  // user's actual browser. Useful for confirming a deploy went well
+  // and that the build wasn't mangled by a stale service worker.
+  window.hisabsSelfTest = function(opts) {
+    const verbose = !!(opts && opts.verbose);
+    const results = [];
+    function check(label, condition, expected, actual) {
+      results.push({ label, pass: !!condition, expected, actual });
+      if (verbose) {
+        console.log(`  ${condition ? 'OK  ' : 'FAIL'} ${label}` +
+          (condition ? '' : ` | expected: ${JSON.stringify(expected)} | actual: ${JSON.stringify(actual)}`));
+      }
+    }
+    // === DOB normalisation ===
+    check('DOB full valid',          normalizeDob('1990-05-20') === '1990-05-20');
+    check('DOB no-year valid',       normalizeDob('--05-20') === '--05-20');
+    check('DOB Feb 29 leap',         normalizeDob('2024-02-29') === '2024-02-29');
+    check('DOB Feb 29 non-leap',     normalizeDob('2025-02-29') === null);
+    check('DOB year too old',        normalizeDob('1899-01-01') === null);
+    check('DOB month 13',            normalizeDob('2026-13-01') === null);
+    check('DOB garbage',             normalizeDob('not-a-date') === null);
+
+    // === Email ===
+    check('Email simple',            isValidEmailLoose('a@b.co') === true);
+    check('Email plus tag',          isValidEmailLoose('a+tag@b.co') === true);
+    check('Email no @',              isValidEmailLoose('abc') === false);
+    check('Email empty',             isValidEmailLoose('') === false);
+
+    // === Phone ===
+    check('Phone collapse spaces',   normalizePhone('  +977   98 1234  ') === '+977 98 1234');
+    check('Phone empty',             normalizePhone('') === '');
+
+    // === Birthday math ===
+    // Build a fixed reference date — May 20 in current year — for
+    // deterministic results regardless of when the user runs this.
+    const now = new Date();
+    const refMay20 = new Date(now.getFullYear(), 4, 20);
+    check('days until today',        daysUntilBirthday('--05-20', refMay20) === 0);
+    check('days until tomorrow',     daysUntilBirthday('--05-21', refMay20) === 1);
+    check('days until yesterday',    daysUntilBirthday('--05-19', refMay20) === 364);
+    check('days invalid',            daysUntilBirthday('garbage', refMay20) === null);
+
+    // === Currency formatting (lite — no locale assumptions) ===
+    // We don't pin specific format strings here because fmt() depends
+    // on the active business's currency + the user's browser locale,
+    // both of which the self-test can't control. Smoke check only.
+    const f100 = fmt(100);
+    check('fmt(100) returns string',  typeof f100 === 'string' && f100.length > 0, 'string', typeof f100);
+    const fNaN = fmt(NaN);
+    check('fmt(NaN) returns string',  typeof fNaN === 'string', 'string', typeof fNaN);
+
+    // === Entry amount ===
+    check('entryAmount(100)',         entryAmount({amount: 100}) === 100);
+    check('entryAmount("50.25")',    entryAmount({amount: '50.25'}) === 50.25);
+    check('entryAmount(null)',        entryAmount({amount: null}) === 0);
+    check('entryAmount(undefined)',   entryAmount({}) === 0);
+    check('entryAmount(NaN-source)',  entryAmount({amount: 'foo'}) === 0);
+
+    // === URL builders ===
+    check('telHref strips formatting', telHref('+977 98 1234-5678') === 'tel:+9779812345678');
+    check('whatsapp strips +',         whatsappHref('+977 98') === 'https://wa.me/97798');
+    check('mailto valid',              mailtoHref('a@b.co') === 'mailto:a@b.co');
+    check('mailto invalid',            mailtoHref('not-email') === '');
+
+    // === Meta build ===
+    const m = buildPartyMeta({ dob: '1990-05-20', phones: ['+977 98', ''], emails: ['x@y.co'], description: 'Hi' });
+    check('buildMeta full',            !!(m && m.dob === '1990-05-20' && m.phones.length === 1 && m.emails.length === 1));
+    check('buildMeta empty -> null',   buildPartyMeta({}) === null);
+
+    // === Sum entries ===
+    const sums = sumEntries([
+      { type: 'in', amount: 100 },
+      { type: 'in', amount: 50 },
+      { type: 'out', amount: 30 },
+    ]);
+    check('sumEntries inSum',          sums.inSum === 150, 150, sums.inSum);
+    check('sumEntries outSum',         sums.outSum === 30, 30, sums.outSum);
+    check('sumEntries inCount',        sums.inCount === 2, 2, sums.inCount);
+
+    // === Permission helper ===
+    // Can't fully test without a real party + business + role, but we can
+    // verify it returns false for missing input (defensive).
+    check('canEditPartyMeta(null)',    canEditPartyMeta(null) === false);
+
+    const passed = results.filter(r => r.pass).length;
+    const failed = results.length - passed;
+    const summary = { passed, failed, total: results.length };
+    if (failed > 0) {
+      console.error(`Hisabs self-test: ${failed}/${results.length} FAILED`);
+      const fails = results.filter(r => !r.pass);
+      for (const f of fails) {
+        console.error(`  FAIL: ${f.label}` +
+          (f.expected !== undefined ? ` | expected: ${JSON.stringify(f.expected)} | actual: ${JSON.stringify(f.actual)}` : ''));
+      }
+    } else {
+      console.log(`Hisabs self-test: ${passed}/${results.length} OK`);
+    }
+    return summary;
+  };
+
+  // ================================================================
   // DRAG-TO-REORDER (touch + mouse)
   // ================================================================
   // Attach to a container whose children are reorderable rows. Each row must
@@ -8404,6 +9297,18 @@
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager';
   }
+  // v89.31.0: Who can edit a party's CONTACT meta (DOB, phones, emails,
+  // description)? Per user spec: anyone in the business — including
+  // staff — can edit these contact details, even on parties they
+  // didn't create. Name editing remains restricted via canRenameParty.
+  // Rationale: contact info is collaborative reference data that any
+  // team member may need to keep current, whereas renames carry more
+  // weight and stay tied to the original creator.
+  function canEditPartyMeta(party) {
+    if (!party) return false;
+    const role = roleFor(party.businessId);
+    return role === 'owner' || role === 'manager' || role === 'staff';
+  }
   // Who can see the Audit tab? Owner, manager, and viewer. Manager
   // has full operational authority over the business (add/edit/delete
   // entries, manage parties etc) so they need to see the audit log to
@@ -9107,12 +10012,24 @@
       requestAnimationFrame(() => {
         const nowY = window.scrollY || document.documentElement.scrollTop || 0;
         if (nowY < 5) {
-          // Clamp to the new document's max scroll so we don't try
-          // to scroll past the bottom when the page got shorter
-          // (e.g. filter narrowed the list).
+          // v89.31.1: only restore the captured scrollY if the new
+          // document is tall enough to contain it. Previously we
+          // clamped to the new max, which caused a visible upward
+          // jump when content above the user's viewport had shrunk
+          // (e.g. a ranking collapsed). Now: if the captured Y is
+          // beyond the new max, we leave the browser at 0 rather
+          // than jumping to the bottom of shorter content. Most of
+          // the time the document length is stable across renders
+          // and the restore works as before.
           const maxY = Math.max(0, (document.documentElement.scrollHeight || 0) - (window.innerHeight || 0));
-          const targetY = Math.min(scrollY, maxY);
-          window.scrollTo({ top: targetY, behavior: 'instant' });
+          if (scrollY <= maxY + 5) {
+            window.scrollTo({ top: scrollY, behavior: 'instant' });
+          } else {
+            // Content shrank enough that the captured position no
+            // longer exists. Don't jump — let the user see the new
+            // top of the (shorter) page and decide where to go.
+            window.scrollTo({ top: 0, behavior: 'instant' });
+          }
         }
       });
     }
@@ -9818,7 +10735,11 @@
         </div>
         <div id="entriesList"></div>
       </div>`;
-    root.innerHTML = entriesPageHeader() + renderOnboardingCard() + renderBackupReminderCard() + renderInstallCard() + renderAnnouncementsBanner() + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
+    // v89.31.0: birthday banner sits after the entries header so the
+    // user sees it before the period bar/stats. It's dismissible per
+    // day and silently absent on days with no birthdays.
+    const birthdayBannerHTML = renderBirthdayBanner();
+    root.innerHTML = entriesPageHeader() + renderOnboardingCard() + renderBackupReminderCard() + renderInstallCard() + renderAnnouncementsBanner() + birthdayBannerHTML + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
     renderEntriesList();
   }
 
@@ -10693,7 +11614,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · party</div>
-          <h1 class="page-title">${escapeHtml(party.name)}</h1>
+          <h1 class="page-title">${escapeHtml(party.name)} ${renderPartyBirthdayBadge(party)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -10704,6 +11625,7 @@
         </div>
       </div>
       ${statsHTML}
+      ${renderPartyContactCard(party)}
       ${catBreakdownHTML}
       <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">${__partyDetailCatFilter ? `Transactions in “${escapeHtml(__partyDetailCatFilter)}”` : 'All transactions'}</div>
       <div class="entries-wrap">
@@ -14514,7 +15436,7 @@
   // → flips to true → re-render shows the rest. Resets on view leave
   // (not persisted across sessions — these are at-a-glance lists, not
   // a saved preference).
-  let __rankingExpanded = { profit: false, cashIn: false, cashOut: false };
+  let __rankingExpanded = { profit: false, loss: false, cashIn: false, cashOut: false };
   function toggleRankingExpanded(key) {
     if (!(key in __rankingExpanded)) return;
     __rankingExpanded[key] = !__rankingExpanded[key];
@@ -15528,6 +16450,14 @@
       .filter(p => p.net !== 0)
       .sort((a, b) => b.net - a.net)
       .slice(0, 15);
+    // v89.31.1: parties with the LARGEST losses (most negative net).
+    // Filtered to net < 0 so the list isn't padded with zero-net
+    // parties that carry no signal. Sorted ascending so the worst
+    // loss appears at rank #1.
+    const top15Loss = partyArr
+      .filter(p => p.net < 0)
+      .sort((a, b) => a.net - b.net)
+      .slice(0, 15);
     const top15CashIn = partyArr
       .filter(p => p.inSum > 0)
       .sort((a, b) => b.inSum - a.inSum)
@@ -15600,6 +16530,13 @@
         subtitle: 'Sorted by net (cash in minus cash out). Most profitable parties first.',
         key: 'profit',
         rows: top15Profit,
+        metric: 'net',
+      })}
+      ${rankingSection({
+        title: 'Top 15 parties by loss',
+        subtitle: 'Sorted by net (cash in minus cash out). Parties costing you the most appear first.',
+        key: 'loss',
+        rows: top15Loss,
         metric: 'net',
       })}
       ${rankingSection({
@@ -16106,6 +17043,13 @@
         verb = '<span class="activity-row-verb activity-verb-backdated">added a backdated entry</span>';
       } else if (r.event_type === 'entry_forwarddated') {
         verb = '<span class="activity-row-verb activity-verb-backdated">added a forward-dated entry</span>';
+      } else if (r.event_type === 'party_created') {
+        // v89.31.0: party lifecycle verbs share the activity log
+        verb = '<span class="activity-row-verb activity-verb-edit">added a party</span>';
+      } else if (r.event_type === 'party_edited') {
+        verb = '<span class="activity-row-verb activity-verb-edit">edited a party</span>';
+      } else if (r.event_type === 'party_deleted') {
+        verb = '<span class="activity-row-verb activity-verb-delete">deleted a party</span>';
       } else {
         verb = '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
       }
@@ -16220,7 +17164,11 @@
         .from('app_audit_log')
         .delete()
         .eq('business_id', biz.id)
-        .in('event_type', ['entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated']);
+        .in('event_type', [
+          'entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated',
+          // v89.31.0: include party events in Clear-all scope
+          'party_created', 'party_edited', 'party_deleted',
+        ]);
       if (error) {
         toast('Could not clear: ' + (error.message || 'unknown error'));
         if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
@@ -16322,7 +17270,11 @@
         .from('app_audit_log')
         .select('id, user_id, event_type, description, metadata, occurred_at')
         .eq('business_id', biz.id)
-        .in('event_type', ['entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated'])
+        .in('event_type', [
+          'entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated',
+          // v89.31.0: party lifecycle events surface in the same business activity log
+          'party_created', 'party_edited', 'party_deleted',
+        ])
         .order('occurred_at', { ascending: false })
         .limit(200);
       if (!_isOwner && _myId) {
@@ -17036,18 +17988,30 @@
   function openPartyEditModal(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
-    if (!canRenameParty(p)) { toast("You can only edit parties you created."); return; }
+    // v89.31.0: anyone in the business can open the edit modal to update
+    // contact meta. The name field gets a readonly state in the modal
+    // when the user can't rename (handled below).
+    if (!canEditPartyMeta(p)) { toast('Only members of this business can edit parties.'); return; }
     const isOwnerHere = roleFor(p.businessId) === 'owner';
+    const canRename = canRenameParty(p);
     const toggleHTML = isOwnerHere ? unassignedToggleHTML(!!p.unassigned, 'party') : '';
+    const nameReadonlyHint = canRename
+      ? ''
+      : `<div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.25rem;">Only the party's creator can rename it. You can still update contact details below.</div>`;
     const modal = document.getElementById('modalContent');
     if (!modal) return;
     modal.classList.remove('modal-full');
     modal.innerHTML = `
       <div class="modal-handle"></div>
       <h2 class="modal-title">Edit party</h2>
-      <p class="modal-sub">Update party details.</p>
+      <p class="modal-sub">Update party details. All extra fields are optional.</p>
       <div class="form-grid">
-        <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" value="${escapeHtml(p.name)}"></div>
+        <div class="input-wrap">
+          <label>Name</label>
+          <input type="text" id="mPartyName" maxlength="120" value="${escapeHtml(p.name)}"${canRename ? '' : ' readonly'}>
+          ${nameReadonlyHint}
+        </div>
+        ${partyMetaFormHTML(p.meta || null)}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -17055,31 +18019,77 @@
         </div>
       </div>`;
     _showModalBackdrop();
-    setTimeout(() => document.getElementById('mPartyName')?.focus(), 50);
+    setTimeout(() => {
+      const nameInput = document.getElementById('mPartyName');
+      if (nameInput && !nameInput.readOnly) nameInput.focus();
+    }, 50);
   }
   async function savePartyEdit(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
-    const newName = (document.getElementById('mPartyName')?.value || '').trim();
-    if (!newName) { toast('Enter a name.'); return; }
-    if (newName.length > LIMITS.name) { toast(`Name too long (max ${LIMITS.name} characters).`); return; }
-    if (data.parties.find(x => x.businessId === p.businessId && x.name.toLowerCase() === newName.toLowerCase() && x.id !== p.id)) {
-      toast('A party with that name already exists.'); return;
+    if (!canEditPartyMeta(p)) { toast('No permission.'); return; }
+    const canRename = canRenameParty(p);
+    const nameInput = document.getElementById('mPartyName');
+    const rawName = (nameInput?.value || '').trim();
+    // If the user has no rename right, lock the name to its current
+    // value regardless of any DOM tampering.
+    const newName = canRename ? rawName : p.name;
+    if (canRename) {
+      if (!newName) { toast('Enter a name.'); return; }
+      if (newName.length > LIMITS.name) { toast(`Name too long (max ${LIMITS.name} characters).`); return; }
+      if (data.parties.find(x => x.businessId === p.businessId && x.name.toLowerCase() === newName.toLowerCase() && x.id !== p.id)) {
+        toast('A party with that name already exists.'); return;
+      }
     }
     const isOwnerHere = roleFor(p.businessId) === 'owner';
     const toggle = document.getElementById('mEntityUnassigned');
     const newUnassigned = isOwnerHere && toggle ? !!toggle.checked : !!p.unassigned;
-    const nameChanged = newName !== p.name;
+
+    // v89.31.0: meta capture + diff
+    const newMeta = readPartyMetaFromForm();
+    const oldMeta = p.meta || null;
+    const metaFieldsChanged = partyMetaDiffFields(oldMeta, newMeta);
+
+    const nameChanged = canRename && newName !== p.name;
     const unassignedChanged = newUnassigned !== !!p.unassigned;
-    if (!nameChanged && !unassignedChanged) { closeModal(); return; }
+    const metaChanged = metaFieldsChanged.length > 0;
+    if (!nameChanged && !unassignedChanged && !metaChanged) { closeModal(); return; }
+
     if (nameChanged) {
       p.name = newName;
       const bookIds = data.books.filter(b => b.businessId === p.businessId).map(b => b.id);
       data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) e.party = newName; });
     }
     if (unassignedChanged) p.unassigned = newUnassigned || undefined;
+    if (metaChanged) {
+      // Store as plain object (or remove the key entirely when empty)
+      if (newMeta) p.meta = newMeta;
+      else delete p.meta;
+    }
     saveData(); closeModal(); renderAll();
     toast(unassignedChanged && newUnassigned ? 'Marked as unassigned.' : 'Saved.');
+
+    // v89.31.0: activity log entries describe what changed without
+    // leaking values. Owners and staff alike see their own log; the
+    // owner additionally sees everyone else's. Name changes are logged
+    // separately from meta changes so the diff is easy to read.
+    try {
+      const eventDesc = [];
+      if (nameChanged) eventDesc.push(`renamed to ${newName}`);
+      if (metaChanged) eventDesc.push(`updated ${metaFieldsChanged.join(', ')}`);
+      if (eventDesc.length) {
+        logAuditEvent('party_edited',
+          `Party ${p.name}: ${eventDesc.join('; ')}`,
+          {
+            party_id: p.id,
+            party_name: p.name,
+            name_changed: !!nameChanged,
+            fields_changed: metaFieldsChanged,
+          },
+          p.businessId
+        ).catch(() => {});
+      }
+    } catch (_) {}
   }
 
   function openCategoryEditModal(catId) {
@@ -17209,11 +18219,27 @@
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id).length;
     if (!(await uiConfirm(`Delete party "${p.name}"? ${linkedCount} entries will keep the name as text but lose the link.`, { destructive: true, confirmLabel: 'Delete party' }))) return;
     playDeleteSound();
+    // v89.31.0: capture details before mutation so we can audit-log them.
+    const _deletedName = p.name;
+    const _deletedBizId = p.businessId;
+    const _deletedId = p.id;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) delete e.partyId; });
     data.parties = data.parties.filter(x => x.id !== partyId);
     saveData();
     switchView('parties');
     toast('Party deleted.');
+    // v89.31.0: write to activity log (non-blocking)
+    try {
+      logAuditEvent('party_deleted',
+        `Deleted party ${_deletedName}` + (linkedCount ? ` (${linkedCount} entries kept name as text)` : ''),
+        {
+          party_id: _deletedId,
+          party_name: _deletedName,
+          entries_unlinked: linkedCount,
+        },
+        _deletedBizId
+      ).catch(() => {});
+    } catch (_) {}
   }
 
   // ================================================================
@@ -19120,22 +20146,135 @@
   }
 
   function partyModal() {
-    // v89.22: owner sees unassigned toggle
+    // v89.22: owner sees unassigned toggle.
+    // v89.31.0: optional DOB, phones, emails, description.
     const bizId = session.activeBizId;
     const isOwnerHere = bizId && roleFor(bizId) === 'owner';
     const toggleHTML = isOwnerHere ? unassignedToggleHTML(false, 'party') : '';
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">New party</h2>
-      <p class="modal-sub">A customer, vendor, or person you transact with.</p>
+      <p class="modal-sub">A customer, vendor, or person you transact with. All extra fields are optional.</p>
       <div class="form-grid">
         <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" placeholder="Ram Bahadur / Acme Wholesale"></div>
+        ${partyMetaFormHTML(null)}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="savePartyManual()">Create</button>
         </div>
       </div>`;
+  }
+  // v89.31.0: shared rich-form fields for create + edit modals.
+  // Pass an existing meta object to pre-fill (edit flow), or null/empty
+  // for the create flow.
+  function partyMetaFormHTML(meta) {
+    const m = meta || {};
+    const dob = m.dob || '';
+    // DOB: split into month/day/year for a friendlier 3-field row.
+    const dobParts = parseDobParts(dob) || { year: null, month: null, day: null };
+    const monthVal = dobParts.month ? String(dobParts.month).padStart(2, '0') : '';
+    const dayVal   = dobParts.day   ? String(dobParts.day).padStart(2, '0')   : '';
+    const yearVal  = dobParts.year  ? String(dobParts.year) : '';
+    // Phones — at least 1 empty row in create flow; existing entries when editing.
+    const phones = Array.isArray(m.phones) && m.phones.length ? m.phones : [''];
+    const emails = Array.isArray(m.emails) && m.emails.length ? m.emails : [''];
+    const desc   = m.description || '';
+    const phonesHTML = phones.map((p, i) => partyPhoneRowHTML(p, i)).join('');
+    const emailsHTML = emails.map((e, i) => partyEmailRowHTML(e, i)).join('');
+    return `
+      <div class="meta-section">
+        <div class="meta-section-label">Date of birth <span class="meta-optional">— optional, year optional</span></div>
+        <div class="meta-dob-row">
+          <select id="mPartyDobMonth" class="meta-dob-month" aria-label="Month">
+            <option value="">Month</option>
+            ${['January','February','March','April','May','June','July','August','September','October','November','December']
+              .map((mn, idx) => {
+                const v = String(idx + 1).padStart(2, '0');
+                return `<option value="${v}"${monthVal === v ? ' selected' : ''}>${mn}</option>`;
+              }).join('')}
+          </select>
+          <input type="number" id="mPartyDobDay" class="meta-dob-day" min="1" max="31" placeholder="Day" value="${escapeHtml(dayVal)}" aria-label="Day">
+          <input type="number" id="mPartyDobYear" class="meta-dob-year" min="1900" max="2100" placeholder="Year (optional)" value="${escapeHtml(yearVal)}" aria-label="Year">
+        </div>
+      </div>
+      <div class="meta-section">
+        <div class="meta-section-label">Phone numbers <span class="meta-optional">— optional, include country code like +977</span></div>
+        <div id="mPartyPhones" class="meta-multi-list">${phonesHTML}</div>
+        <button type="button" class="meta-add-btn" onclick="addPartyPhoneRow()">+ Add another phone</button>
+      </div>
+      <div class="meta-section">
+        <div class="meta-section-label">Email addresses <span class="meta-optional">— optional</span></div>
+        <div id="mPartyEmails" class="meta-multi-list">${emailsHTML}</div>
+        <button type="button" class="meta-add-btn" onclick="addPartyEmailRow()">+ Add another email</button>
+      </div>
+      <div class="meta-section">
+        <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
+        <textarea id="mPartyDescription" rows="2" maxlength="500" placeholder="Anything worth remembering — preferences, history, address, etc.">${escapeHtml(desc)}</textarea>
+      </div>`;
+  }
+  function partyPhoneRowHTML(value, idx) {
+    return `<div class="meta-multi-row">
+      <input type="tel" class="meta-multi-input meta-phone-input" maxlength="32" placeholder="+977 98 1234 5678" value="${escapeHtml(value || '')}" inputmode="tel" autocomplete="tel">
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+    </div>`;
+  }
+  function partyEmailRowHTML(value, idx) {
+    return `<div class="meta-multi-row">
+      <input type="email" class="meta-multi-input meta-email-input" maxlength="254" placeholder="person@example.com" value="${escapeHtml(value || '')}" inputmode="email" autocomplete="email">
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+    </div>`;
+  }
+  function addPartyPhoneRow() {
+    const list = document.getElementById('mPartyPhones');
+    if (!list) return;
+    if (list.children.length >= 10) { toast('Up to 10 phones.'); return; }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = partyPhoneRowHTML('', list.children.length);
+    list.appendChild(wrap.firstElementChild);
+    list.lastElementChild.querySelector('input')?.focus();
+  }
+  function addPartyEmailRow() {
+    const list = document.getElementById('mPartyEmails');
+    if (!list) return;
+    if (list.children.length >= 10) { toast('Up to 10 emails.'); return; }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = partyEmailRowHTML('', list.children.length);
+    list.appendChild(wrap.firstElementChild);
+    list.lastElementChild.querySelector('input')?.focus();
+  }
+  function removeMetaRow(btn) {
+    const row = btn?.closest('.meta-multi-row');
+    const list = row?.parentElement;
+    if (!row || !list) return;
+    // Keep at least one row visible (so the user has an input to type in).
+    if (list.children.length === 1) {
+      row.querySelector('input').value = '';
+      return;
+    }
+    row.remove();
+  }
+  // Read the meta fields out of the modal form. Returns a clean meta
+  // object suitable for saving (or null if all fields are empty).
+  function readPartyMetaFromForm() {
+    const monthRaw = (document.getElementById('mPartyDobMonth')?.value || '').trim();
+    const dayRaw   = (document.getElementById('mPartyDobDay')?.value   || '').trim();
+    const yearRaw  = (document.getElementById('mPartyDobYear')?.value  || '').trim();
+    let dob = '';
+    if (monthRaw && dayRaw) {
+      const day = String(parseInt(dayRaw, 10)).padStart(2, '0');
+      if (yearRaw) {
+        dob = `${yearRaw.padStart(4, '0')}-${monthRaw}-${day}`;
+      } else {
+        dob = `--${monthRaw}-${day}`;
+      }
+    }
+    const phones = Array.from(document.querySelectorAll('#mPartyPhones .meta-phone-input'))
+      .map(el => el.value);
+    const emails = Array.from(document.querySelectorAll('#mPartyEmails .meta-email-input'))
+      .map(el => el.value);
+    const description = document.getElementById('mPartyDescription')?.value || '';
+    return buildPartyMeta({ dob, phones, emails, description });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
@@ -19201,6 +20340,9 @@
     if (data.parties.find(p => p.businessId === biz.id && p.name.toLowerCase() === name.toLowerCase())) {
       toast('A party with that name already exists.'); return;
     }
+    // v89.31.0: read optional meta (DOB, phones, emails, description).
+    // Returns null if everything empty — keeps DB tidy.
+    const meta = readPartyMetaFromForm();
     const u = me();
     // v89.22: read unassigned toggle (owner-only)
     const _unassignedToggle = document.getElementById('mEntityUnassigned');
@@ -19215,10 +20357,28 @@
       createdByName: u?.name || '',
       sortOrder: nextSortOrder(data.parties, 'businessId', biz.id),
       unassigned: _isUnassigned || undefined,
+      meta: meta || undefined,
     };
     data.parties.push(p);
     saveData(); closeModal(); renderAll();
     toast('Party created.');
+    // v89.31.0: write to activity log so other members see the addition.
+    // Non-blocking — fire and forget.
+    try {
+      const fields = [];
+      if (meta?.dob) fields.push('DOB');
+      if (meta?.phones?.length) fields.push('phone');
+      if (meta?.emails?.length) fields.push('email');
+      if (meta?.description) fields.push('description');
+      const desc = fields.length
+        ? `Added party ${name} (${fields.join(', ')})`
+        : `Added party ${name}`;
+      logAuditEvent('party_created', desc, {
+        party_id: p.id,
+        party_name: name,
+        fields_present: fields,
+      }, biz.id).catch(() => {});
+    } catch (_) {}
   }
 
   // ACCOUNT modal — name + group selector
@@ -28139,14 +29299,34 @@
   // ensures the render eventually fires even if the user walks away
   // with focus still active.
   let __renderDeferredHandler = null;
+  // v89.31.2: track active scrolling. If a realtime event or sync
+  // drain triggers renderAll *while the user is actively scrolling*,
+  // the innerHTML replacement causes a tiny scroll jump that the user
+  // experiences as "the page automatically moves up". Solution: defer
+  // renderAll until the user stops scrolling. We treat anything within
+  // 250ms of the most recent scroll event as "actively scrolling".
+  let __lastScrollAt = 0;
+  let __scrollDeferTimer = null;
+  function _markScrollActivity() { __lastScrollAt = Date.now(); }
+  // Hook on every scroll-like event. Passive listeners keep scrolling
+  // smooth on mobile. We listen on capture phase so we catch the event
+  // before any preventDefault elsewhere could stop propagation.
+  try {
+    const opts = { passive: true, capture: true };
+    window.addEventListener('scroll',    _markScrollActivity, opts);
+    window.addEventListener('wheel',     _markScrollActivity, opts);
+    window.addEventListener('touchmove', _markScrollActivity, opts);
+  } catch (_) {}
+
   function _runRenderAllOrDeferIfTyping() {
     const ae = document.activeElement;
     let shouldDefer = false;
+    let deferReason = '';
     if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT')) {
       // Defer if active element is the Audit Tax input
-      if (ae.id === 'auditTaxInput') shouldDefer = true;
+      if (ae.id === 'auditTaxInput') { shouldDefer = true; deferReason = 'typing-tax'; }
       // Defer if active element is inside the Distribution view (any input there)
-      else if (session?.view === 'distribution') shouldDefer = true;
+      else if (session?.view === 'distribution') { shouldDefer = true; deferReason = 'typing-dist'; }
       // Defer if active element is inside any known distribution sub-container
       // (covers cases where session.view is briefly stale during navigation)
       else if (ae.closest && (
@@ -28156,7 +29336,25 @@
         ae.closest('.split-cur-save-row') ||
         ae.closest('.distribution-wrap') ||
         ae.closest('.split-parties')
-      )) shouldDefer = true;
+      )) { shouldDefer = true; deferReason = 'typing-dist-inner'; }
+    }
+    // v89.31.2: defer if user is actively scrolling (<250ms ago).
+    // This fixes the "scrolls up automatically" glitch when sync or
+    // realtime triggers a render mid-scroll. We don't piggyback on
+    // the existing input-defer path because the unblock condition is
+    // different (timer vs blur event).
+    const sinceScroll = Date.now() - __lastScrollAt;
+    if (!shouldDefer && sinceScroll < 250) {
+      // Already a scroll-defer pending? Just bail — the existing
+      // timer will pick up the latest data when it fires.
+      if (__scrollDeferTimer) return;
+      __scrollDeferTimer = setTimeout(() => {
+        __scrollDeferTimer = null;
+        // Re-check: if still scrolling, defer again. Cheap recursion
+        // with a hard cap to avoid pathological scroll-forever case.
+        _runRenderAllOrDeferIfTyping();
+      }, 250 - sinceScroll + 50);
+      return;
     }
     if (!shouldDefer) {
       try { renderAll(); } catch (_) {}
@@ -28995,12 +30193,16 @@
     },
     parties: {
       table: 'app_parties',
+      // v89.31.0: include `meta` JSONB column carrying optional contact
+      // details (dob, phones[], emails[], description). Pre-existing
+      // parties have meta=null; the app treats that as "no extra info".
       toDb: (r) => ({
         id: r.id, business_id: r.businessId,
         name: r.name, kind: r.kind || null, sort_order: r.sortOrder || null,
         created_at_local: r.createdAt || null,
         created_by: r.createdBy || null,
         created_by_name: r.createdByName || null,
+        meta: r.meta || null,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -29008,6 +30210,7 @@
         createdAt: r.created_at_local || '',
         createdBy: r.created_by || null,
         createdByName: r.created_by_name || '',
+        meta: r.meta || null,
       }),
     },
     categories: {
