@@ -3987,8 +3987,15 @@
   .trend-swatch-current { width: 14px; height: 3px; background: var(--accent); border-radius: 1px; }
   .trend-swatch-last { width: 14px; height: 0; border-top: 2px dashed var(--ink-mute); opacity: 0.75; }
   .forecast-chart {
-    width: 100%; height: auto; display: block;
+    /* v89.31.3: aspect-ratio reserves the SVG's vertical space
+       upfront during layout, preventing the scroll-jump that
+       happened when offscreen charts entered the viewport and
+       finalized their height at paint time. */
+    width: 100%;
+    height: auto;
+    display: block;
     font-family: var(--font-mono);
+    aspect-ratio: 800 / 280;
   }
   .fc-bar-in { fill: var(--chart-cash-in); }
   .fc-bar-out { fill: var(--chart-cash-out); }
@@ -4239,6 +4246,10 @@
     .insights-bar-svg,
     .insights-line-svg,
     .forecast-chart {
+      /* v89.31.3: keep min-height as a fallback for very-narrow phones
+         (where aspect-ratio could compute to <180px and look squished).
+         Removed explicit height — aspect-ratio handles the layout
+         upfront and prevents the scroll-jump glitch. */
       min-height: 180px;
     }
   }
@@ -4274,7 +4285,25 @@
   .insights-chart-help { font-size: 0.7rem; color: var(--ink-mute); margin: 0.1rem 0 0.5rem; }
   .insights-chart-note { font-size: 0.72rem; color: var(--ink-mute); margin: 0.5rem 0 0; font-style: italic; }
   .insights-chart-legend { display: flex; gap: 0.85rem; font-size: 0.72rem; color: var(--ink-soft); }
-  .insights-bar-svg, .insights-line-svg { width: 100%; height: auto; max-width: 100%; }
+  /* v89.31.3: prevent scroll-jump on Insights/Forecast.
+     Previously these SVGs used `height: auto`, which means the browser
+     computed their rendered height from the viewBox aspect ratio AT
+     PAINT TIME. When a chart that was offscreen scrolled into view,
+     the browser recomputed its height — and any content above it
+     shifted, which the user perceived as the page "jumping up".
+     Fix: set `aspect-ratio` so the browser reserves the correct
+     height during LAYOUT (before paint). Modern browsers (Chrome 88+,
+     Safari 15+, Firefox 89+) honour this; older browsers fall through
+     to the old auto-sizing and still work, just with the original
+     jump behaviour. As of 2026 the support coverage is universal for
+     Hisabs's mobile user base. */
+  .insights-bar-svg, .insights-line-svg {
+    width: 100%;
+    height: auto;
+    max-width: 100%;
+    display: block;
+    aspect-ratio: 800 / 280;
+  }
   /* Generic section wrap (top 10, heatmap, WoW) */
   .insights-section {
     background: var(--surface-1); border: 1px solid var(--line);
