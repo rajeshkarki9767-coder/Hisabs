@@ -4194,30 +4194,24 @@
       min-height: 180px;
     }
   }
-  /* v89.30.7 chart sizing — mobile-feel proportions on all devices.
-     The user wants charts to look like they do on mobile (balanced,
-     compact, readable) on every device. Mobile cards naturally render
-     at ~360-450px wide with chart heights around 180-220px. We
-     replicate that proportion on larger screens by capping:
-       - chart svg max-height: 220px (so bars don't tower)
-       - chart card max-width: 560px (so cards don't span the screen)
-       - margin: 0 auto on the chart cards (so they center nicely)
-     IMPORTANT: only the chart-bearing cards get the max-width cap.
-     Data tables like .forecast-section-breakdown and the projection-
-     methods grid keep their natural width so columns stay readable. */
-
-  /* Tablet and Desktop — cap chart SVGs */
+  /* v89.30.8 chart sizing — viewport-scaled on all devices.
+     Charts fill the available content column (no max-width cap on the
+     card — that was making cards look small and lonely on big screens).
+     Chart SVG height scales gently with viewport via clamp() so it
+     stays comfortable on every device:
+       - phones (≤880px): kept at min-height 180px by the mobile rule above
+       - tablets (~900px): chart renders ~220px tall
+       - laptops (~1280px): chart renders ~280px tall
+       - big monitors (~1920px): chart renders ~340px tall (capped at 360)
+     This way charts look like the Forecast 6-month trend you liked — they
+     fill the width and have a comfortable, consistent height across
+     devices without bars towering on huge screens. */
   @media (min-width: 881px) {
     .insights-bar-svg,
     .insights-line-svg,
     .forecast-chart {
-      max-height: 220px;
-    }
-    .insights-chart-wrap,
-    .forecast-chart-wrap {
-      max-width: 560px;
-      margin-left: auto;
-      margin-right: auto;
+      height: clamp(220px, 18vw, 360px);
+      max-height: 360px;
     }
   }
   .insights-chart-head {
@@ -24817,26 +24811,94 @@
     }
   }
 
-  // Best-effort parse of a User-Agent string into "Browser on OS".
-  // UAs are a notorious mess; this won't be perfect but produces something
-  // recognisable for the common cases. Falls back to a short prefix of
-  // the raw string when nothing matches.
+  // v89.30.8: richer User-Agent parser.
+  // Produces "Brand · OS Version · Browser Version" style labels.
+  // For Android, the brand is inferred from device model codes when
+  // possible (SM-* → Samsung, CPH-* → OnePlus, M2*/22*/23*/24* → Xiaomi/Redmi,
+  // Pixel → Pixel, etc.). Privacy note: browsers don't expose the exact
+  // marketing name (e.g. "Galaxy S24"), only model codes — so we show
+  // the brand and let the user rename their device for more specificity.
   function describeUserAgent(ua) {
     if (!ua) return 'Unknown device';
     const s = String(ua);
+
+    // --- OS + version detection ---
     let os = 'Unknown OS';
-    if (/Windows NT/i.test(s)) os = 'Windows';
-    else if (/Mac OS X|Macintosh/i.test(s)) os = 'macOS';
-    else if (/iPhone|iPad|iOS/i.test(s)) os = /iPad/i.test(s) ? 'iPad' : 'iPhone';
-    else if (/Android/i.test(s)) os = 'Android';
-    else if (/Linux/i.test(s)) os = 'Linux';
+    // Order matters: iPhone/iPad UAs include "Mac OS X" too, so check
+    // them BEFORE macOS. Likewise check Android before Linux (Android
+    // UAs include "Linux").
+    if (/iPhone|iPad|iPod/i.test(s)) {
+      const iv = (s.match(/OS ([\d_]+) like Mac OS/i) || [])[1];
+      const ver = iv ? iv.replace(/_/g, '.') : '';
+      const dev = /iPad/i.test(s) ? 'iPad' : 'iPhone';
+      os = dev + (ver ? ' · iOS ' + ver : ' · iOS');
+    } else if (/Android ([\d.]+)/i.test(s)) {
+      const av = s.match(/Android ([\d.]+)/i)[1];
+      os = 'Android ' + av;
+    } else if (/Windows NT ([\d.]+)/i.test(s)) {
+      const v = s.match(/Windows NT ([\d.]+)/i)[1];
+      const map = { '10.0': '10/11', '6.3': '8.1', '6.2': '8', '6.1': '7' };
+      os = 'Windows ' + (map[v] || v);
+    } else if (/Mac OS X ([\d_.]+)/i.test(s)) {
+      const mv = s.match(/Mac OS X ([\d_.]+)/i)[1].replace(/_/g, '.');
+      os = 'macOS ' + mv;
+    } else if (/CrOS/i.test(s)) {
+      os = 'ChromeOS';
+    } else if (/Linux/i.test(s)) {
+      os = 'Linux';
+    }
+
+    // --- Android brand inference from model code ---
+    let brand = '';
+    if (/Android/i.test(s)) {
+      // Try common patterns. UA usually looks like:
+      //   "(Linux; Android 14; SM-S928B) AppleWebKit/..."
+      //   "(Linux; Android 14; CPH2581) AppleWebKit/..."
+      const modelMatch = s.match(/Android [\d.]+;\s*([^);]+?)(?:\s+Build|\)|;)/i);
+      const model = modelMatch ? modelMatch[1].trim() : '';
+      if (/^SM-/i.test(model) || /samsung/i.test(s)) brand = 'Samsung';
+      else if (/^CPH/i.test(model) || /OnePlus|ONEPLUS/.test(s)) brand = 'OnePlus';
+      else if (/^Pixel/i.test(model) || /Pixel/.test(s)) brand = 'Pixel';
+      else if (/redmi|^M2\d|^2[12]\d{3}|MI |Xiaomi|POCO|^23\d{3}|^24\d{3}/i.test(model + ' ' + s)) {
+        brand = /redmi/i.test(s) ? 'Redmi' : (/poco/i.test(s) ? 'Poco' : 'Xiaomi');
+      }
+      else if (/^RMX/i.test(model) || /realme/i.test(s)) brand = 'Realme';
+      else if (/^V\d/i.test(model) || /vivo/i.test(s)) brand = 'Vivo';
+      else if (/^OPPO|^PEUM|^PEAM/i.test(model) || /oppo/i.test(s)) brand = 'Oppo';
+      else if (/Huawei|HUAWEI|HW-/i.test(s)) brand = 'Huawei';
+      else if (/Motorola|moto |XT\d/i.test(s)) brand = 'Motorola';
+      else if (/Nokia/i.test(s)) brand = 'Nokia';
+      else if (/Asus|ASUS/i.test(s)) brand = 'Asus';
+      else if (/LG/.test(s)) brand = 'LG';
+      else if (/Sony|Xperia/i.test(s)) brand = 'Sony';
+      else if (model) brand = model.split(/\s+/)[0]; // fall back to first token
+    }
+
+    // --- Browser + version ---
     let browser = 'Browser';
-    if (/Edg\//i.test(s)) browser = 'Edge';
-    else if (/OPR\//i.test(s)) browser = 'Opera';
-    else if (/Chrome\//i.test(s) && !/Edg\/|OPR\//i.test(s)) browser = 'Chrome';
-    else if (/Firefox\//i.test(s)) browser = 'Firefox';
-    else if (/Safari\//i.test(s) && !/Chrome\//i.test(s)) browser = 'Safari';
-    return `${browser} on ${os}`;
+    if (/Edg\/([\d.]+)/i.test(s)) {
+      browser = 'Edge ' + s.match(/Edg\/(\d+)/i)[1];
+    } else if (/OPR\/([\d.]+)/i.test(s)) {
+      browser = 'Opera ' + s.match(/OPR\/(\d+)/i)[1];
+    } else if (/SamsungBrowser\/([\d.]+)/i.test(s)) {
+      browser = 'Samsung Internet ' + s.match(/SamsungBrowser\/(\d+)/i)[1];
+    } else if (/Chrome\/([\d.]+)/i.test(s) && !/Edg\/|OPR\//i.test(s)) {
+      browser = 'Chrome ' + s.match(/Chrome\/(\d+)/i)[1];
+    } else if (/Firefox\/([\d.]+)/i.test(s)) {
+      browser = 'Firefox ' + s.match(/Firefox\/(\d+)/i)[1];
+    } else if (/Version\/([\d.]+).*Safari\//i.test(s) && !/Chrome\//i.test(s)) {
+      browser = 'Safari ' + s.match(/Version\/(\d+)/i)[1];
+    } else if (/Safari\//i.test(s) && !/Chrome\//i.test(s)) {
+      browser = 'Safari';
+    }
+
+    // --- Compose final label ---
+    // Order: Brand (if known) · OS · Browser
+    const parts = [];
+    if (brand) parts.push(brand);
+    if (os && os !== 'Unknown OS') parts.push(os);
+    if (browser && browser !== 'Browser') parts.push(browser);
+    return parts.length ? parts.join(' · ') : 'Unknown device';
   }
 
   // Friendly "x minutes ago" for a timestamp.
