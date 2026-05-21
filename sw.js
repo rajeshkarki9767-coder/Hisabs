@@ -11,7 +11,7 @@
 // changes meaningfully so old caches get purged on activate.
 // ============================================================
 
-const CACHE_VERSION = 'hisabs-v88';
+const CACHE_VERSION = 'hisabs-v89.32.0';
 const APP_SHELL = [
   './',
   './index.html',
