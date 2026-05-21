@@ -12,7 +12,27 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.32.1] — 2026-05-21
+## [v89.32.3] — 2026-05-21
+
+Small UX addition.
+
+### Hash
+`3925d16b4314921b1026e8e18ff508a9`
+
+### Changes
+1. **Copy social handles from a party.** When you open a party, each saved social handle in the contact card now has a one-tap **Copy** button (next to the existing **Open** link for URL handles). Uses the Clipboard API with a textarea fallback, briefly showing "Copied" on success.
+
+---
+
+UI reorganization.
+
+### Hash
+`097a4e6048f396046ac865952c730a29`
+
+### Changes
+1. **Moved individual export/import to the Advanced tab.** The per-business "Export categories/parties/accounts" and "Import categories/parties/accounts" controls were moved out of the Business tab and consolidated under the existing **Advanced → Backup &amp; restore (this business)** section, alongside the whole-business backup/restore. Note: the Advanced tab is owner-only, so these individual export/import controls are now owner-only as well (previously also available to managers) — consistent with the whole-business backup/restore that already lived there.
+
+---
 
 Bug fixes and refinements to the v89.32.0 feature batch.
 

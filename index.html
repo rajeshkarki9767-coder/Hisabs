@@ -5694,6 +5694,19 @@
     border: 1px solid rgba(43, 95, 138, 0.25);
   }
   .contact-link-mail:hover { background: rgba(43, 95, 138, 0.18); }
+  /* v89.32.3: neutral "Copy"/"Open" pills for social handles. Button reset
+     so the copy button matches the anchor links visually, with an accent tint
+     that adapts to the theme. */
+  .contact-link-copy, .contact-link-social {
+    background: rgba(127, 127, 127, 0.10);
+    color: var(--ink-soft, var(--ink));
+    border: 1px solid var(--line);
+    font-family: inherit;
+    cursor: pointer;
+    line-height: 1.4;
+  }
+  .contact-link-copy:hover, .contact-link-social:hover { background: rgba(127, 127, 127, 0.18); }
+  .contact-link-copy.copied { background: rgba(46, 93, 58, 0.18); color: var(--gain); border-color: rgba(46, 93, 58, 0.3); }
   /* Dark mode overrides — the light-mode rgba tints (alpha 0.10-0.18 over
      a near-black page) become nearly invisible. We bump alpha up and use
      the dark-mode chart palette colours for the text so contrast stays
@@ -8747,14 +8760,19 @@
           const plat = escapeHtml(String(s.platform).trim());
           const handleRaw = String(s.handle || '').trim();
           const safeHandle = escapeHtml(handleRaw);
-          // If the handle looks like a URL, make it a clickable link.
-          let linkHTML = '';
+          const links = [];
+          // If the handle looks like a URL, offer to open it.
           if (/^https?:\/\//i.test(handleRaw)) {
-            linkHTML = `<a class="contact-link contact-link-social" href="${escapeHtml(handleRaw)}" target="_blank" rel="noopener noreferrer" title="Open ${plat}">Open</a>`;
+            links.push(`<a class="contact-link contact-link-social" href="${escapeHtml(handleRaw)}" target="_blank" rel="noopener noreferrer" title="Open ${plat}">Open</a>`);
+          }
+          // v89.32.3: copy the handle/link with one tap. Only shown when
+          // there's actually a handle to copy.
+          if (handleRaw) {
+            links.push(`<button type="button" class="contact-link contact-link-copy" onclick="copyTextValue('${jsAttr(handleRaw)}', this)" title="Copy ${plat}" aria-label="Copy ${plat} handle">Copy</button>`);
           }
           return `<div class="contact-multi-item">
             <span class="contact-multi-value"><strong>${plat}</strong>${handleRaw ? ' · ' + safeHandle : ''}</span>
-            <span class="contact-multi-links">${linkHTML}</span>
+            <span class="contact-multi-links">${links.join('')}</span>
           </div>`;
         }).join('');
       if (items) {
@@ -22197,6 +22215,40 @@
 
   // --- Quick Look actions ---
 
+  // v89.32.3: generic copy-to-clipboard for arbitrary text (used by the
+  // party contact card's social handles, and reusable elsewhere). Mirrors
+  // copyQuickLookTag's approach: clipboard API with a textarea fallback,
+  // plus a brief checkmark on the button. `text` is decoded from the
+  // button's data attribute by the caller, so it's already plain text.
+  async function copyTextValue(text, btn) {
+    const value = String(text == null ? '' : text);
+    if (!value) return;
+    const flash = () => {
+      if (!btn) return;
+      btn.classList.add('copied');
+      const orig = btn.textContent;
+      btn.textContent = 'Copied';
+      setTimeout(() => { btn.classList.remove('copied'); btn.textContent = orig; }, 1200);
+    };
+    try {
+      await navigator.clipboard.writeText(value);
+      flash();
+      toast('Copied.');
+    } catch (e) {
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = value; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        flash();
+        toast('Copied.');
+      } catch (_) {
+        toast('Could not copy.');
+      }
+    }
+  }
+
   async function copyQuickLookTag(id, btn) {
     const row = (data.quickLook || []).find(r => r.id === id);
     if (!row || !row.tag) return;
@@ -24693,25 +24745,6 @@
         </ul>
       </div>` : ''}
 
-      ${canManage ? `
-      <div class="settings-section">
-        <h3 class="settings-heading">Backup &amp; import (this business)</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.5rem;">Export an individual list from <strong>${escapeHtml(biz.name)}</strong> to a file, or merge a list in from a backup file. On import, items whose name matches an existing one are updated; new names are added. Nothing is ever deleted, and transactions/entries are not included.</p>
-        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.4rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Export</p>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;">
-          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','categories')" title="Download this business's categories as a file">Export categories</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','parties')" title="Download this business's parties as a file">Export parties</button>
-          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','cashAccounts')" title="Download this business's accounts as a file">Export accounts</button>
-        </div>
-        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.2rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Import</p>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['categories'], 'categories')" title="Merge categories from a backup file">Import categories…</button>
-          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['parties'], 'parties')" title="Merge parties from a backup file">Import parties…</button>
-          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['cashAccounts'], 'accounts')" title="Merge accounts from a backup file">Import accounts…</button>
-        </div>
-        <input type="file" id="mergeImportFileBiz" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
-      </div>` : ''}
-
       <!-- v78: Keyboard shortcuts — single button that opens the same
            cheat-sheet modal the ? key brings up. Sits right below Books
            per the user's spec, so anyone exploring business settings
@@ -24805,6 +24838,25 @@
           <button class="btn btn-sm btn-ghost" onclick="restoreBusinessPrompt()">Restore from file…</button>
         </div>
         <input type="file" id="restoreFile" accept="application/json,.json" style="display:none;" onchange="restoreBusinessFromFile(event)">
+
+        <!-- v89.32.2: individual list export/import, moved here from the
+             Identity tab. Export one list to a file, or merge a list in
+             from a backup file. On import, matching names are updated and
+             new names added; nothing is deleted; entries are not included. -->
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:1rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Export individual lists</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','categories')" title="Download this business's categories as a file">Export categories</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','parties')" title="Download this business's parties as a file">Export parties</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','cashAccounts')" title="Download this business's accounts as a file">Export accounts</button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.2rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Import individual lists</p>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0 0 0.4rem;">Matching names are updated; new names are added. Nothing is deleted, and transactions/entries are not imported.</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['categories'], 'categories')" title="Merge categories from a backup file">Import categories…</button>
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['parties'], 'parties')" title="Merge parties from a backup file">Import parties…</button>
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['cashAccounts'], 'accounts')" title="Merge accounts from a backup file">Import accounts…</button>
+        </div>
+        <input type="file" id="mergeImportFileBiz" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
       </div>
 
       <div class="settings-section">
