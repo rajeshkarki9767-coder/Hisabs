@@ -1,7 +1,10 @@
+# ⚠️ This bundle ships **v89.31.5** — index.html md5 `65a7405259fb3ca58442655d2e04488d`
+# (The historical notes below describe earlier v89.30.x work and are kept for reference.)
+
 # Hisabs v89.30.4 — distribution placement (refined)
 
 ```
-index.html:  e121b93f023d17c6bd117c9755b7f6b7
+index.html:  65a7405259fb3ca58442655d2e04488d
 vercel.json: 28c00b0c24a3a0f7c910e816d2493cf9 (unchanged — media-src for sounds)
 ```
 
@@ -119,7 +122,7 @@ See **V89_28_SETUP.md**:
 cd ~/Documents/GitHub/hisabs
 cp ~/Downloads/hisabs_v89_27_final/index.html ./index.html
 md5sum index.html
-# expected: e121b93f023d17c6bd117c9755b7f6b7
+# expected: 65a7405259fb3ca58442655d2e04488d
 git add . && git commit -m "v89.30.4: distribution placement polish"
 git push
 ```

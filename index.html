@@ -1859,6 +1859,37 @@
   .profile-photo-actions { display: flex; flex-direction: column; gap: 0.4rem; }
   .profile-photo-actions .btn { white-space: nowrap; }
   .profile-photo-hint { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; }
+  /* v89.31.6: profile-photo crop overlay. Sits above the settings modal
+     (z-index higher than the modal backdrop) so the user can pan/zoom
+     and confirm before the photo is saved. */
+  .avatar-crop-backdrop {
+    position: fixed; inset: 0; z-index: 9999;
+    background: var(--modal-overlay, rgba(0,0,0,0.55));
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem; -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  }
+  .avatar-crop-dialog {
+    background: var(--surface-1); border: 1px solid var(--line);
+    border-radius: var(--r-lg, 14px); box-shadow: var(--shadow-lg);
+    width: 100%; max-width: 340px; padding: 1.1rem 1.1rem 1rem;
+    display: flex; flex-direction: column; gap: 0.85rem;
+  }
+  .avatar-crop-title { font-family: var(--font-sans); font-weight: 600; font-size: 0.95rem; color: var(--ink); text-align: center; }
+  /* Square stage where the image is panned/zoomed; circular mask preview. */
+  .avatar-crop-stage {
+    position: relative; width: 100%; aspect-ratio: 1 / 1;
+    background: #000; border-radius: 50%; overflow: hidden;
+    touch-action: none; cursor: grab; margin: 0 auto; max-width: 260px;
+    border: 2px solid var(--line);
+  }
+  .avatar-crop-stage:active { cursor: grabbing; }
+  .avatar-crop-stage img { position: absolute; left: 0; top: 0; transform-origin: 0 0; user-select: none; -webkit-user-drag: none; pointer-events: none; }
+  .avatar-crop-zoom-row { display: flex; align-items: center; gap: 0.5rem; }
+  .avatar-crop-zoom-row label { font-size: 0.72rem; color: var(--ink-mute); flex-shrink: 0; }
+  .avatar-crop-zoom-row input[type="range"] { flex: 1; accent-color: var(--accent); }
+  .avatar-crop-actions { display: flex; gap: 0.55rem; justify-content: flex-end; }
+  .avatar-crop-actions .btn { flex: 1; justify-content: center; }
+  .avatar-crop-hint { font-size: 0.68rem; color: var(--ink-mute); text-align: center; }
   .user-chip > div:last-child { min-width: 0; flex: 1; }
   .user-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 0.78rem; }
   .user-role { font-size: 0.62rem; color: var(--sidebar-text-faint); }
@@ -5195,6 +5226,27 @@
        sit just left of it rather than under it. */
     .card-count-chip { right: 2.3rem; }
   }
+  /* v89.31.6: entry-count badge shown inline next to the item NAME in the
+     party/category/account DETAIL views (replaces the on-card chip). Sits
+     to the right of the h1 title, vertically centred, subtle. */
+  .detail-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    margin-left: 0.55rem;
+    padding: 0.12rem 0.5rem;
+    background: var(--paper-deep);
+    border: 1px solid var(--line);
+    border-radius: 100px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  .detail-count-badge .detail-count-label { font-family: var(--font-sans); font-weight: 500; color: var(--ink-mute); }
   /* v89.31.4: small green dot shown after the party name when the party
      has a phone or email saved. Lets the user scan the list and see at
      a glance which parties still need contact details. */
@@ -5207,6 +5259,27 @@
     margin-left: 0.4rem;
     vertical-align: middle;
     flex-shrink: 0;
+  }
+  /* v89.31.6: replace the single green "has contact" dot with small text
+     badges — "SMS" when a phone is saved, "Email" when an email is saved,
+     both when both. Blue outline, uppercase, sits after the party name. */
+  .party-contact-tag {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 0.35rem;
+    padding: 0.04rem 0.34rem;
+    font-family: var(--font-sans);
+    font-size: 0.56rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    color: var(--accent-readable, #2563eb);
+    border: 1px solid var(--accent, #2563eb);
+    border-radius: 4px;
+    vertical-align: middle;
+    flex-shrink: 0;
+    white-space: nowrap;
   }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
@@ -6396,9 +6469,11 @@
     html, body { background: #fff !important; color: #000 !important; }
     body { font-size: 11pt; line-height: 1.4; }
 
-    /* v89.30 fix #2 (print): hide entry-no-badge when printing — matches
-       the removed Invoice # column in PDF/CSV exports. */
-    .entry-no-badge { display: none !important; }
+    /* v89.31.6: the Invoice # column was re-added to PDF/CSV exports in
+       v89.31.4, so the on-screen entry-no badge should ALSO appear on the
+       printed page / screenshot (the prior v89.30 rule that hid it is
+       removed). Keep it readable in print colors. */
+    .entry-no-badge { display: inline-block !important; color: #000 !important; background: transparent !important; border-color: #000 !important; }
 
     /* v89.30.4 (print): hide + Add buttons on Distribution when printing.
        Top button is in .dist-section-actions, bottom is in .dist-section-add-bottom. */
@@ -6842,7 +6917,7 @@
           <span class="search-overlay-icon">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
-          <input type="text" id="universalSearchInputMobile" placeholder="Search across everything…" autocomplete="off" oninput="onUniversalSearchInput(this.value, true)" onkeydown="onUniversalSearchKeydown(event, true)">
+          <input type="text" id="universalSearchInputMobile" placeholder="Search across everything…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" oninput="onUniversalSearchInput(this.value, true)" onkeydown="onUniversalSearchKeydown(event, true)">
         </div>
         <button class="search-overlay-close" onclick="closeSearchOverlay()" aria-label="Close search">Cancel</button>
       </div>
@@ -9711,6 +9786,19 @@
     const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
     return hasPhone || hasEmail;
   }
+  // v89.31.6: small "SMS" / "Email" text badges shown after a party name
+  // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
+  // email is saved, both if both. Returns '' when neither is present.
+  function partyContactBadges(party) {
+    const meta = party && party.meta;
+    if (!meta) return '';
+    const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
+    const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
+    let out = '';
+    if (hasPhone) out += '<span class="party-contact-tag" title="Phone number saved">SMS</span>';
+    if (hasEmail) out += '<span class="party-contact-tag" title="Email address saved">Email</span>';
+    return out;
+  }
   // v89.31.4: a small count chip shown at the top-right of party /
   // category / account cards, reflecting how many entries fall in the
   // active period filter (Today / This month / All time / custom). The
@@ -9719,8 +9807,21 @@
   // in the muted sub-line. Visible to ALL roles (unlike the in/out
   // money stats which stay owner/manager-only).
   function cardCountChip(count) {
+    // v89.31.6: removed from the list cards per user request. The total
+    // entry count for an item now appears next to its name in the detail
+    // view (openParty / openCategory / openAccount), not on the card.
+    // Kept as a no-op so existing call sites stay valid.
+    return '';
+  }
+  // v89.31.6: inline entry-count badge for the detail-view title. Shows the
+  // number of entries for the opened party/category/account in the active
+  // period, right next to its name. Visible to all roles (it's just a count,
+  // not money). Returns '' for a 0/undefined count is avoided — we still
+  // show "0 entries" so the header layout is consistent.
+  function detailCountBadge(count) {
     const n = count || 0;
-    return `<span class="card-count-chip" title="${n} ${n === 1 ? 'entry' : 'entries'} in the selected period">${n}</span>`;
+    const word = n === 1 ? 'entry' : 'entries';
+    return `<span class="detail-count-badge" title="${n} ${word} in the selected period">${n}<span class="detail-count-label">${word}</span></span>`;
   }
   // Who can see the Audit tab? Owner, manager, and viewer. Manager
   // has full operational authority over the business (add/edit/delete
@@ -10514,7 +10615,7 @@
           <span class="date-strip-search-icon">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
           </span>
-          <input type="text" id="universalSearchInput" placeholder="Search entries, parties, accounts, snapshots…" autocomplete="off" oninput="onUniversalSearchInput(this.value)" onfocus="onUniversalSearchFocus()" onkeydown="onUniversalSearchKeydown(event)">
+          <input type="text" id="universalSearchInput" placeholder="Search entries, parties, accounts, snapshots…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" oninput="onUniversalSearchInput(this.value)" onfocus="onUniversalSearchFocus()" onkeydown="onUniversalSearchKeydown(event)">
         </div>
         <div id="universalSearchDropdown"></div>
       </div>
@@ -11129,7 +11230,7 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore">
         </div>
         <select id="filterType" onchange="renderEntriesList()">
           <option value="all">All</option>
@@ -11809,9 +11910,19 @@
           // Most recently active (latest entry creation time) first.
           return (tb.lastCreated || 0) - (ta.lastCreated || 0);
         case 'recent-added':
-          // v89.31.4: most recently CREATED party first (when the party
-          // record itself was added, independent of entry activity).
-          return (b.createdAt || 0) - (a.createdAt || 0);
+          // v89.31.6: most recently CREATED party first. Prefer the
+          // millisecond timestamp (createdTs) so multiple parties added on
+          // the same day order correctly. Fall back to the date string,
+          // then to insertion order (later index = added later) so brand-new
+          // parties without a timestamp still surface at the top.
+          {
+            const tsa = a.createdTs || 0, tsb = b.createdTs || 0;
+            if (tsa !== tsb) return tsb - tsa;
+            const da = String(a.createdAt || ''), db = String(b.createdAt || '');
+            if (da !== db) return db.localeCompare(da);
+            const ia = data.parties.indexOf(a), ib = data.parties.indexOf(b);
+            return ib - ia;
+          }
         case 'recent-date':
           // Most recent entry DATE first (the picked date, not creation).
           return (tb.lastDate || '').localeCompare(ta.lastDate || '');
@@ -11876,7 +11987,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}${partyHasContact(p) ? '<span class="party-contact-dot" title="Has phone or email saved" aria-label="Has contact details"></span>' : ''}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}${partyContactBadges(p)}</div>
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
         ${createdByLine}
@@ -11910,7 +12021,7 @@
       ${renderPeriodBar()}
       ${totalParties >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="partiesSearchInput" class="entity-search-input" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
+        <input type="text" id="partiesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
         ${__partiesSearch ? `<button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
       </div>` : ''}
       ${totalParties >= 2 ? `<div class="parties-sort-row">
@@ -12058,7 +12169,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · party</div>
-          <h1 class="page-title">${escapeHtml(party.name)} ${renderPartyBirthdayBadge(party)}</h1>
+          <h1 class="page-title">${escapeHtml(party.name)} ${renderPartyBirthdayBadge(party)}${detailCountBadge(allEntries.length)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -12296,7 +12407,7 @@
       ${renderPeriodBar()}
       ${totalCats >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="categoriesSearchInput" class="entity-search-input" placeholder="Search categories…" value="${escapeHtml(__categoriesSearch)}" oninput="setCategoriesSearch(this.value)">
+        <input type="text" id="categoriesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search categories…" value="${escapeHtml(__categoriesSearch)}" oninput="setCategoriesSearch(this.value)">
         ${__categoriesSearch ? `<button class="entity-search-clear" onclick="setCategoriesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
       </div>` : ''}
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">How money flows by purpose. ${showTotals ? 'Totals reflect the period above.' : ''}</p>
@@ -12359,7 +12470,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · category</div>
-          <h1 class="page-title">${escapeHtml(displayName)}${!isUncat && !isDefined ? ' <span class="cat-orphan-tag" style="font-size:0.55em;vertical-align:middle;">unlisted</span>' : ''}</h1>
+          <h1 class="page-title">${escapeHtml(displayName)}${!isUncat && !isDefined ? ' <span class="cat-orphan-tag" style="font-size:0.55em;vertical-align:middle;">unlisted</span>' : ''}${detailCountBadge(entries.length)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -12788,7 +12899,7 @@
       })() : ''}
       ${totalAccountsAndGroups >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="accountsSearchInput" class="entity-search-input" placeholder="Search accounts…" value="${escapeHtml(__accountsSearch)}" oninput="setAccountsSearch(this.value)">
+        <input type="text" id="accountsSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search accounts…" value="${escapeHtml(__accountsSearch)}" oninput="setAccountsSearch(this.value)">
         ${__accountsSearch ? `<button class="entity-search-clear" onclick="setAccountsSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
       </div>` : ''}
       ${role === 'owner' && allAccs.length >= 2 ? `
@@ -15137,10 +15248,6 @@
         </div>
       </div>
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
-      ${roleFor(biz.id) !== 'owner' ? `
-      <div class="dist-view-only-banner">
-        <strong>View only</strong> — you can see how the owner has set up the distribution, but only the owner can change the salary, profit-share, and split values.
-      </div>` : ''}
 
       <!-- v75: Net profit (after tax) summary card. Lives at the top
            of the Distribution page so the user sees the bottom-line
@@ -15365,7 +15472,12 @@
     for (const [d, b] of mtdByDay.entries()) {
       const net = b.in - b.out;
       if (net > bestDay.net) bestDay = { day: d, net, in: b.in, out: b.out };
-      if (net < worstDay.net) worstDay = { day: d, net, in: b.in, out: b.out };
+      // v89.31.6: today's figures are still incomplete (the day isn't over),
+      // so a partial day would unfairly read as the "worst day". Exclude
+      // today from the worst-day scan and only consider fully-elapsed days.
+      // Best day can still legitimately be today (a big day stays big), so
+      // it's left eligible.
+      if (d !== todayDay && net < worstDay.net) worstDay = { day: d, net, in: b.in, out: b.out };
     }
     // If there was only one day of activity, best == worst — hide the
     // worst card to avoid an awkward identical pair. Same if no
@@ -18040,7 +18152,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · ${escapeHtml((data.accountGroups.find(g => g.id === acc.groupId)?.name || 'account').toLowerCase())}</div>
-          <h1 class="page-title">${escapeHtml(acc.name)}</h1>
+          <h1 class="page-title">${escapeHtml(acc.name)}${detailCountBadge(entries.length)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -18466,7 +18578,7 @@
           <input type="text" id="mPartyName" maxlength="120" value="${escapeHtml(p.name)}"${canRename ? '' : ' readonly'}>
           ${nameReadonlyHint}
         </div>
-        ${partyMetaFormHTML(p.meta || null)}
+        ${partyMetaFormHTML(p.meta || null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) })}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -19632,6 +19744,19 @@
       amt.addEventListener('keydown', (e) => {
         // Allow control combos (copy/paste/select-all/etc) and editing keys.
         if (e.ctrlKey || e.metaKey || e.altKey) return;
+        // v89.31.6: Left/Right arrow on the amount field switches Cash In /
+        // Cash Out (left = In, right = Out, matching the button layout).
+        // Previously the modal-level handler skipped this because focus is
+        // in an INPUT, so the shortcut never fired where the user actually
+        // types. We claim the arrows here on the amount field specifically.
+        if (e.key === 'ArrowLeft') {
+          if (document.getElementById('mType')) { setEntryType('in'); e.preventDefault(); }
+          return;
+        }
+        if (e.key === 'ArrowRight') {
+          if (document.getElementById('mType')) { setEntryType('out'); e.preventDefault(); }
+          return;
+        }
         const blocked = ['e', 'E', '+', '-'];
         if (blocked.includes(e.key)) {
           e.preventDefault();
@@ -20696,10 +20821,15 @@
     // single starter row — never for existing phones (edit flow), and
     // never if there's more than one row.
     const suggestion = (typeof o.phoneSuggestion === 'string') ? o.phoneSuggestion.trim() : '';
+    // v89.31.6: the example placeholder + the section hint should reflect
+    // the business's configured country code, not a hardcoded +977. When
+    // no code is configured we fall back to a neutral example.
+    const codeForExample = suggestion || '+977';
+    const phonePlaceholder = `${codeForExample} 98 1234 5678`;
     const phonesHTML = phones.map((p, i) => {
       const isEmptyStarter = phones.length === 1 && (!p || !String(p).trim());
       const prefill = (isEmptyStarter && suggestion) ? (suggestion + ' ') : p;
-      return partyPhoneRowHTML(prefill, i);
+      return partyPhoneRowHTML(prefill, i, phonePlaceholder);
     }).join('');
     const emailsHTML = emails.map((e, i) => partyEmailRowHTML(e, i)).join('');
     return `
@@ -20719,7 +20849,7 @@
         </div>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Phone numbers <span class="meta-optional">— optional, include country code like +977</span></div>
+        <div class="meta-section-label">Phone numbers <span class="meta-optional">— optional, include country code like ${escapeHtml(codeForExample)}</span></div>
         <div id="mPartyPhones" class="meta-multi-list">${phonesHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyPhoneRow()">+ Add another phone</button>
       </div>
@@ -20733,9 +20863,10 @@
         <textarea id="mPartyDescription" rows="2" maxlength="500" placeholder="Anything worth remembering — preferences, history, address, etc.">${escapeHtml(desc)}</textarea>
       </div>`;
   }
-  function partyPhoneRowHTML(value, idx) {
+  function partyPhoneRowHTML(value, idx, placeholder) {
+    const ph = placeholder || '+977 98 1234 5678';
     return `<div class="meta-multi-row">
-      <input type="tel" class="meta-multi-input meta-phone-input" maxlength="32" placeholder="+977 98 1234 5678" value="${escapeHtml(value || '')}" inputmode="tel" autocomplete="tel">
+      <input type="tel" class="meta-multi-input meta-phone-input" maxlength="32" placeholder="${escapeHtml(ph)}" value="${escapeHtml(value || '')}" inputmode="tel" autocomplete="tel">
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
@@ -20749,8 +20880,11 @@
     const list = document.getElementById('mPartyPhones');
     if (!list) return;
     if (list.children.length >= 10) { toast('Up to 10 phones.'); return; }
+    // v89.31.6: match the example placeholder to the business country code.
+    const sugg = bizPhoneCodeSuggestion(data.businesses.find(b => b.id === session.activeBizId));
+    const ph = `${sugg || '+977'} 98 1234 5678`;
     const wrap = document.createElement('div');
-    wrap.innerHTML = partyPhoneRowHTML('', list.children.length);
+    wrap.innerHTML = partyPhoneRowHTML('', list.children.length, ph);
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
@@ -20873,6 +21007,9 @@
       name,
       kind: 'both',
       createdAt: today(),
+      // v89.31.6: millisecond timestamp so "Recently added" sorts reliably
+      // even when several parties are created on the same calendar day.
+      createdTs: Date.now(),
       createdBy: u?.id || null,
       createdByName: u?.name || '',
       sortOrder: nextSortOrder(data.parties, 'businessId', biz.id),
@@ -20880,6 +21017,10 @@
       meta: meta || undefined,
     };
     data.parties.push(p);
+    // v89.31.6: jump to "Recently added" sort so the party the user just
+    // created is visible at the top of the list immediately.
+    session.partySortMode = 'recent-added';
+    try { saveSession(); } catch (_) {}
     saveData(); closeModal(); renderAll();
     toast('Party created.');
     // v89.31.0: write to activity log so other members see the addition.
@@ -21632,11 +21773,18 @@
     if (member.role === newRole) return;
     const label = (member.displayName || member.userLogin || 'this member').trim();
     const roleLabel = newRole === 'staff' ? 'Team' : (newRole.charAt(0).toUpperCase() + newRole.slice(1));
-    const ok = await uiConfirm(
+    // Two-step confirm. A role change alters what this person can see and
+    // do across the whole business, so we ask twice to prevent accidents.
+    const ok1 = await uiConfirm(
       `Change ${label}'s role to ${roleLabel}?`,
-      { title: 'Change role', confirmLabel: 'Change role' }
+      { title: 'Change role', confirmLabel: 'Continue' }
     );
-    if (!ok) { refreshStaffSurface(); return; } // revert the select
+    if (!ok1) { refreshStaffSurface(); return; } // revert the select
+    const ok2 = await uiConfirm(
+      `Are you sure? ${label} will immediately have ${roleLabel} permissions for this business.`,
+      { title: 'Confirm role change', confirmLabel: `Make ${roleLabel}` }
+    );
+    if (!ok2) { refreshStaffSurface(); return; } // revert the select
     member.role = newRole;
     // When moving OUT of the Team (staff) role, the per-member
     // "sees totals" flag no longer applies (managers/viewers always
@@ -21763,7 +21911,7 @@
       </p>
       ${all.length >= 4 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="quickLookSearch" class="entity-search-input" placeholder="Search ${all.length} entries by name or tag…" value="${escapeHtml(__quickLookSearch)}" oninput="setQuickLookSearch(this.value)">
+        <input type="text" id="quickLookSearch" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search ${all.length} entries by name or tag…" value="${escapeHtml(__quickLookSearch)}" oninput="setQuickLookSearch(this.value)">
         ${__quickLookSearch ? `<button class="entity-search-clear" onclick="setQuickLookSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
       </div>` : ''}
       <div class="ql-tabs" role="tablist">
@@ -24196,14 +24344,13 @@
         <h3 class="settings-heading">Your account</h3>
         <div class="form-grid">
           <div class="input-wrap">
-            <label>Profile picture</label>
             <div class="profile-photo-row">
               <div class="profile-photo-preview${u.avatar ? ' has-photo' : ''}" id="profilePhotoPreview"${u.avatar ? ` style="background-image:url('${u.avatar}')"` : ''}>${escapeHtml((u.name && u.name.trim() ? u.name.trim()[0] : '?').toUpperCase())}</div>
               <div class="profile-photo-actions">
                 <input type="file" id="profilePhotoInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="onProfilePhotoSelected(event)">
                 <button type="button" class="btn btn-sm" onclick="document.getElementById('profilePhotoInput').click()">${u.avatar ? 'Change photo' : 'Upload photo'}</button>
                 ${u.avatar ? `<button type="button" class="btn btn-sm btn-ghost" onclick="removeProfilePhoto()">Remove</button>` : ''}
-                <div class="profile-photo-hint">JPG, PNG or WebP. Cropped to a circle.</div>
+                <div class="profile-photo-hint">JPG, PNG or WebP. You can crop before saving.</div>
               </div>
             </div>
           </div>
@@ -25093,6 +25240,10 @@
   // a small square JPEG data URL so it's cheap to store in localStorage
   // and to sync. Max ~256px, JPEG q0.8 — typically a few KB to ~30KB.
   const PROFILE_AVATAR_MAX_PX = 256;
+  // v89.31.6: after the user picks a file we no longer auto-crop. Instead
+  // we open an interactive crop dialog (pan + zoom) and only save once the
+  // user confirms. State for the active crop session lives here.
+  let __avatarCropState = null;
   function onProfilePhotoSelected(event) {
     const file = event && event.target && event.target.files && event.target.files[0];
     // Reset the input so picking the same file again re-fires change.
@@ -25108,31 +25259,162 @@
     reader.onload = () => {
       const img = new Image();
       img.onerror = () => toast("Couldn't load that image.");
-      img.onload = () => {
-        try {
-          // Center-crop to a square, then scale down to <= MAX_PX.
-          const side = Math.min(img.width, img.height);
-          const sx = Math.floor((img.width - side) / 2);
-          const sy = Math.floor((img.height - side) / 2);
-          const target = Math.min(PROFILE_AVATAR_MAX_PX, side);
-          const canvas = document.createElement('canvas');
-          canvas.width = target; canvas.height = target;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, sx, sy, side, side, 0, 0, target, target);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          if (!dataUrl || dataUrl.length < 32) { toast("Couldn't process that image."); return; }
-          // Safety cap: if compression still produced something huge,
-          // bail rather than risk overflowing localStorage.
-          if (dataUrl.length > 500 * 1024) { toast('That image is too detailed to save — try a simpler one.'); return; }
-          saveProfileAvatar(dataUrl);
-        } catch (e) {
-          console.warn('avatar processing failed:', e);
-          toast("Couldn't process that image.");
-        }
-      };
+      img.onload = () => openAvatarCropper(img);
       img.src = reader.result;
     };
     reader.readAsDataURL(file);
+  }
+
+  // Build and show the crop dialog. The user pans by dragging and zooms
+  // with the slider; the circular stage previews exactly what will be
+  // saved. Confirm renders the visible region to a square canvas.
+  function openAvatarCropper(img) {
+    closeAvatarCropper(); // clear any prior session
+    // STAGE is the rendered pixel size of the circular crop area. The CSS
+    // caps it at 260px but on a narrow phone the dialog (and thus the
+    // stage) can render smaller, so we MEASURE it after it's in the DOM
+    // rather than assuming 260 — otherwise pan/clamp coordinates drift.
+    let STAGE = 260;
+    // Base scale = "cover" the circle (min zoom so no empty gaps).
+    let baseScale = Math.max(STAGE / img.naturalWidth, STAGE / img.naturalHeight);
+    const state = {
+      img, STAGE, baseScale,
+      zoom: 1,                 // multiplier on top of baseScale
+      // Center the image initially.
+      x: 0, y: 0,
+      dragging: false, lastX: 0, lastY: 0,
+    };
+    // Center: position so the scaled image is centered in the stage.
+    const recenter = () => {
+      const s = state.baseScale * state.zoom;
+      state.x = (state.STAGE - img.naturalWidth * s) / 2;
+      state.y = (state.STAGE - img.naturalHeight * s) / 2;
+    };
+    recenter();
+    __avatarCropState = state;
+
+    const bd = document.createElement('div');
+    bd.className = 'avatar-crop-backdrop';
+    bd.id = 'avatarCropBackdrop';
+    bd.innerHTML = `
+      <div class="avatar-crop-dialog" role="dialog" aria-label="Crop photo">
+        <div class="avatar-crop-title">Crop photo</div>
+        <div class="avatar-crop-stage" id="avatarCropStage"></div>
+        <div class="avatar-crop-hint">Drag to reposition</div>
+        <div class="avatar-crop-zoom-row">
+          <label for="avatarCropZoom">Zoom</label>
+          <input type="range" id="avatarCropZoom" min="1" max="4" step="0.01" value="1">
+        </div>
+        <div class="avatar-crop-actions">
+          <button type="button" class="btn btn-sm btn-ghost" id="avatarCropCancel">Cancel</button>
+          <button type="button" class="btn btn-sm btn-accent" id="avatarCropConfirm">Confirm</button>
+        </div>
+      </div>`;
+    document.body.appendChild(bd);
+
+    const stage = bd.querySelector('#avatarCropStage');
+    // Now that the stage is laid out, read its true rendered size and
+    // recompute scale/centering against it.
+    const measured = Math.round(stage.clientWidth || stage.getBoundingClientRect().width || 260);
+    if (measured > 0) {
+      STAGE = measured;
+      baseScale = Math.max(STAGE / img.naturalWidth, STAGE / img.naturalHeight);
+      state.STAGE = STAGE;
+      state.baseScale = baseScale;
+      recenter();
+    }
+    const imgEl = document.createElement('img');
+    imgEl.src = img.src;
+    imgEl.alt = '';
+    stage.appendChild(imgEl);
+    state.imgEl = imgEl;
+
+    const apply = () => {
+      const s = state.baseScale * state.zoom;
+      imgEl.style.width = (img.naturalWidth * s) + 'px';
+      imgEl.style.height = (img.naturalHeight * s) + 'px';
+      imgEl.style.transform = `translate(${state.x}px, ${state.y}px)`;
+    };
+    // Clamp pan so the image always covers the circle (no gaps).
+    const clamp = () => {
+      const s = state.baseScale * state.zoom;
+      const w = img.naturalWidth * s, h = img.naturalHeight * s;
+      state.x = Math.min(0, Math.max(state.STAGE - w, state.x));
+      state.y = Math.min(0, Math.max(state.STAGE - h, state.y));
+    };
+    clamp(); apply();
+
+    // Pointer drag to pan.
+    stage.addEventListener('pointerdown', (e) => {
+      state.dragging = true; state.lastX = e.clientX; state.lastY = e.clientY;
+      try { stage.setPointerCapture(e.pointerId); } catch (_) {}
+    });
+    stage.addEventListener('pointermove', (e) => {
+      if (!state.dragging) return;
+      state.x += e.clientX - state.lastX;
+      state.y += e.clientY - state.lastY;
+      state.lastX = e.clientX; state.lastY = e.clientY;
+      clamp(); apply();
+    });
+    const endDrag = () => { state.dragging = false; };
+    stage.addEventListener('pointerup', endDrag);
+    stage.addEventListener('pointercancel', endDrag);
+    stage.addEventListener('pointerleave', endDrag);
+
+    // Zoom slider — keep the stage center fixed while zooming.
+    const zoomEl = bd.querySelector('#avatarCropZoom');
+    zoomEl.addEventListener('input', () => {
+      const newZoom = parseFloat(zoomEl.value) || 1;
+      const oldS = state.baseScale * state.zoom;
+      const newS = state.baseScale * newZoom;
+      // Point under the stage center stays under the center.
+      const cx = state.STAGE / 2, cy = state.STAGE / 2;
+      const imgCx = (cx - state.x) / oldS;
+      const imgCy = (cy - state.y) / oldS;
+      state.zoom = newZoom;
+      state.x = cx - imgCx * newS;
+      state.y = cy - imgCy * newS;
+      clamp(); apply();
+    });
+
+    bd.querySelector('#avatarCropCancel').addEventListener('click', closeAvatarCropper);
+    bd.querySelector('#avatarCropConfirm').addEventListener('click', confirmAvatarCrop);
+    // Backdrop click (outside dialog) cancels.
+    bd.addEventListener('pointerdown', (e) => { if (e.target === bd) closeAvatarCropper(); });
+  }
+
+  function closeAvatarCropper() {
+    const bd = document.getElementById('avatarCropBackdrop');
+    if (bd) bd.remove();
+    __avatarCropState = null;
+  }
+
+  // Render the visible circular region to a square canvas and save.
+  function confirmAvatarCrop() {
+    const st = __avatarCropState;
+    if (!st) return;
+    try {
+      const { img, STAGE, baseScale, zoom, x, y } = st;
+      const s = baseScale * zoom;
+      // Map the stage (0..STAGE) back into source-image pixels.
+      const srcX = -x / s, srcY = -y / s, srcSide = STAGE / s;
+      const target = PROFILE_AVATAR_MAX_PX;
+      const canvas = document.createElement('canvas');
+      canvas.width = target; canvas.height = target;
+      const ctx = canvas.getContext('2d');
+      // White backdrop in case of any transparency (JPEG has none).
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, target, target);
+      ctx.drawImage(img, srcX, srcY, srcSide, srcSide, 0, 0, target, target);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      if (!dataUrl || dataUrl.length < 32) { toast("Couldn't process that image."); return; }
+      if (dataUrl.length > 500 * 1024) { toast('That image is too detailed to save — try a simpler one.'); return; }
+      closeAvatarCropper();
+      saveProfileAvatar(dataUrl);
+    } catch (e) {
+      console.warn('avatar crop failed:', e);
+      toast("Couldn't process that image.");
+      closeAvatarCropper();
+    }
   }
   async function saveProfileAvatar(dataUrl) {
     const u = me();
@@ -30714,6 +30996,14 @@
         if (hasLocalUnsynced) {
           maybeWarnConflict(localKey, newRow.id, 'updated', { remote: restored, local: list[idx] });
         }
+        // v89.31.6: parties carry a precise local createdTs (Date.now())
+        // used for "Recently added" sorting. The remote row only has a
+        // date-derived timestamp, so if the local record already has a
+        // finer createdTs, keep it rather than coarsening to midnight.
+        if (localKey === 'parties' && list[idx] && list[idx].createdTs
+            && (!restored.createdTs || list[idx].createdTs > restored.createdTs)) {
+          restored.createdTs = list[idx].createdTs;
+        }
         list[idx] = restored;
       }
       // If a member row about US just changed to an explicit
@@ -30974,6 +31264,11 @@
         id: r.id, businessId: r.business_id,
         name: r.name, kind: r.kind, sortOrder: r.sort_order,
         createdAt: r.created_at_local || '',
+        // v89.31.6: derive a sortable timestamp from the stored date so
+        // "Recently added" still orders pulled parties sensibly. Locally
+        // created parties keep their precise Date.now() createdTs; this is
+        // only a fallback for records that arrived from the cloud.
+        createdTs: r.created_at_local ? (Date.parse(r.created_at_local) || 0) : 0,
         createdBy: r.created_by || null,
         createdByName: r.created_by_name || '',
         meta: r.meta || null,

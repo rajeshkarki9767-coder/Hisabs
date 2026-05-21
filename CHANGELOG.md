@@ -12,7 +12,36 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.31.5] — 2026-05-21
+## [v89.31.6] — 2026-05-21
+
+A focused refinement batch responding to user feedback across Settings, Team & Access, New Entry, Parties, Insights, Distribution, exports, and search.
+
+### Hash
+`fede32240f3d7d67f5a93b234291c444`
+
+### Added
+- **Crop & confirm before saving a profile photo** — picking a photo in Settings → Your account now opens a crop dialog (drag to reposition, zoom slider) so you choose exactly what gets saved, instead of an automatic centre-crop.
+- **Entry-count badge in detail views** — opening a party, category, or account shows the number of entries (for the active period) right next to its name in the header.
+- **SMS / Email contact badges on Parties** — a saved phone shows a small "SMS" badge and a saved email shows an "Email" badge after the party name (blue outline), replacing the previous single green dot. Both appear when both are saved.
+
+### Changed
+- **Double confirmation for role changes** — changing a team member's role on Team & Access now asks twice before applying (removal already required two steps).
+- **Country code now drives party phone fields everywhere** — the example placeholder and hint in both New Party and Edit Party reflect the business's configured country code (e.g. `+1` for a US business) instead of always showing `+977`. Newly-added phone rows follow suit.
+- **Recently-added party sorts to the top reliably** — creating a party now jumps the list to "Recently added" and the new party appears first, even when several parties are created on the same day (previously same-day parties could tie and not surface).
+- **Entry count removed from the list cards** — the count chip no longer sits on the Parties / Categories / Accounts cards; it lives in the detail header instead (see Added).
+- **Insights "worst day" excludes today** — because today's figures are still incomplete, the worst-day card now considers only fully-elapsed days. The best-day card can still be today.
+- **Removed the "View only" banner on Distribution** for managers and viewers. The page remains read-only for non-owners (inputs stay disabled) — only the notice was removed.
+
+### Fixed
+- **Arrow-key Cash In / Cash Out shortcut now works on the New Entry card.** Left arrow selects Cash In, right arrow selects Cash Out, even while the amount field has focus (previously the shortcut was suppressed whenever an input was focused, which is almost always during entry).
+- **Invoice number now prints.** The on-screen invoice-number badge was hidden by a stale print rule from when the Invoice # column had been removed from PDF/CSV; that column was re-added in v89.31.4, so the badge now appears in printed pages and screenshots too.
+- **No more browser "recent search" suggestions.** All seven search fields (universal search desktop + mobile, entries, parties, categories, accounts, quick-look) now fully suppress native autocomplete/history.
+
+### Notes
+- No new SQL migration is required for this batch. The party `createdTs` value is derived locally (and reconstructed from the stored date for cloud-pulled records), so no schema change was needed.
+- Existing v89.31.4 + v89.31.5 migrations are still required for a first deploy (all idempotent).
+
+
 
 A small follow-up batch: team-management refinements, a polished post-sign-in splash, and profile pictures.
 
