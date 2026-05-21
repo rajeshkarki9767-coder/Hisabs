@@ -12,7 +12,20 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.31.6] — 2026-05-21
+## [v89.31.8] — 2026-05-21
+
+Three user-requested refinements to Parties, Team & Access, and Business Settings, plus a dead-code cleanup.
+
+### Hash
+`476177bb255db3182b9a35f0be943ad0`
+
+### Changes
+1. **Parties — contact badges below the name.** The "SMS" / "Email" badges on a party card now sit on their own row directly below the party name (previously inline to its right) and use a fixed blue (`#2563eb`) regardless of the active theme accent.
+2. **Business Settings — removed the totals description.** The note explaining that totals visibility is set per team member has been removed from Business Settings. The per-member **"Sees totals on entries"** toggle remains on the **Team & Access** page (staff can still be individually granted totals on the Entries view); owners, managers, and viewers always see totals.
+3. **Business Settings — "Set Dial code" free-text field.** Replaced the country-code dropdown (which collided US/Canada on the shared `+1` value, flipping US→Canada on save/reload) with a free-text input. Users can enter any dial code; it's normalized to a clean `+<digits>` form and round-trips exactly. No example codes are shown in the field's placeholder or help text. Blank falls back to a currency-derived code. The entered code prefills the phone field when creating or editing a party (existing party phones are never overwritten). 8 `normalizeDialCode` self-tests (suite 53/53).
+4. **Cleanup.** Removed three now-orphaned items left over from the above changes: the `phoneCodeOptionsHTML` function (old dropdown builder, 0 callers), the `partyHasContact` function (superseded by `partyContactBadges`), and the `.party-contact-dot` CSS rule (the old green-dot indicator). No behavior change; ~2.2 KB smaller.
+
+---
 
 A focused refinement batch responding to user feedback across Settings, Team & Access, New Entry, Parties, Insights, Distribution, exports, and search.
 

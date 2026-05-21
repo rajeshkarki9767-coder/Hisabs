@@ -5247,26 +5247,21 @@
     white-space: nowrap;
   }
   .detail-count-badge .detail-count-label { font-family: var(--font-sans); font-weight: 500; color: var(--ink-mute); }
-  /* v89.31.4: small green dot shown after the party name when the party
-     has a phone or email saved. Lets the user scan the list and see at
-     a glance which parties still need contact details. */
-  .party-contact-dot {
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--gain);
-    margin-left: 0.4rem;
-    vertical-align: middle;
-    flex-shrink: 0;
-  }
   /* v89.31.6: replace the single green "has contact" dot with small text
      badges — "SMS" when a phone is saved, "Email" when an email is saved,
-     both when both. Blue outline, uppercase, sits after the party name. */
+     both when both. Blue, uppercase. v89.31.7: now sit on their OWN ROW
+     directly below the party name (not inline to its right), and use a
+     fixed blue regardless of the active theme accent. */
+  .party-contact-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.18rem;
+    margin-bottom: 0.12rem;
+  }
   .party-contact-tag {
     display: inline-flex;
     align-items: center;
-    margin-left: 0.35rem;
     padding: 0.04rem 0.34rem;
     font-family: var(--font-sans);
     font-size: 0.56rem;
@@ -5274,8 +5269,8 @@
     letter-spacing: 0.04em;
     text-transform: uppercase;
     line-height: 1.4;
-    color: var(--accent-readable, #2563eb);
-    border: 1px solid var(--accent, #2563eb);
+    color: #2563eb;
+    border: 1px solid #2563eb;
     border-radius: 4px;
     vertical-align: middle;
     flex-shrink: 0;
@@ -7027,26 +7022,19 @@
     const fromCur = CURRENCY_TO_PHONE_CODE[biz.currency];
     return (typeof fromCur === 'string') ? fromCur : '';
   }
-  // Build the <option> list for the Business Settings country-code
-  // picker. The first option is "Auto (from currency)" which clears
-  // the explicit override. `selected` is the stored biz.phoneCountryCode
-  // (may be '' meaning auto).
-  function phoneCodeOptionsHTML(selected, currency) {
-    const auto = CURRENCY_TO_PHONE_CODE[currency];
-    const autoLabel = (typeof auto === 'string' && auto)
-      ? `Auto — from currency (${auto})`
-      : 'Auto — from currency';
-    const isAuto = !selected;
-    let html = `<option value=""${isAuto ? ' selected' : ''}>${autoLabel}</option>`;
-    // De-dup by code so e.g. US/Canada (+1) don't both clutter, but keep
-    // both country labels since they help the owner pick meaningfully.
-    html += PHONE_COUNTRY_CODES.map(pc => {
-      const val = pc.code;
-      const sel = (!isAuto && selected === val) ? ' selected' : '';
-      const label = pc.code ? `${pc.country} (${pc.code})` : `${pc.country}`;
-      return `<option value="${escapeHtml(val)}"${sel}>${escapeHtml(label)}</option>`;
-    }).join('');
-    return html;
+  // v89.31.7: normalize a free-text dial code entered in Business Settings.
+  // Trims, removes internal whitespace, and ensures a single leading "+"
+  // when the user typed bare digits (e.g. "977" -> "+977"). A blank stays
+  // blank (meaning "no prefix"). Keeps any user-entered "+" and digits only.
+  function normalizeDialCode(raw) {
+    if (typeof raw !== 'string') return '';
+    let s = raw.trim();
+    if (!s) return '';
+    // Keep only digits; drop spaces, dashes, parentheses, a leading +, etc.,
+    // then present a clean "+<digits>" form.
+    const digits = s.replace(/[^0-9]/g, '');
+    if (!digits) return '';
+    return '+' + digits;
   }
   function currencyDisplay(code) {
     const c = currencyInfo(code);
@@ -8825,6 +8813,15 @@
     check('suggest EUR -> ""',     bizPhoneCodeSuggestion({ currency: 'EUR' }) === '');
     check('suggest override wins', bizPhoneCodeSuggestion({ currency: 'NPR', phoneCountryCode: '+44' }) === '+44');
     check('suggest null biz -> ""', bizPhoneCodeSuggestion(null) === '');
+    // v89.31.7: free-text dial-code normalizer
+    check('dial "+977" -> +977',   normalizeDialCode('+977') === '+977');
+    check('dial "977" -> +977',    normalizeDialCode('977') === '+977');
+    check('dial "+1" stays +1',    normalizeDialCode('+1') === '+1');
+    check('dial "+256 " trims',    normalizeDialCode('+256 ') === '+256');
+    check('dial "+1 (US)" cleans', normalizeDialCode('+1 (US)') === '+1');
+    check('dial blank -> ""',      normalizeDialCode('') === '');
+    check('dial spaces -> ""',     normalizeDialCode('   ') === '');
+    check('dial non-string -> ""', normalizeDialCode(null) === '');
 
     // === Sum entries ===
     const sums = sumEntries([
@@ -9694,15 +9691,12 @@
     // Owner, manager, viewer always see totals — viewer is a trusted read-only role
     // (accountant, business partner). Staff is the only role gated by the owner toggle.
     if (role === 'owner' || role === 'manager' || role === 'viewer') return true;
-    // v89.31.5: For staff, totals visibility is now a PER-MEMBER flag
-    // (`member.seesTotals`), set by the owner on the Team & Access page,
-    // and defaulting to OFF. (It used to be one business-wide toggle.)
-    //
+    // For staff, totals visibility is a PER-MEMBER flag (`member.seesTotals`),
+    // set by the owner on the Team & Access page, defaulting to OFF.
     // We find the current viewer's own accepted member row for this
     // business and read its seesTotals. We also snapshot the answer to
     // the persistent access cache so the result is stable across the
-    // refresh→cloudPullAll race (same reasoning as before: avoids a
-    // one-frame flash when the value changes).
+    // refresh→cloudPullAll race (avoids a one-frame flash on change).
     const u = me();
     if (!u) return false;
     const myLogin = normalize(u.login);
@@ -9774,18 +9768,6 @@
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager' || role === 'staff';
   }
-  // v89.31.4: does a party have at least one phone or email saved?
-  // Used to show a small "has contact" dot next to the party name on
-  // the Parties list so the user can tell at a glance which parties
-  // still need contact details filled in. DOB and description do NOT
-  // count — the dot specifically signals "I can reach this person".
-  function partyHasContact(party) {
-    const meta = party && party.meta;
-    if (!meta) return false;
-    const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
-    const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
-    return hasPhone || hasEmail;
-  }
   // v89.31.6: small "SMS" / "Email" text badges shown after a party name
   // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
   // email is saved, both if both. Returns '' when neither is present.
@@ -9797,7 +9779,10 @@
     let out = '';
     if (hasPhone) out += '<span class="party-contact-tag" title="Phone number saved">SMS</span>';
     if (hasEmail) out += '<span class="party-contact-tag" title="Email address saved">Email</span>';
-    return out;
+    if (!out) return '';
+    // v89.31.7: render the badges on their own row directly BELOW the name
+    // (previously appended inline to the right of the name).
+    return '<div class="party-contact-tags">' + out + '</div>';
   }
   // v89.31.4: a small count chip shown at the top-right of party /
   // category / account cards, reflecting how many entries fall in the
@@ -11987,7 +11972,8 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}${partyContactBadges(p)}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}</div>
+        ${partyContactBadges(p)}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
         ${createdByLine}
@@ -22993,10 +22979,9 @@
                  <option value="viewer"${m.role === 'viewer' ? ' selected' : ''}>Viewer</option>
                </select>`
             : `<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>`;
-          // v89.31.5: per-member "can see totals on entries" toggle. Only
-          // meaningful for the Team (staff) role — managers and viewers
-          // always see totals. Default OFF for staff. The toggle is shown
-          // only for accepted staff members.
+          // Per-member "can see totals on entries" toggle. Only meaningful
+          // for the Team (staff) role — managers and viewers always see
+          // totals. Default OFF for staff. Shown only for accepted staff.
           const seesTotalsRow = (isAccepted && m.role === 'staff')
             ? `<div class="staff-sees-row">
                  <span class="staff-sees-label">Sees totals on entries</span>
@@ -24154,7 +24139,7 @@
         <h3>Changing a member's role</h3>
         <p>On the <strong>Team &amp; access</strong> page, each member who has joined has a role dropdown next to their name. Pick a new role (Manager, Team, or Viewer) and confirm — the change takes effect for that person the next time their app syncs. Transferring <em>ownership</em> is a separate step in business settings.</p>
         <h3>Who can see totals</h3>
-        <p>This is now set <strong>per team member</strong>, right on the Team &amp; access page. Each <strong>Team</strong>-role member has a <strong>"Sees totals on entries"</strong> toggle, and it's <strong>off by default</strong> — turn it on for the people you want to see Cash In / Cash Out / Net and balances on the Entries view. Managers and viewers always see totals. Totals on the Parties, Categories, and Accounts views are always hidden from Team members regardless of this toggle.</p>
+        <p>This is set <strong>per team member</strong>, right on the Team &amp; access page. Each <strong>Team</strong>-role member has a <strong>"Sees totals on entries"</strong> toggle, <strong>off by default</strong> — turn it on for the people you want to see Cash In / Cash Out / Net and balances on the Entries view. Managers and viewers always see totals. Totals on the Parties, Categories, and Accounts views are always hidden from Team members regardless of this toggle.</p>
 
         <h2 id="ug-announcements">Announcements</h2>
         <p>Owners can post short announcements to their team — open <strong>Announcements</strong> (What's new group) and tap <strong>+ Post announcement</strong>. Important announcements show a warning badge and surface on the Entries view as well. Team members can react with a heart (double-tap on mobile or click the ♥ chip).</p>
@@ -24496,11 +24481,10 @@
           <div class="input-wrap"><label>Currency</label>
             <select id="setBizCur" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${currencyOptionsHTML(biz.currency)}</select>
           </div>
-          <div class="input-wrap"><label>Default country code <span style="font-weight:400;color:var(--ink-mute);font-size:0.78rem;">— suggested in new party phone</span></label>
-            <select id="setBizPhoneCode" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${phoneCodeOptionsHTML(biz.phoneCountryCode || '', biz.currency)}</select>
+          <div class="input-wrap"><label for="setBizPhoneCode">Set Dial code <span style="font-weight:400;color:var(--ink-mute);font-size:0.78rem;">— suggested in new party phone</span></label>
+            <input type="text" id="setBizPhoneCode" inputmode="tel" autocomplete="off" placeholder="Enter dial code" value="${escapeHtml(biz.phoneCountryCode || '')}" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>
+            <p style="font-size:0.74rem;color:var(--ink-mute);margin:0.3rem 0 0;">Enter your dial code. It appears as a suggestion when creating or editing a party's phone. Leave blank to fall back to a code based on the business currency.</p>
           </div>
-          ${isOwner ? `
-          <p style="font-size:0.8rem;color:var(--ink-mute);margin:0.25rem 0 0.1rem;">Control whether each team member can see totals on the entries view from <strong>Team &amp; access</strong> — it's now set per person.</p>` : ''}
           ${isOwner ? `<div style="display:flex;justify-content:flex-end;"><button class="btn btn-sm" onclick="saveBizSettings('${biz.id}')">Save business</button></div>` : '<p style="font-size:0.8rem;color:var(--ink-mute);">Only the owner can edit this business.</p>'}
         </div>
       </div>
@@ -25746,11 +25730,12 @@
     const cur = document.getElementById('setBizCur').value;
     if (!name) { toast('Business name required.'); return; }
     biz.name = name; biz.currency = cur || biz.currency;
-    // v89.31.4 (item 2): persist the default phone country code. Empty
-    // string ('') means "auto from currency" — we store it explicitly
-    // so bizPhoneCodeSuggestion() can tell auto from a deliberate blank.
+    // v89.31.7: persist the free-text dial code. Empty stays empty (no
+    // prefix). We normalize to a clean "+<digits>" form so the value is
+    // exactly what the user typed — fixing the old US/Canada (+1) dropdown
+    // collision where reload mismatched the shared value.
     const pcEl = document.getElementById('setBizPhoneCode');
-    if (pcEl) biz.phoneCountryCode = pcEl.value || '';
+    if (pcEl) biz.phoneCountryCode = normalizeDialCode(pcEl.value);
     saveData(); renderAll();
     toast('Business saved.');
     openModal('settings');
@@ -25816,11 +25801,9 @@
       toast('You already have another business with that name.'); return;
     }
     biz.name = name; biz.currency = cur || biz.currency;
-    // v89.31.4 (item 2): persist the default phone country code. Empty
-    // string ('') means "auto from currency" — we store it explicitly
-    // so bizPhoneCodeSuggestion() can tell auto from a deliberate blank.
+    // v89.31.7: persist the free-text dial code (normalized to "+<digits>").
     const pcEl = document.getElementById('setBizPhoneCode');
-    if (pcEl) biz.phoneCountryCode = pcEl.value || '';
+    if (pcEl) biz.phoneCountryCode = normalizeDialCode(pcEl.value);
     saveData(); renderAll();
     toast('Business saved.');
     openBizSettings(bizId);
