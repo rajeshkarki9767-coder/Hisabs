@@ -26,7 +26,7 @@
 // in the repo root. If you do, leave it; this is reference template.
 // =====================================================================
 
-const CACHE_VERSION = 'hisabs-v89.32.0';
+const CACHE_VERSION = 'hisabs-v89.32.1';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 

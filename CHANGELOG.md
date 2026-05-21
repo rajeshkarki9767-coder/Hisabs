@@ -12,7 +12,21 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.32.0] — 2026-05-21
+## [v89.32.1] — 2026-05-21
+
+Bug fixes and refinements to the v89.32.0 feature batch.
+
+### Hash
+`d4732e50b24ec1384ab9f90eaafcb412`
+
+### Changes
+1. **Fixed: editing a party didn't save socials (and could appear to drop phone/email).** The party meta diff omitted the new `socials` field, so adding or editing a social handle on an existing party was detected as "no change" and the save silently bailed. Socials are now compared in the diff; adding/editing/removing a phone, email, or social on an existing party saves correctly and displays immediately.
+2. **Detail pages: "Rename" → "Edit".** On an individual party, category, or account page, the top-right button now reads **Edit** and opens the full edit form (party: name, DOB, phones, emails, socials, notes; category: name, shortcut, unassigned; account: name, unassigned) instead of the rename-only prompt.
+3. **Business Settings: individual export added.** The "Backup & import (this business)" section now has **Export categories / Export parties / Export accounts** buttons alongside the existing individual imports. Exports use the same file shape the importer accepts, so a list exported from one business can be imported into another.
+
+Self-test suite remains 63/63.
+
+---
 
 A feature batch: detail-view period filters, social handles for parties, merge-import, and several UX fixes.
 

@@ -8469,6 +8469,12 @@
     const oE = JSON.stringify(o.emails || []);
     const nE = JSON.stringify(n.emails || []);
     if (oE !== nE) changed.push('email');
+    // v89.32.1 FIX: socials were missing from the diff, so adding/editing a
+    // social handle on an EXISTING party was detected as "no change" and the
+    // edit silently bailed without saving. Compare them too.
+    const oS = JSON.stringify(o.socials || []);
+    const nS = JSON.stringify(n.socials || []);
+    if (oS !== nS) changed.push('social');
     if ((o.description || '') !== (n.description || '')) changed.push('description');
     return changed;
   }
@@ -12282,7 +12288,7 @@
         <div class="page-actions">
           ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('party:' + party.id) : ''}
-          ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="renameParty('${party.id}')">Rename</button>` : ''}
+          ${canEditParty ? `<button class="btn btn-sm btn-ghost" onclick="openPartyEditModal('${party.id}')">Edit</button>` : ''}
           ${canEditParty ? `<button class="btn btn-sm btn-danger-outline" onclick="deletePartyAction('${party.id}')">Delete</button>` : ''}
           ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({partyId:'${jsAttr(party.id)}'})" title="Add an entry pre-filled with ${escapeHtml(party.name)}">+ Entry</button>` : ''}
         </div>
@@ -12584,7 +12590,7 @@
         <div class="page-actions">
           ${printIconButton()}
           ${canExport(biz.id) && !isUncat ? exportIconButton('category:' + jsAttr(catName)) : ''}
-          ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="renameCategoryFlow('${jsAttr(catName)}')">Rename</button>` : ''}
+          ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-ghost" onclick="openCategoryEditModalByName('${jsAttr(catName)}','${jsAttr(biz.id)}')">Edit</button>` : ''}
           ${canEditCat && !isUncat && isDefined ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteCategoryFromDetail('${jsAttr(catName)}')">Remove</button>` : ''}
           ${(!isUncat && canAddEntry()) ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({category:'${jsAttr(catName)}'})" title="Add an entry pre-filled with ${escapeHtml(displayName)}">+ Entry</button>` : ''}
         </div>
@@ -18269,7 +18275,7 @@
         <div class="page-actions">
           ${printIconButton()}
           ${canExport(biz.id) ? exportIconButton('account:' + acc.id) : ''}
-          ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="renameAccountFlow('${acc.id}')">Rename</button>` : ''}
+          ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="openAccountEditModal('${acc.id}')">Edit</button>` : ''}
           ${canManage ? `<button class="btn btn-sm btn-ghost" onclick="moveAccountToGroup('${acc.id}')">Move</button>` : ''}
           ${canManage && accountCount > 1 ? `<button class="btn btn-sm btn-danger-outline" onclick="deleteAccountAction('${acc.id}')">Delete</button>` : ''}
           ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({accountId:'${jsAttr(acc.id)}'})" title="Add an entry pre-filled with ${escapeHtml(acc.name)}">+ Entry</button>` : ''}
@@ -18772,6 +18778,14 @@
     } catch (_) {}
   }
 
+  // v89.32.1: the Category detail view knows the category by NAME, not id.
+  // Resolve the id within the active business and open the full edit modal
+  // (name + shortcut + unassigned), replacing the old rename-only flow.
+  function openCategoryEditModalByName(name, bizId) {
+    const c = data.categories.find(x => x.businessId === bizId && x.name === name);
+    if (!c) { toast('Category not found.'); return; }
+    openCategoryEditModal(c.id);
+  }
   function openCategoryEditModal(catId) {
     const c = data.categories.find(x => x.id === catId);
     if (!c) return;
@@ -24681,8 +24695,15 @@
 
       ${canManage ? `
       <div class="settings-section">
-        <h3 class="settings-heading">Import into this business</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Merge data from a Hisabs backup file into <strong>${escapeHtml(biz.name)}</strong>. Items whose name matches an existing one are updated; new names are added. Nothing is ever deleted, and transactions/entries are not imported.</p>
+        <h3 class="settings-heading">Backup &amp; import (this business)</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.5rem;">Export an individual list from <strong>${escapeHtml(biz.name)}</strong> to a file, or merge a list in from a backup file. On import, items whose name matches an existing one are updated; new names are added. Nothing is ever deleted, and transactions/entries are not included.</p>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.4rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Export</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.7rem;">
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','categories')" title="Download this business's categories as a file">Export categories</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','parties')" title="Download this business's parties as a file">Export parties</button>
+          <button class="btn btn-sm btn-ghost" onclick="exportBizEntity('${jsAttr(biz.id)}','cashAccounts')" title="Download this business's accounts as a file">Export accounts</button>
+        </div>
+        <p style="font-size:0.78rem;color:var(--ink-mute);margin:0.2rem 0 0.3rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">Import</p>
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['categories'], 'categories')" title="Merge categories from a backup file">Import categories…</button>
           <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['parties'], 'parties')" title="Merge parties from a backup file">Import parties…</button>
@@ -26234,6 +26255,31 @@
     if (document.getElementById('modalBackdrop')?.classList.contains('active')) openBizSettings(bizId);
     else renderAll();
     toast('Account removed.');
+  }
+  // v89.32.1: export a single entity list (categories / parties /
+  // cashAccounts) for ONE business to a file. Uses the same data shape the
+  // merge-importer accepts (kind:'hisabs.partial'), so an exported list can
+  // be imported into another business. Entries are never included.
+  function exportBizEntity(bizId, kind) {
+    const biz = data.businesses.find(b => b.id === bizId);
+    if (!biz) { toast('Business not found.'); return; }
+    if (roleFor(bizId) !== 'owner' && roleFor(bizId) !== 'manager') {
+      toast('Only an owner or manager can export.'); return;
+    }
+    const list = (Array.isArray(data[kind]) ? data[kind] : []).filter(x => x.businessId === bizId);
+    const labelMap = { categories: 'categories', parties: 'parties', cashAccounts: 'accounts' };
+    if (!list.length) { toast(`No ${labelMap[kind] || kind} to export in this business.`); return; }
+    const payload = {
+      kind: 'hisabs.partial',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      entity: kind,
+      business: { id: biz.id, name: biz.name },
+      data: { [kind]: list },
+    };
+    const safeBiz = (biz.name || 'business').replace(/[^a-z0-9]+/gi, '_').slice(0, 30);
+    downloadJson(payload, `hisabs_${labelMap[kind]}_${safeBiz}_${today()}.json`);
+    toast(`Exported ${list.length} ${labelMap[kind]}.`);
   }
   function exportAllData() {
     const payload = { kind: 'hisabs.full', version: 1, exportedAt: new Date().toISOString(), user: safeUser(), data };
