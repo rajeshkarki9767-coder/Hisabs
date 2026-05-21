@@ -1907,6 +1907,17 @@
   .fab { display: none; }
 
   /* Date / day strip — shows current weekday + date above every page, on both desktop and mobile. */
+  .clock-bar { display: flex; align-items: stretch; justify-content: center; gap: 1rem; padding: 0.5rem 0.25rem 0.7rem; margin-bottom: 0.2rem; }
+  .clock-cell { display: flex; flex-direction: column; align-items: center; line-height: 1.15; padding: 0 0.5rem; }
+  .clock-zone { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; }
+  .clock-time { font-size: 1.15rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .clock-cell-main .clock-time { color: var(--accent-readable, var(--ink)); }
+  .clock-date { font-size: 0.66rem; color: var(--ink-mute); }
+  .clock-divider { width: 1px; background: var(--line); align-self: stretch; margin: 0.1rem 0; }
+  @media (max-width: 520px) {
+    .clock-bar { gap: 0.6rem; padding: 0.4rem 0.25rem 0.55rem; }
+    .clock-time { font-size: 1rem; }
+  }
   .date-strip { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding-bottom: 0.65rem; margin-bottom: 0.85rem; border-bottom: 1px solid var(--line); font-size: 0.72rem; color: var(--ink-mute); letter-spacing: 0.01em; }
   .date-strip-day { font-weight: 600; color: var(--ink); text-transform: uppercase; letter-spacing: 0.12em; font-size: 0.65rem; flex: 1; text-align: left; }
   /* Center cell holds the sync badge on desktop. Flex centering aligns
@@ -6953,6 +6964,7 @@
 
     <!-- The desktop sync badge is rendered inside the date strip (between
          day and date). The mobile sync dot lives in the topbar. -->
+    <div class="clock-bar" id="clockBar" hidden></div>
     <div class="date-strip" id="dateStrip"></div>
     <div id="mainContent" tabindex="-1"></div>
   </main>
@@ -8121,20 +8133,53 @@
   // Local-time ISO date (YYYY-MM-DD). Using toISOString() returned UTC dates,
   // which produces yesterday's date near midnight for users east of UTC (e.g.
   // Nepal at UTC+5:45). en-CA gives YYYY-MM-DD format consistently.
-  const today = () => {
+  // ----------------------------------------------------------------
+  // v89.32.8: business-time-zone-aware "today".
+  // The app is a per-business ledger, so "today" for business data (entry
+  // dates, period boundaries, "is this today", etc.) must be the active
+  // business's calendar day, not the device's. today()/yesterday() now
+  // resolve to the active business's zone, falling back to the device zone
+  // when there's no active business yet (signup, first paint) or the zone
+  // is unset. deviceToday()/deviceYesterday() keep the original device-local
+  // behaviour for the few things that are about real wall-clock time on THIS
+  // device rather than the business calendar (e.g. local-only timestamps).
+  // The heavy lifting (zone resolution) lives in businessTimeZone() /
+  // bizDayYmdInTz(), defined later; these are function declarations so they
+  // are hoisted and safe to call from these arrows at runtime.
+  // ----------------------------------------------------------------
+  const deviceToday = () => {
     const d = new Date();
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
     const dd = String(d.getDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
+  const today = () => {
+    try {
+      if (typeof session !== 'undefined' && session && session.activeBizId) {
+        const y = businessTodayYmd();
+        if (/^\d{4}-\d{2}-\d{2}$/.test(y)) return y;
+      }
+    } catch (_) {}
+    return deviceToday();
+  };
 
-  // YYYY-MM-DD for "yesterday" in the user's local timezone. Built
-  // by subtracting one day from now, not by string-mangling today()'s
-  // result — the latter would break on month/year boundaries (e.g.
-  // the 1st of the month).
-  const yesterday = () => {
+  // YYYY-MM-DD for "yesterday". Device-local base preserved as
+  // deviceYesterday(); yesterday() is relative to the business's today.
+  const deviceYesterday = () => {
     const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+  const yesterday = () => {
+    // Subtract one day from the business's today (string-safe via Date math).
+    const t = today();
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+    if (!m) return deviceYesterday();
+    const d = new Date(parseInt(m[1],10), parseInt(m[2],10) - 1, parseInt(m[3],10));
     d.setDate(d.getDate() - 1);
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -8149,12 +8194,16 @@
   // string for blank/invalid input.
   function relativeDateLabel(dateStr) {
     if (!dateStr || typeof dateStr !== 'string') return '';
-    // Use local midnight to avoid off-by-one near DST or timezone bumps.
     const [y, m, d] = dateStr.split('-').map(Number);
     if (!y || !m || !d) return '';
     const picked = new Date(y, m - 1, d);
-    const now = new Date();
-    const todayLocal = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    // v89.32.8: baseline on the business's calendar day so "today"/"yesterday"
+    // in the entry modal match the business zone, not the device.
+    const bt = today();
+    const bm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(bt);
+    const todayLocal = bm
+      ? new Date(parseInt(bm[1],10), parseInt(bm[2],10) - 1, parseInt(bm[3],10))
+      : (() => { const n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); })();
     const diffMs = picked.getTime() - todayLocal.getTime();
     const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
     if (diffDays === 0) return 'today';
@@ -8563,13 +8612,7 @@
   // Builds the "It's X's birthday today!" banner shown on the Entries
   // view, and the "Birthday in N days" badge shown on the party detail.
   // Both are deliberately gentle — accent-tinted card, friendly copy,
-  // no animation that would distract from cash data. Banner is
-  // dismissible per-day via localStorage; comes back the next day.
-
-  // localStorage key for "user dismissed the birthday banner today".
-  // Value is today's YYYY-MM-DD string. Stale dates auto-expire because
-  // we compare to today on every render.
-  const BDAY_DISMISS_KEY = 'hisabs_bday_banner_dismissed_v1';
+  // no animation that would distract from cash data.
 
   // v89.31.2: birthday math is intentionally LOCAL-TIME based.
   // We treat a stored DOB like "1990-05-20" as a calendar date (no
@@ -8581,30 +8624,33 @@
   //  daysUntilBirthday) also use local time, so the comparison is
   // self-consistent.
   function todayYmd(now) {
-    const d = now || new Date();
+    // v89.32.8: with no argument, return the active business's calendar day
+    // (matches today()); with an explicit Date, format that device-local.
+    if (!now) return today();
+    const d = now;
     return d.getFullYear() + '-'
       + String(d.getMonth() + 1).padStart(2, '0') + '-'
       + String(d.getDate()).padStart(2, '0');
   }
 
-  function isBirthdayBannerDismissedToday() {
-    try {
-      return localStorage.getItem(BDAY_DISMISS_KEY) === todayYmd();
-    } catch (_) { return false; }
-  }
-
-  function dismissBirthdayBannerForToday() {
-    try { localStorage.setItem(BDAY_DISMISS_KEY, todayYmd()); } catch (_) {}
-    const el = document.getElementById('birthdayBanner');
-    if (el) el.remove();
-  }
+  // v89.32.8 audit: the per-day dismiss helpers and their localStorage key
+  // were removed when the birthday banner became always-on. The banner now
+  // always shows when a party has a birthday today, with no dismiss.
 
   // Find parties with a birthday today in the active business.
   // Returns array of { party, age } — age is null if year unknown.
+  // v89.32.7: "today" is the active business's calendar day (its time zone),
+  // not the device's, so a birthday flips at midnight in the business zone.
   function partiesWithBirthdayToday() {
     if (!session.activeBizId) return [];
     const out = [];
-    const now = new Date();
+    // Build a Date whose local Y/M/D equals the business zone's calendar day,
+    // so daysUntilBirthday's getMonth()/getDate() compare against that day.
+    const ymd = businessTodayYmd();
+    let now;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || '');
+    if (m) now = new Date(parseInt(m[1],10), parseInt(m[2],10) - 1, parseInt(m[3],10), 12, 0, 0);
+    else now = new Date();
     for (const p of (data.parties || [])) {
       if (p.businessId !== session.activeBizId) continue;
       if (p.unassigned) continue; // hide soft-deleted/archived
@@ -8621,11 +8667,12 @@
   }
 
   // Render the banner HTML. Returns '' if nothing to show
-  // (no birthdays today OR user dismissed it today).
+  // v89.32.6: the birthday banner ALWAYS shows when a party has a birthday
+  // today. There is intentionally no enable/disable toggle and no per-day
+  // dismiss — a birthday today is always surfaced.
   function renderBirthdayBanner() {
     const bdays = partiesWithBirthdayToday();
     if (!bdays.length) return '';
-    if (isBirthdayBannerDismissedToday()) return '';
     // Build the message. One party => personalised. Multiple => summary.
     let inner;
     if (bdays.length === 1) {
@@ -8667,7 +8714,6 @@
           ${inner}
           <div class="bday-chips">${chipsHTML}</div>
         </div>
-        <button class="bday-dismiss" onclick="dismissBirthdayBannerForToday()" aria-label="Dismiss for today" title="Dismiss for today">×</button>
       </div>`;
   }
 
@@ -10708,12 +10754,136 @@
       _renderMainInner();
       renderPermissions();
       updateDateStrip();
+      // v89.32.7: per-business clock — show only on the main entries page,
+      // at the top. renderClockBar paints the active business's clock;
+      // updateClocks starts the per-second tick. Hidden on every other view.
+      try {
+        const clockEl = document.getElementById('clockBar');
+        if (clockEl) {
+          if (session.view === 'entries') {
+            renderClockBar();
+            updateClocks();
+          } else {
+            clockEl.hidden = true;
+            clockEl.innerHTML = '';
+          }
+        }
+      } catch (_) {}
     });
   }
 
   // Update the date strip with current day + date, in the active business's locale.
   // Called from renderAll and once per minute (cheap), so it stays correct across midnight.
   let __dateStripTimer = null;
+  // ================================================================
+  // v89.32.7: PER-BUSINESS TIME ZONE
+  // ----------------------------------------------------------------
+  // Each business carries its own IANA time zone, set by the owner when
+  // creating the business and editable in Business Settings. One clock at
+  // the top of the entries page shows the ACTIVE business's time zone.
+  // businessNow()/businessTodayYmd() resolve "now"/"today" in that zone so
+  // birthdays and the default entry date follow the business, not the
+  // device. The tz lives on the business row (synced like phoneCountryCode).
+  // ================================================================
+
+  function deviceTimeZone() {
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'; }
+    catch (_) { return 'UTC'; }
+  }
+  // The active business's time zone, falling back to the device zone when
+  // unset (older businesses created before this field existed).
+  function businessTimeZone(bizId) {
+    const id = bizId || session.activeBizId;
+    const b = data.businesses.find(x => x.id === id);
+    if (b && typeof b.timeZone === 'string' && b.timeZone.trim()) return b.timeZone.trim();
+    return deviceTimeZone();
+  }
+  // "Today" (YYYY-MM-DD) in a business's zone. Used by birthday detection
+  // and the entry-date default so the calendar day matches the business.
+  function businessTodayYmd(bizId) {
+    const tz = businessTimeZone(bizId);
+    try {
+      // en-CA gives ISO-style YYYY-MM-DD; timeZone shifts to the business day.
+      return new Date().toLocaleDateString('en-CA', { timeZone: tz });
+    } catch (_) {
+      return todayYmd();
+    }
+  }
+  function clockTzList() {
+    try {
+      if (typeof Intl.supportedValuesOf === 'function') {
+        const all = Intl.supportedValuesOf('timeZone');
+        if (Array.isArray(all) && all.length) return all;
+      }
+    } catch (_) {}
+    return ['UTC','Asia/Kathmandu','Asia/Kolkata','Asia/Dubai','Asia/Singapore','Asia/Tokyo',
+            'Europe/London','Europe/Paris','America/New_York','America/Chicago','America/Denver',
+            'America/Los_Angeles','Australia/Sydney'];
+  }
+  function clockTzOptionsHTML(selectedTz) {
+    const sel = selectedTz || '';
+    return clockTzList().map(tz =>
+      `<option value="${escapeHtml(tz)}"${tz === sel ? ' selected' : ''}>${escapeHtml(clockTzLabel(tz))}</option>`
+    ).join('');
+  }
+  function clockTzShortName(tz) {
+    if (!tz) return '';
+    const parts = String(tz).split('/');
+    return parts[parts.length - 1].replace(/_/g, ' ');
+  }
+  function clockTzLabel(tz) {
+    if (tz === 'UTC') return 'UTC';
+    const parts = String(tz).split('/');
+    if (parts.length >= 2) return `${clockTzShortName(tz)} (${parts[0].replace(/_/g,' ')})`;
+    return clockTzShortName(tz);
+  }
+  function formatClockFor(tz, now) {
+    const d = now || new Date();
+    const opts = tz ? { timeZone: tz } : {};
+    let time = '', date = '';
+    try {
+      time = d.toLocaleTimeString(undefined, { ...opts, hour: 'numeric', minute: '2-digit', hour12: true });
+    } catch (_) {
+      time = d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
+    try {
+      date = d.toLocaleDateString(undefined, { ...opts, month: 'short', day: 'numeric' });
+    } catch (_) {
+      date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+    return { time, date };
+  }
+  function renderClockBar() {
+    const el = document.getElementById('clockBar');
+    if (!el) return;
+    if (!session.activeBizId) { el.hidden = true; el.innerHTML = ''; return; }
+    const tz = businessTimeZone();
+    const f = formatClockFor(tz, new Date());
+    el.innerHTML = `<div class="clock-cell clock-cell-main">
+      <span class="clock-zone">${escapeHtml(clockTzShortName(tz) || 'Local')}</span>
+      <span class="clock-time" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.time)}</span>
+      <span class="clock-date" data-clock-date-tz="${escapeHtml(tz)}">${escapeHtml(f.date)}</span>
+    </div>`;
+    el.hidden = false;
+  }
+  let __clockTimer = null;
+  function updateClocks() {
+    const el = document.getElementById('clockBar');
+    if (!el) return;
+    const now = new Date();
+    el.querySelectorAll('.clock-time').forEach(span => {
+      const tz = span.getAttribute('data-clock-tz') || '';
+      const f = formatClockFor(tz, now);
+      if (span.textContent !== f.time) span.textContent = f.time;
+    });
+    el.querySelectorAll('.clock-date').forEach(span => {
+      const tz = span.getAttribute('data-clock-date-tz') || '';
+      const f = formatClockFor(tz, now);
+      if (span.textContent !== f.date) span.textContent = f.date;
+    });
+    if (!__clockTimer) __clockTimer = setInterval(updateClocks, 1000);
+  }
+
   function updateDateStrip() {
     const el = document.getElementById('dateStrip');
     if (!el) return;
@@ -11057,34 +11227,27 @@
     // dismisses the keyboard and looks like the search "closing".
     let _preservedFocus = null;
     const _activeEl = document.activeElement;
-    if (_activeEl && _activeEl.id && (_activeEl.tagName === 'INPUT' || _activeEl.tagName === 'SELECT')) {
-      // Inputs that should survive a background re-render. Without
-      // preserving these, a realtime event (or sync drain) tearing
-      // down the input element loses any in-flight keystroke value
-      // and (on mobile) dismisses the keyboard.
-      const focusableIds = new Set([
-        // Search inputs across the app
-        'searchInput', 'partiesSearchInput', 'categoriesSearchInput', 'accountsSearchInput',
-        // Audit page: Split & convert scratchpad — the user types
-        // tax-rate-adjacent stuff here; nothing more annoying than
-        // losing a few keystrokes mid-input.
-        'splitPctInput', 'splitCurInput', 'splitRateInput',
-        // Expenses page add-row: description / quantity / amount / date.
-        // Same problem: types "Tea", realtime fires, value gone.
-        'mAuditDesc', 'mAuditQty', 'mAuditAmt', 'mAuditDate', 'mAuditNote',
-      ]);
-      if (focusableIds.has(_activeEl.id)) {
+    if (_activeEl && _activeEl.id && (_activeEl.tagName === 'INPUT' || _activeEl.tagName === 'SELECT' || _activeEl.tagName === 'TEXTAREA')) {
+      // v89.32.5: preserve focus for ANY focused field with an id, not just
+      // an allow-list. A background re-render (realtime event from another
+      // device, sync drain, etc.) tears down the focused input — on mobile
+      // this dismisses the keyboard and bounces the cursor out, which users
+      // saw across party/category/account search and the party edit fields.
+      // Restoring by id after the re-render keeps the keyboard up and the
+      // caret in place. Inputs of type password are skipped out of caution
+      // (we don't stash password values), and file inputs can't be restored.
+      const _type = (_activeEl.getAttribute && _activeEl.getAttribute('type') || '').toLowerCase();
+      if (_type !== 'password' && _type !== 'file') {
         _preservedFocus = {
           id: _activeEl.id,
-          // Some input types (number, date) throw on selectionStart access.
-          // Wrap in try so we still preserve focus even when selection
-          // tracking isn't available.
+          // Some input types (number, date, email) throw on selectionStart
+          // access. Wrap in try so focus is still preserved even when
+          // selection tracking isn't available.
           selStart: _safeSelectionStart(_activeEl),
           selEnd: _safeSelectionEnd(_activeEl),
-          // Also preserve the CURRENT value — the one the user has
-          // typed but hasn't yet committed via oninput. This is the
-          // crucial bit for short-form inputs where the user's value
-          // hasn't reached state yet when re-render fires.
+          // Preserve the CURRENT value — the one the user has typed but
+          // hasn't yet committed via oninput. Crucial for short-form inputs
+          // where the value hasn't reached state when the re-render fires.
           value: _activeEl.value,
         };
       }
@@ -17080,7 +17243,13 @@
     }
     // Build cumulative arrays. Past-today current-month points get
     // null (no future data), so the line stops at today.
-    const _todayDOM = _curYM === today().slice(0, 7) ? _now.getDate() : _daysInCurMonth;
+    // v89.32.8 audit fix: derive "today" from the business calendar day
+    // (today()) for BOTH the month check and the day-of-month, so a device
+    // in a different zone/month than the business can't desync the marker.
+    const _bizTodayParts = (today().match(/^(\d{4})-(\d{2})-(\d{2})$/) || []);
+    const _bizTodayYM = _bizTodayParts.length ? `${_bizTodayParts[1]}-${_bizTodayParts[2]}` : _curYM;
+    const _bizTodayDate = _bizTodayParts.length ? parseInt(_bizTodayParts[3], 10) : _now.getDate();
+    const _todayDOM = _curYM === _bizTodayYM ? _bizTodayDate : _daysInCurMonth;
     const _curCumPoints = [];
     let _curCum = 0;
     for (let d = 1; d <= _maxDays; d++) {
@@ -18676,6 +18845,27 @@
             // round trip. Silent + suppressReload so no UI confirm and
             // no full-page reload.
             await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
+            // v89.32.4 FIX (invite accept loop): if the queued accept-op
+            // had not yet reached the cloud when the pull above ran, the
+            // pull would fetch this membership row with its OLD
+            // status='pending' and overwrite our local 'accepted' — making
+            // the invite reappear and the business not show until an app
+            // restart. Re-assert the acceptance locally after the pull, and
+            // re-queue the update if the pulled row regressed it, so the
+            // cloud converges without the user having to do anything.
+            const mm = data.members.find(x => x.id === m.id)
+                    || data.members.find(x => x.businessId === m.businessId
+                          && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
+            if (mm && mm.status !== 'accepted') {
+              mm.status = 'accepted';
+              mm.respondedAt = mm.respondedAt || today();
+              if (u?.cloud) mm.userId = u.id;
+              if (u?.name && u.name.trim()) mm.displayName = u.name.trim();
+              saveData();
+              try { scheduleSyncDiff && scheduleSyncDiff(); } catch (_) {}
+              try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
+            }
+            try { renderAll(); } catch (_) {}
           } catch (e) {
             console.warn('Post-accept pull failed (will retry via realtime):', e?.message || e);
           }
@@ -19750,7 +19940,7 @@
     // the bucket and show "E12 · May 2026". For edits, show the entry's
     // existing number. The preview updates live when the date input
     // changes (since date determines the bucket).
-    const _previewDate = existing?.date || today();
+    const _previewDate = existing?.date || businessTodayYmd();
     const _previewNo = isEdit
       ? Number(existing?.entryNo) || null
       : nextEntryNoFor(session.activeBookId, _previewDate);
@@ -19823,7 +20013,7 @@
           </div>
           <div class="input-wrap">
             <label>Date <span class="req">*</span> <span id="mDateRelative" class="date-relative-hint"></span></label>
-            <input type="date" id="mDate" value="${existing?.date || today()}" oninput="updateDateRelativeHint();updateEntryNoPreview();" onchange="updateDateRelativeHint();updateEntryNoPreview();">
+            <input type="date" id="mDate" value="${existing?.date || businessTodayYmd()}" oninput="updateDateRelativeHint();updateEntryNoPreview();" onchange="updateDateRelativeHint();updateEntryNoPreview();">
           </div>
         </div>
         <div class="input-wrap">
@@ -20851,7 +21041,7 @@
       // same Cash In/Out as previous entry). Most common flow: bunch of
       // similar entries for one day.
       const dateEl = document.getElementById('mDate');
-      if (dateEl) dateEl.value = today();
+      if (dateEl) dateEl.value = businessTodayYmd();
       // (Type toggle intentionally NOT reset — keeps current Cash In/Out.)
       // Refresh the invoice-number preview in the modal header
       try { updateEntryNoPreview(); } catch (_) {}
@@ -20877,6 +21067,10 @@
         <div class="input-wrap"><label>Currency</label>
           <select id="mBizCur">${currencyOptionsHTML('NPR')}</select>
         </div>
+        <div class="input-wrap"><label>Time zone</label>
+          <select id="mBizTimeZone">${clockTzOptionsHTML(deviceTimeZone())}</select>
+          <p style="font-size:0.74rem;color:var(--ink-mute);margin:0.3rem 0 0;">Sets the dashboard clock and the calendar day for this business. Defaults to this device's zone — change it anytime in business settings.</p>
+        </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="saveBiz()">Create</button>
@@ -20889,7 +21083,9 @@
     const u = me();
     const id = uid();
     const cur = document.getElementById('mBizCur').value || 'NPR';
-    data.businesses.push({ id, name, currency: cur, ownerId: u.id, staffSeesTotals: true, createdAt: today() });
+    const tzEl = document.getElementById('mBizTimeZone');
+    const tz = (tzEl && tzEl.value && clockTzList().includes(tzEl.value)) ? tzEl.value : deviceTimeZone();
+    data.businesses.push({ id, name, currency: cur, timeZone: tz, ownerId: u.id, staffSeesTotals: true, createdAt: today() });
     const bookId = uid();
     data.books.push({ id: bookId, businessId: id, name: 'Main Cash Book', createdAt: today() });
     DEFAULT_CATEGORIES.forEach((n, i) => data.categories.push({ id: uid(), businessId: id, name: n, sortOrder: i + 1 }));
@@ -21779,7 +21975,7 @@
           // most authoritative source because the invitee writes it
           // themselves on accept and on rename. Fall back to a locally
           // known account (rare across devices), then to the email.
-          const displayName = m.displayName || linked?.name || m.userLogin;
+          const displayName = m.displayName || linked?.name || m.userLogin || "?";
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
           else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
@@ -23205,7 +23401,7 @@
         </div>
         ${staff.map(m => {
           const linked = accounts.find(a => a.login === m.userLogin);
-          const displayName = m.displayName || linked?.name || m.userLogin;
+          const displayName = m.displayName || linked?.name || m.userLogin || "?";
           let statusBadge = '';
           if (m.status === 'pending') statusBadge = '<span class="role-badge pending">Pending</span>';
           else if (m.status === 'declined') statusBadge = '<span class="role-badge declined">Declined</span>';
@@ -24630,6 +24826,7 @@
             <button class="btn btn-sm btn-ghost" onclick="enableNotificationsExplicit()">Enable system notifications</button>
           </div>` : ''}
       </div>` : ''}
+
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Your businesses</h3>
@@ -24726,6 +24923,10 @@
           <div class="input-wrap"><label for="setBizPhoneCode">Set Dial code <span style="font-weight:400;color:var(--ink-mute);font-size:0.78rem;">— suggested in new party phone</span></label>
             <input type="text" id="setBizPhoneCode" inputmode="tel" autocomplete="off" placeholder="Enter dial code" value="${escapeHtml(biz.phoneCountryCode || '')}" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>
             <p style="font-size:0.74rem;color:var(--ink-mute);margin:0.3rem 0 0;">Enter your dial code. It appears as a suggestion when creating or editing a party's phone. Leave blank to fall back to a code based on the business currency.</p>
+          </div>
+          <div class="input-wrap"><label for="setBizTimeZone">Time zone</label>
+            <select id="setBizTimeZone" ${isOwner ? '' : 'disabled style="opacity:0.6;"'}>${clockTzOptionsHTML(biz.timeZone || deviceTimeZone())}</select>
+            <p style="font-size:0.74rem;color:var(--ink-mute);margin:0.3rem 0 0;">The clock on the dashboard shows this zone, and "today" for birthdays and the default entry date follows it. Defaults to this device's zone.</p>
           </div>
           ${isOwner ? `<div style="display:flex;justify-content:flex-end;"><button class="btn btn-sm" onclick="saveBizSettings('${biz.id}')">Save business</button></div>` : '<p style="font-size:0.8rem;color:var(--ink-mute);">Only the owner can edit this business.</p>'}
         </div>
@@ -26067,6 +26268,11 @@
     // v89.31.7: persist the free-text dial code (normalized to "+<digits>").
     const pcEl = document.getElementById('setBizPhoneCode');
     if (pcEl) biz.phoneCountryCode = normalizeDialCode(pcEl.value);
+    // v89.32.7: persist the business time zone (IANA name). Validated
+    // against the known list; unknown values are ignored to avoid storing
+    // a zone the browser can't format.
+    const tzEl = document.getElementById('setBizTimeZone');
+    if (tzEl && tzEl.value && clockTzList().includes(tzEl.value)) biz.timeZone = tzEl.value;
     saveData(); renderAll();
     toast('Business saved.');
     openBizSettings(bizId);
@@ -31720,6 +31926,9 @@
         // currency. Requires the phone_country_code column added by the
         // v89.31.4 migration (run before this code ships).
         phone_country_code: typeof r.phoneCountryCode === 'string' ? r.phoneCountryCode : '',
+        // v89.32.7: per-business IANA time zone. '' = fall back to device
+        // zone client-side. Requires the time_zone column (v89.32.7 migration).
+        time_zone: typeof r.timeZone === 'string' ? r.timeZone : '',
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -31729,6 +31938,7 @@
         taxRate: Number(r.tax_rate) || 0,
         // Tolerate the column being absent on older rows (undefined -> '').
         phoneCountryCode: typeof r.phone_country_code === 'string' ? r.phone_country_code : '',
+        timeZone: typeof r.time_zone === 'string' ? r.time_zone : '',
         createdAt: r.created_at_local || '',
       }),
     },
@@ -32231,6 +32441,10 @@
         return [...(cloudRows || []), ...carryOver];
       }
 
+      // Snapshot the current user's locally-accepted memberships BEFORE the
+      // merge reassigns data.members — used just below to stop a racing pull
+      // from reverting a just-accepted invite (v89.32.4).
+      const localMembersSnapshot = Array.isArray(data.members) ? data.members.slice() : [];
       // Replace the local in-memory state, preserving local-only pending records.
       data.businesses    = mergeWithPending('businesses',    fetched.businesses,    data.businesses);
       data.books         = mergeWithPending('books',         fetched.books,         data.books);
@@ -32239,6 +32453,38 @@
       data.parties       = mergeWithPending('parties',       fetched.parties,       data.parties);
       data.categories    = mergeWithPending('categories',    fetched.categories,    data.categories);
       data.members       = mergeWithPending('members',       fetched.members,       data.members);
+      // v89.32.4 FIX (invite accept loop): a pull that races ahead of our
+      // not-yet-drained accept-op would carry the membership row with its
+      // old status='pending', reverting a membership the user JUST accepted
+      // on this device — the invite reappears until an app restart. Guard:
+      // if we have a locally-accepted membership for the current user that
+      // the incoming pull shows as still pending, keep our accepted status.
+      // (Only protects the current user's own acceptance on this device;
+      // the queued op will converge the cloud right after.)
+      try {
+        const _u = me();
+        if (_u) {
+          const _myLogin = normalize(_u.login);
+          const _prevAccepted = new Map();
+          for (const lm of (localMembersSnapshot || [])) {
+            if (lm.status === 'accepted'
+                && ((_u.cloud && lm.userId === _u.id) || normalize(lm.userLogin) === _myLogin)) {
+              _prevAccepted.set(lm.id, lm);
+            }
+          }
+          if (_prevAccepted.size) {
+            for (const row of data.members) {
+              const prev = _prevAccepted.get(row.id);
+              if (prev && row.status === 'pending') {
+                row.status = 'accepted';
+                row.respondedAt = row.respondedAt || prev.respondedAt || today();
+                if (_u.cloud) row.userId = _u.id;
+                if (prev.displayName) row.displayName = prev.displayName;
+              }
+            }
+          }
+        }
+      } catch (_) {}
       data.entries       = mergeWithPending('entries',       fetched.entries,       data.entries);
       data.auditExpenses = mergeWithPending('auditExpenses', fetched.auditExpenses, data.auditExpenses);
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);

@@ -12,7 +12,90 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.32.3] — 2026-05-21
+## [v89.32.8] — 2026-05-21
+
+Full date rewire: all business-day logic now follows the business time zone.
+
+### Hash
+`628abaaabacb4f4304c6c6e671d05b19`
+
+### Audit cleanup (final deep audit pass)
+- Fixed a subtle chart edge case: the cumulative-line "today" marker mixed the device month with the business month, which could desync near a month boundary across zones. Now derives both from the business calendar day.
+- Removed dead code orphaned by the always-on birthday banner (the per-day dismiss helpers and their localStorage key).
+
+### Changes
+Building on the per-business time zone (v89.32.7), the app's core date helpers are now business-zone-aware, so "today" across the whole app is the active business's calendar day rather than the device's:
+
+1. **`today()` / `yesterday()` / `todayYmd()`** now resolve to the active business's time zone (falling back to the device zone when no business is active or no zone is set). Because nearly all business-day logic flows through these helpers, this single change carries the business zone into: the **default entry date**, **period filters** (This Month / Today / Yesterday / Custom), **entry-number monthly buckets**, **birthday detection**, the **relative-date hint** in the entry modal, and the dashboard clock.
+2. **`deviceToday()` / `deviceYesterday()`** preserve the original device-local behaviour for anything that is genuinely about this device's wall clock.
+3. Implemented via a single chokepoint (the date helpers) rather than rewriting 80+ individual call sites, which keeps the change auditable and avoids missing or mis-converting sites. When the business zone equals the device zone (the common case), behaviour is identical to before.
+
+### Verification & honest caveat
+Self-test 63/63 (it exercises entry numbering and period logic, all of which call `today()`), plus a dedicated trace with extreme zones (Kiritimati UTC+14, Pago Pago UTC-11) confirming `today()`/`yesterday()` track the active business and fall back safely. Cross-time-zone behaviour (a device in one zone, business set to another, entries/filters/birthdays flipping at the business midnight) should be confirmed on real devices — that's the scenario static checks can't fully exercise.
+
+Requires the v89.32.7 `time_zone` column migration (no new SQL this release).
+
+---
+
+Replaced the per-device dual clock with a per-business time zone.
+
+### Hash
+`4702c1b39d0ee20160e5f07b23b714cd`
+
+### Changes
+1. **Removed the dual clock / per-device clock settings** added in v89.32.6 (wrong model).
+2. **Per-business time zone.** Each business now has its own IANA time zone, set by the owner when **creating** the business and editable in **Business Settings → Time zone** (owner only). It syncs across devices on the business row.
+3. **One clock on the dashboard** at the top of the main entries page shows the **active business's** time zone, labelled (e.g. "Kathmandu"), with time + date, ticking every second.
+4. **"Today" follows the business zone** for the two highest-impact, lowest-risk consumers: **birthday detection** (a birthday flips at midnight in the business's zone) and the **default entry date** (new entries default to the business's calendar day). Older businesses with no zone set fall back to the device zone.
+5. **SQL:** added `sql/v89.32.7_app_businesses_time_zone.sql` — adds a nullable `time_zone` column to `app_businesses`. Backward compatible (NULL = device fallback). **Run once in Supabase.**
+
+### Scope note
+Date/time logic elsewhere (period filters, totals bucketing, daily digest, etc.) still uses the device's local day for now. Rewiring every date consumer to the business zone is deeper, higher-risk work and was intentionally not bundled here; the `businessTodayYmd()`/`businessTimeZone()` helpers added in this release make that migration possible to do incrementally and safely.
+
+Self-test suite remains 63/63.
+
+---
+
+Birthday banner is always-on; new dual clock on the dashboard.
+
+### Hash
+`64633e86c8ae27f45728b919deb85ee0`
+
+### Changes
+1. **Birthday banner always shows.** Removed the Settings toggle added in v89.32.5 and the per-day dismiss ×. If any party has a birthday today, the banner always appears on the entries page and cannot be hidden.
+2. **Dual clock on the main entries page.** Added a **Clocks** section in Profile Settings with two time-zone pickers — a **Main clock** (defaults to this device's time zone) and an optional **Second clock**. Both render at the top of the main entries page, each labelled with its time zone (e.g. "Kathmandu" / "New York"), showing time + date and ticking every second. Time-zone choices are stored per-device (a clock reflects where the user is, so it isn't synced or per-business). Uses the browser's built-in IANA time-zone data — no external library, works offline. Invalid/unsupported zones fall back to local time without error.
+
+Self-test suite remains 63/63.
+
+---
+
+Birthday-notice control, app-wide keyboard-glitch fix, and realtime sync enablement.
+
+### Hash
+`6883b26aeeef07c68d9bdd7786c9f634`
+
+### Changes
+1. **Birthday reminders can now be turned off for good.** The × on the birthday banner only ever hid it for the current day, so a recurring birthday looked like it "couldn't be hidden." Added a **Birthday reminders** toggle in Settings → Notifications; when off, the banner never renders. The per-day × dismiss still works as before when the toggle is on.
+2. **Fixed the mobile keyboard glitch across all input fields.** Focus preservation across background re-renders (realtime/sync events) was limited to a hand-picked allow-list, so other fields — party/category/account search, the party edit fields, and more — lost focus mid-type and the keyboard closed/reopened ("pushed back"). Focus is now preserved for **any** focused input/select/textarea with an id (password and file inputs excepted), keeping the keyboard up and the caret in place during background updates.
+3. **Realtime sync without refresh (SQL).** Added `sql/v89.32.5_enable_realtime.sql`. The client already subscribes to live changes for every synced table, but Supabase only broadcasts changes for tables in the `supabase_realtime` publication. If announcements/entries only appeared on a teammate's device after a manual refresh, those tables weren't in the publication. The migration adds all 14 synced tables to the publication and sets `REPLICA IDENTITY FULL` so update/delete payloads carry full rows. **Run this once in the Supabase SQL editor.** (No client code change was needed — subscription, apply, re-render, and focus/reconnect catch-up were already correct.)
+
+Self-test suite remains 63/63.
+
+---
+
+Team & Access invite-flow fixes.
+
+### Hash
+`434e4e886229a06bae9b705d15ffe439`
+
+### Changes
+1. **Fixed: invite email box lost focus while typing.** The Team & Access "Phone or email" field (`pgStaffLogin`) wasn't in the focus-preservation allow-list, so a background realtime/sync event (e.g. a teammate's entry arriving) tore down the input mid-type — dropping focus and dismissing the mobile keyboard, which felt like the field "pushing you back." Added it to the preserved-inputs list.
+2. **Fixed: accepted invite reappeared until app restart.** When a user accepted an invite, the post-accept cloud pull could race ahead of the not-yet-drained accept op and re-fetch the membership row as still `pending`, reverting the local `accepted` status — so the invite kept reappearing and the business only showed after reopening the app. Two-part fix: (a) the pull merge now refuses to downgrade a locally-accepted membership for the current user back to pending, and (b) `respondInvite` re-asserts acceptance after the pull and re-queues the update so the cloud converges automatically. The business now appears immediately and the invite stays accepted.
+3. **Hardening:** member display-name avatar initial now has a `"?"` fallback, removing a latent crash risk if a membership row ever had an empty name/login.
+
+Self-test suite remains 63/63; added a 7-case invite-guard trace.
+
+---
 
 Small UX addition.
 
