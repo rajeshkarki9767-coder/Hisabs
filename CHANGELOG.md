@@ -12,6 +12,36 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.1] — 2026-05-21 · build 2026.05.21.16
+
+Announcement: only the app sound plays (silenced the OS notification tone).
+
+### Hash
+`0f68bef024122bb6d37f342ce267aa7b`
+
+### Changes
+When an announcement arrived, two sounds played: the embedded announcement MP3 (~1s) immediately followed by the **device's default notification tone** from the OS notification. The OS notification is now created with `silent: true` on all paths (service-worker `showNotification` + the three `new Notification` fallbacks). The status-bar notification still appears, but only the app's announcement sound is heard — consistent with cash in / cash out / delete, which never trigger an OS tone. **Requires real-device/runtime verification.**
+
+### Verification
+Self-test 63/63; 4 silent flags confirmed on the announcement notification paths; gates green (JS valid, CSS 2136/2136).
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.15
+
+Invite card shows "Team" instead of raw "staff".
+
+### Hash
+`09616fedfc914aaf8fc74f79e07912fd`
+
+### Changes
+The pending-invite card (shown to an invited person in their sidebar) printed the raw internal role value — so a team invite read "staff". It now shows the friendly label "Team" (Manager/Viewer capitalize normally), matching the rest of the app. Also updated the help text "If you were invited as staff…" → "…as a team member". The internal role value stays `staff` (permissions untouched); only the displayed word changed.
+
+### Verification
+Self-test 63/63; confirmed no remaining invitee-facing raw "staff" output (all other role displays already mapped staff→team); gates green (JS valid, CSS 2136/2136).
+
+---
+
 ## [1.1] — 2026-05-21 · build 2026.05.21.14
 
 Splash loading bar moved below the icon/name.

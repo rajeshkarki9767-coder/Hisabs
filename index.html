@@ -7159,7 +7159,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.14';
+  const BUILD_TAG = '2026.05.21.16';
 
   // ================================================================
   // STORAGE
@@ -11120,7 +11120,11 @@
           const owner = accounts.find(a => a.id === biz?.ownerId);
           const bizName = m.businessName || biz?.name || '(unknown business)';
           const inviterName = m.invitedByName || owner?.name || '';
-          const metaLine = inviterName ? `${escapeHtml(inviterName)} · ${escapeHtml(m.role)}` : `role: ${escapeHtml(m.role)}`;
+          // v89.32.26: show the friendly role label on the invite card —
+          // the internal "staff" role must read "Team" (consistent with the
+          // rest of the app), never the raw word "staff".
+          const inviteRoleLabel = m.role === 'staff' ? 'Team' : (m.role ? (m.role.charAt(0).toUpperCase() + m.role.slice(1)) : '');
+          const metaLine = inviterName ? `${escapeHtml(inviterName)} · ${escapeHtml(inviteRoleLabel)}` : `role: ${escapeHtml(inviteRoleLabel)}`;
           return `<div class="invite-card">
             <div class="invite-card-name">${escapeHtml(bizName)}</div>
             <div class="invite-card-meta">${metaLine}</div>
@@ -24950,7 +24954,7 @@
         <h3>I can't see my business after signing in</h3>
         <ul>
           <li>Check the sidebar — you may be looking at a different business. Tap the business name to switch.</li>
-          <li>If you were invited as staff, ensure you've signed in with the same email the invite was sent to.</li>
+          <li>If you were invited as a team member, ensure you've signed in with the same email the invite was sent to.</li>
           <li>Wait 10–15 seconds after sign-in — initial cloud pull takes a moment.</li>
         </ul>
 
@@ -31808,6 +31812,11 @@
       const tag = `hisabs-ann-${announcement.id}`;
       // Use the SW registration if available so the notification persists
       // when the tab is backgrounded. Falls back to in-tab Notification.
+      // v89.32.27: the OS notification must be SILENT — otherwise the
+      // device plays its own default notification tone right after our
+      // announcement MP3 (the "1 second then another sound" issue). With
+      // silent:true the status-bar notification still shows, but only our
+      // embedded announcement sound is heard, matching cash in/out/delete.
       if (navigator.serviceWorker && navigator.serviceWorker.controller) {
         navigator.serviceWorker.ready.then((reg) => {
           reg.showNotification(title, {
@@ -31816,17 +31825,18 @@
             badge: './icons/icon-192.png',
             tag,
             renotify: false,
+            silent: true,
             requireInteraction: !!announcement.important,
             data: { url: location.origin + location.pathname, announcementId: announcement.id },
           }).catch(() => {
             // Fallback to in-tab notification if SW path fails
-            try { new Notification(title, { body, icon: './icons/icon-192.png', tag }); } catch (_) {}
+            try { new Notification(title, { body, icon: './icons/icon-192.png', tag, silent: true }); } catch (_) {}
           });
         }).catch(() => {
-          try { new Notification(title, { body, icon: './icons/icon-192.png', tag }); } catch (_) {}
+          try { new Notification(title, { body, icon: './icons/icon-192.png', tag, silent: true }); } catch (_) {}
         });
       } else {
-        new Notification(title, { body, icon: './icons/icon-192.png', tag });
+        new Notification(title, { body, icon: './icons/icon-192.png', tag, silent: true });
       }
     } catch (_) {}
   }
