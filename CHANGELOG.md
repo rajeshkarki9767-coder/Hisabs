@@ -12,7 +12,84 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [1.1] — 2026-05-21 (was internal v89.32.17)
+## [1.1] — 2026-05-21 · build 2026.05.21.5
+
+Verification pass on the export/print/backup/speed work, plus two real fixes.
+
+### Hash
+`9276d1404afe246ec95af3e9429633eb`
+
+### Changes
+- **Removed the now-orphaned `showBackupToast` function.** The auto-backup "completed" toast was already disabled in `runAutoBackup` (build .4), but the unused function and its "Auto Backup completed" text were still in the file — now gone entirely.
+- **Fixed a print/performance conflict:** build .4 added `content-visibility: auto` on `.entry-row` for faster scrolling, but that property makes off-screen rows skip rendering when printing — which would have clipped long ledgers on paper (working *against* the mobile-print fix). Added a print override forcing `content-visibility: visible` on all rows so every entry prints.
+- Confirmed the build-.4 work is genuinely in place: detail exports (party/category/account) carry the full 10-column ledger + totals in landscape; dashboard exports include all rows + totals; the mobile-print full-width rule is present; `content-visibility` covers all four entry views (the detail views reuse `.entry-row`).
+
+Build tag `2026.05.21.5` (sw.js cache version in sync).
+
+### Verification
+Self-test 63/63; gates green (CSS 2125/2125).
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.4
+
+Cleaner exports, no backup toast, print + speed fixes.
+
+### Hash
+`f6683d3cce8fa3554dbe85bdf4c7a8e5`
+
+### Changes
+1. **Removed the "Auto Backup completed" toast.** Auto-backups still run every 30 minutes and remain downloadable from Settings → Data → Auto-backups; they just no longer interrupt with a message.
+2. **Party / Category / Account exports (PDF + CSV) now carry the full entries-tab columns:** Inv #, Date, Description, From / To, Category, Account, In, Out, Bal., By — with a running balance and a totals footer, matching the main entries export exactly. PDFs use landscape so the ten columns fit cleanly. Previously these detail exports had fewer columns and inconsistent headers (e.g. "Note", "Received/Paid").
+3. **Header names** across the entries PDF/CSV and the detail exports are now consistent (Description, From / To, In/Out, Bal., By).
+4. **Mobile print clipping fix** ("half page printed"): added print rules forcing every content container to full page width with visible overflow, so the printed sheet fills the page regardless of the narrow on-screen mobile layout. *(Requires real-device verification — see note.)*
+5. **Performance:** entry rows now use `content-visibility: auto` so the browser skips layout/paint for off-screen rows — meaningfully faster scrolling and rendering on long ledgers, with no behaviour change.
+
+Build tag `2026.05.21.4` (sw.js cache version in sync).
+
+### Verification
+Self-test 63/63; detail-export column trace confirms all 10 columns; no undefined handlers; gates green. Print clipping and overall responsiveness require real-device confirmation.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.3
+
+Clock layout (day · city+time · date) and entry-count placement.
+
+### Hash
+`3c768c87e964f6be71af79d1db9b164b`
+
+### Changes
+1. **Clock bar** is now three parts: the **weekday on the left**, the **city + time centered** in the exact middle, and the **date on the right**. The side columns are equal-width so the center stays truly centered regardless of how long the day/date strings are. The per-second tick now also refreshes the day and date (they roll over at midnight in the business zone). `formatClockFor` gained a `day` (short weekday) field.
+2. **Entry count moved** off the title/topbar and placed below the All / Cash-in / Cash-out filter row (in the period-label line on the entries view), e.g. "THIS MONTH · 12 entries". It reflects the active period, type filter, and search, and is visible on mobile and desktop. The same count now appears on the party, category, and account detail views, in their "All transactions / All entries" label line — scoped to the active business's books so shared names can't over-count. The earlier mobile-topbar count (build .2) was reverted in favour of this.
+
+Build tag `2026.05.21.3` (sw.js cache version kept in sync).
+
+### Verification
+Self-test 63/63; clock trace 3/3 (day/time/date); count wiring confirmed on all four views.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.2
+
+Mobile: show the entry count on the entries tab and detail views.
+
+### Hash
+`4a5d4f9228b6e1fbeef612f49c2a35c0`
+
+### Changes
+On phones, the in-page title (which carries the entry-count chip) is hidden to save space, so the count was invisible on the entries tab and on party / category / account detail views. The mobile topbar title now appends a period-aware entry count, e.g. "Main Cash Book · 12 entries" or "Acme Traders · 3 entries".
+
+The detail-view counts are scoped to the active business's books — matching the desktop chips exactly — so a party, category, or account name shared with another business can't over-count. Uncategorized entries are counted correctly.
+
+Build tag bumped to `2026.05.21.2` (sw.js cache version kept in sync).
+
+### Verification
+Self-test 63/63; count-scoping trace 5/5 (proves the other-business exclusion, uncategorized, account, and book counts).
+
+---
+
+## [1.1] — 2026-05-21 (was internal v89.32.17) · build 2026.05.21.1
 
 Switched to public version numbering, starting at 1.1.
 

@@ -1904,6 +1904,10 @@
 
   /* Date / day strip — shows current weekday + date above every page, on both desktop and mobile. */
   .clock-bar { display: flex; align-items: stretch; justify-content: center; gap: 1rem; padding: 0.5rem 0.25rem 0.7rem; margin-bottom: 0.2rem; }
+  .clock-row { display: flex; align-items: center; justify-content: space-between; width: 100%; max-width: 26rem; gap: 0.5rem; }
+  .clock-side { flex: 1 1 0; font-size: 0.8rem; color: var(--ink-mute); font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .clock-day { text-align: left; }
+  .clock-date { text-align: right; }
   .clock-cell { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 0.5rem; line-height: 1.15; padding: 0 0.5rem; }
   .clock-zone { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; }
   .clock-time { font-size: 1.15rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -2047,6 +2051,32 @@
     body.printing-fullpage .distribution-net-card {
       page-break-inside: avoid;
       break-inside: avoid;
+    }
+    /* v89.32.20 — mobile print clipping fix. On phones the layout is sized to
+       the narrow device viewport; when printing, the paper is wider, which
+       left the right portion of the page blank ("half page printed"). Force
+       every content container to full page width with visible overflow so the
+       printed output fills the sheet, regardless of the on-screen layout. */
+    body.printing-fullpage .entries-wrap,
+    body.printing-fullpage .entry-row,
+    body.printing-fullpage .entries-list,
+    body.printing-fullpage #entriesList,
+    body.printing-fullpage .card,
+    body.printing-fullpage .stat,
+    body.printing-fullpage .stats,
+    body.printing-fullpage .audit-section,
+    body.printing-fullpage .dist-section {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box !important;
+      overflow: visible !important;
+    }
+    /* content-visibility:auto (used on .entry-row for fast scrolling) can make
+       off-screen rows skip rendering when printing — which would clip a long
+       ledger. Force every row visible to paint on paper. */
+    .entry-row {
+      content-visibility: visible !important;
+      contain-intrinsic-size: auto !important;
     }
   }
   @media print {
@@ -2317,6 +2347,7 @@
     color: var(--ink-mute); font-weight: 600;
     border-bottom: 1px dashed var(--line-soft);
   }
+  .entries-count-inline { color: var(--ink-mute); font-weight: 600; }
   /* DESKTOP entry-row grid (>1024px). The widths were tuned for two
      constraints, both desktop-only:
        1. The description column was 1fr — it absorbed all leftover
@@ -2333,7 +2364,7 @@
      separate override below). */
   .entries-head { display: grid; grid-template-columns: 120px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.6rem 1rem; background: var(--paper-deep); border-bottom: 1px solid var(--line); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); font-weight: 600; }
   .entries-head .col-amount, .entries-head .col-balance { text-align: right; }
-  .entry-row { display: grid; grid-template-columns: 120px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; }
+  .entry-row { display: grid; grid-template-columns: 120px minmax(160px, 1.25fr) minmax(200px, 1fr) 110px 110px 60px; gap: 0.85rem; padding: 0.55rem 1rem; border-bottom: 1px solid var(--line-soft); align-items: center; transition: background 0.1s; content-visibility: auto; contain-intrinsic-size: auto 56px; }
   /* CSS grid items default to min-width:auto which respects intrinsic
      content size. A long category name, party name, or book name in
      any cell would expand its track and shove neighboring columns
@@ -7094,7 +7125,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.1';
+  const BUILD_TAG = '2026.05.21.5';
 
   // ================================================================
   // STORAGE
@@ -10899,7 +10930,7 @@
   function formatClockFor(tz, now) {
     const d = now || new Date();
     const opts = tz ? { timeZone: tz } : {};
-    let time = '', date = '';
+    let time = '', date = '', day = '';
     try {
       time = d.toLocaleTimeString(undefined, { ...opts, hour: 'numeric', minute: '2-digit', hour12: true });
     } catch (_) {
@@ -10910,7 +10941,12 @@
     } catch (_) {
       date = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     }
-    return { time, date };
+    try {
+      day = d.toLocaleDateString(undefined, { ...opts, weekday: 'short' });
+    } catch (_) {
+      day = d.toLocaleDateString(undefined, { weekday: 'short' });
+    }
+    return { time, date, day };
   }
   function renderClockBar() {
     const el = document.getElementById('clockBar');
@@ -10918,9 +10954,16 @@
     if (!session.activeBizId) { el.hidden = true; el.innerHTML = ''; return; }
     const tz = businessTimeZone();
     const f = formatClockFor(tz, new Date());
-    el.innerHTML = `<div class="clock-cell clock-cell-main">
-      <span class="clock-zone">${escapeHtml(clockTzShortName(tz) || 'Local')}</span>
-      <span class="clock-time" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.time)}</span>
+    // v89.32.19: three-part bar — day of week on the left, city + time in the
+    // exact center, date on the right. The side columns are equal-width so the
+    // center stays truly centered regardless of how long the day/date read.
+    el.innerHTML = `<div class="clock-row">
+      <span class="clock-side clock-day" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.day)}</span>
+      <span class="clock-cell clock-cell-main">
+        <span class="clock-zone">${escapeHtml(clockTzShortName(tz) || 'Local')}</span>
+        <span class="clock-time" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.time)}</span>
+      </span>
+      <span class="clock-side clock-date" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.date)}</span>
     </div>`;
     el.hidden = false;
   }
@@ -10933,6 +10976,18 @@
       const tz = span.getAttribute('data-clock-tz') || '';
       const f = formatClockFor(tz, now);
       if (span.textContent !== f.time) span.textContent = f.time;
+    });
+    // Keep the day (left) and date (right) current too — they change at
+    // midnight in the business zone, so refresh them on the same tick.
+    el.querySelectorAll('.clock-day').forEach(span => {
+      const tz = span.getAttribute('data-clock-tz') || '';
+      const f = formatClockFor(tz, now);
+      if (span.textContent !== f.day) span.textContent = f.day;
+    });
+    el.querySelectorAll('.clock-date').forEach(span => {
+      const tz = span.getAttribute('data-clock-tz') || '';
+      const f = formatClockFor(tz, now);
+      if (span.textContent !== f.date) span.textContent = f.date;
     });
     if (!__clockTimer) __clockTimer = setInterval(updateClocks, 1000);
   }
@@ -11600,7 +11655,7 @@
       <div id="entryFilterBanner"></div>
       ${inlinePlusHTML}
       <div class="entries-wrap">
-        <div class="entries-period-label">${escapeHtml(periodLabelText)}</div>
+        <div class="entries-period-label">${escapeHtml(periodLabelText)}<span class="entries-count-inline" id="entriesCountInline"></span></div>
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>From / To</div>
           <div class="col-amount">Amount</div><div class="col-balance">Balance</div><div></div>
@@ -11848,6 +11903,9 @@
     renderEntryFilterBanner();
 
     if (!entries.length) {
+      // Keep the count line in sync (zero) when nothing matches.
+      const _cEl = document.getElementById('entriesCountInline');
+      if (_cEl) _cEl.textContent = ' · 0 entries';
       const isFiltered = search || typeF !== 'all' || __entryFilter.partyId || __entryFilter.category || __entryFilter.accountId;
       if (isFiltered) {
         list.innerHTML = `<div class="empty"><div class="empty-headline">No matches.</div><div>Try a different filter or <a onclick="clearAllEntryFilters()">clear filters</a>.</div></div>`;
@@ -11894,6 +11952,11 @@
     // O(entries × accounts) per render.
     const accountMap = buildAccountMap();
     list.innerHTML = shownEntries.map(e => renderEntryRow(e, isMobile, accountMap)).join('') + moreBtn;
+    // v89.32.19: entry count shown below the All/Cash-in/Cash-out filter row
+    // (in the period-label line), reflecting the active period, type filter,
+    // and search. Visible on both mobile and desktop.
+    const _cntEl = document.getElementById('entriesCountInline');
+    if (_cntEl) _cntEl.textContent = ` · ${entries.length} ${entries.length === 1 ? 'entry' : 'entries'}`;
 
     // Disconnect any previous observer (no longer used for entries but
     // defensive — may have been left from an earlier render path).
@@ -12553,7 +12616,7 @@
       ${statsHTML}
       ${renderPartyContactCard(party)}
       ${catBreakdownHTML}
-      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">${__partyDetailCatFilter ? `Transactions in “${escapeHtml(__partyDetailCatFilter)}”` : 'All transactions'}</div>
+      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">${__partyDetailCatFilter ? `Transactions in “${escapeHtml(__partyDetailCatFilter)}”` : 'All transactions'} · ${allEntries.length} ${allEntries.length === 1 ? 'entry' : 'entries'}</div>
       <div class="entries-wrap">
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>Book</div>
@@ -12853,7 +12916,7 @@
       </div>
       ${renderPeriodBar()}
       ${statsHTML}
-      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries</div>
+      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
       <div class="entries-wrap">
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>Party / Book</div>
@@ -18569,7 +18632,7 @@
       </div>
       ${renderPeriodBar()}
       ${statsHTML}
-      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries</div>
+      <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries · ${entries.length} ${entries.length === 1 ? "entry" : "entries"}</div>
       <div class="entries-wrap">
         <div class="entries-head">
           <div>Date</div><div>Description</div><div>Party / Book</div>
@@ -27701,28 +27764,9 @@
     list.unshift({ at: payload.exportedAt, payload });
     while (list.length > AUTO_BACKUP_MAX) list.pop();
     saveAutoBackupList(list);
-    if (!opts || opts.silent !== true) {
-      // Offer download via toast — the click is the user gesture browsers require
-      showBackupToast(0);
-    }
-  }
-  function showBackupToast(idx) {
-    const wrap = document.getElementById('toast');
-    if (!wrap) return;
-    // v57: two-line message — primary "Auto Backup completed" reads
-    // as a confirmation; smaller "Download from settings" tells the
-    // user where to grab the file. Tapping the small text opens
-    // Settings → Data which has the Auto-backups list. The toast
-    // self-dismisses; we don't put a Download button in the toast
-    // itself any more because users said the inline button was easy
-    // to miss (3-second window) and they preferred a calm reminder
-    // pointing to a stable location they could revisit later.
-    wrap.innerHTML = `<span style="display:inline-flex;flex-direction:column;align-items:flex-start;gap:0.15rem;">
-      <span style="font-size:0.85rem;font-weight:600;">Auto Backup completed</span>
-      <button class="hisabs-backup-toast-link" onclick="pickSettingsTab('data');this.closest('#toast').classList.remove('show');" style="background:none;border:none;padding:0;font-size:0.7rem;color:var(--ink-mute);text-decoration:underline;cursor:pointer;font-family:inherit;">Download from settings</button>
-    </span>`;
-    wrap.classList.add('show');
-    setTimeout(() => wrap.classList.remove('show'), 3500);
+    // v89.32.20: the backup still runs and is downloadable from
+    // Settings → Data → Auto-backups, but we no longer surface a
+    // "completed" toast — it added noise without value.
   }
   // Start the auto-backup timer once the user is signed in
   let __autoBackupTimer = null;
@@ -29738,26 +29782,85 @@
     const ents = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    const rows = ents.map(e => {
-      const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
+    exportDetailLedger({
+      kind, biz, entries: ents,
+      title: `${p.name} — Party ledger`,
+      filename: `party_${p.name}_all`,
+    });
+  }
+
+  // v89.32.20: shared full-detail ledger export so party / category / account
+  // PDFs and CSVs carry the SAME columns as the entries-tab export:
+  //   Inv #, Date, Description, From / To, Category, Account, In, Out, Bal., By
+  // with a running balance and a totals footer. PDF reuses the brand styling.
+  function exportDetailLedger(o) {
+    const { kind, biz, entries, title, filename } = o;
+    const cur = biz.currency || 'NPR';
+    const acctById = new Map(data.cashAccounts.map(a => [a.id, a.name]));
+    let bal = 0;
+    const rows = entries.map(e => {
+      const amt = Number(e.amount);
+      const safeAmt = Number.isFinite(amt) ? amt : 0;
+      bal += e.type === 'in' ? safeAmt : -safeAmt;
       return [
-        e.date || '', e.note || '', e.category || '', acct?.name || '',
-        e.type === 'in' ? Number(e.amount || 0).toFixed(2) : '',
-        e.type === 'out' ? Number(e.amount || 0).toFixed(2) : '',
+        formatEntryNo(e.entryNo) || '',
+        e.date || '',
+        e.note || '',
+        e.party || '',
+        e.category || '',
+        acctById.get(e.accountId) || '',
+        e.type === 'in' ? fmtCur(safeAmt, biz.currency) : '',
+        e.type === 'out' ? fmtCur(safeAmt, biz.currency) : '',
+        fmtCur(bal, biz.currency),
+        e.createdByName || '',
       ];
     });
-    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const opts = {
-      title: `${p.name} — Party ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
-      columns: ['Date', 'Note', 'Category', 'Account', 'Received', 'Paid'],
-      rows,
-      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
-      filename: `party_${p.name}_all`,
-      columnAlign: { 4: 'right', 5: 'right' },
-    };
-    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+    const inSum = entries.reduce((a, e) => a + (e.type === 'in' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
+    const outSum = entries.reduce((a, e) => a + (e.type === 'out' && Number.isFinite(Number(e.amount)) ? Number(e.amount) : 0), 0);
+    const columns = ['Inv #', 'Date', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By'];
+    const totals = ['', '', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), ''];
+    if (kind === 'pdf') {
+      if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+      if (!entries.length) { toast('Nothing to export.'); return; }
+      const { jsPDF } = window.jspdf;
+      // Landscape gives the 10 columns room to breathe — same as a wide ledger.
+      const doc = new jsPDF({ orientation: 'landscape' });
+      doc.setFontSize(18); doc.setFont('helvetica', 'normal'); doc.text(String(title), 14, 18);
+      doc.setFontSize(10); doc.setTextColor(120);
+      doc.text(`${biz.name}  ·  ${biz.currency} (${currencyDisplay(cur)})  ·  All time  ·  Generated ${today()}`, 14, 25);
+      if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
+      doc.autoTable({
+        head: [columns], body: rows, startY: 31,
+        headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
+        styles: { fontSize: 7, cellPadding: 1.8 },
+        columnStyles: {
+          0: { fontStyle: 'bold', textColor: [120, 120, 120] },
+          6: { halign: 'right', textColor: [46, 93, 58], fontStyle: 'bold' },
+          7: { halign: 'right', textColor: [168, 53, 31], fontStyle: 'bold' },
+          8: { halign: 'right', fontStyle: 'bold' },
+        },
+        foot: [totals],
+        footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
+      });
+      doc.save(`${String(filename).replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`);
+      toast('PDF downloaded.');
+    } else {
+      exportTableCSV({
+        title, subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
+        columns,
+        rows: entries.map(e => {
+          const amt = Number(e.amount) || 0;
+          return [
+            formatEntryNo(e.entryNo) || '', e.date || '', e.note || '', e.party || '',
+            e.category || '', acctById.get(e.accountId) || '',
+            e.type === 'in' ? amt.toFixed(2) : '', e.type === 'out' ? amt.toFixed(2) : '',
+            '', e.createdByName || '',
+          ];
+        }),
+        totals: ['', '', '', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2), ''],
+        filename,
+      });
+    }
   }
 
   function exportCategoryDetail(catName, kind) {
@@ -29768,26 +29871,11 @@
     const ents = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.category === catName)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    const rows = ents.map(e => {
-      const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
-      return [
-        e.date || '', e.note || '', e.party || '', acct?.name || '',
-        e.type === 'in' ? Number(e.amount || 0).toFixed(2) : '',
-        e.type === 'out' ? Number(e.amount || 0).toFixed(2) : '',
-      ];
-    });
-    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const opts = {
+    exportDetailLedger({
+      kind, biz, entries: ents,
       title: `${catName} — Category ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
-      columns: ['Date', 'Note', 'Party', 'Account', 'Cash in', 'Cash out'],
-      rows,
-      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2)],
       filename: `category_${catName}_all`,
-      columnAlign: { 4: 'right', 5: 'right' },
-    };
-    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+    });
   }
 
   function exportAccountDetail(accountId, kind) {
@@ -29798,30 +29886,12 @@
     // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id)
-      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    let bal = 0;
-    const rows = ents.map(e => {
-      const amt = Number(e.amount || 0);
-      bal += e.type === 'in' ? amt : -amt;
-      return [
-        e.date || '', e.note || '', e.party || '', e.category || '',
-        e.type === 'in' ? amt.toFixed(2) : '',
-        e.type === 'out' ? amt.toFixed(2) : '',
-        bal.toFixed(2),
-      ];
-    });
-    const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-    const opts = {
+      .sort((a2, b2) => (a2.date || '').localeCompare(b2.date || ''));
+    exportDetailLedger({
+      kind, biz, entries: ents,
       title: `${a.name} — Account ledger`,
-      subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
-      columns: ['Date', 'Note', 'Party', 'Category', 'In', 'Out', 'Balance'],
-      rows,
-      totals: ['', '', '', 'Totals', inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)],
       filename: `account_${a.name}_all`,
-      columnAlign: { 4: 'right', 5: 'right', 6: 'right' },
-    };
-    if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
+    });
   }
 
   // ================================================================
