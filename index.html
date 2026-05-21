@@ -5897,6 +5897,8 @@
   .staff-info { display: flex; align-items: center; gap: 0.75rem; min-width: 0; flex: 1; }
   .staff-info > div:last-child { min-width: 0; flex: 1; }
   .staff-meta { font-size: 0.78rem; color: var(--ink-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .staff-row-actions { margin-top: 0.45rem; }
+  .staff-row-actions .btn { font-size: 0.72rem; padding: 0.2rem 0.6rem; }
   .role-badge { font-size: 0.65rem; padding: 0.2rem 0.5rem; background: var(--ink); color: var(--paper); text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
   .role-badge.viewer { background: var(--ink-mute); color: #ffffff; }
   .role-badge.staff { background: var(--accent); color: #ffffff; }
@@ -7083,6 +7085,16 @@
   }
 
   const DEFAULT_CATEGORIES = ['Sales', 'Purchase', 'Salary', 'Rent', 'Utilities', 'Transport', 'Other'];
+  // v89.32.15: user-visible build version, shown in Settings → Help & legal.
+  // Lets anyone confirm at a glance which build is actually live (the PWA can
+  // serve a cached older version until the service worker updates).
+  // Public version, shown to users in About. We moved from the internal
+  // v89.32.x scheme to clean public numbers here — this is the starting point.
+  const APP_VERSION = '1.1';
+  // Internal build tag — bumps on every deploy to force the PWA service
+  // worker to refresh its cache, independent of the public version. Keep the
+  // service worker's CACHE_VERSION in sync with this on each release.
+  const BUILD_TAG = '2026.05.21.1';
 
   // ================================================================
   // STORAGE
@@ -11561,7 +11573,7 @@
       <div class="toolbar">
         <div class="search-wrap">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="renderEntriesList()" value="${document.getElementById('searchInput')?.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore">
+          <input type="text" id="searchInput" placeholder="Search notes, party, category, account, by-name, amount, date, edited, backdated…" oninput="setEntriesSearch()" value="${document.getElementById('searchInput')?.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore">
         </div>
         <select id="filterType" onchange="renderEntriesList()">
           <option value="all">All</option>
@@ -11710,6 +11722,19 @@
   let __entriesShown = ENTRY_PAGE_SIZE;
   let __entryRenderObserver = null;
 
+  // v89.32.12: shared trailing debounce for search re-renders, so a typed
+  // character paints instantly and the (possibly heavy) filter runs ~120ms
+  // after the last keystroke. Keyed so each search field debounces alone.
+  const __searchDebounce = {};
+  function _debouncedRender(key, fn, ms) {
+    if (__searchDebounce[key]) clearTimeout(__searchDebounce[key]);
+    __searchDebounce[key] = setTimeout(() => { __searchDebounce[key] = null; fn(); }, ms == null ? 120 : ms);
+  }
+  // v89.32.12: debounced entries-list filter. renderEntriesList reads
+  // #searchInput live, so no value needs to be passed.
+  function setEntriesSearch() {
+    _debouncedRender('entries', () => renderEntriesList());
+  }
   function renderEntriesList() {
     const list = document.getElementById('entriesList');
     if (!list) return;
@@ -12069,7 +12094,20 @@
     let sameDay = true;
     if (e.createdAt) {
       const created = new Date(e.createdAt);
-      createdYmd = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+      // v89.32.13: derive the "added" date in the BUSINESS zone so it lines up
+      // with e.date (also business-zone) — otherwise a device in another zone
+      // could show "added <different day>" or a wrong same-day check.
+      try {
+        const tz = (typeof businessTimeZone === 'function') ? businessTimeZone() : null;
+        createdYmd = tz
+          ? created.toLocaleDateString('en-CA', { timeZone: tz })
+          : `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(createdYmd)) {
+          createdYmd = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+        }
+      } catch (_) {
+        createdYmd = `${created.getFullYear()}-${String(created.getMonth() + 1).padStart(2, '0')}-${String(created.getDate()).padStart(2, '0')}`;
+      }
       sameDay = !e.date || createdYmd === e.date;
     }
     if (mode === 'inline') {
@@ -13750,6 +13788,10 @@
       // Recompute totals + per-row final amount. This updates the DOM
       // text content directly without re-rendering inputs (preserves focus).
       try { refreshDistributionTotals(); } catch (_) {}
+      // v89.32.12: persist on type so a salary edit isn't lost if the user
+      // navigates away without clicking the row's Save button (matches the
+      // party-row fix). Writes to localStorage + queues cloud sync.
+      try { _persistDistribution(); } catch (_) {}
     }
   }
   function saveDistSalaryRow(id) {
@@ -14636,6 +14678,22 @@
     const buf = _distBufferGet('parties', id);
     buf[field] = value;
     _markRowDirtyUI('parties', id);
+    // v89.32.12 fix: previously this only wrote to the dirty buffer, so a
+    // party name/% typed without then clicking the row's Save button was lost
+    // on re-render or navigation. Mirror to the live row and persist
+    // immediately (matching how salary rows behave via updateDistSalaryField),
+    // so typing is durable. The buffer is still tracked for the Save/lock UI.
+    const party = __splitParties.find(p => p.id === id);
+    if (party) {
+      if (field === 'name') party.name = String(value || '').slice(0, 80);
+      else if (field === 'pct') {
+        if (value === '' || value === null) party.pct = 0;
+        else { const n = Number(value); party.pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
+      }
+      try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+      // Refresh only the math UI — never rebuild the inputs (would break typing).
+      try { updateSplitCalcMathOnly(); } catch (_) {}
+    }
   }
   function saveSplitPartyRow(id) {
     const row = __splitParties.find(r => r.id === id);
@@ -15427,6 +15485,10 @@
           <h1 class="page-title">Audit</h1>
         </div>
         <div class="page-actions">
+          <button class="btn btn-sm" onclick="openExportChooser('statement')" title="Download a clean statement for the current period">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.35rem;vertical-align:-2px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Statement
+          </button>
           ${printIconButton()}
           ${exportIconButton('audit')}
         </div>
@@ -19267,6 +19329,7 @@
       modal.innerHTML = insightsPeriodModal();
     }
     else if (kind === 'privacy') { modal.innerHTML = privacyModal(); }
+    else if (kind === 'about') { modal.innerHTML = aboutModal(); }
     else if (kind === 'terms') { modal.innerHTML = termsModal(); }
     else if (kind === 'userGuide') { modal.innerHTML = userGuideModal(); }
     else if (kind === 'quickLook') {
@@ -22022,13 +22085,13 @@
               <div>
                 <div style="font-weight:500;">${escapeHtml(displayName)}</div>
                 <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined' + (m.respondedAt ? ' ' + m.respondedAt : '') : 'joined' + (m.respondedAt || m.addedAt ? ' ' + (m.respondedAt || m.addedAt) : '')}</div>
+                <div class="staff-row-actions">
+                  <button class="btn btn-sm btn-danger-outline" onclick="removeStaff('${m.id}')">Remove</button>
+                </div>
               </div>
             </div>
             <div style="display:flex;gap:.4rem;align-items:center;flex-shrink:0;">
               ${statusBadge}<span class="role-badge ${m.role}">${m.role === "staff" ? "team" : m.role}</span>
-              <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${m.id}')" aria-label="Remove">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
             </div>
           </div>`;
         }).join('')}
@@ -23469,14 +23532,14 @@
               <div>
                 <div style="font-weight:500;">${escapeHtml(displayName)}</div>
                 <div class="staff-meta">${escapeHtml(m.userLogin)} · ${m.status === 'pending' ? 'awaiting response' : m.status === 'declined' ? 'declined' + (m.respondedAt ? ' ' + m.respondedAt : '') : 'joined' + (m.respondedAt || m.addedAt ? ' ' + (m.respondedAt || m.addedAt) : '')}</div>
+                <div class="staff-row-actions">
+                  <button class="btn btn-sm btn-danger-outline" onclick="removeStaff('${jsAttr(m.id)}')">Remove</button>
+                </div>
               </div>
             </div>
             <div class="staff-row-controls">
               <div class="staff-row-controls-top">
                 ${statusBadge}${roleControl}
-                <button class="icon-btn" style="color:var(--ink-mute);" onclick="removeStaff('${jsAttr(m.id)}')" aria-label="Remove">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
               </div>
               ${seesTotalsRow}
             </div>
@@ -24199,7 +24262,19 @@
       </button>
     </div>`;
   }
-  function setPartiesSearch(v) { __partiesSearch = v; const root = document.getElementById('mainContent'); if (root) renderPartiesView(root); restoreSearchFocus('partiesSearchInput'); }
+  // v89.32.12: debounce the heavy view re-render that each search keystroke
+  // triggers (helper _debouncedRender + __searchDebounce are defined earlier,
+  // before renderEntriesList). The search state updates immediately so the
+  // input reflects what was typed, while the filter/re-render runs ~120ms
+  // after the last keystroke.
+  function setPartiesSearch(v) {
+    __partiesSearch = v;
+    _debouncedRender('parties', () => {
+      const root = document.getElementById('mainContent');
+      if (root) renderPartiesView(root);
+      restoreSearchFocus('partiesSearchInput');
+    });
+  }
   // v73: persist the chosen party sort across navigations
   function setPartySortMode(v) {
     session.partySortMode = v;
@@ -24207,8 +24282,22 @@
     const root = document.getElementById('mainContent');
     if (root) renderPartiesView(root);
   }
-  function setCategoriesSearch(v) { __categoriesSearch = v; const root = document.getElementById('mainContent'); if (root) renderCategoriesView(root); restoreSearchFocus('categoriesSearchInput'); }
-  function setAccountsSearch(v) { __accountsSearch = v; const root = document.getElementById('mainContent'); if (root) renderAccountsView(root); restoreSearchFocus('accountsSearchInput'); }
+  function setCategoriesSearch(v) {
+    __categoriesSearch = v;
+    _debouncedRender('categories', () => {
+      const root = document.getElementById('mainContent');
+      if (root) renderCategoriesView(root);
+      restoreSearchFocus('categoriesSearchInput');
+    });
+  }
+  function setAccountsSearch(v) {
+    __accountsSearch = v;
+    _debouncedRender('accounts', () => {
+      const root = document.getElementById('mainContent');
+      if (root) renderAccountsView(root);
+      restoreSearchFocus('accountsSearchInput');
+    });
+  }
   function restoreSearchFocus(id) {
     setTimeout(() => {
       const el = document.getElementById(id);
@@ -24312,6 +24401,29 @@
     `;
   }
 
+  function aboutModal() {
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">About Hisabs</h2>
+      <p class="modal-sub">A simple, fast cash book for everyday business.</p>
+      <div class="settings-tab-body doc-body">
+        <p>Hisabs is a lightweight cash-accounting app for shopkeepers, small businesses, and side hustles. Track money in and money out, organise it across businesses and books, share access with your team, and see your profit at a glance — on any device, even offline.</p>
+        <h3>What it does</h3>
+        <ul>
+          <li>Record cash-in and cash-out entries with parties, categories, and accounts</li>
+          <li>Run multiple businesses, each with its own books, currency, and time zone</li>
+          <li>Invite team members with roles (manager, team, viewer)</li>
+          <li>See period summaries, profit &amp; loss, and download a clean statement</li>
+          <li>Works offline and syncs across your devices automatically</li>
+        </ul>
+        <h3>Version</h3>
+        <p><strong>Hisabs ${escapeHtml(APP_VERSION)}</strong> <span style="font-size:0.72rem;color:var(--ink-mute);">(build ${escapeHtml(BUILD_TAG)})</span></p>
+        <p style="font-size:0.8rem;color:var(--ink-mute);">If the build number doesn't match the latest you installed, fully close and reopen the app to load the newest version.</p>
+      </div>
+      <div class="modal-actions">
+        <button class="btn" onclick="closeModal()">Close</button>
+      </div>`;
+  }
   function privacyModal() {
     return `
       <div class="modal-handle"></div>
@@ -24886,6 +24998,7 @@
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-sm btn-ghost" onclick="openModal('userGuide')">User guide</button>
           <button class="btn btn-sm btn-ghost" onclick="openModal('privacy')">Privacy</button>
+          <button class="btn btn-sm btn-ghost" onclick="openModal('about')">About</button>
         </div>
       </div>`;
   }
@@ -27822,8 +27935,17 @@
     try {
       const d = new Date(epochMs);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
-    } catch (_) { return ''; }
+      // v89.32.13: show the "added" time in the BUSINESS time zone so it
+      // matches the business calendar the entries are kept on (not the
+      // device's clock). businessTimeZone() falls back to the device zone.
+      const tz = (typeof businessTimeZone === 'function') ? businessTimeZone() : null;
+      const opts = { hour: 'numeric', minute: '2-digit' };
+      if (tz) opts.timeZone = tz;
+      return d.toLocaleTimeString(undefined, opts);
+    } catch (_) {
+      try { return new Date(epochMs).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
+      catch (_) { return ''; }
+    }
   }
   // Combine a YYYY-MM-DD date string with an epoch-ms time into a
   // localized "Mon, May 14 · 3:42 PM" style line. Used in detail views
@@ -28020,9 +28142,19 @@
     if (!entry || !entry.date || !entry.createdAt) return false;
     const cd = new Date(entry.createdAt);
     if (isNaN(cd.getTime())) return false;
-    const cYmd = cd.getFullYear() + '-'
-      + String(cd.getMonth() + 1).padStart(2, '0')
-      + '-' + String(cd.getDate()).padStart(2, '0');
+    // v89.32.13: derive the creation calendar day in the BUSINESS zone so the
+    // backdated check matches the business calendar that entry.date is on.
+    let cYmd;
+    try {
+      const tz = (typeof businessTimeZone === 'function') ? businessTimeZone() : null;
+      cYmd = tz ? cd.toLocaleDateString('en-CA', { timeZone: tz })
+                : (cd.getFullYear() + '-' + String(cd.getMonth() + 1).padStart(2, '0') + '-' + String(cd.getDate()).padStart(2, '0'));
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(cYmd)) {
+        cYmd = cd.getFullYear() + '-' + String(cd.getMonth() + 1).padStart(2, '0') + '-' + String(cd.getDate()).padStart(2, '0');
+      }
+    } catch (_) {
+      cYmd = cd.getFullYear() + '-' + String(cd.getMonth() + 1).padStart(2, '0') + '-' + String(cd.getDate()).padStart(2, '0');
+    }
     return entry.date < cYmd;
   }
   // v72: front-dated (future) entry — entry.date is after today.
@@ -28623,6 +28755,8 @@
       exportAccountDetail(target.slice('account:'.length), format);
     } else if (target === 'audit') {
       exportAuditDashboard(format);
+    } else if (target === 'statement') {
+      exportPeriodStatement(format);
     } else if (target === 'forecast') {
       exportForecastDashboard(format);
     } else if (target === 'distribution') {
@@ -29087,8 +29221,134 @@
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
 
-  // Forecast export — captures the current month's projections + the
-  // last-month comparison. Same role gate as the forecast view —
+  // v89.32.14: "Monthly statement" — a clean, period-specific summary the
+  // owner can send. Unlike exportAuditDashboard (all-time), this respects the
+  // on-screen period (This Month / a chosen month / a custom range) and pairs
+  // the P&L summary with the period's entry list. Reuses the SAME P&L formula
+  // as the Audit view so the numbers can never disagree, and the SAME PDF
+  // styling as every other export.
+  function exportPeriodStatement(kind) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export the statement.'); return; }
+    const cur = biz.currency || 'NPR';
+    const periodLabel = currentPeriodLabel();
+    const pred = periodPredicate();
+    // Entries for the active period, across this business's books, visible
+    // accounts only (matches the audit/totals treatment of hidden accounts).
+    const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+    const visibleAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === biz.id && !a.hidden).map(a => a.id)
+    );
+    const periodEntries = data.entries
+      .filter(e => bookIds.has(e.bookId) && pred(e) && (!e.accountId || visibleAcctIds.has(e.accountId)))
+      .sort((a, b) => (a.date || '') < (b.date || '') ? -1 : (a.date || '') > (b.date || '') ? 1 : 0);
+    const inSum = periodEntries.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const outSum = periodEntries.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    const netCash = inSum - outSum;
+    // Period expenses (audit-only expenses), same predicate as the Audit view.
+    const expsForPeriod = data.auditExpenses
+      .filter(x => x.businessId === biz.id && pred({ date: expenseDate(x) }));
+    const expSum = expsForPeriod.reduce((s, x) => s + (Number(x.amount) || 0), 0);
+    // Same P&L math as renderAuditView.
+    const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
+    const operatingProfit = netCash - expSum;
+    const taxAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
+    const netProfit = operatingProfit - taxAmount;
+
+    if (kind === 'pdf') {
+      if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      // Header
+      doc.setFontSize(18); doc.setFont('helvetica', 'normal');
+      doc.text(String(biz.name || 'Business'), 14, 20);
+      doc.setFontSize(11); doc.setTextColor(90);
+      doc.text(`Statement — ${periodLabel}`, 14, 28);
+      doc.setFontSize(9); doc.setTextColor(120);
+      doc.text(`${cur} · Generated ${businessTodayYmd()}`, 14, 34);
+      // Summary / P&L table
+      const summaryRows = [
+        ['Cash in', `${fmt(inSum)}`],
+        ['Cash out', `${fmt(outSum)}`],
+        ['Net cash', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
+        ['Expenses', `${fmt(expSum)}`],
+        ['Operating profit', `${operatingProfit >= 0 ? '' : '-'}${fmt(Math.abs(operatingProfit))}`],
+      ];
+      if (taxRate > 0) summaryRows.push([`Tax (${taxRate}%)`, `${fmt(taxAmount)}`]);
+      summaryRows.push(['Net profit', `${netProfit >= 0 ? '' : '-'}${fmt(Math.abs(netProfit))}`]);
+      doc.autoTable({
+        head: [['Summary', cur]],
+        body: summaryRows,
+        startY: 40,
+        headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
+        styles: { fontSize: 9, cellPadding: 2.5 },
+        columnStyles: { 1: { halign: 'right' } },
+        didParseCell: (d) => {
+          if (d.section !== 'body') return;
+          const label = (d.row.raw && d.row.raw[0]) || '';
+          if (label === 'Net profit') { d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = netProfit >= 0 ? [46, 93, 58] : [168, 53, 31]; }
+          else if (label.startsWith('Tax')) { d.cell.styles.textColor = [168, 53, 31]; }
+        },
+      });
+      // Entries table
+      const entryRows = periodEntries.map(e => [
+        e.date || '',
+        (e.party || '').slice(0, 40),
+        (e.category || '').slice(0, 28),
+        e.type === 'in' ? fmt(Number(e.amount) || 0) : '',
+        e.type === 'out' ? fmt(Number(e.amount) || 0) : '',
+      ]);
+      const afterSummaryY = (doc.lastAutoTable ? doc.lastAutoTable.finalY : 60) + 8;
+      doc.setFontSize(11); doc.setTextColor(40);
+      doc.text('Entries', 14, afterSummaryY);
+      if (entryRows.length) {
+        doc.autoTable({
+          head: [['Date', 'Party', 'Category', 'In', 'Out']],
+          body: entryRows,
+          startY: afterSummaryY + 4,
+          headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 1.8 },
+          columnStyles: { 3: { halign: 'right', textColor: [46, 93, 58] }, 4: { halign: 'right', textColor: [168, 53, 31] } },
+          foot: [['', '', 'Total', fmt(inSum), fmt(outSum)]],
+          footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold', halign: 'right' },
+        });
+      } else {
+        doc.setFontSize(9); doc.setTextColor(140);
+        doc.text('No entries in this period.', 14, afterSummaryY + 8);
+      }
+      const fnameLabel = String(periodLabel).replace(/[^a-zA-Z0-9_-]+/g, '_');
+      doc.save(`statement_${String(biz.name).replace(/[^a-zA-Z0-9_-]+/g, '_')}_${fnameLabel}.pdf`);
+      toast('Statement downloaded.');
+    } else {
+      // CSV: summary block then entries.
+      const rows = [
+        ['Cash in', inSum.toFixed(2)],
+        ['Cash out', outSum.toFixed(2)],
+        ['Net cash', netCash.toFixed(2)],
+        ['Expenses', expSum.toFixed(2)],
+        ['Operating profit', operatingProfit.toFixed(2)],
+        [`Tax (${taxRate}%)`, taxAmount.toFixed(2)],
+        ['Net profit', netProfit.toFixed(2)],
+        ['', ''],
+        ['Date', 'Party', 'Category', 'In', 'Out'].join('  '),
+      ];
+      // For a clean CSV, use the existing exportTableCSV with entry rows and a
+      // summary subtitle (the helper handles quoting/escaping).
+      exportTableCSV({
+        title: `Statement — ${biz.name} — ${periodLabel}`,
+        subtitle: `${cur} · Net profit ${netProfit.toFixed(2)} · Generated ${businessTodayYmd()}`,
+        columns: ['Date', 'Party', 'Category', 'In', 'Out'],
+        rows: periodEntries.map(e => [
+          e.date || '', e.party || '', e.category || '',
+          e.type === 'in' ? (Number(e.amount) || 0).toFixed(2) : '',
+          e.type === 'out' ? (Number(e.amount) || 0).toFixed(2) : '',
+        ]),
+        totals: ['', '', 'Total', inSum.toFixed(2), outSum.toFixed(2)],
+        filename: `statement_${biz.name}_${periodLabel}`,
+      });
+    }
+  }
   // owner, manager, viewer (not staff). PDF and CSV both produce the
   // same breakdown table the page shows; PDF additionally includes
   // the insight summary at the top.

@@ -12,7 +12,109 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.32.11] — 2026-05-21
+## [1.1] — 2026-05-21 (was internal v89.32.17)
+
+Switched to public version numbering, starting at 1.1.
+
+### Hash
+`df254cae90f066e6e78a323cb6d04452`
+
+### Bundle
+- The bundle now ships a ready-to-upload **`sw.js`** (the actual service worker, not a `.reference` template) with `CACHE_VERSION` already set to `hisabs-1.1-build-2026.05.21.1`, matching the app's `BUILD_TAG`. Just upload `index.html` and `sw.js` together — no manual cache-version editing needed. The old `sw.js.reference` doc was removed to avoid confusion.
+
+### Changes
+- The user-facing version is now a clean **1.1** (shown in Settings → Help & legal → About), replacing the internal `v89.32.x` scheme. Public versions start from here.
+- Kept a separate internal **build tag** (`2026.05.21.1`), shown in small print next to the version in About and used as the service-worker cache key. This is deliberate: the build tag bumps on every deploy to force the PWA to refresh, independent of the public version — so a future release that stays "1.1" can still cleanly bust a stale cache. The earlier stale-cache symptom (a deployed timezone fix not reaching the device) is exactly what this separation guards against.
+- Service worker `CACHE_VERSION` is now `hisabs-1.1-build-2026.05.21.1`.
+
+Self-test 63/63.
+
+---
+
+Added an "About" page (description + version) to Help & legal.
+
+### Hash
+`5d3152067ddcd9f50684690e4330522d`
+
+### Changes
+Added an **About** button in **Settings → Help & legal**, to the right of Privacy. It opens a modal with a short description of what Hisabs does and the current build version (**v89.32.16**), plus a note that if the version shown doesn't match the latest installed, fully closing and reopening the app loads the newest version.
+
+This replaces the small inline version line from v89.32.15 with a proper, discoverable About page — and gives a reliable way to confirm which build is actually running (important for diagnosing PWA cache-staleness, e.g. a deployed timezone fix not yet active on a device).
+
+Self-test 63/63.
+
+---
+
+Added a visible build-version label to help confirm which build is live.
+
+### Hash
+`172ec0658dccbe7fa6fa574aff873529`
+
+### Changes
+Added a small **"Hisabs v89.32.x"** version line at the bottom of **Settings → Help & legal**. Because a PWA can keep serving a cached older version until the service worker updates, there was previously no way to confirm at a glance whether a deployed fix was actually running. This label makes it instant to check.
+
+### Context
+Investigated a report that new entries weren't using business time. Traced every entry-creation path (main entry modal, transfers, all fallbacks) and confirmed they all correctly use the business time zone via `businessTodayYmd()` / `today()` — verified with a trace showing `businessTodayYmd()` returns the business-zone day (e.g. Kiritimati UTC+14 shows the next day vs a UTC device). No code defect was found, which points to a stale cached build on the device; the version label above is so this can be confirmed directly.
+
+Self-test 63/63.
+
+---
+
+New: one-tap period statement (PDF / CSV) with P&L summary.
+
+### Hash
+`c98fa96217bff7466f4b3f4732ee708e`
+
+### Changes
+Added a **Statement** button on the Audit/summary page that produces a clean, period-specific report the owner can save or send:
+- **Summary / P&L block** — Cash in, Cash out, Net cash, Expenses, Operating profit, Tax (if a rate is set), Net profit. Uses the *exact same* P&L formula as the Audit view, so the figures can never disagree.
+- **Entries table** — every entry in the active period (date, party, category, in, out) with column totals.
+- Respects the on-screen period (This Month / a chosen month / a custom range) and the business currency; the generation date is stamped in the business time zone.
+- Available as **PDF** (branded layout matching existing exports — dark header, cream totals, green/red profit and tax lines) and **CSV**.
+- Owner / manager / viewer only (same gate as the rest of Audit). Empty periods still produce a valid PDF showing the summary.
+
+Built entirely on existing infrastructure (jsPDF + autotable, the shared export styling, the existing period predicate) — no new dependencies.
+
+### Verification
+Self-test 63/63; P&L-formula parity trace 4/4 (matches Audit math including the no-tax-on-losses rule); all referenced helpers and data structures confirmed in scope.
+
+---
+
+Entry "added" date/time now shown in business time, not device time.
+
+### Hash
+`5aed6fef83086c5a99a988b3b9641415`
+
+### Changes
+The entry date already defaulted to the business calendar day (v89.32.8), but the per-entry "added on … at …" stamp and the backdated detection still used the device clock. On a device in a different zone than the business, this could show an entry as "added" on the wrong day/time or mis-flag it as backdated.
+
+Fixes (all display/derivation only — the stored `createdAt` timestamp is unchanged and absolute):
+1. **`formatEntryTime`** — the "added HH:MM" time is now formatted in the business time zone.
+2. **The "added" date** (`createdYmd`) under each entry is now derived in the business zone, so it lines up with the entry date and the same-day check is correct.
+3. **`isEntryBackdated`** — now compares the entry date against the creation day *in the business zone*, so the backdated tag is accurate across time zones.
+
+All fall back to the device zone when no business zone is set.
+
+### Verification
+Self-test 63/63; cross-zone trace 3/3 (an instant that is late-night in UTC but past-midnight in Kathmandu correctly shows the business-zone time and backdated state).
+
+---
+
+Search responsiveness, distribution auto-save, and Team remove-button.
+
+### Hash
+`dbb5e173994cd3a93fd3ad181f363ba6`
+
+### Changes
+1. **Search no longer lags behind typing.** Every search field (entries, parties, categories, accounts) previously re-rendered synchronously on each keystroke, which on a busy page made the typed character appear a beat late. Re-renders are now debounced (~120ms trailing), so typing stays instant and the filtered results catch up just after you pause. Each field debounces independently.
+2. **Distribution party now saves while you type.** The split-party name/% fields only wrote to a pending buffer, so an edit made without clicking the row's Save button could be lost on re-render or navigation. They now persist immediately (matching salary rows). Salary rows were also made to persist on type for the same reason.
+3. **Tax rate (Audit/Insights)** verified — it uses an explicit Save button that correctly writes and syncs; no change needed.
+4. **Team & Access:** replaced the small "×" remove control on each member with a clearer **Remove** button placed below the member's name, in both the settings list and the full member-management view.
+
+### Verification
+Self-test 63/63; debounce trace 2/2; backdated-detection confirmed unaffected (it keys off creation timestamp, not the business zone). Edited/back-dated tags, in/out colors, and status dots are produced by untouched row-rendering code and continue to work.
+
+---
 
 Hardened the time-zone picker against cross-browser zone-name differences.
 
