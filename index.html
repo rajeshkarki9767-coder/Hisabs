@@ -1449,11 +1449,11 @@
   }
   /* Thin indeterminate progress bar pinned near the bottom of the
      splash. A small accent segment sweeps across a faint track. */
-  /* v89.32.22: progress bar sits in the centered stack, above the icon,
-     rather than pinned to the bottom of the splash. */
+  /* v89.32.25: progress bar sits in the centered stack, below the icon /
+     name / tag, as the last item. */
   .boot-splash-progress {
     position: relative;
-    margin: 0 auto 0.25rem;
+    margin: 0.25rem auto 0;
     width: min(220px, 60vw); height: 3px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--ink) 8%, transparent);
@@ -6733,7 +6733,6 @@
      for a few hundred milliseconds before the app appears. -->
 <div class="boot-splash" id="bootSplash" aria-hidden="true">
   <div class="boot-splash-inner">
-    <div class="boot-splash-progress" aria-hidden="true"></div>
     <div class="boot-splash-mark">
       <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <rect x="5" y="5" width="22" height="22" rx="3.5"/>
@@ -6745,6 +6744,7 @@
     <div class="boot-splash-name">Hisabs</div>
     <div class="boot-splash-tag">हिसाब</div>
     <div class="boot-splash-dots"><span></span><span></span><span></span></div>
+    <div class="boot-splash-progress" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -7159,7 +7159,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.13';
+  const BUILD_TAG = '2026.05.21.14';
 
   // ================================================================
   // STORAGE
@@ -10187,7 +10187,6 @@
     splash.setAttribute('aria-hidden', 'true');
     splash.innerHTML = `
       <div class="boot-splash-inner">
-        <div class="boot-splash-progress" aria-hidden="true"></div>
         <div class="boot-splash-mark">
           <svg viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <rect x="5" y="5" width="22" height="22" rx="3.5"/>
@@ -10199,6 +10198,7 @@
         <div class="boot-splash-name">Hisabs</div>
         <div class="boot-splash-tag">हिसाब</div>
         <div class="boot-splash-dots"><span></span><span></span><span></span></div>
+        <div class="boot-splash-progress" aria-hidden="true"></div>
       </div>
     `;
     document.body.appendChild(splash);

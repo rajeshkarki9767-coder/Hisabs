@@ -12,6 +12,21 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.1] — 2026-05-21 · build 2026.05.21.14
+
+Splash loading bar moved below the icon/name.
+
+### Hash
+`023a3441e717ae61056d8f29275ab91c`
+
+### Changes
+Moved the splash loading bar from above the icon to **below** the icon / name / tag / dots (now the last item in the centered stack), per preference. Margin flipped to sit just under the dots. Applied to both the static and JS-rendered splash markup.
+
+### Verification
+Self-test 63/63; progress bar confirmed after the dots in both copies; CSS 2136/2136; JS valid; gates green.
+
+---
+
 ## [1.1] — 2026-05-21 · build 2026.05.21.13
 
 Recheck of the role-change redesign — fixed an ESC-dismiss hang.
