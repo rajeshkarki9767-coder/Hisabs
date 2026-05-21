@@ -12,6 +12,178 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.1] — 2026-05-21 · build 2026.05.21.13
+
+Recheck of the role-change redesign — fixed an ESC-dismiss hang.
+
+### Hash
+`09b09176014471c4efa64ff9ea8c4b54`
+
+### Changes
+**Bug found and fixed during recheck:** the global Escape handler only treated Esc as "cancel" when a `uiConfirmCancelBtn` was present in the DOM. The new role-picker modal doesn't use that button, so pressing **Esc** while the role picker was open closed it visually but left its Promise unresolved and `__asyncModalResolver` stuck set — which could interfere with the next modal. The Escape handler now resolves ANY pending async modal (uiConfirm, uiPrompt, and the role picker) cleanly: prompt-style cancels as `null`, confirm/pick as `false` (both falsy, so callers treat either as cancelled).
+
+Everything else in the role-change redesign (build .12) is unchanged and re-verified.
+
+### Verification
+Self-test 63/63; role-flow runtime simulation 7/7 (Esc on picker resolves as cancel + clears resolver; picking resolves the role; Esc on prompt resolves null; type-to-confirm gate exact/wrong/empty all correct); no undefined handlers; CSS 2136/2136; no debugger statements; gates green.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.12
+
+Team & Access role-change redesign + type-to-confirm.
+
+### Hash
+`c730a7c03c987d62f93200870615f9f9`
+
+### Changes
+**Role change in Team & Access — redesigned, glitch fixed.** The old UI used an inline `<select>` dropdown whose value changed *before* the confirmation dialogs ran, then visually "reverted" if you cancelled — that change-then-revert flicker was the glitch. Replaced with:
+- A clean **role pill** showing the member's current role, plus a **"Change role"** button (no more dropdown, no flicker).
+- Clicking it opens a **role picker** — each assignable role (Manager / Team / Viewer) is a tappable card with a one-line description; the current role is marked and disabled; owner is excluded (ownership transfer is separate).
+- **Double-confirmation by typing the role name.** After picking, the owner must type the target role name exactly (case-insensitive, whitespace-trimmed) to confirm — e.g. type "Manager" to make someone a Manager. Typing the wrong name (or leaving it blank) cancels the change with a clear message.
+- The role only applies after the typed confirmation succeeds; cancelling at any step leaves the role untouched with no visual flicker.
+
+### Verification
+Self-test 63/63; type-to-confirm trace 5/5 (exact / case-insensitive / trimmed all confirm; wrong name and empty both reject); no undefined handlers; `changeStaffRole`, `pickNewRole`, `__resolveRolePick` all defined and reachable; old `<select>` onchange path fully removed; gates green (JS valid, CSS 2136/2136).
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.11
+
+Idle-render no-op guard (distribution scroll jump) + sound-unlock retry.
+
+### Hash
+`d1a77dc31f245e1d299d118415a8e6b1`
+
+### Changes
+1. **Distribution auto-scroll jump — likely fixed.** Realtime echoes of your own just-saved rows (a common UPDATE event that changes nothing on screen) were still triggering a full re-render. On a tall page like Distribution, that idle re-render caused a small scroll "jump." Added a guard: if an incoming realtime UPDATE is byte-identical to the row we already hold, skip applying and skip the render entirely. Pure no-op safety net — it can only suppress renders that would change nothing; any real change still applies and renders. Benefits every view.
+2. **Sound "sometimes silent" — improved.** The audio-unlock listeners removed themselves after the first gesture even if that gesture landed while the AudioContext was still suspended ("AudioContext was not allowed to start"), leaving sound dead until reload. Now the listeners persist until the unlock actually succeeds, so a later tap retries it. **Requires real-device/runtime verification.**
+
+### Verification
+Self-test 63/63; echo-guard trace 3/3 (identical echo skipped, real changes applied); structural + security sweeps clean; gates green.
+
+### Honest status
+- The distribution fix targets the most likely cause (idle no-op re-renders). If a jump still occurs, the idle-time-before-jump would pinpoint a different source. **Requires real-device verification.**
+- Sound + mobile-print remain device-confirmable only.
+- CORS fix is applied on your Supabase function (not app code).
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.10
+
+Sync-dot stuck-orange fix on reconnect.
+
+### Hash
+`aef9918a3a96fa275366e2f01d69e035`
+
+### Changes
+**Stuck orange sync dot after Wi-Fi recovery — fixed.** While offline, each failed push grew an exponential backoff (up to 5 minutes). When the network returned, the reconnect handler called the queue drain, but the drain returned early because the head op was still inside its long backoff window — so the dot stayed orange "syncing" for minutes, and a refresh/reopen didn't help (the visibility/focus handler only *pulled* cloud changes, it never re-pushed). Now:
+- The `online` event resets each queued op's backoff to zero before draining, so it retries immediately.
+- The visibility/focus handler (fires on refresh, app reopen, tab refocus) also resets the backoff and drains the outgoing queue — so returning to the app reliably flushes pending changes even if the browser missed the `online` event.
+
+### Verification
+Self-test 63/63; backoff-reset trace 2/2 (a 5-attempt stuck op is blocked before reset, drains immediately after).
+
+### Server-side fix provided (not app code)
+The CORS error on `save-push-subscription` is fixed by adding CORS headers + an OPTIONS preflight handler to that Supabase edge function (instructions provided separately).
+
+### Still NOT done (honest)
+- **Distribution auto-scroll glitch** — scroll preservation is already wired for that view; I can't reproduce the subtle remaining jump from static analysis. Need the idle-time-before-jump (~1s vs ~60s) to target it safely.
+- **Cash in/out sound variation** — already on the robust MP3 path; remaining variation is autoplay-unlock timing, needs device logs.
+- **Full screen-fidelity colorful prints** — exports use brand colors; exact fidelity is browser-controlled.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.9
+
+Splash loading bar position, team-member export (PDF+Excel, Inv#+Time), member-print full-page fix.
+
+### Hash
+`170479a1446039f699d5969db5b4091b`
+
+### Changes
+1. **Splash screen** — the loading bar now sits centered in the stack **above** the icon (it was pinned to the bottom). Applied to both the static and JS-rendered splash.
+2. **Entries by team member — export** now offers both **PDF** and **Excel** buttons (was PDF only), and the export includes **Invoice #** and **Time** columns (plus Date, Type, Category, Account, Party, Note, Amount). Time is in the business zone.
+3. **Member entries half-page print fix** — member rows could carry `content-visibility:auto` (for fast scrolling), which made off-screen rows skip rendering when printing — the "only half a page prints" symptom. The member-activity print path now forces rows visible and full-width. **Requires real-device/runtime verification.**
+
+### Verification
+Self-test 63/63; member export column/totals alignment confirmed (9 cols); gates green.
+
+### Still NOT done (honest status)
+- **Distribution auto-scroll glitch**, **stuck sync-dot recovery**: runtime issues, not yet investigated — need device/network testing to fix safely.
+- **Sound on cash in/out** (announcement fixed in .8): already on the robust path; remaining variation would be an autoplay-unlock timing issue needing device logs.
+- **"Colorful like the screen"** beyond the existing brand colors: partly browser-controlled for print.
+- **CORS error** on save-push-subscription: server-side Supabase edge function, not app code.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.8
+
+Distribution label, snapshot print-only, entry-time in exports, announcement sound fix.
+
+### Hash
+`7785646ea331814111374b002674bd96`
+
+### Changes
+1. **Distribution** — the currency/rate edit button now shows the words **"Edit Currency and Rate"** (toggles to "Save Currency and Rate"), not just an icon.
+2. **Snapshot** is now print-only — the export button was removed (Announcements already had no export).
+3. **Entry time in exports** — the main entries export (PDF + CSV) and the party/category/account detail ledger exports now include a **Time** column, formatted in the business time zone (same as on screen).
+4. **Audit statement** already gained Invoice # + Account in build .7; confirmed here.
+5. **Announcement sound fixed** — it now plays through the same robust preloaded-audio path as the cash sounds, instead of building a fresh audio element each time and falling back to a thin synthesized chime. That fresh-element race was the cause of "sometimes a tiny bell, sometimes the real sound." No synthesis fallback now → the announcement plays the embedded MP3 consistently. **Requires real-device/runtime verification.**
+
+### Verification
+Self-test 63/63; consolidated check of all 13 session changes passed; gates green.
+
+### Still NOT done (honest status)
+- **Sound on cash in/out** already used the robust MP3 path; if it still varies on your device, that's an autoplay-unlock timing issue needing device logs — **Requires real-device verification.**
+- **Distribution auto-scroll glitch**, **stuck sync-dot recovery**: not yet addressed — runtime issues needing investigation + device testing.
+- **Per-team-member export options + full-page Activity layout + icon consolidation**: not yet done.
+- **"Colorful like the screen" for all prints**: exports already use brand colors (green/red/dark header); full screen-fidelity is partly browser-controlled.
+- **CORS error on save-push-subscription**: server-side — must be fixed on the Supabase edge function, not in index.html.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.7
+
+Export corrections batch (parties, expenses, statement, print row-splitting).
+
+### Hash
+`1e2573f613d169a2b376e1aac63e2e5d`
+
+### Changes
+1. **Parties export** — removed the "Kind" column; "Received from" → "Cash in", "Paid to" → "Cash out".
+2. **Expenses export bug fixed** — it was exporting every cash-out *entry* (wrong dataset). It now exports the actual Expenses tab data (`auditExpenses`) with all columns: Date, Description, Qty, Note, Amount + total.
+3. **Audit statement (PDF + CSV)** — added **Invoice #** (entry number) and **Account** columns, plus the existing Date / Party / Category / In / Out. PDF and CSV now match.
+4. **No row-splitting on print/PDF** — every PDF table now uses `rowPageBreak: 'avoid'`, so a row that doesn't fit moves wholesale to the next page rather than being cut in half (whitespace is left instead). Applied to all 5 PDF table builders.
+5. **"Skip to content" removed from PDFs** — the accessibility skip-link (and any toast) is now hidden when printing, so it no longer overlays printed content.
+
+### Verification
+Self-test 63/63; expenses-export trace 3/3 (reads auditExpenses, not cash-out); parties columns + statement columns + rowPageBreak (5/5) + skip-link hide all confirmed.
+
+### Still to do (acknowledged)
+Colorful prints/exports, per-team-member export options + invoice numbers + full-page layout, team-member Activity icon consolidation, sound reliability, distribution "Edit Currency and Rate" label + auto-scroll glitch, sync-dot recovery, Audit export completeness review, entry-time in all entry exports, Snapshot/Announcement print-only, and the server-side CORS fix.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.6
+
+Clock/date-strip merge + party contact privacy for the team role.
+
+### Hash
+`15eccba304da4d7fe6d3964983d206db`
+
+### Changes
+1. **Single business day/date.** The top date strip now shows the business-zone weekday + full date (it was the device's). The clock bar below was simplified to just **city + time, centered**; the duplicate day/date there were removed. The time is now the same size as the city label, in the accent (red) colour. On desktop the date strip already sits below the universal search with the sync badge centered.
+2. **Party contact privacy.** The team (data-entry) role can no longer see party contact details — phone, email, socials, DOB, notes — on the party detail card or as inline badges on the parties list. Owner, manager, and viewer are unaffected. The internal role value stays `staff` (only the label is "Team"), so permissions and stored memberships are untouched.
+
+### Verification
+Self-test 63/63; contact-gate trace 4/4 (team blocked; owner/manager/viewer allowed); clock/date-strip gated and syntax-clean.
+
+### Not in this build (acknowledged, still to do)
+The remaining requests from the latest list — colorful prints/exports, per-member export options + invoice numbers, sound reliability, distribution auto-scroll glitch, sync-dot recovery, audit/expenses/parties export corrections, "skip to continue" removal, row-splitting on print, entry time in exports, and the CORS/AudioContext console items — are not yet addressed.
+
+---
+
 ## [1.1] — 2026-05-21 · build 2026.05.21.5
 
 Verification pass on the export/print/backup/speed work, plus two real fixes.
