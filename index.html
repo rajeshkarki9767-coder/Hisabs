@@ -961,6 +961,23 @@
     flex-shrink: 0;
   }
   .dist-row-edit-btn svg { display: block; }
+  /* v89.32.28: the Currency+Rate toggle is a proper labelled button, not a
+     30px icon square. Edit state = accent (brand); Save state = green. */
+  .split-cur-edit-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    margin-top: 0.5rem; padding: 0.5rem 0.95rem;
+    border: 1px solid var(--accent); border-radius: 8px;
+    background: var(--accent); color: #fff;
+    font-family: var(--font-sans); font-size: 0.8rem; font-weight: 600;
+    letter-spacing: 0.01em; white-space: nowrap; cursor: pointer;
+    transition: filter 0.12s, background 0.12s, border-color 0.12s, transform 0.08s;
+  }
+  .split-cur-edit-btn svg { display: inline-block; }
+  .split-cur-edit-btn:hover { filter: brightness(1.08); }
+  .split-cur-edit-btn:active { transform: scale(0.97); }
+  .split-cur-edit-btn.is-saving {
+    background: var(--gain, #2e7d4f); border-color: var(--gain, #2e7d4f); color: #fff;
+  }
   .dist-row-edit-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
@@ -3585,12 +3602,15 @@
     background: var(--paper-deep); border: 1px solid var(--line);
     border-radius: var(--r-sm);
   }
-  .dist-first-label { font-size: 0.78rem; color: var(--ink-soft); }
-  .dist-first-values { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
+  /* v89.32.28: let the label give up width so the amount never wraps. */
+  .dist-first-label { font-size: 0.78rem; color: var(--ink-soft); flex: 0 1 auto; min-width: 0; }
+  .dist-first-values { display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; flex: 0 0 auto; }
   .dist-first-portion {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
-    font-size: 1.35rem; font-weight: 700; color: var(--ink);
+    font-size: 1.25rem; font-weight: 700; color: var(--ink);
     line-height: 1.1;
+    /* keep currency + number on the SAME line */
+    white-space: nowrap;
   }
   .dist-first-portion-biz {
     font-family: var(--font-mono); font-variant-numeric: tabular-nums;
@@ -7155,11 +7175,11 @@
   // serve a cached older version until the service worker updates).
   // Public version, shown to users in About. We moved from the internal
   // v89.32.x scheme to clean public numbers here — this is the starting point.
-  const APP_VERSION = '1.1';
+  const APP_VERSION = '1.11';
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.16';
+  const BUILD_TAG = '2026.05.21.18';
 
   // ================================================================
   // STORAGE
@@ -14114,9 +14134,12 @@
       if (btn) {
         btn.setAttribute('title', isLocked ? 'Edit currency and rate' : 'Save currency and rate');
         btn.setAttribute('aria-label', isLocked ? 'Edit currency and rate' : 'Save currency and rate');
+        // v89.32.28: proper text button with colour states — Edit (accent)
+        // vs Save (green). Toggle the class so the colour follows the mode.
+        btn.classList.toggle('is-saving', !isLocked);
         btn.innerHTML = isLocked
-          ? '<svg width="14" height="14" style="margin-right:0.35rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">Edit Currency and Rate</span>'
-          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.35rem;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="split-cur-edit-label">Save Currency and Rate</span>';
+          ? '<svg width="14" height="14" style="margin-right:0.4rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">Edit Currency and Rate</span>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:0.4rem;vertical-align:-2px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg><span class="split-cur-edit-label">Save Currency and Rate</span>';
       }
     }, 0);
     const wrap = document.getElementById('distributionCard');
@@ -15806,7 +15829,7 @@
              confirmation that flashes "Saved" feedback. -->
         <div class="split-cur-save-row">
           <!-- v89.15: Edit/Save toggle for Currency + Rate -->
-          <button class="dist-row-edit-btn split-cur-edit-btn" id="splitCurEditBtn" onclick="distRowToggleEdit('splitcurate','main')" title="Edit currency and rate" aria-label="Edit currency and rate"><svg width="14" height="14" style="margin-right:0.35rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">Edit Currency and Rate</span></button>
+          <button class="split-cur-edit-btn" id="splitCurEditBtn" onclick="distRowToggleEdit('splitcurate','main')" title="Edit currency and rate" aria-label="Edit currency and rate"><svg width="14" height="14" style="margin-right:0.4rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">Edit Currency and Rate</span></button>
           <span class="split-cur-save-status" id="splitCurSaveStatus"></span>
         </div>
 

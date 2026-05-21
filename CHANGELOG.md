@@ -12,6 +12,40 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.18
+
+Public version bump to 1.11. Final surface check passed.
+
+### Hash
+`974149251f0398b6cee0652b11ee4aa8`
+
+### Changes
+Bumped public `APP_VERSION` 1.1 → **1.11** (shown on Settings → Help & legal → About). Service-worker cache key updated to `hisabs-1.11-build-2026.05.21.18`. No functional/UI code changed from build .17.
+
+### Verification
+Final surface check clean — JS valid, CSS 2141/2141, tags balanced (div 1556, span 440, button 322), no fixed widths ≥1000px (all max-width), 31 ellipsis guards, clean z-index ladder, no undefined handlers. Calculations 4/4 (incl. the distribution Rs amount from the screenshot). All 13 session fixes intact, zero regressions. Self-test 63/63.
+
+---
+
+## [1.1] — 2026-05-21 · build 2026.05.21.17
+
+Distribution UI: proper Edit/Save currency button + amount on one line.
+
+### Hash
+`110250144d7355d8f0b69f3251959e62`
+
+### Changes
+Two Distribution-page UI fixes from screenshots:
+1. **Edit/Save Currency and Rate** — was rendered with the 30×30 icon-button class, so the long label wrapped as awkward plain text. Now a proper labelled pill button: **Edit** state in the brand accent colour, **Save** state in green (toggled via an `is-saving` class), with hover/active feedback.
+2. **Amount card** — the currency symbol and amount ("Rs" / "117,610.20") wrapped to two lines because the 1.35rem figure competed with the label for width. The label now yields width (`flex: 0 1 auto; min-width: 0`), the values block stays fixed, and the figure is `white-space: nowrap` at a slightly smaller 1.25rem so currency + number stay on one line.
+
+Console messages reviewed (install-banner suppression, realtime SUBSCRIBED log, AudioContext autoplay warning, extension message-channel error) — all benign / non-app; no code change needed.
+
+### Verification
+Self-test 63/63; both fixes confirmed in source; CSS 2141/2141; JS valid; gates green.
+
+---
+
 ## [1.1] — 2026-05-21 · build 2026.05.21.16
 
 Announcement: only the app sound plays (silenced the OS notification tone).
