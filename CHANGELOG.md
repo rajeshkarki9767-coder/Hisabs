@@ -12,7 +12,25 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.31.8] — 2026-05-21
+## [v89.32.0] — 2026-05-21
+
+A feature batch: detail-view period filters, social handles for parties, merge-import, and several UX fixes.
+
+### Hash
+`2cdc5f7029324d9712bd07e02bbe40d6`
+
+### Changes
+1. **Period filter on individual detail views.** The This Month / Today / Yesterday / All Time / Custom filter (default This Month) now appears at the top of each individual party, category, and account detail page, filtering that item's entries and totals. Distribution also shows the filter at the top.
+2. **Forecast** confirmed already locked to the current month with no filter bar (no change needed).
+3. **Splash & sign-in.** Boot splash minimum raised to 3 seconds everywhere. Fixed the brief "no business" dashboard flash after sign-in by painting the business view before fading the splash.
+4. **Device names.** The Devices list now resolves the exact device model via the User-Agent Client Hints high-entropy API where the platform allows (e.g. "Pixel 8 · Android 14"), shows the current device instantly while the server list loads, and supports renaming. Note: browsers do not expose the OS-level device name (e.g. "Rajesh's iPhone") to web apps; rename for a precise label.
+5. **Merge import.** New non-destructive import in Profile Settings (categories, parties & accounts into the active business) and Business Settings (individual import for categories, parties, accounts). Matching names are updated in place (preserving ids so entries stay linked); new names are added; nothing is deleted; transactions are not imported. A preview confirms counts before applying.
+6. **Sidebar order.** Businesses now appear above Books.
+7. **Social handles for parties.** New "Social" section in the party create/edit form — side-by-side platform + handle/link rows with "add another" (up to 12) and a datalist of common platforms (free-text). Saved socials show as blue badges on the party card (like SMS/Email) with a "+N more" badge when there are many, and appear in the party's contact card with clickable links for URL handles. Stored in party meta, so they sync automatically.
+
+Self-test suite now 63/63.
+
+---
 
 Three user-requested refinements to Parties, Team & Access, and Business Settings, plus a dead-code cleanup.
 

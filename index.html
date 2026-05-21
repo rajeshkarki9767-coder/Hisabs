@@ -1403,7 +1403,7 @@
   /* Boot splash. Covers everything until the boot code decides whether
      to render the app, the auth screen, or the migration screen.
      Branded mark + subtle animation so it feels intentional, not like a
-     loading-spinner stutter. Shown for at least 2s so the user sees the
+     loading-spinner stutter. Shown for at least 3s so the user sees the
      brand even when the app is ready instantly (returning sign-in,
      cached cloud session). */
   .boot-splash {
@@ -5276,6 +5276,12 @@
     flex-shrink: 0;
     white-space: nowrap;
   }
+  /* v89.32: the "+N more" badge is muted (grey) to distinguish it from
+     the real platform/contact badges. */
+  .party-contact-tag-more {
+    color: var(--ink-mute);
+    border-color: var(--line);
+  }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
   .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
@@ -5408,6 +5414,17 @@
     grid-template-columns: 1fr auto;
     gap: 0.4rem;
     align-items: stretch;
+  }
+  /* v89.32: social row = platform (left) + handle/link (right) + remove.
+     The platform column is narrower than the handle column. On very
+     narrow screens the two inputs stack above the remove button. */
+  .meta-social-row {
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr) auto;
+  }
+  @media (max-width: 460px) {
+    .meta-social-row {
+      grid-template-columns: 1fr 1fr auto;
+    }
   }
   .meta-multi-input {
     padding: 0.6rem 0.65rem;
@@ -6759,15 +6776,15 @@
       <div id="invitesWrap" style="display:none;"></div>
 
       <div>
-        <div class="sidebar-section-label"><span>Books</span></div>
-        <div class="book-list" id="bookList"></div>
-        <button class="sidebar-add" id="addBookBtn" onclick="openModal('book')">+ New book</button>
-      </div>
-
-      <div>
         <div class="sidebar-section-label"><span>Businesses</span></div>
         <div class="business-switcher" id="bizList"></div>
         <button class="sidebar-add" id="addBizBtn" onclick="openModal('biz')">+ New business</button>
+      </div>
+
+      <div>
+        <div class="sidebar-section-label"><span>Books</span></div>
+        <div class="book-list" id="bookList"></div>
+        <button class="sidebar-add" id="addBookBtn" onclick="openModal('book')">+ New book</button>
       </div>
 
       <div>
@@ -8421,6 +8438,19 @@
       ? input.emails.map(normalizeEmail).filter(e => isValidEmailLoose(e))
       : [];
     if (emails.length) meta.emails = emails.slice(0, 10);
+    // v89.32: social handles. Each item is { platform, handle } where
+    // platform is a free-text label (Facebook, Instagram, TikTok, X, …)
+    // and handle is the username or link. We keep only rows that have a
+    // platform name (the handle may be blank but a nameless row is junk).
+    const socials = Array.isArray(input?.socials)
+      ? input.socials
+          .map(s => ({
+            platform: String(s?.platform || '').trim().slice(0, 30),
+            handle: String(s?.handle || '').trim().slice(0, 200),
+          }))
+          .filter(s => s.platform)
+      : [];
+    if (socials.length) meta.socials = socials.slice(0, 12);
     const desc = String(input?.description || '').trim().slice(0, LIMITS.description);
     if (desc) meta.description = desc;
     return Object.keys(meta).length ? meta : null;
@@ -8662,7 +8692,7 @@
   function renderPartyContactCard(party) {
     const meta = party?.meta || null;
     if (!meta) return '';
-    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || meta.description;
+    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description;
     if (!hasAny) return '';
     const rows = [];
     if (meta.dob) {
@@ -8703,6 +8733,30 @@
         <div class="contact-row-label">Email</div>
         <div class="contact-row-value">${items}</div>
       </div>`);
+    }
+    if (Array.isArray(meta.socials) && meta.socials.length) {
+      const items = meta.socials
+        .filter(s => s && String(s.platform || '').trim())
+        .map(s => {
+          const plat = escapeHtml(String(s.platform).trim());
+          const handleRaw = String(s.handle || '').trim();
+          const safeHandle = escapeHtml(handleRaw);
+          // If the handle looks like a URL, make it a clickable link.
+          let linkHTML = '';
+          if (/^https?:\/\//i.test(handleRaw)) {
+            linkHTML = `<a class="contact-link contact-link-social" href="${escapeHtml(handleRaw)}" target="_blank" rel="noopener noreferrer" title="Open ${plat}">Open</a>`;
+          }
+          return `<div class="contact-multi-item">
+            <span class="contact-multi-value"><strong>${plat}</strong>${handleRaw ? ' · ' + safeHandle : ''}</span>
+            <span class="contact-multi-links">${linkHTML}</span>
+          </div>`;
+        }).join('');
+      if (items) {
+        rows.push(`<div class="contact-row contact-row-multi">
+          <div class="contact-row-label">Social</div>
+          <div class="contact-row-value">${items}</div>
+        </div>`);
+      }
     }
     if (meta.description) {
       rows.push(`<div class="contact-row contact-row-desc">
@@ -8757,6 +8811,42 @@
     // === Phone ===
     check('Phone collapse spaces',   normalizePhone('  +977   98 1234  ') === '+977 98 1234');
     check('Phone empty',             normalizePhone('') === '');
+
+    // === v89.32: Social meta ===
+    const mSoc = buildPartyMeta({ socials: [{ platform: 'Facebook', handle: 'rajesh' }, { platform: '', handle: 'orphan' }] });
+    check('social keeps named row',  Array.isArray(mSoc.socials) && mSoc.socials.length === 1);
+    check('social drops nameless',   mSoc.socials[0].platform === 'Facebook' && mSoc.socials[0].handle === 'rajesh');
+    const mSocBlankHandle = buildPartyMeta({ socials: [{ platform: 'TikTok', handle: '' }] });
+    check('social allows blank handle', mSocBlankHandle.socials.length === 1 && mSocBlankHandle.socials[0].platform === 'TikTok');
+    const mSocCap = buildPartyMeta({ socials: Array.from({length:20}, (_,i)=>({platform:'P'+i, handle:'h'})) });
+    check('social caps at 12',       mSocCap.socials.length === 12);
+    check('social none -> no key',   buildPartyMeta({ socials: [{platform:'',handle:''}] }) === null);
+    // badges include social platform names
+    const badge = partyContactBadges({ meta: { socials: [{platform:'Facebook',handle:'x'}] } });
+    check('badge shows Facebook',    badge.includes('Facebook') && badge.includes('party-contact-tags'));
+    const badgeMany = partyContactBadges({ meta: { phones:['+1'], emails:['a@b.co'], socials: Array.from({length:9},(_,i)=>({platform:'S'+i,handle:'h'})) } });
+    check('badge show-more when many', badgeMany.includes('more'));
+
+    // === v89.32: merge-import planning ===
+    // planMergeImport must not mutate; counts add vs update by name.
+    const _savedData = data;
+    try {
+      data = { categories: [
+        { id: 'c1', businessId: 'bizT', name: 'Sales' },
+        { id: 'c2', businessId: 'bizT', name: 'Rent' },
+        { id: 'c3', businessId: 'OTHER', name: 'Sales' }, // different biz, ignored
+      ], parties: [], cashAccounts: [], accountGroups: [] };
+      const payload = { kind: 'hisabs.full', data: { categories: [
+        { name: 'Sales', shortcut: 'S' },   // matches -> update
+        { name: 'Salary' },                  // new -> add
+        { name: 'sales' },                   // dup of Sales within file -> skip
+        { name: '' },                        // junk -> skip
+      ] } };
+      const plan = planMergeImport(payload, 'bizT', ['categories']);
+      check('plan: 1 add',    plan.categories.add === 1);
+      check('plan: 1 update', plan.categories.update === 1);
+      check('plan no mutate',  data.categories.length === 3); // unchanged
+    } finally { data = _savedData; }
 
     // === Birthday math ===
     // Build a fixed reference date — May 20 in current year — for
@@ -9770,16 +9860,40 @@
   }
   // v89.31.6: small "SMS" / "Email" text badges shown after a party name
   // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
-  // email is saved, both if both. Returns '' when neither is present.
+  // email is saved, both if both. v89.32: also one badge per saved social
+  // platform (e.g. "Facebook", "Instagram"). When there are many badges we
+  // show the first few and a "+N more" badge so the row never runs away.
+  // Returns '' when nothing is present.
   function partyContactBadges(party) {
     const meta = party && party.meta;
     if (!meta) return '';
     const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
     const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
-    let out = '';
-    if (hasPhone) out += '<span class="party-contact-tag" title="Phone number saved">SMS</span>';
-    if (hasEmail) out += '<span class="party-contact-tag" title="Email address saved">Email</span>';
-    if (!out) return '';
+    const socials = Array.isArray(meta.socials)
+      ? meta.socials.filter(s => s && String(s.platform || '').trim())
+      : [];
+    const tags = [];
+    if (hasPhone) tags.push({ label: 'SMS', title: 'Phone number saved' });
+    if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
+    for (const s of socials) {
+      const name = String(s.platform).trim();
+      tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
+    }
+    if (!tags.length) return '';
+    // Cap how many badges show on a card so a party with 8-9 socials
+    // doesn't blow out the row. Show the first MAX_SHOWN, then "+N more".
+    const MAX_SHOWN = 6;
+    let shown = tags;
+    let moreHTML = '';
+    if (tags.length > MAX_SHOWN) {
+      shown = tags.slice(0, MAX_SHOWN);
+      const moreCount = tags.length - MAX_SHOWN;
+      const moreTitle = tags.slice(MAX_SHOWN).map(t => t.label).join(', ');
+      moreHTML = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(moreTitle)}">+${moreCount} more</span>`;
+    }
+    const out = shown
+      .map(t => `<span class="party-contact-tag" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
+      .join('') + moreHTML;
     // v89.31.7: render the badges on their own row directly BELOW the name
     // (previously appended inline to the right of the name).
     return '<div class="party-contact-tags">' + out + '</div>';
@@ -9880,12 +9994,12 @@
   // Used to enforce a minimum splash duration so the brand mark
   // doesn't flicker by in 50ms on instant returning sign-ins.
   const __bootStartTs = Date.now();
-  const BOOT_SPLASH_MIN_MS = 2000;
+  const BOOT_SPLASH_MIN_MS = 3000;
   let __splashHidePending = false;
   // v89.31.5: timestamp of the last time the splash was (re-)shown via
   // showLoadingSplash() — e.g. when the user taps Sign in or finishes
   // account verification. The post-auth splash holds for at least
-  // BOOT_SPLASH_MIN_MS measured from THIS moment, so the 2-second
+  // BOOT_SPLASH_MIN_MS measured from THIS moment, so the 3-second
   // branded screen is guaranteed regardless of how long the user sat
   // on the auth form first. Defaults to boot time.
   let __splashShownTs = Date.now();
@@ -9897,7 +10011,7 @@
   // Pair every call with hideBootSplash() when the work completes.
   function showLoadingSplash() {
     let splash = document.getElementById('bootSplash');
-    __splashShownTs = Date.now(); // v89.31.5: reset the 2s hold window
+    __splashShownTs = Date.now(); // v89.31.5: reset the 3s hold window
     if (splash) {
       // Already in DOM (maybe fading out). Re-show it.
       splash.dataset.hidden = '0';
@@ -9942,7 +10056,7 @@
   //
   // Special case: when force=true, we skip the minimum-duration gate
   // (used after re-showing via showLoadingSplash, since the user has
-  // already seen the splash for at least the initial 2s).
+  // already seen the splash for at least the initial 3s).
   function hideBootSplash(force) {
     const splash = document.getElementById('bootSplash');
     if (!splash || splash.dataset.hidden === '1') return;
@@ -10135,9 +10249,12 @@
     const appEl = document.getElementById('app');
     appEl.style.display = '';  // clear any inline 'none' that setAuthMode set
     appEl.classList.add('active');
-    hideBootSplash();
+    // v89.32: do NOT hide the splash here. We first resolve the active
+    // business/book and run the first full render, THEN hide the splash —
+    // otherwise the empty "no business selected" state can flash for a
+    // frame between hiding the splash and the business view painting.
     const u = me();
-    if (!u) { setAuthMode('signin'); return; }
+    if (!u) { hideBootSplash(); setAuthMode('signin'); return; }
     document.getElementById('userName').textContent = u.name || '—';
     // v89.31.5: render the profile photo if set, else the initial.
     applyAvatarToUI(u);
@@ -10154,6 +10271,11 @@
     // re-runs after the first successful pass.
     try { backfillEntryNumbers(); } catch (_) {}
     renderAll();
+    // v89.32: business view is now painted — fade the splash. The
+    // min-duration gate inside hideBootSplash() still guarantees the
+    // 3s branded moment; this just ensures we never reveal an empty
+    // dashboard before the real view is on screen.
+    hideBootSplash();
     // Begin auto-backup loop if user owns any business
     if (userOwnsAnyBiz()) {
       startAutoBackupTimer();
@@ -12165,6 +12287,7 @@
           ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({partyId:'${jsAttr(party.id)}'})" title="Add an entry pre-filled with ${escapeHtml(party.name)}">+ Entry</button>` : ''}
         </div>
       </div>
+      ${renderPeriodBar()}
       ${statsHTML}
       ${renderPartyContactCard(party)}
       ${catBreakdownHTML}
@@ -12466,6 +12589,7 @@
           ${(!isUncat && canAddEntry()) ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({category:'${jsAttr(catName)}'})" title="Add an entry pre-filled with ${escapeHtml(displayName)}">+ Entry</button>` : ''}
         </div>
       </div>
+      ${renderPeriodBar()}
       ${statsHTML}
       <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries</div>
       <div class="entries-wrap">
@@ -15234,6 +15358,8 @@
         </div>
       </div>
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
+
+      ${renderPeriodBar()}
 
       <!-- v75: Net profit (after tax) summary card. Lives at the top
            of the Distribution page so the user sees the bottom-line
@@ -18149,6 +18275,7 @@
           ${canAddEntry() ? `<button class="btn btn-accent btn-sm" onclick="openContextualEntryModal({accountId:'${jsAttr(acc.id)}'})" title="Add an entry pre-filled with ${escapeHtml(acc.name)}">+ Entry</button>` : ''}
         </div>
       </div>
+      ${renderPeriodBar()}
       ${statsHTML}
       <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">All entries</div>
       <div class="entries-wrap">
@@ -20818,7 +20945,25 @@
       return partyPhoneRowHTML(prefill, i, phonePlaceholder);
     }).join('');
     const emailsHTML = emails.map((e, i) => partyEmailRowHTML(e, i)).join('');
+    // v89.32: social rows — platform on the left, handle/link on the right.
+    // At least one empty starter row in the create flow; existing rows on edit.
+    const socials = Array.isArray(m.socials) && m.socials.length ? m.socials : [{ platform: '', handle: '' }];
+    const socialsHTML = socials.map((s, i) => partySocialRowHTML(s && s.platform, s && s.handle, i)).join('');
     return `
+      <datalist id="socialPlatformList">
+        <option value="Facebook"></option>
+        <option value="Instagram"></option>
+        <option value="WhatsApp"></option>
+        <option value="TikTok"></option>
+        <option value="Telegram"></option>
+        <option value="X"></option>
+        <option value="Snapchat"></option>
+        <option value="YouTube"></option>
+        <option value="LinkedIn"></option>
+        <option value="Viber"></option>
+        <option value="WeChat"></option>
+        <option value="Threads"></option>
+      </datalist>
       <div class="meta-section">
         <div class="meta-section-label">Date of birth <span class="meta-optional">— optional, year optional</span></div>
         <div class="meta-dob-row">
@@ -20843,6 +20988,11 @@
         <div class="meta-section-label">Email addresses <span class="meta-optional">— optional</span></div>
         <div id="mPartyEmails" class="meta-multi-list">${emailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyEmailRow()">+ Add another email</button>
+      </div>
+      <div class="meta-section">
+        <div class="meta-section-label">Social <span class="meta-optional">— optional, e.g. Facebook · username or link</span></div>
+        <div id="mPartySocials" class="meta-multi-list">${socialsHTML}</div>
+        <button type="button" class="meta-add-btn" onclick="addPartySocialRow()">+ Add another social</button>
       </div>
       <div class="meta-section">
         <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
@@ -20883,6 +21033,26 @@
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
+  // v89.32: a social row — platform name (left) + handle/link (right),
+  // side by side, with a remove button. The left field has a datalist of
+  // common platforms for quick entry but stays free-text so any platform
+  // can be typed.
+  function partySocialRowHTML(platform, handle, idx) {
+    return `<div class="meta-multi-row meta-social-row">
+      <input type="text" class="meta-multi-input meta-social-platform" list="socialPlatformList" maxlength="30" placeholder="Platform" value="${escapeHtml(platform || '')}" autocomplete="off">
+      <input type="text" class="meta-multi-input meta-social-handle" maxlength="200" placeholder="username or link" value="${escapeHtml(handle || '')}" autocomplete="off">
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+    </div>`;
+  }
+  function addPartySocialRow() {
+    const list = document.getElementById('mPartySocials');
+    if (!list) return;
+    if (list.children.length >= 12) { toast('Up to 12 socials.'); return; }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = partySocialRowHTML('', '', list.children.length);
+    list.appendChild(wrap.firstElementChild);
+    list.lastElementChild.querySelector('input')?.focus();
+  }
   function removeMetaRow(btn) {
     const row = btn?.closest('.meta-multi-row');
     const list = row?.parentElement;
@@ -20913,8 +21083,14 @@
       .map(el => el.value);
     const emails = Array.from(document.querySelectorAll('#mPartyEmails .meta-email-input'))
       .map(el => el.value);
+    // v89.32: read social rows — pair each platform input with its handle.
+    const socials = Array.from(document.querySelectorAll('#mPartySocials .meta-social-row'))
+      .map(row => ({
+        platform: row.querySelector('.meta-social-platform')?.value || '',
+        handle: row.querySelector('.meta-social-handle')?.value || '',
+      }));
     const description = document.getElementById('mPartyDescription')?.value || '';
-    return buildPartyMeta({ dob, phones, emails, description });
+    return buildPartyMeta({ dob, phones, emails, socials, description });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
@@ -24503,6 +24679,18 @@
         </ul>
       </div>` : ''}
 
+      ${canManage ? `
+      <div class="settings-section">
+        <h3 class="settings-heading">Import into this business</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Merge data from a Hisabs backup file into <strong>${escapeHtml(biz.name)}</strong>. Items whose name matches an existing one are updated; new names are added. Nothing is ever deleted, and transactions/entries are not imported.</p>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['categories'], 'categories')" title="Merge categories from a backup file">Import categories…</button>
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['parties'], 'parties')" title="Merge parties from a backup file">Import parties…</button>
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['cashAccounts'], 'accounts')" title="Merge accounts from a backup file">Import accounts…</button>
+        </div>
+        <input type="file" id="mergeImportFileBiz" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
+      </div>` : ''}
+
       <!-- v78: Keyboard shortcuts — single button that opens the same
            cheat-sheet modal the ? key brings up. Sits right below Books
            per the user's spec, so anyone exploring business settings
@@ -25116,8 +25304,10 @@
         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
           <button class="btn btn-sm btn-accent" onclick="exportAllData()">Backup everything</button>
           <button class="btn btn-sm btn-ghost" onclick="restoreAllDataPrompt()">Restore from file…</button>
+          <button class="btn btn-sm btn-ghost" onclick="startMergeImport(['categories','parties','cashAccounts'], 'categories, parties &amp; accounts')" title="Merge categories, parties and accounts from a backup file into the active business (matching names are updated, new names added; nothing deleted)">Import into current business…</button>
         </div>
         <input type="file" id="restoreAllFile" accept="application/json,.json" style="display:none;" onchange="restoreAllDataFromFile(event)">
+        <input type="file" id="mergeImportFile" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
       </div>
       <div class="settings-section">
         <h3 class="settings-heading">Auto-backups</h3>
@@ -26784,6 +26974,197 @@
   function restoreAllDataPrompt() {
     document.getElementById('restoreAllFile')?.click();
   }
+
+  // ================================================================
+  // v89.32: MERGE IMPORT
+  // ----------------------------------------------------------------
+  // Unlike "Restore from file" (which REPLACES all local data), Import
+  // is additive and non-destructive. It reads a Hisabs backup file and
+  // merges categories / parties / accounts into a target business:
+  //   - an item whose name matches an existing one  -> UPDATE in place
+  //   - an item with a new name                     -> ADD
+  // Nothing is ever deleted. Entries are NOT imported by these helpers
+  // (importing transactions would risk balance corruption and is out of
+  // scope for the "import categories/parties/accounts" feature).
+  //
+  // The `kinds` argument selects which entity types to merge, e.g.
+  // ['categories'] for an individual import, or
+  // ['categories','parties','cashAccounts'] for a full business import.
+  // ----------------------------------------------------------------
+
+  // Parse + validate a Hisabs backup file. Returns the parsed payload
+  // or null (with a toast) on failure.
+  function parseHisabsBackup(text) {
+    let p;
+    try { p = JSON.parse(text); } catch (_) { toast('That file isn\'t valid JSON.'); return null; }
+    if (!p || (p.kind !== 'hisabs.full' && p.kind !== 'hisabs.partial') || !p.data || typeof p.data !== 'object') {
+      toast('Not a Hisabs backup file.');
+      return null;
+    }
+    return p;
+  }
+
+  // Given a parsed backup and the kinds to import, compute a summary of
+  // how many records would be added vs updated in the target business,
+  // WITHOUT mutating anything. Used for the confirmation preview.
+  function planMergeImport(payload, targetBizId, kinds) {
+    const arr = (v) => Array.isArray(v) ? v : [];
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    const plan = {};
+    const KIND_LABEL = { categories: 'Categories', parties: 'Parties', cashAccounts: 'Accounts' };
+    for (const kind of kinds) {
+      const incoming = arr(payload.data[kind]);
+      const existing = arr(data[kind]).filter(x => x.businessId === targetBizId);
+      const existingByName = new Map(existing.map(x => [norm(x.name), x]));
+      let add = 0, update = 0;
+      const seenIncoming = new Set();
+      for (const item of incoming) {
+        const nm = norm(item && item.name);
+        if (!nm) continue;                       // skip nameless junk
+        if (seenIncoming.has(nm)) continue;      // dedupe within the file
+        seenIncoming.add(nm);
+        if (existingByName.has(nm)) update++; else add++;
+      }
+      plan[kind] = { label: KIND_LABEL[kind] || kind, add, update, total: add + update };
+    }
+    return plan;
+  }
+
+  // Apply the merge into data[*] for the target business. Returns
+  // { added, updated } totals. Mutates data and calls saveData().
+  function applyMergeImport(payload, targetBizId, kinds) {
+    const arr = (v) => Array.isArray(v) ? v : [];
+    const norm = (s) => String(s || '').trim().toLowerCase();
+    let added = 0, updated = 0;
+    for (const kind of kinds) {
+      const incoming = arr(payload.data[kind]);
+      const existing = arr(data[kind]).filter(x => x.businessId === targetBizId);
+      const existingByName = new Map(existing.map(x => [norm(x.name), x]));
+      const seenIncoming = new Set();
+      for (const item of incoming) {
+        if (!item || typeof item !== 'object') continue;
+        const nm = norm(item.name);
+        if (!nm) continue;
+        if (seenIncoming.has(nm)) continue;
+        seenIncoming.add(nm);
+        const match = existingByName.get(nm);
+        if (match) {
+          // UPDATE in place: copy importable fields onto the existing
+          // record. We deliberately keep the existing id, businessId,
+          // createdAt and ownership so references (entries pointing at
+          // this party/category/account) stay intact.
+          mergeImportFields(kind, match, item);
+          updated++;
+        } else {
+          // ADD: clone the item with a fresh id, bound to the target biz.
+          const clone = cloneForImport(kind, item, targetBizId);
+          if (clone) { data[kind].push(clone); added++; }
+        }
+      }
+    }
+    if (added || updated) saveData();
+    return { added, updated };
+  }
+
+  // Copy the user-meaningful fields from an imported record onto an
+  // existing one, per entity kind. Never touches id/businessId/createdAt
+  // or sortOrder (preserves the target's existing ordering).
+  function mergeImportFields(kind, target, src) {
+    if (kind === 'categories') {
+      if (src.shortcut !== undefined) target.shortcut = src.shortcut || undefined;
+      if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
+    } else if (kind === 'parties') {
+      if (src.meta !== undefined) target.meta = src.meta || undefined;   // phones/emails/socials/dob/notes
+      if (src.kind !== undefined) target.kind = src.kind;
+      if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
+    } else if (kind === 'cashAccounts') {
+      if (src.groupId !== undefined && src.groupId) target.groupId = src.groupId;
+      if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
+      if (src.avatarUrl !== undefined) target.avatarUrl = src.avatarUrl;
+    }
+  }
+
+  // Build a fresh record to ADD, bound to the target business with a new
+  // id so it can't collide with anything that already exists. Matches the
+  // shapes produced by the normal create flows.
+  function cloneForImport(kind, src, targetBizId) {
+    const name = String(src.name || '').trim();
+    if (!name) return null;
+    if (kind === 'categories') {
+      return {
+        id: uid(), businessId: targetBizId, name,
+        shortcut: src.shortcut || undefined,
+        sortOrder: nextSortOrder(data.categories, 'businessId', targetBizId),
+        unassigned: src.unassigned || undefined,
+      };
+    } else if (kind === 'parties') {
+      return {
+        id: uid(), businessId: targetBizId, name,
+        kind: src.kind || 'both',
+        createdAt: today(),
+        createdTs: Date.now(),
+        createdBy: me()?.id || null,
+        createdByName: me()?.name || '',
+        sortOrder: nextSortOrder(data.parties, 'businessId', targetBizId),
+        unassigned: src.unassigned || undefined,
+        meta: (src.meta && typeof src.meta === 'object') ? src.meta : undefined,
+      };
+    } else if (kind === 'cashAccounts') {
+      // New imported accounts go to the target biz's first group so they
+      // appear under a valid group (the importer doesn't recreate groups).
+      const firstGroup = data.accountGroups.find(g => g.businessId === targetBizId);
+      return {
+        id: uid(), businessId: targetBizId, name,
+        groupId: firstGroup ? firstGroup.id : null,
+        createdAt: today(),
+        sortOrder: nextSortOrder(data.cashAccounts, 'businessId', targetBizId),
+        unassigned: src.unassigned || undefined,
+        avatarUrl: src.avatarUrl || undefined,
+      };
+    }
+    return null;
+  }
+
+  // Shared file-picker → parse → preview → apply flow. `kinds` selects
+  // entity types; `label` is shown in the confirmation.
+  let __pendingImportKinds = null;
+  function startMergeImport(kinds, label) {
+    __pendingImportKinds = { kinds, label };
+    // Either settings screen may host the picker; use whichever is in the DOM.
+    const input = document.getElementById('mergeImportFile')
+               || document.getElementById('mergeImportFileBiz');
+    if (input) { input.value = ''; input.click(); }
+    else { toast('Import is available from Settings.'); }
+  }
+  async function mergeImportFromFile(ev) {
+    const file = ev.target.files && ev.target.files[0];
+    const cfg = __pendingImportKinds;
+    __pendingImportKinds = null;
+    if (!file || !cfg) return;
+    const targetBizId = session.activeBizId;
+    if (!targetBizId) { toast('Select a business first.'); return; }
+    if (roleFor(targetBizId) !== 'owner' && roleFor(targetBizId) !== 'manager') {
+      toast('Only an owner or manager can import.'); return;
+    }
+    const text = await file.text().catch(() => null);
+    if (text == null) { toast('Could not read the file.'); return; }
+    const payload = parseHisabsBackup(text);
+    if (!payload) return;
+    const plan = planMergeImport(payload, targetBizId, cfg.kinds);
+    const lines = Object.values(plan)
+      .filter(p => p.total > 0)
+      .map(p => `${p.label}: ${p.add} new, ${p.update} updated`);
+    if (!lines.length) { toast('Nothing to import from that file.'); return; }
+    const biz = data.businesses.find(b => b.id === targetBizId);
+    const msg = `Import ${cfg.label} into “${escapeHtml(biz?.name || 'this business')}”?\n\n`
+      + lines.join('\n')
+      + `\n\nMatching names are updated; new names are added. Nothing is deleted.`;
+    if (!(await uiConfirm(msg, { confirmLabel: 'Import' }))) return;
+    const res = applyMergeImport(payload, targetBizId, cfg.kinds);
+    toast(`Imported: ${res.added} added, ${res.updated} updated.`);
+    renderAll();
+  }
+
   function restoreAllDataFromFile(ev) {
     const file = ev.target.files && ev.target.files[0];
     if (!file) return;
@@ -26937,6 +27318,39 @@
       if (name) localStorage.setItem(DEVICE_NAME_LOCAL_KEY, name);
       else localStorage.removeItem(DEVICE_NAME_LOCAL_KEY);
     } catch (_) {}
+  }
+
+  // v89.32: best-effort "exact device" resolver. The plain User-Agent
+  // string hides the device model on most platforms (modern iOS reports
+  // only "iPhone"; Android often gives a model CODE like "SM-S928B").
+  // The User-Agent Client Hints API — navigator.userAgentData with
+  // getHighEntropyValues(['model','platform','platformVersion']) — can
+  // return the real model on Chromium/Android. We use it to build a
+  // sharper label than the UA alone allows. Returns '' when unavailable
+  // (Safari/Firefox don't implement it). This NEVER overrides a name the
+  // user typed themselves; it only enriches the auto-detected label.
+  async function resolveExactDeviceModel() {
+    try {
+      const uad = navigator.userAgentData;
+      if (!uad || typeof uad.getHighEntropyValues !== 'function') return '';
+      const hints = await uad.getHighEntropyValues(['model', 'platform', 'platformVersion']);
+      const model = (hints && hints.model ? String(hints.model).trim() : '');
+      const platform = (hints && hints.platform ? String(hints.platform).trim() : '');
+      const pv = (hints && hints.platformVersion ? String(hints.platformVersion).trim() : '');
+      if (!model && !platform) return '';
+      // Compose "Model · Platform Version" — e.g. "Pixel 8 · Android 14".
+      const parts = [];
+      if (model) parts.push(model);
+      if (platform) parts.push(pv ? `${platform} ${pv.split('.')[0]}` : platform);
+      return parts.join(' · ');
+    } catch (_) { return ''; }
+  }
+  // Cache of the resolved model for the current device this session.
+  let __exactDeviceModel = null;
+  async function getExactDeviceModel() {
+    if (__exactDeviceModel !== null) return __exactDeviceModel;
+    __exactDeviceModel = await resolveExactDeviceModel();
+    return __exactDeviceModel;
   }
 
   // Upsert app_device_names row binding (user_id, device_id, name) and
@@ -27457,7 +27871,23 @@
   async function loadDevicesList() {
     const el = document.getElementById('devicesList');
     if (!el) return;
-    el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
+    // v89.32: show THIS device immediately (from local info + exact model)
+    // so the section never looks empty while the Edge Function responds.
+    // The full server list replaces this as soon as it arrives.
+    try {
+      const localName = getLocalDeviceName();
+      const exact = await getExactDeviceModel();
+      const label = localName || exact || describeUserAgent(navigator.userAgent || '');
+      el.innerHTML = `
+        <div class="device-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--line);">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:500;font-size:0.85rem;">${escapeHtml(label)} <span style="font-size:0.65rem;color:var(--gain);font-weight:600;letter-spacing:0.05em;">· THIS DEVICE</span></div>
+            <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.1rem;">Loading other devices…</div>
+          </div>
+        </div>`;
+    } catch (_) {
+      el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
+    }
     let session;
     try { session = (await sb().auth.getSession()).data?.session; }
     catch (_) { /* fall through to error path */ }
@@ -27516,14 +27946,23 @@
       return;
     }
     const currentId = await getCurrentSessionId();
+    // v89.32: resolve the exact model for THIS device (the only one we can
+    // introspect) so the current row shows e.g. "Pixel 8 · Android 14"
+    // instead of just "Android 14 · Chrome". Custom names still win.
+    const exactModel = await getExactDeviceModel();
     el.innerHTML = sessions.map(s => {
       const isCurrent = currentId && s.id === currentId;
-      const fallbackLabel = describeUserAgent(s.user_agent);
+      const uaLabel = describeUserAgent(s.user_agent);
+      // For the current device, prefer the high-entropy exact model when
+      // we have it (it includes the real model code/name); fall back to
+      // the UA-derived label otherwise.
+      const fallbackLabel = (isCurrent && exactModel) ? exactModel : uaLabel;
       // Custom device_name takes priority. If the user named the device,
       // show name on top with the UA description as the subtitle. If not,
-      // show only the UA description.
+      // show only the UA/exact description.
       const headline = s.device_name ? escapeHtml(s.device_name) : escapeHtml(fallbackLabel);
-      const subtitle = s.device_name ? escapeHtml(fallbackLabel) : '';
+      const subtitle = s.device_name ? escapeHtml(fallbackLabel)
+                       : (isCurrent && exactModel && uaLabel && uaLabel !== exactModel ? escapeHtml(uaLabel) : '');
       const created = s.created_at ? `Signed in ${relativeTime(s.created_at)}` : '';
       const lastSeen = s.updated_at && s.updated_at !== s.created_at ? `Last active ${relativeTime(s.updated_at)}` : '';
       const loc = [s.city, s.country].filter(Boolean).join(', ');
