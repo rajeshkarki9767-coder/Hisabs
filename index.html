@@ -1784,10 +1784,6 @@
   .book-item > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
   .book-item .book-bal { font-family: var(--font-mono); font-size: 0.68rem; color: var(--sidebar-text-faint); flex-shrink: 0; }
   .book-item.active .book-bal { color: var(--sidebar-text-mute); }
-  .book-item-right { display: flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
-  .book-item .book-gear { opacity: 0; }
-  .book-item:hover .book-gear, .book-item.active .book-gear { opacity: 0.6; }
-  @media (hover: none) { .book-item .book-gear { opacity: 0.5; } }
   .sidebar-add { width: 100%; padding: 0.45rem; background: transparent; border: 1px dashed var(--sidebar-divider); color: var(--sidebar-text-mute); font-size: 0.66rem; cursor: pointer; margin-top: 0.3rem; transition: all 0.12s; text-transform: uppercase; letter-spacing: 0.08em; border-radius: var(--r-sm); }
   .sidebar-add:hover:not(:disabled) { color: var(--sidebar-text); border-color: var(--sidebar-text); }
   .sidebar-add:disabled { opacity: 0.3; cursor: not-allowed; }
@@ -1908,11 +1904,10 @@
 
   /* Date / day strip — shows current weekday + date above every page, on both desktop and mobile. */
   .clock-bar { display: flex; align-items: stretch; justify-content: center; gap: 1rem; padding: 0.5rem 0.25rem 0.7rem; margin-bottom: 0.2rem; }
-  .clock-cell { display: flex; flex-direction: column; align-items: center; line-height: 1.15; padding: 0 0.5rem; }
-  .clock-zone { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; }
+  .clock-cell { display: flex; flex-direction: row; align-items: baseline; justify-content: center; gap: 0.5rem; line-height: 1.15; padding: 0 0.5rem; }
+  .clock-zone { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; }
   .clock-time { font-size: 1.15rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
   .clock-cell-main .clock-time { color: var(--accent-readable, var(--ink)); }
-  .clock-date { font-size: 0.66rem; color: var(--ink-mute); }
   .clock-divider { width: 1px; background: var(--line); align-self: stretch; margin: 0.1rem 0; }
   @media (max-width: 520px) {
     .clock-bar { gap: 0.6rem; padding: 0.4rem 0.25rem 0.55rem; }
@@ -10822,8 +10817,19 @@
   }
   function clockTzOptionsHTML(selectedTz) {
     const sel = selectedTz || '';
-    return clockTzList().map(tz =>
-      `<option value="${escapeHtml(tz)}"${tz === sel ? ' selected' : ''}>${escapeHtml(clockTzLabel(tz))}</option>`
+    // v89.32.10: label each zone with its current UTC/GMT offset + city, e.g.
+    // "(UTC+05:45) Kathmandu", and sort west→east so the list is easy to scan.
+    const zones = clockTzList().slice();
+    // v89.32.11: guarantee the currently-stored value is always an option even
+    // if it isn't in this engine's list (cross-browser ICU spelling/version
+    // differences, e.g. Asia/Kathmandu vs Asia/Katmandu). Otherwise the picker
+    // would show nothing selected and silently lose the saved zone on next save.
+    if (sel && !zones.includes(sel)) zones.push(sel);
+    const list = zones
+      .map(tz => ({ tz, off: tzOffsetMinutes(tz), label: clockTzLabel(tz) }))
+      .sort((a, b) => a.off - b.off || a.label.localeCompare(b.label));
+    return list.map(({ tz, label }) =>
+      `<option value="${escapeHtml(tz)}"${tz === sel ? ' selected' : ''}>${escapeHtml(label)}</option>`
     ).join('');
   }
   function clockTzShortName(tz) {
@@ -10831,11 +10837,52 @@
     const parts = String(tz).split('/');
     return parts[parts.length - 1].replace(/_/g, ' ');
   }
+  // v89.32.11: a value is an acceptable time zone if the engine can actually
+  // format with it. This is stricter than "non-empty" (rejects garbage) but
+  // looser than list membership (accepts a valid zone this engine knows even
+  // if our curated fallback list omits it). Used by the save guards so a
+  // legitimately-selected zone is never rejected.
+  function isValidTimeZone(tz) {
+    if (!tz || typeof tz !== 'string') return false;
+    try { Intl.DateTimeFormat('en-US', { timeZone: tz }); return true; }
+    catch (_) { return false; }
+  }
+  // Current UTC offset of a zone, in minutes (e.g. Kathmandu => 345).
+  // Computed from the actual instant so it respects DST. Returns 0 on error.
+  function tzOffsetMinutes(tz) {
+    if (!tz || tz === 'UTC') return 0;
+    try {
+      const now = new Date();
+      // Format the same instant as UTC and as the target zone, then diff.
+      const dtf = new Intl.DateTimeFormat('en-US', {
+        timeZone: tz, hour12: false,
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+      });
+      const parts = {};
+      for (const p of dtf.formatToParts(now)) parts[p.type] = p.value;
+      const asUTC = Date.UTC(+parts.year, +parts.month - 1, +parts.day,
+        +(parts.hour === '24' ? '0' : parts.hour), +parts.minute, +parts.second);
+      return Math.round((asUTC - now.getTime()) / 60000);
+    } catch (_) { return 0; }
+  }
+  // Format an offset in minutes as "UTC+05:45" / "UTC-04:00" / "UTC".
+  function tzOffsetLabel(tz) {
+    const m = tzOffsetMinutes(tz);
+    if (m === 0) return 'UTC';
+    const sign = m > 0 ? '+' : '-';
+    const abs = Math.abs(m);
+    const hh = String(Math.floor(abs / 60)).padStart(2, '0');
+    const mm = String(abs % 60).padStart(2, '0');
+    return `UTC${sign}${hh}:${mm}`;
+  }
   function clockTzLabel(tz) {
-    if (tz === 'UTC') return 'UTC';
+    if (tz === 'UTC') return '(UTC+00:00) UTC';
     const parts = String(tz).split('/');
-    if (parts.length >= 2) return `${clockTzShortName(tz)} (${parts[0].replace(/_/g,' ')})`;
-    return clockTzShortName(tz);
+    const city = clockTzShortName(tz);
+    const region = parts.length >= 2 ? parts[0].replace(/_/g, ' ') : '';
+    const off = tzOffsetLabel(tz);
+    return region ? `(${off}) ${city} — ${region}` : `(${off}) ${city}`;
   }
   function formatClockFor(tz, now) {
     const d = now || new Date();
@@ -10862,7 +10909,6 @@
     el.innerHTML = `<div class="clock-cell clock-cell-main">
       <span class="clock-zone">${escapeHtml(clockTzShortName(tz) || 'Local')}</span>
       <span class="clock-time" data-clock-tz="${escapeHtml(tz)}">${escapeHtml(f.time)}</span>
-      <span class="clock-date" data-clock-date-tz="${escapeHtml(tz)}">${escapeHtml(f.date)}</span>
     </div>`;
     el.hidden = false;
   }
@@ -10875,11 +10921,6 @@
       const tz = span.getAttribute('data-clock-tz') || '';
       const f = formatClockFor(tz, now);
       if (span.textContent !== f.time) span.textContent = f.time;
-    });
-    el.querySelectorAll('.clock-date').forEach(span => {
-      const tz = span.getAttribute('data-clock-date-tz') || '';
-      const f = formatClockFor(tz, now);
-      if (span.textContent !== f.date) span.textContent = f.date;
     });
     if (!__clockTimer) __clockTimer = setInterval(updateClocks, 1000);
   }
@@ -11023,16 +11064,12 @@
     const list = document.getElementById('bookList');
     const books = data.books.filter(b => b.businessId === session.activeBizId);
     if (!books.length) { list.innerHTML = '<div style="font-size:.8rem;color:rgba(245,241,232,.4);padding:.5rem 1.25rem;">No books yet.</div>'; return; }
-    const canRenameBook = canManageOps(session.activeBizId);
+    // v89.32.10: the per-book gear was removed — book names are edited only
+    // from Business Settings → Books (Rename/Delete there). Keeps the sidebar
+    // clean and book editing in one place.
     list.innerHTML = books.map(book => {
-      const gear = canRenameBook
-        ? `<button class="biz-gear book-gear" onclick="event.stopPropagation();renameBookFlow('${book.id}')" title="Rename book" aria-label="Rename ${escapeHtml(book.name)}">
-             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-           </button>`
-        : '';
       return `<div class="book-item ${book.id === session.activeBookId ? 'active' : ''}" onclick="selectBook('${book.id}')">
         <span>${escapeHtml(book.name)}</span>
-        <span class="book-item-right">${gear}</span>
       </div>`;
     }).join('');
   }
@@ -21084,7 +21121,7 @@
     const id = uid();
     const cur = document.getElementById('mBizCur').value || 'NPR';
     const tzEl = document.getElementById('mBizTimeZone');
-    const tz = (tzEl && tzEl.value && clockTzList().includes(tzEl.value)) ? tzEl.value : deviceTimeZone();
+    const tz = (tzEl && isValidTimeZone(tzEl.value)) ? tzEl.value : deviceTimeZone();
     data.businesses.push({ id, name, currency: cur, timeZone: tz, ownerId: u.id, staffSeesTotals: true, createdAt: today() });
     const bookId = uid();
     data.books.push({ id: bookId, businessId: id, name: 'Main Cash Book', createdAt: today() });
@@ -26272,7 +26309,7 @@
     // against the known list; unknown values are ignored to avoid storing
     // a zone the browser can't format.
     const tzEl = document.getElementById('setBizTimeZone');
-    if (tzEl && tzEl.value && clockTzList().includes(tzEl.value)) biz.timeZone = tzEl.value;
+    if (tzEl && isValidTimeZone(tzEl.value)) biz.timeZone = tzEl.value;
     saveData(); renderAll();
     toast('Business saved.');
     openBizSettings(bizId);
@@ -26316,22 +26353,9 @@
 
   // Sidebar-side rename. Same gates, but doesn't re-open business settings
   // afterward — sidebar invocations should leave the user where they were.
-  async function renameBookFlow(bookId) {
-    const book = data.books.find(b => b.id === bookId);
-    if (!book) return;
-    if (!canManageOps(book.businessId)) { toast('Only the owner or manager can rename this book.'); return; }
-    const newName = await uiPrompt('Rename book:', book.name, { title: 'Rename book', submitLabel: 'Rename' });
-    if (newName == null) return;
-    const trimmed = newName.trim();
-    if (!trimmed) { toast('Book name cannot be blank.'); return; }
-    if (trimmed === book.name) return;
-    if (data.books.find(b => b.businessId === book.businessId && b.id !== book.id && b.name.toLowerCase() === trimmed.toLowerCase())) {
-      toast('A book with that name already exists.'); return;
-    }
-    book.name = trimmed;
-    saveData(); renderAll();
-    toast(`Renamed to "${trimmed}".`);
-  }
+  // v89.32.10: renameBookFlow (the old sidebar-gear rename) was removed when
+  // the per-book gear was taken out. Book renaming now lives solely in
+  // Business Settings → Books via renameBookFromBizSettings (below).
   async function deleteBookFromBizSettings(bookId) {
     const book = data.books.find(b => b.id === bookId);
     if (!book) return;

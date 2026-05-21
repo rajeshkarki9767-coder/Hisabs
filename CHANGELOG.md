@@ -12,7 +12,48 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
-## [v89.32.8] — 2026-05-21
+## [v89.32.11] — 2026-05-21
+
+Hardened the time-zone picker against cross-browser zone-name differences.
+
+### Hash
+`c1e3b4131d15a5e437d46addc5e82ab3`
+
+### Changes
+While verifying the v89.32.10 picker, found a real cross-browser edge case: different JS engines can use slightly different canonical names for the same zone (e.g. `Asia/Kathmandu` vs the older `Asia/Katmandu`), and ICU data varies by version. If a business's stored time zone wasn't in the current engine's list, the picker showed nothing selected and could silently reset the zone on the next save from a different device.
+
+Fixes:
+1. **The currently-stored zone is now always included as a selectable, pre-selected option** in the picker, even if it isn't in the standard list — so the saved zone is never visually lost.
+2. **Save guards now validate by formattability** (`isValidTimeZone` — can the engine actually format with it?) instead of strict list membership, so a legitimately-selected zone is never rejected, while garbage values are still refused.
+
+Self-test 63/63; picker + validator trace 8/8.
+
+---
+
+Removed the per-book sidebar gear; richer time-zone picker labels.
+
+### Hash
+`6497c065627350eb02afe28a018aa71e`
+
+### Changes
+1. **Removed the per-book gear icon** from the sidebar book list. Book names are now edited only from **Business Settings → Books** (Rename / Delete there), keeping book editing in one place. Removed the now-orphaned `renameBookFlow` and its dead CSS (`.book-gear`, `.book-item-right`).
+2. **Time-zone picker now shows UTC/GMT offset + city** for every zone, e.g. `(UTC+05:45) Kathmandu — Asia`, `(UTC-04:00) New York — America`. Options are sorted west→east by current offset (DST-aware), making it much easier to find and set the right zone. Applies to both the new-business modal and Business Settings.
+
+Self-test 63/63.
+
+---
+
+Simplified the dashboard clock to zone + time only.
+
+### Hash
+`6e2db4c6d2d668ed93dcd942eb80a2e4`
+
+### Changes
+- The dashboard clock now shows only the **time zone and time, side by side** in the middle. Removed the date from the clock, since the date strip directly below it already shows the date. Cleaned up the now-unused date-update loop in the per-second ticker.
+
+Self-test 63/63.
+
+---
 
 Full date rewire: all business-day logic now follows the business time zone.
 
