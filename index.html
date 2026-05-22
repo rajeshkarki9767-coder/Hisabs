@@ -7270,7 +7270,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.29';
+  const BUILD_TAG = '2026.05.21.32';
 
   // ================================================================
   // STORAGE
@@ -13744,8 +13744,26 @@
       return;
     }
     // Prefer cloud-synced data if it has rows for this business
-    const cloudSal = (data.distSalaries || []).filter(r => r.businessId === bizId);
-    const cloudShares = (data.distShares || []).filter(r => r.businessId === bizId);
+    // v89.32.38: also drop any row that has a not-yet-pushed DELETE op in the
+    // sync queue. Without this, after deleting a row the cloud copy (still
+    // present until the delete drains) gets pulled back into data.distSalaries
+    // and this loader resurrects it — the "deleted distribution data reappears"
+    // bug. Honour pending deletes here too, not just in the pull merge.
+    const _pendDel = (() => {
+      const s = new Set();
+      try {
+        for (const op of (__syncQueue || [])) {
+          if (op && op.kind === 'delete' &&
+              (op.table === 'app_distribution_salaries' ||
+               op.table === 'app_distribution_shares')) {
+            s.add(op.recordId);
+          }
+        }
+      } catch (_) {}
+      return s;
+    })();
+    const cloudSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
+    const cloudShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
     if (cloudSal.length || cloudShares.length) {
       __distSalaries = cloudSal.map(r => ({
         id: r.id, name: r.name, salary: r.salary,
@@ -13814,6 +13832,25 @@
       shares: __distShares,
     });
     _syncDistributionArrays(session.activeBizId);
+  }
+
+  // v89.32.40: belt-and-suspenders direct cloud delete. The normal path is
+  // delete-locally -> diff emits a delete op -> drainQueueOnce pushes it. That
+  // works, but to make sure a deleted distribution row leaves Supabase
+  // promptly (and isn't left to a stuck/again-jammed queue), we ALSO fire the
+  // delete straight at the table here. Best-effort + owner-only; if it fails
+  // (offline), the queued delete op is the fallback and will retry. The id is
+  // removed from any pending queue op afterwards so we don't double-handle.
+  async function _cloudDeleteDistRow(table, id) {
+    try {
+      if (!id || !table) return;
+      if (!__syncEnabled || !__syncEnabled()) return;
+      if (roleFor(session.activeBizId) !== 'owner') return;
+      const { error } = await sb().from(table).delete().eq('id', id);
+      if (!error) {
+        try { _markSelfWrite(id); } catch (_) {}
+      }
+    } catch (_) { /* queued delete op remains as the fallback */ }
   }
 
   // v89.6: write current __distSalaries / __distShares to data arrays
@@ -13919,6 +13956,7 @@
     }
     __distSalaries = __distSalaries.filter(r => r.id !== id);
     _persistDistribution();
+    _cloudDeleteDistRow('app_distribution_salaries', id);
     renderDistributionCard();
   }
   // v89.7: dirty-tracking buffer for distribution rows. Each row id
@@ -14018,10 +14056,21 @@
       }
       _distRowMarkLocked(kind, id);
     }
-    // Re-render the distribution view to refresh button states.
+    // Re-render so the row's button flips Edit<->Save and inputs lock/unlock.
+    // v89.32.38: use renderDistributionCard() (same path as addDistSalaryRow)
+    // rather than a full renderDistributionView(). The full view re-hydrates
+    // __distSalaries/__distShares from storage and rebuilds #mainContent,
+    // which on the Save click could land the button in an inconsistent state
+    // ("Save not clickable / does nothing"). renderDistributionCard patches
+    // just #distributionCard with the current lock states, which is exactly
+    // what a per-row Edit/Save toggle needs.
     if (session.view === 'distribution') {
-      const root = document.getElementById('mainContent');
-      if (root) renderDistributionView(root);
+      if (document.getElementById('distributionCard')) {
+        renderDistributionCard();
+      } else {
+        const root = document.getElementById('mainContent');
+        if (root) renderDistributionView(root);
+      }
     } else {
       // Audit page also shows split parties
       try { renderSplitParties(); } catch (_) {}
@@ -14116,6 +14165,7 @@
     }
     __distShares = __distShares.filter(r => r.id !== id);
     _persistDistribution();
+    _cloudDeleteDistRow('app_distribution_shares', id);
     renderDistributionCard();
   }
   // v89.7: BUFFERED shares field update — same pattern as salaries.
@@ -14940,6 +14990,7 @@
       __splitSelectedPartyId = __splitParties[0]?.id || '';
     }
     saveSplitStateFor(session.activeBizId);
+    _cloudDeleteDistRow('app_split_parties', id);
     if (session.view === 'distribution') {
       const root = document.getElementById('mainContent');
       if (root) renderDistributionView(root);
@@ -31585,9 +31636,15 @@
       // the user can see than to lose their data without telling them.
       let successfulOps = [];
       let stuckOps = []; // for surfacing in the UI, NOT for dropping
-      let earlyExit = false;
+      // v89.32.39: process every table independently. Previously, the FIRST
+      // table whose batch errored set earlyExit=true and broke the loop, so a
+      // single stuck upsert (e.g. a malformed row at the front of the queue)
+      // blocked ALL other tables — including pending DELETE ops behind it.
+      // That's why deleted distribution rows never left the cloud and piled
+      // up as duplicates: the delete ops were trapped behind a jammed upsert.
+      // Now a failed table just leaves its own ops in the queue (to retry)
+      // and we continue to the next table, so deletes and other tables drain.
       for (const [table, slot] of byTable) {
-        if (earlyExit) break;
         if (slot.upserts.length) {
           const { error } = await sb().from(table).upsert(slot.upserts, { onConflict: 'id' });
           if (error) {
@@ -31598,8 +31655,7 @@
               op.lastError = error.message || error.code || 'unknown';
               if (op.attempts >= 3) stuckOps.push(op);
             }
-            earlyExit = true;
-            break;
+            // do NOT break — let other tables (and deletes) still process.
           } else {
             // v89.11: track these IDs so we can suppress the realtime echo.
           const upsertedOps = slot.ops.filter(o => o.kind === 'upsert');
@@ -31624,8 +31680,7 @@
               op.lastError = error.message || error.code || 'unknown';
               if (op.attempts >= 3) stuckOps.push(op);
             }
-            earlyExit = true;
-            break;
+            // do NOT break — continue with other tables.
           } else {
             // v89.11: track these IDs so we can suppress the realtime echo.
             const deletedOps = slot.ops.filter(o => o.kind === 'delete');

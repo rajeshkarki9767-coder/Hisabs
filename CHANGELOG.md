@@ -12,6 +12,66 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.32
+
+Distribution deletes now fire an immediate direct delete to Supabase.
+
+### Hash
+`f6f3c8ac3f44fccf74e53a3a6e842823`
+
+### Changes
+Building on the .31 queue-jam fix: deleting a Team Salary, Profit Share, or split party now **also** issues a direct `DELETE` to the corresponding Supabase table right away (`_cloudDeleteDistRow`), in addition to the normal queued delete op. This guarantees the row leaves the backend promptly rather than depending solely on the diff→queue→drain chain. It's best-effort and owner-only; if offline it silently no-ops and the queued delete op remains as the fallback (and retries). Self-writes are marked to suppress the realtime echo.
+
+Combined with .31 (queue no longer jams) this means: delete in the app → row is removed from Supabase → it does not come back on refresh or on another device.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2156/2156; helper defined + wired into all three distribution delete handlers; owner-only guard confirmed; .31 queue fix intact.
+
+### Reminder
+Run the one-time cleanup `sql/v89.32.39_cleanup_distribution_junk.sql` to clear the rows that accumulated before these fixes, and deploy .32 to all devices.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.31
+
+THE root cause: a stuck upsert blocked the whole sync queue, so deletes never reached the cloud.
+
+### Hash
+`33a53bae55f05ec84caa3590875d14fb`
+
+### The actual diagnosis
+A Supabase query proved the distribution data WAS reaching the cloud — but the tables were full of duplicate and empty rows, and deletes never took effect. Root cause found in `drainQueueOnce`: the loop set `earlyExit = true` and `break`ed on the FIRST table whose batch errored. So a single stuck upsert (e.g. a malformed/empty row at the front of the queue) blocked every table behind it — **including all pending DELETE ops**. Deletes never drained, so deleted rows stayed in the cloud and got pulled back; meanwhile each add piled up as a new row → the duplicates you saw.
+
+### Changes
+1. **Sync drain no longer aborts on one table's failure.** Each table now processes independently: a failed upsert/delete leaves only its own ops in the queue to retry, and the loop continues so other tables — and pending deletes — still drain. This unblocks the trapped delete ops.
+
+### Companion SQL cleanup (one-time)
+**`sql/v89.32.39_cleanup_distribution_junk.sql`** removes the accumulated never-filled rows (no name + zero value) from all three distribution tables, and lists remaining same-name duplicates so you can clear the extras from inside the app (which will now actually delete them from the cloud).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2156/2156; earlyExit fully removed; cleanup migration guarded to only delete empty rows.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.30
+
+Distribution: per-row Save now works reliably + deleted rows no longer resurrect on reload.
+
+### Hash
+`fb682a7a82afc1b09c4cf73afde7ccf4`
+
+### Changes
+1. **"Save not clickable / does nothing after adding a salary or profit share" — FIXED.** Adding a row re-rendered via `renderDistributionCard()` (patches `#distributionCard`), but the Edit/Save toggle re-rendered via the full `renderDistributionView()` (rebuilds `#mainContent` and re-hydrates the arrays from storage). That mismatch could leave the Save button in an inconsistent state. The toggle now uses the same `renderDistributionCard()` path as Add, so Edit↔Save flips consistently and the save commits.
+2. **Deleted distribution rows reappearing — additional fix.** Build .29 made the cloud-pull *merge* honour pending deletes, but `loadDistributionFromCloudOrLocal()` (which prefers cloud `data.distSalaries`) could still resurrect a row after a pull repopulated it. That loader now also filters out any row with a not-yet-pushed delete op in the sync queue, so a deleted row can't come back via the reload path.
+
+### Honest note
+If a deleted row STILL returns after this build, it means the delete isn't succeeding on the server (a stuck sync op / delete-permission issue), not the client resurrecting it — the client now refuses to show pending-deleted rows everywhere. That case would need checking the delete RLS on the distribution tables.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2156/2156; both fixes confirmed in source.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.29
 
 Deleted records no longer reappear on refresh + currency/rate read-only summary.
