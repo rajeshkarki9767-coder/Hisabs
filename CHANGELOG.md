@@ -12,6 +12,55 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.34
+
+Distribution redesign: saved rows show as clean text; Parties → "Split the %".
+
+### Hash
+`6ee364e4e6c879362669b8e78b69548a`
+
+### Changes
+1. **Saved rows are now plain text in aligned columns — no input boxes.** Team Salaries, Profit Shares, and split parties all render their saved (locked) state as read-only text under the column headers. Tapping Edit reveals the input fields; saving collapses back to clean text.
+   - **Team Salaries** saved row shows: Name · Salary · Type · Amount · Final ("Amount to get"), with the Reason on a second line if present.
+   - **Profit Shares** saved row shows: Name · % · Amount. (No notes/reason field — removed per request; it still appears only while editing... actually removed from the saved view entirely.)
+   - **Split parties** saved row shows: Name · % · a "Used for distribution" badge when that party is the selected one.
+2. **Parties section renamed "Split the %".** The "+ Add party" button stays at the top. With no parties added, it stays in single-party mode at 100% (unchanged). Adding a party opens name + % fields plus a **"Used for distribution"** toggle (replaces the old radio dot); on save it shows as clean text.
+3. New rows still open in edit mode so the fields appear immediately on Add.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2167/2167; tags balanced (div/span/button); all redesign pieces confirmed in source; new-row-unlocks + empty=100% paths confirmed intact.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.33
+
+Heal multiple-selected split parties (the desktop/phone showing different data).
+
+### Hash
+`5dd0761987a7604e7aed2cedd8b1d09b`
+
+### Diagnosis (from live data)
+A Supabase query showed three party rows (`Nepal`, `NEPAL`, `NPL`) all with `is_selected = true` at once — invalid state left over from the pre-fix duplication era (rows created across devices/dates, each marking itself selected). Only one party may feed the Distribution amount. The loader used `find(r => r.isSelected)`, which returns the order-dependent FIRST match — so two devices could pick different "selected" parties and compute different distribution numbers. That's why the desktop and phone showed different data despite both syncing.
+
+### Changes
+`loadSplitPartiesFromCloudOrLocal` now picks the selected party **deterministically** (lowest id) when more than one is flagged, so every device agrees. When it detects multiple selections, the owner's device re-persists the healed single-selection state to clear the extras.
+
+### One-time cloud cleanup (run in Supabase)
+The duplicate party rows are already in the cloud; remove the redundant Nepal-variants and fix the selection:
+```
+DELETE FROM public.app_split_parties
+WHERE id IN ('ad9476d8523b403a', 'a23ef09c70da4498');
+UPDATE public.app_split_parties
+SET is_selected = (id = 'a2a3066e16504794')
+WHERE business_id = 'ed3df6a73c5e4b0b';
+```
+Leaves USA (70) + Nepal (30, selected).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2156/2156; heal logic confirmed (filter selected, deterministic id-sort pick, owner-only re-persist).
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.32
 
 Distribution deletes now fire an immediate direct delete to Supabase.

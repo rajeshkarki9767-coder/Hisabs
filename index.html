@@ -3820,6 +3820,61 @@
     text-align: right;
     padding: 0 0.3rem;
   }
+  /* v89.32.42: saved (locked) distribution rows render as plain text in the
+     same grid columns as the inputs, so the values line up under the headers
+     with no boxes. */
+  .dist-row-saved .dist-cell {
+    font-size: 0.88rem;
+    color: var(--ink);
+    padding: 0.35rem 0.3rem;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .dist-row-saved .dist-cell-name {
+    font-weight: 600;
+  }
+  .dist-row-saved-note {
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+    padding: 0.1rem 0.35rem 0.4rem;
+  }
+  .dist-row-saved-note-label {
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  /* v89.32.42: saved split-party row (plain text) + the "Used for
+     distribution" toggle shown while editing. */
+  .split-party-saved {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 0.6rem;
+  }
+  .split-party-saved-main {
+    display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; min-width: 0;
+  }
+  .split-party-saved-name { font-weight: 600; color: var(--ink); }
+  .split-party-saved-pct {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    color: var(--ink-soft);
+  }
+  .split-party-saved-badge {
+    font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.03em;
+    background: color-mix(in srgb, var(--accent) 12%, var(--paper));
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+    padding: 0.12rem 0.45rem; border-radius: 999px;
+  }
+  .split-party-use-toggle {
+    display: flex; align-items: center; gap: 0.4rem;
+    font-size: 0.82rem; color: var(--ink-soft); cursor: pointer;
+    margin: 0 0.4rem;
+  }
+  .split-party-use-toggle input { cursor: pointer; }
   .dist-salary-final.neg { color: var(--loss); }
   /* Totals block */
   .dist-totals {
@@ -7270,7 +7325,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.32';
+  const BUILD_TAG = '2026.05.21.34';
 
   // ================================================================
   // STORAGE
@@ -13792,8 +13847,25 @@
       __splitParties = cloudParties.map(r => ({
         id: r.id, name: r.name, pct: r.pct,
       }));
-      const sel = cloudParties.find(r => r.isSelected);
-      __splitSelectedPartyId = sel ? sel.id : '';
+      // v89.32.41: invalid legacy state could have MULTIPLE parties flagged
+      // is_selected=true (created across devices before delete/sync was
+      // reliable). Only one party may feed the Distribution amount. Pick the
+      // selected party deterministically (first by id sort) so every device
+      // agrees, instead of find()'s order-dependent first match — which made
+      // two devices choose different "selected" parties and show different
+      // distribution numbers.
+      const selectedOnes = cloudParties.filter(r => r.isSelected);
+      if (selectedOnes.length <= 1) {
+        __splitSelectedPartyId = selectedOnes[0] ? selectedOnes[0].id : '';
+      } else {
+        const chosen = selectedOnes.slice().sort((a, b) => String(a.id).localeCompare(String(b.id)))[0];
+        __splitSelectedPartyId = chosen.id;
+        // Heal the stored state so the extra selections are cleared on the
+        // next persist (owner only; non-owners just read).
+        try {
+          if (roleFor(bizId) === 'owner') { _syncSplitPartiesArray(bizId); }
+        } catch (_) {}
+      }
       return;
     }
     // Fallback to localStorage
@@ -14456,6 +14528,29 @@
       const lockClass = isLocked ? 'is-locked' : 'is-editing';
       const readonly = isLocked ? 'readonly' : '';
       const selDisabled = isLocked ? 'disabled' : '';
+      const typeLabel = r.adjustmentType === 'addition' ? '+ Addition' : '− Deduction';
+      // v89.32.42: when LOCKED, render the row as clean read-only text in
+      // aligned columns (Name / Salary / Type / Amount / Reason / Final),
+      // no input boxes. The Edit button reveals the inputs (the is-editing
+      // branch below).
+      if (isLocked) {
+        return `<div class="dist-row-card is-locked dist-row-saved" data-dist-row="${escapeHtml(r.id)}">
+          <div class="dist-salary-row">
+            <div class="dist-cell dist-cell-name">${escapeHtml(r.name || '—')}</div>
+            <div class="dist-cell">${displayCur} ${fmt(r.salary || 0)}</div>
+            <div class="dist-cell">${typeLabel}</div>
+            <div class="dist-cell">${displayCur} ${fmt(r.adjustmentAmount || 0)}</div>
+            <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
+            <div class="dist-row-actions">
+              <button class="dist-row-edit-btn" data-dist-edit="salaries:${jsAttr(r.id)}" onclick="distRowToggleEdit('salaries','${jsAttr(r.id)}')" title="Edit this row" aria-label="Edit">
+                <svg width="14" height="14"><use href="#ico-edit"/></svg>
+              </button>
+              <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+            </div>
+          </div>
+          ${r.note ? `<div class="dist-row-saved-note"><span class="dist-row-saved-note-label">Reason:</span> ${noteVal}</div>` : ''}
+        </div>`;
+      }
       return `<div class="dist-row-card ${lockClass}" data-dist-row="${escapeHtml(r.id)}">
         <div class="dist-salary-row">
           <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','name',this.value)">
@@ -14467,10 +14562,8 @@
           <input type="number" class="no-spin" data-field="adjustmentAmount" value="${r.adjustmentAmount || ''}" placeholder="0.00" min="0" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','adjustmentAmount',this.value)">
           <div class="dist-salary-final ${final < 0 ? 'neg' : ''}">${displayCur} ${fmt(final)}</div>
           <div class="dist-row-actions">
-            <button class="dist-row-edit-btn" data-dist-edit="salaries:${jsAttr(r.id)}" onclick="distRowToggleEdit('salaries','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
-              ${isLocked
-                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
-                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            <button class="dist-row-edit-btn" data-dist-edit="salaries:${jsAttr(r.id)}" onclick="distRowToggleEdit('salaries','${jsAttr(r.id)}')" title="Save this row" aria-label="Save">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             </button>
             <button class="icon-btn-light" onclick="deleteDistSalaryRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
           </div>
@@ -14478,7 +14571,6 @@
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for ${escapeHtml(adjLabel)}<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
           <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Advance taken, Performance bonus, Sick leave" maxlength="280" ${readonly} oninput="updateDistSalaryField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.26 fix #13a: edit/save toggle restored, matches Parties pattern -->
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No team members yet. Click + Add to start.</div>';
@@ -14557,25 +14649,39 @@
       const amt = (r.pct / 100) * remaining;
       totalSharePct += r.pct;
       totalShareAmount += amt;
-      const noteVal = escapeHtml(r.note || '');
+      // v89.32.42: locked => clean read-only text (Name / % / Amount), no
+      // boxes and no notes field (profit shares don't use notes). Editing =>
+      // inputs.
+      if (isLocked) {
+        return `<div class="dist-row-card is-locked dist-row-saved" data-dist-share="${escapeHtml(r.id)}">
+          <div class="dist-share-row">
+            <div class="dist-cell dist-cell-name">${escapeHtml(r.name || '—')}</div>
+            <div class="dist-cell">${fmt(r.pct || 0)}%</div>
+            <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
+            <div class="dist-row-actions">
+              <button class="dist-row-edit-btn" data-dist-edit="shares:${jsAttr(r.id)}" onclick="distRowToggleEdit('shares','${jsAttr(r.id)}')" title="Edit this row" aria-label="Edit">
+                <svg width="14" height="14"><use href="#ico-edit"/></svg>
+              </button>
+              <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove"><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
+            </div>
+          </div>
+        </div>`;
+      }
       return `<div class="dist-row-card ${lockClass}" data-dist-share="${escapeHtml(r.id)}">
         <div class="dist-share-row">
           <input type="text" data-field="name" value="${escapeHtml(r.name)}" placeholder="Name" list="distMemberSuggest" maxlength="120" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','name',this.value)">
           <input type="number" class="no-spin" data-field="pct" value="${r.pct || ''}" placeholder="%" min="0" max="100" step="0.01" inputmode="decimal" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','pct',this.value)">
           <div class="dist-share-amount">${displayCur} ${fmt(amt)}</div>
           <div class="dist-row-actions">
-            <button class="dist-row-edit-btn" data-dist-edit="shares:${jsAttr(r.id)}" onclick="distRowToggleEdit('shares','${jsAttr(r.id)}')" title="${isLocked ? 'Edit this row' : 'Save this row'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
-              ${isLocked
-                ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
-                : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+            <button class="dist-row-edit-btn" data-dist-edit="shares:${jsAttr(r.id)}" onclick="distRowToggleEdit('shares','${jsAttr(r.id)}')" title="Save this row" aria-label="Save">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
             </button>
             <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
           </div>
         </div>
         <div class="dist-row-note">
           <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${noteVal}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
-          <!-- v89.26 fix #13a: edit/save toggle restored, matches Parties pattern -->
+          <input type="text" data-field="note" value="${escapeHtml(r.note || '')}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
         </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
@@ -14908,28 +15014,42 @@
       const isLocked = _distRowIsLocked('parties', p.id);
       const lockClass = isLocked ? 'is-locked' : 'is-editing';
       const readonly = isLocked ? 'readonly' : '';
+      // v89.32.42: locked => clean read-only text (Name · % · distribution
+      // badge), no boxes/radio. Edit => name + % inputs + the "Used for
+      // distribution" toggle.
+      if (isLocked) {
+        return `<div class="split-party-row split-party-row-v895 is-locked split-party-saved ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
+          <div class="split-party-saved-main">
+            <span class="split-party-saved-name">${escapeHtml(p.name || '—')}</span>
+            <span class="split-party-saved-pct">${fmtPctVal(p.pct)}%</span>
+            ${isSelected ? '<span class="split-party-saved-badge">Used for distribution</span>' : ''}
+          </div>
+          <div class="dist-row-actions split-party-actions">
+            <button class="dist-row-edit-btn" data-dist-edit="parties:${jsAttr(p.id)}" onclick="distRowToggleEdit('parties','${jsAttr(p.id)}')" title="Edit this party" aria-label="Edit">
+              <svg width="14" height="14"><use href="#ico-edit"/></svg>
+            </button>
+            <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
+              <svg width="12" height="12"><use href="#ico-trash"/></svg>
+            </button>
+          </div>
+        </div>`;
+      }
       return `<div class="split-party-row split-party-row-v895 ${lockClass} ${isSelected ? 'is-selected' : ''}" data-split-party="${escapeHtml(p.id)}">
-        <label class="split-party-radio" title="Use this party as the Amount source in Distribution">
-          <input type="radio" name="splitSelectedParty" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
-          <span class="split-party-radio-dot"></span>
-        </label>
-        <!-- v89.15: HORIZONTAL layout - Name [____]  %  [__] in one row -->
-        <!-- v89.24: labels removed; placeholder text guides users instead -->
-        <!-- v89.24.2: aria-label added on inputs for screen-reader accessibility -->
         <div class="split-party-fields-h">
           <div class="input-wrap input-wrap-name">
-            <input type="text" value="${escapeHtml(p.name)}" placeholder="Name" maxlength="80" aria-label="Party name" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
+            <input type="text" value="${escapeHtml(p.name)}" placeholder="Party name" maxlength="80" aria-label="Party name" oninput="updateSplitParty('${jsAttr(p.id)}','name',this.value)">
           </div>
           <div class="input-wrap input-wrap-pct">
-            <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="%" inputmode="decimal" aria-label="Percentage share" ${readonly} oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
+            <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="%" inputmode="decimal" aria-label="Percentage share" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
           </div>
         </div>
-        <!-- v89.15: action cluster - edit/save toggle + trash -->
+        <label class="split-party-use-toggle" title="Use this party as the Amount source in Distribution">
+          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
+          <span>Used for distribution</span>
+        </label>
         <div class="dist-row-actions split-party-actions">
-          <button class="dist-row-edit-btn" data-dist-edit="parties:${jsAttr(p.id)}" onclick="distRowToggleEdit('parties','${jsAttr(p.id)}')" title="${isLocked ? 'Edit this party' : 'Save this party'}" aria-label="${isLocked ? 'Edit' : 'Save'}">
-            ${isLocked
-              ? '<svg width="14" height="14"><use href="#ico-edit"/></svg>'
-              : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>'}
+          <button class="dist-row-edit-btn" data-dist-edit="parties:${jsAttr(p.id)}" onclick="distRowToggleEdit('parties','${jsAttr(p.id)}')" title="Save this party" aria-label="Save">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
           </button>
           <button class="icon-btn-light split-party-remove" onclick="removeSplitParty('${jsAttr(p.id)}')" aria-label="Remove party" title="Remove">
             <svg width="12" height="12"><use href="#ico-trash"/></svg>
@@ -16039,7 +16159,7 @@
         <!-- Party list with name + % inputs -->
         <div class="split-parties">
           <div class="split-parties-head">
-            <div class="split-parties-title">Parties</div>
+            <div class="split-parties-title">Split the %</div>
             <button class="btn btn-sm btn-ghost" onclick="addSplitParty()">+ Add party</button>
           </div>
           <!-- v89.8: live total % indicator for parties. -->
