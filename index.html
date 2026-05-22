@@ -7261,7 +7261,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.27';
+  const BUILD_TAG = '2026.05.21.28';
 
   // ================================================================
   // STORAGE
@@ -8140,6 +8140,16 @@
           quickLook: Array.isArray(d.quickLook) ? d.quickLook : [],
           announcements: Array.isArray(d.announcements) ? d.announcements : [],
           transfers: Array.isArray(d.transfers) ? d.transfers : [],
+          // v89.32.36: CRITICAL FIX — these three distribution arrays were
+          // missing from this reconstruction, so loadAll() silently dropped
+          // them on every page load. The data was written to localStorage by
+          // saveData(), but wiped from the in-memory `data` object on reload,
+          // so it never synced to the cloud and never persisted across
+          // sessions or devices (Team Salaries, Profit Shares, split parties,
+          // and — via splitParties — the picked currency/rate). Now preserved.
+          distSalaries: Array.isArray(d.distSalaries) ? d.distSalaries : [],
+          distShares: Array.isArray(d.distShares) ? d.distShares : [],
+          splitParties: Array.isArray(d.splitParties) ? d.splitParties : [],
         };
       }
     } catch(e) {}
@@ -33315,6 +33325,14 @@
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
       data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       data.transfers     = mergeWithPending('transfers',     fetched.transfers,     data.transfers);
+      // v89.32.36: CRITICAL FIX — these three were missing from the pull
+      // merge, so distribution rows fetched from the cloud were thrown away
+      // instead of written into `data`. Combined with the loadAll() omission,
+      // this is why distribution data never appeared on a second device even
+      // when it had synced up. Now merged like every other table.
+      data.distSalaries  = mergeWithPending('distSalaries',  fetched.distSalaries,  data.distSalaries);
+      data.distShares    = mergeWithPending('distShares',    fetched.distShares,    data.distShares);
+      data.splitParties  = mergeWithPending('splitParties',  fetched.splitParties,  data.splitParties);
       saveData();
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.

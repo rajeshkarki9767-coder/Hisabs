@@ -12,6 +12,32 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.28
+
+CRITICAL: distribution data was dropped on load + on pull — the real reason it never saved/synced.
+
+### Hash
+`95375460857ff673ae135447c488c822`
+
+### Changes
+The deeper root cause behind "distribution doesn't save / doesn't sync, save icon does nothing": **two omissions in the data layer** silently discarded the distribution arrays.
+
+1. **`loadAll()` dropped them on every page load.** When the app rebuilt the in-memory `data` object from localStorage, the whitelist of arrays it copied over did **not** include `distSalaries`, `distShares`, or `splitParties`. So although `saveData()` wrote them to localStorage, the very next load wiped them from `data` — they never survived a reload and never got into the sync diff. Now preserved.
+
+2. **`cloudPullAll()` dropped them on pull.** The pull merged 12 tables back into `data` but omitted the same three — so even rows fetched from the cloud were thrown away instead of shown. This is why a second device never displayed what another device saved. Now merged like every other table.
+
+Together these explain the full symptom (save appears to do nothing, nothing persists, nothing cross-syncs) better than the missing tables alone. The save functions and sync mappings were already correct; the data was being discarded at the load/pull boundary.
+
+### Still required
+The two SQL migrations remain necessary so the cloud has tables/columns to sync into:
+- `v89.32.33_app_businesses_split_currency_rate.sql`
+- `v89.32.35_create_distribution_tables.sql` (text-id version — already run successfully)
+
+### Verification
+Self-test 63/63; JS valid; CSS 2153/2153; both fixes confirmed in source (loadAll preserves all 3 arrays; pull merges all 3). **Cross-device persistence requires real-device/runtime verification after deploying this build.**
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.27
 
 Distribution save/sync root cause (missing tables) + print full-page + screen-shift fix.
