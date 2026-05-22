@@ -12,6 +12,22 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.29
+
+Deleted records no longer reappear on refresh + currency/rate read-only summary.
+
+### Hash
+`fd6ffbe248b0d6204b9219bbd396b167`
+
+### Changes
+1. **"I delete it, refresh, it comes back" — FIXED.** When a record was deleted, a delete op was queued and the row removed locally — but `cloudPullAll`'s merge only protected pending *upserts*, never pending *deletes*. So if a pull ran before the delete op pushed (or while it was retrying), the still-present cloud row was treated as authoritative and the deleted record reappeared. The merge now also tracks pending delete ops and excludes those ids from the pulled result, so a not-yet-pushed delete is never undone by a pull.
+2. **Currency & rate now show as a read-only summary.** Instead of always-visible input boxes, the Split & convert section now reads "Currency is **Rs**" and "Rate is **1 [base] = 156 Rs**". The "Edit Currency and Rate" button reveals the input fields; saving collapses back to the summary. (Same toggle mechanism as the per-row Edit/Save.)
+
+### Verification
+Self-test 63/63; JS valid; CSS 2156/2156; delete-merge fix logic-traced (pending-delete row stays gone after a pull; normal rows unaffected); summary markup + edit-reveal + CSS confirmed.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.28
 
 CRITICAL: distribution data was dropped on load + on pull — the real reason it never saved/synced.

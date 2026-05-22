@@ -3302,6 +3302,15 @@
     gap: 0.6rem;
     margin-bottom: 0.7rem;
   }
+  /* v89.32.37: read-only currency/rate summary shown when not editing. */
+  .split-cur-summary {
+    display: flex; flex-direction: column; gap: 0.25rem;
+    padding: 0.7rem 0.85rem; margin-bottom: 0.6rem;
+    background: var(--paper-deep); border: 1px solid var(--line);
+    border-radius: var(--r-sm);
+  }
+  .split-cur-summary-line { font-size: 0.9rem; color: var(--ink-soft); }
+  .split-cur-summary-line strong { color: var(--ink); font-weight: 600; }
   .split-cur-save-status {
     font-size: 0.78rem;
     color: var(--ink-mute);
@@ -7261,7 +7270,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.28';
+  const BUILD_TAG = '2026.05.21.29';
 
   // ================================================================
   // STORAGE
@@ -15943,22 +15952,36 @@
         </div>
 
         <!-- Currency + rate (shared across all parties) -->
-        <div class="split-calc-cur-row">
-          <div class="input-wrap">
-            <label>Currency</label>
-            <input type="text" id="splitCurInput" placeholder="Rs, INR, €…" maxlength="6" value="${escapeHtml(__splitCurrency)}" oninput="onSplitCurInput(this.value)">
-          </div>
-          <div class="input-wrap">
-            <label id="splitRateLabel">Rate (1 ${escapeHtml(__splitBusinessCurrency)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
-            <input type="number" id="splitRateInput" min="0" step="0.0001" value="${escapeHtml(__splitRate ? String(__splitRate) : '')}" oninput="onSplitRateInput(this.value)" inputmode="decimal" placeholder="e.g. 150">
-          </div>
-        </div>
-        <!-- v89.4: explicit Save button for Currency + Rate. Values
-             auto-save on keystroke (existing); this button is a visible
-             confirmation that flashes "Saved" feedback. -->
+        <!-- v89.32.37: show a read-only summary by default ("Currency is Rs
+             and Rate is 156"); the Edit button reveals the input fields. -->
+        ${(() => {
+          const curLocked = _distRowIsLocked('splitcurate', 'main');
+          const curText = __splitCurrency ? escapeHtml(__splitCurrency) : 'not set';
+          const rateText = __splitRate ? escapeHtml(String(__splitRate)) : 'not set';
+          const summary = `
+            <div class="split-cur-summary" id="splitCurSummary">
+              <div class="split-cur-summary-line">Currency is <strong>${curText}</strong></div>
+              <div class="split-cur-summary-line">Rate is <strong>1 ${escapeHtml(__splitBusinessCurrency)} = ${rateText}${__splitCurrency ? ' ' + escapeHtml(__splitCurrency) : ''}</strong></div>
+            </div>`;
+          const inputs = `
+            <div class="split-calc-cur-row" id="splitCurInputs">
+              <div class="input-wrap">
+                <label>Currency</label>
+                <input type="text" id="splitCurInput" placeholder="Rs, INR, €…" maxlength="6" value="${escapeHtml(__splitCurrency)}" oninput="onSplitCurInput(this.value)">
+              </div>
+              <div class="input-wrap">
+                <label id="splitRateLabel">Rate (1 ${escapeHtml(__splitBusinessCurrency)} = ? ${escapeHtml(__splitCurrency || 'unit')})</label>
+                <input type="number" id="splitRateInput" min="0" step="0.0001" value="${escapeHtml(__splitRate ? String(__splitRate) : '')}" oninput="onSplitRateInput(this.value)" inputmode="decimal" placeholder="e.g. 150">
+              </div>
+            </div>`;
+          return curLocked ? summary : inputs;
+        })()}
         <div class="split-cur-save-row">
-          <!-- v89.15: Edit/Save toggle for Currency + Rate -->
-          <button class="split-cur-edit-btn" id="splitCurEditBtn" onclick="distRowToggleEdit('splitcurate','main')" title="Edit currency and rate" aria-label="Edit currency and rate"><svg width="14" height="14" style="margin-right:0.4rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">Edit Currency and Rate</span></button>
+          <!-- v89.15 / v89.32.37: Edit/Save toggle for Currency + Rate -->
+          ${(() => {
+            const curLocked = _distRowIsLocked('splitcurate', 'main');
+            return `<button class="split-cur-edit-btn${curLocked ? '' : ' is-saving'}" id="splitCurEditBtn" onclick="distRowToggleEdit('splitcurate','main')" title="${curLocked ? 'Edit currency and rate' : 'Save currency and rate'}" aria-label="${curLocked ? 'Edit currency and rate' : 'Save currency and rate'}"><svg width="14" height="14" style="margin-right:0.4rem;vertical-align:-2px;"><use href="#ico-edit"/></svg><span class="split-cur-edit-label">${curLocked ? 'Edit Currency and Rate' : 'Save Currency and Rate'}</span></button>`;
+          })()}
           <span class="split-cur-save-status" id="splitCurSaveStatus"></span>
         </div>
 
@@ -33254,26 +33277,43 @@
       // After pulling cloud rows, merge in the local version of any such
       // record — the cloud's view doesn't include them yet, but they will
       // be retried.
-      const pendingByTable = new Map(); // table -> Set<id>
+      const pendingByTable = new Map(); // table -> Set<id>  (pending UPSERTS)
+      const pendingDeleteByTable = new Map(); // table -> Set<id> (pending DELETES)
       for (const op of (__syncQueue || [])) {
-        if (op.kind !== 'upsert') continue;
-        if (!pendingByTable.has(op.table)) pendingByTable.set(op.table, new Set());
-        pendingByTable.get(op.table).add(op.recordId);
+        if (op.kind === 'upsert') {
+          if (!pendingByTable.has(op.table)) pendingByTable.set(op.table, new Set());
+          pendingByTable.get(op.table).add(op.recordId);
+        } else if (op.kind === 'delete') {
+          // v89.32.37: track pending deletes too. Without this, a pull that
+          // runs before the delete op drains brings the just-deleted row back
+          // from the cloud (it's still there until the delete pushes), and the
+          // row reappears on refresh — the "I delete it, refresh, it's back"
+          // bug. We exclude these ids from the merged result below.
+          if (!pendingDeleteByTable.has(op.table)) pendingDeleteByTable.set(op.table, new Set());
+          pendingDeleteByTable.get(op.table).add(op.recordId);
+        }
       }
       // Helper: for a given local key, return cloud rows merged with any
-      // local-only records (by id) that have a pending upsert.
+      // local-only records (by id) that have a pending upsert, MINUS any
+      // rows that have a pending delete (so a not-yet-pushed delete isn't
+      // undone by the pull).
       function mergeWithPending(localKey, cloudRows, localRows) {
         const map = cloudSchemaMap[localKey];
+        const delPending = (map && pendingDeleteByTable.get(map.table)) || null;
+        let cloud = cloudRows || [];
+        if (delPending && delPending.size) {
+          cloud = cloud.filter(r => !delPending.has(r.id));
+        }
         const pending = (map && pendingByTable.get(map.table)) || null;
-        if (!pending || pending.size === 0) return cloudRows || [];
-        const cloudIds = new Set((cloudRows || []).map(r => r.id));
+        if (!pending || pending.size === 0) return cloud;
+        const cloudIds = new Set(cloud.map(r => r.id));
         const carryOver = (localRows || []).filter(r => pending.has(r.id) && !cloudIds.has(r.id));
-        if (!carryOver.length) return cloudRows || [];
+        if (!carryOver.length) return cloud;
         // Cloud rows take priority for IDs that exist on both sides — if a
         // pending op exists for a record that the cloud already knows about,
         // we use the cloud's version (it's the authoritative one). carryOver
         // is only for records the cloud genuinely doesn't have yet.
-        return [...(cloudRows || []), ...carryOver];
+        return [...cloud, ...carryOver];
       }
 
       // Snapshot the current user's locally-accepted memberships BEFORE the
