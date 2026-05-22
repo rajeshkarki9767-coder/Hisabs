@@ -1458,6 +1458,50 @@
     -webkit-mask-image: radial-gradient(circle at 50% 45%, #000 0%, transparent 72%);
   }
   .boot-splash.fading { opacity: 0; pointer-events: none; }
+  /* v89.32.31: full-page welcome overlay shown to an invitee right after
+     they accept an invite, while the business's data syncs down. Mirrors
+     the boot-splash look so it feels like a deliberate part of the app. */
+  .welcome-splash {
+    position: fixed; inset: 0; z-index: 9500;
+    display: grid; place-items: center;
+    background:
+      radial-gradient(120% 90% at 50% 115%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
+      radial-gradient(80% 60% at 50% -10%, color-mix(in srgb, var(--accent) 8%, transparent), transparent 55%),
+      var(--paper);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease;
+    overflow: hidden; text-align: center; padding: 1.5rem;
+  }
+  .welcome-splash.show { opacity: 1; pointer-events: auto; }
+  .welcome-splash-inner {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.65rem; position: relative; z-index: 1;
+    animation: bootSplashRise 0.5s ease-out; max-width: 30rem;
+  }
+  .welcome-splash-badge {
+    width: 64px; height: 64px; border-radius: 18px;
+    display: grid; place-items: center; margin-bottom: 0.4rem;
+    background: color-mix(in srgb, var(--accent) 14%, var(--paper));
+    color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .welcome-splash-title {
+    font-size: 1.5rem; font-weight: 800; color: var(--ink); letter-spacing: -0.01em;
+  }
+  .welcome-splash-biz { font-weight: 700; color: var(--accent); }
+  .welcome-splash-sub {
+    font-size: 0.92rem; color: var(--ink-soft); line-height: 1.5; max-width: 24rem;
+  }
+  .welcome-splash-progress {
+    position: relative; margin: 0.9rem auto 0;
+    width: min(220px, 60vw); height: 3px; border-radius: 999px;
+    background: color-mix(in srgb, var(--ink) 8%, transparent); overflow: hidden;
+  }
+  .welcome-splash-progress::after {
+    content: ''; position: absolute; top: 0; left: -40%;
+    width: 40%; height: 100%; border-radius: 999px; background: var(--accent);
+    animation: bootSplashSweep 1.1s ease-in-out infinite;
+  }
+  .welcome-splash-hint { font-size: 0.78rem; color: var(--ink-mute); margin-top: 0.4rem; }
   .boot-splash-inner {
     display: flex; flex-direction: column; align-items: center;
     gap: 1.25rem;
@@ -7179,7 +7223,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.18';
+  const BUILD_TAG = '2026.05.21.22';
 
   // ================================================================
   // STORAGE
@@ -8795,7 +8839,7 @@
     const chipsHTML = bdays.map(b => {
       const safeId = jsAttr(b.party.id);
       const ageBit = (b.age !== null && b.age > 0) ? ` <span class="bday-chip-age">turned ${b.age}</span>` : '';
-      return `<button class="bday-chip" onclick="viewParty('${safeId}')">
+      return `<button class="bday-chip" onclick="openParty('${safeId}')">
         <span class="bday-chip-name">${escapeHtml(b.party.name)}</span>${ageBit}
       </button>`;
     }).join('');
@@ -15111,7 +15155,10 @@
       createdAt: Date.now(),
     });
     saveData();
-    renderMain();
+    // v89.32.29: full re-render (not just the content area) so the
+    // Net profit (after tax) hero — on Audit AND Distribution — reflects
+    // the new expense immediately, in real time, without a refresh.
+    renderAll();
     // Different toast when merging into existing group vs creating
     // a new one — helps the user see auto-merge is happening.
     const norm = desc.trim().toLowerCase();
@@ -15142,7 +15189,7 @@
     if (!(await uiConfirm('Delete this expense? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
     saveData();
-    renderMain();
+    renderAll();
     toast('Expense deleted.');
   }
   // Edit an audit expense. v56 rewrite: opens a single proper modal
@@ -15253,7 +15300,7 @@
     saveData();
     closeModal();
     __expenseEditingId = null;
-    renderMain();
+    renderAll();
     toast('Expense updated.');
   }
 
@@ -19012,6 +19059,56 @@
     if (!canEditEntry(entry)) { toast('You can only edit your own entries.'); return; }
     openModal('entry', entry);
   }
+  // v89.32.31: full-page "Welcome to the team" overlay shown to an invitee
+  // immediately after they accept an invite, covering the brief window while
+  // the business's data (books, entries, parties, etc.) syncs down. It is
+  // always dismissed by hideWelcomeSplash() — and carries its own safety
+  // timeout so a failed/slow pull can never leave the user stuck behind it.
+  let __welcomeSplashTimer = null;
+  function showWelcomeSplash(bizName) {
+    try {
+      hideWelcomeSplash(true); // clear any previous instance instantly
+      const el = document.createElement('div');
+      el.className = 'welcome-splash';
+      el.id = 'welcomeSplash';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      const safeName = bizName ? escapeHtml(bizName) : '';
+      el.innerHTML = `
+        <div class="welcome-splash-inner">
+          <div class="welcome-splash-badge">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+          </div>
+          <div class="welcome-splash-title">Welcome to the team!</div>
+          <div class="welcome-splash-sub">You've joined ${safeName ? `<span class="welcome-splash-biz">${safeName}</span>` : 'the business'}. We're getting everything ready for you — your books, entries and team are loading now.</div>
+          <div class="welcome-splash-progress" aria-hidden="true"></div>
+          <div class="welcome-splash-hint">This only takes a moment…</div>
+        </div>`;
+      document.body.appendChild(el);
+      // Force a reflow so the opacity transition runs, then show.
+      void el.offsetWidth;
+      el.classList.add('show');
+      // Safety net: never let the welcome screen linger beyond 12s even if
+      // the pull hangs — the business is already in the sidebar by then.
+      if (__welcomeSplashTimer) clearTimeout(__welcomeSplashTimer);
+      __welcomeSplashTimer = setTimeout(() => hideWelcomeSplash(), 12000);
+    } catch (_) {}
+  }
+  function hideWelcomeSplash(instant) {
+    try {
+      if (__welcomeSplashTimer) { clearTimeout(__welcomeSplashTimer); __welcomeSplashTimer = null; }
+      const el = document.getElementById('welcomeSplash');
+      if (!el) return;
+      if (instant) { el.remove(); return; }
+      el.classList.remove('show');
+      setTimeout(() => { try { el.remove(); } catch (_) {} }, 400);
+    } catch (_) {}
+  }
   async function respondInvite(memberId, status) {
     const m = data.members.find(x => x.id === memberId);
     if (!m) return;
@@ -19058,6 +19155,11 @@
       }
       toast('Invite accepted.');
       renderAll();
+      // v89.32.31: show the full-page "Welcome to the team" overlay while
+      // the business data syncs down (only when there's a cloud pull to
+      // wait for). It is dismissed on success and on failure below, and
+      // has its own 12s safety timeout inside showWelcomeSplash().
+      const __acceptedBiz = data.businesses.find(b => b.id === m.businessId);
       // After accepting, RLS now lets this user read the business's
       // books, entries, parties, categories, and accounts. The local
       // data has none of those yet. Drain the sync queue (to push
@@ -19067,6 +19169,7 @@
       // trickling in via realtime events (which would otherwise
       // require the user to refresh 5–6 times).
       if (u && u.cloud) {
+        showWelcomeSplash(__acceptedBiz?.name || '');
         (async () => {
           try {
             // Best-effort drain: push our membership-accepted op to the
@@ -19104,8 +19207,13 @@
               try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
             }
             try { renderAll(); } catch (_) {}
+            // v89.32.31: data is in — let the new member see their books.
+            hideWelcomeSplash();
           } catch (e) {
             console.warn('Post-accept pull failed (will retry via realtime):', e?.message || e);
+            // Don't trap the user behind the welcome screen on a failed pull;
+            // the business is already in the sidebar and realtime will fill in.
+            hideWelcomeSplash();
           }
         })();
       }
@@ -24044,8 +24152,7 @@
           <button class="btn btn-sm btn-icon-ghost" onclick="printMemberActivityPage('${jsAttr(memberName)}','${jsAttr(periodLabel)}')" title="Print" aria-label="Print">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
           </button>
-          <button class="btn btn-sm" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','pdf')" title="Export as PDF">PDF</button>
-          <button class="btn btn-sm" onclick="exportMemberActivity('${jsAttr(bucketKey)}','${jsAttr(memberName)}','excel')" title="Export as Excel/CSV">Excel</button>
+          ${exportIconButton('memberActivity:' + encodeURIComponent(bucketKey) + ':' + encodeURIComponent(memberName))}
         </div>
       </div>
       <div class="member-activity-totals">
@@ -26375,18 +26482,33 @@
       <div class="form-grid">
         <div class="input-wrap">
           <label>Old password</label>
-          <input type="password" id="mPwdOld" autocomplete="current-password" placeholder="Your current password">
+          <div class="pwd-wrap">
+            <input type="password" id="mPwdOld" autocomplete="current-password" placeholder="Your current password">
+            <button type="button" class="pwd-toggle" onclick="togglePwdVisible('mPwdOld', this)" aria-label="Show password" tabindex="-1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div style="margin: -0.4rem 0 0.2rem; text-align: right;">
           <a class="link-subtle" onclick="forgotPasswordFromProfile()" style="font-size: 0.78rem; cursor: pointer;">Forgot your password?</a>
         </div>
         <div class="input-wrap">
           <label>New password</label>
-          <input type="password" id="mPwdNew" autocomplete="new-password" placeholder="At least 6 characters">
+          <div class="pwd-wrap">
+            <input type="password" id="mPwdNew" autocomplete="new-password" placeholder="At least 6 characters">
+            <button type="button" class="pwd-toggle" onclick="togglePwdVisible('mPwdNew', this)" aria-label="Show password" tabindex="-1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div class="input-wrap">
           <label>Confirm new password</label>
-          <input type="password" id="mPwdConfirm" autocomplete="new-password" placeholder="Retype the new password">
+          <div class="pwd-wrap">
+            <input type="password" id="mPwdConfirm" autocomplete="new-password" placeholder="Retype the new password">
+            <button type="button" class="pwd-toggle" onclick="togglePwdVisible('mPwdConfirm', this)" aria-label="Show password" tabindex="-1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
       </div>
       <div class="modal-actions">
@@ -28931,6 +29053,19 @@
       exportExpensesDashboard(format);
     } else if (target === 'snapshot') {
       exportQuickLookDashboard(format);
+    } else if (target.startsWith('memberActivity:')) {
+      // v89.32.30: member-activity uses the same unified export icon as
+      // every other tab. The target encodes bucketKey + memberName
+      // (base64) so we can hand both back to exportMemberActivity. The
+      // chooser yields 'pdf' or 'csv'; map 'csv' → 'excel' for this
+      // exporter's older signature.
+      try {
+        const payload = target.slice('memberActivity:'.length);
+        const sep = payload.indexOf(':');
+        const bucketKey = decodeURIComponent(payload.slice(0, sep));
+        const memberName = decodeURIComponent(payload.slice(sep + 1));
+        exportMemberActivity(bucketKey, memberName, format === 'pdf' ? 'pdf' : 'excel');
+      } catch (_) { toast('Could not export.'); }
     } else {
       toast('Unknown export target.');
     }
@@ -30452,11 +30587,21 @@
       <div class="form-grid">
         <div class="input-wrap">
           <label>New password</label>
-          <input type="password" id="resetPwdNew" minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
+          <div class="pwd-wrap">
+            <input type="password" id="resetPwdNew" minlength="8" autocomplete="new-password" placeholder="At least 8 characters">
+            <button type="button" class="pwd-toggle" onclick="togglePwdVisible('resetPwdNew', this)" aria-label="Show password" tabindex="-1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div class="input-wrap">
           <label>Confirm new password</label>
-          <input type="password" id="resetPwdConfirm" minlength="8" autocomplete="new-password">
+          <div class="pwd-wrap">
+            <input type="password" id="resetPwdConfirm" minlength="8" autocomplete="new-password">
+            <button type="button" class="pwd-toggle" onclick="togglePwdVisible('resetPwdConfirm', this)" aria-label="Show password" tabindex="-1">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>

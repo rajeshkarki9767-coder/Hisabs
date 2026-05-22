@@ -12,6 +12,73 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.22
+
+Show/hide password toggle on all password fields.
+
+### Hash
+`c8a810af45a8684d4bbed942488f3818`
+
+### Changes
+The show-password eye toggle (already present on the login screen) is now on **every** password field. Added to the 5 that were missing it:
+- **Profile → Change password:** Old password, New password, Confirm new password.
+- **Reset password (forgot-password flow):** New password, Confirm new password.
+
+Each uses the existing `togglePwdVisible()` helper and `.pwd-wrap` / `.pwd-toggle` styling, so behaviour and appearance match the login fields exactly (eye ↔ eye-off icon swap, keeps focus and cursor position, `tabindex="-1"` so it doesn't interrupt tab order).
+
+### Verification
+All 7 password inputs now have a toggle (was 2); per-field confirmed; self-test 63/63; JS valid; CSS 2151/2151; tags balanced (div 1567, button 325).
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.21
+
+Bug fix: birthday chip opened nothing (called an undefined function).
+
+### Hash
+`268f48e306b51c81b9018494bec474ad`
+
+### Changes
+Final audit caught a real bug: the birthday banner's party chips called `viewParty(...)`, which is **not defined anywhere** — tapping a chip threw "viewParty is not defined" and did nothing. Changed to `openParty(...)`, the actual party-detail function used everywhere else (3 other call sites). The chip now correctly opens the party.
+
+### Verification
+Found via undefined-handler scan during the final deep audit. After fix: zero undefined handlers across the whole file; `openParty` now in all 4 call sites; self-test 63/63; JS valid; CSS 2151/2151.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.20
+
+"Welcome to the team" splash while a newly-accepted business loads.
+
+### Hash
+`72c86482e5ab223e4f8fdc34df2773a9`
+
+### Changes
+When an invitee accepts an invite, the business's data (books, entries, parties, accounts, etc.) takes a moment to sync down from the cloud. A full-page **"Welcome to the team!"** overlay now covers that window — it names the business they joined and shows an indeterminate progress bar with a brief reassuring message, styled to match the boot splash.
+
+It appears only when there's actually a cloud pull to wait for (cloud-signed-in users), and is dismissed the instant the data finishes loading. Three independent dismiss paths guarantee it can never get stuck: on pull success, on pull failure (the business is already in the sidebar by then), and a 12-second safety timeout.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2151/2151 (boot-splash rules confirmed intact after the insert); show/hide functions defined and wired; shown once, three dismiss paths confirmed; all 13 regression+feature checks pass.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.19
+
+Net profit updates in real time on expense change; member-activity export unified.
+
+### Hash
+`4d04d4480e312d47efbf1e1c801a4072`
+
+### Changes
+1. **Real-time Net profit (after tax).** Adding, editing, or deleting an audit expense now triggers a full `renderAll()` instead of re-rendering only the current content area. The Net profit (after tax) hero — on both the Audit and Distribution pages — now reflects the expense change immediately, without needing a refresh. (Both views already recomputed Net profit from live data on each render; the gap was that the expense mutation only refreshed the active content region.)
+2. **Unified export on "Activity by team member".** The member-activity detail page had three separate controls (print icon + standalone "PDF" and "Excel" text buttons). The PDF and Excel buttons are now consolidated into the single Export icon used by every other tab (Entries, Parties, Audit, Distribution, etc.), which opens the standard PDF / Excel chooser. The print icon stays separate, matching the other pages. Routing added to `runExport` via an encoded `memberActivity:<bucket>:<name>` target.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2141/2141; all 12 regression+feature checks pass; old standalone PDF/Excel buttons confirmed removed; `exportMemberActivity` signature confirmed compatible with the unified chooser.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.18
 
 Public version bump to 1.11. Final surface check passed.
