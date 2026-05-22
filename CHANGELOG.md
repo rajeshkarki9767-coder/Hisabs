@@ -12,6 +12,31 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.27
+
+Distribution save/sync root cause (missing tables) + print full-page + screen-shift fix.
+
+### Hash
+`0ab5cff17fc4971b4e4b13e2c90c8e63`
+
+### ⚠️ Requires a one-time SQL migration (this is the real fix for save/sync)
+**`sql/v89.32.35_create_distribution_tables.sql`** — run in Supabase SQL Editor.
+
+### Changes
+1. **Distribution doesn't save / doesn't sync to other device — ROOT CAUSE FOUND.** The app pushes Team Salaries → `app_distribution_salaries`, Profit Shares → `app_distribution_shares`, and split parties → `app_split_parties`. The client code for all three is correct, but **no migration ever created `app_distribution_shares` or `app_split_parties`** (and `app_distribution_salaries` was only referenced by the realtime migration, never confirmed created). Writing to a non-existent table fails, so the data stayed in localStorage only — present on the device that entered it, gone everywhere else. The new migration creates all three tables with the right columns, membership RLS (members read, owner writes), and realtime registration. **This is what makes currency/rate (v89.32.33), salaries, profit shares, and split parties actually persist server-side and sync across devices.** No app-code change was needed for save logic — it was already correct.
+2. **Member-activity print only captured half a page — FIXED.** The print path didn't reset the app shell's `min-height:100dvh` / grid layout, so print clipped to one viewport. Added print rules forcing every layout ancestor to natural height + visible overflow + block flow, so the browser paginates the full entry list.
+3. **Subtle screen movement on Parties / Distribution / other sections — FIXED.** Added `scrollbar-gutter: stable` to `html`. Previously, when content height changed (re-render, clock tick, sync, taller/shorter view) the scrollbar appeared/disappeared and shifted the centered layout sideways. A stable gutter keeps width constant so nothing jumps.
+
+### Migration order
+Run BOTH pending migrations in Supabase, then deploy:
+- `v89.32.33_app_businesses_split_currency_rate.sql` (currency + rate columns)
+- `v89.32.35_create_distribution_tables.sql` (the three distribution tables)
+
+### Verification
+Self-test 63/63; JS valid; CSS 2153/2153; both code fixes confirmed in source; migration created with idempotent CREATE + RLS + realtime. **Cross-device sync, print pagination, and the scrollbar-shift fix all require real-device/runtime verification.** **Important:** the migration's RLS assumes `app_businesses.owner_id` and `app_members.business_id/user_id` column names — adjust if yours differ.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.26
 
 Member-activity page fixes + entry double-save glitch fix.

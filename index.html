@@ -144,6 +144,14 @@
     user-select: text;
   }
   html, body { height: 100%; }
+  /* v89.32.35: reserve the scrollbar's space permanently. Without this, when
+     a page's content grows/shrinks (a re-render, the clock tick, sync
+     activity, switching to a taller/shorter view) the vertical scrollbar
+     appears or disappears and the centered layout shifts sideways by the
+     scrollbar's width — the "screen moves a little while I'm still" effect
+     seen on Parties, Distribution and other sections. A stable gutter keeps
+     the usable width constant so nothing jumps. */
+  html { scrollbar-gutter: stable; }
   /* v89: PWA safe-area — html background prevents iOS bounce-scroll
      revealing white below the body. */
   html { background: var(--paper); }
@@ -2272,6 +2280,23 @@
       margin: 0 !important;
       padding: 0 !important;
       width: 100% !important;
+    }
+    /* v89.32.35: the app shell uses min-height:100dvh and a grid layout; in
+       print that can clip the captured area to a single viewport, so only
+       the first ~screenful of entries prints. Force every layout ancestor to
+       natural height + visible overflow + block flow so the browser
+       paginates the full list across pages. */
+    body.printing-member-activity-page .app,
+    body.printing-member-activity-page main,
+    body.printing-member-activity-page .app-main,
+    body.printing-member-activity-page #appShell,
+    html:has(body.printing-member-activity-page),
+    body.printing-member-activity-page {
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+      display: block !important;
     }
     body.printing-member-activity-page,
     body.printing-member-activity-page html {
@@ -7236,7 +7261,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.26';
+  const BUILD_TAG = '2026.05.21.27';
 
   // ================================================================
   // STORAGE
