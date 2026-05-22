@@ -1076,9 +1076,11 @@
     font-size: 0.92rem !important;
     text-align: right;
   }
-  /* Update grid columns for the party row to match new layout */
+  /* v89.32.43: radio dot removed from the row; the row is now just
+     [fields | actions]. Dropping the dead 28px first column gives the name
+     field its full width. */
   .split-party-row-v895 {
-    grid-template-columns: 28px 1fr auto !important;
+    grid-template-columns: 1fr auto !important;
   }
   .split-party-actions {
     display: inline-flex;
@@ -3875,6 +3877,48 @@
     margin: 0 0.4rem;
   }
   .split-party-use-toggle input { cursor: pointer; }
+  /* v89.32.43: "Use for Distribution" selector below the parties list. */
+  .use-dist-section:empty { display: none; }
+  .use-dist-section {
+    margin-top: 0.9rem; padding-top: 0.85rem;
+    border-top: 1px solid var(--line);
+  }
+  .use-dist-head {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-weight: 700; color: var(--ink); margin-bottom: 0.15rem;
+  }
+  .use-dist-sub {
+    font-size: 0.78rem; color: var(--ink-mute); margin-bottom: 0.6rem;
+  }
+  .use-dist-list { display: flex; flex-direction: column; gap: 0.4rem; }
+  .use-dist-option {
+    display: flex; align-items: center; gap: 0.6rem;
+    padding: 0.55rem 0.7rem; cursor: pointer;
+    background: var(--paper-deep); border: 1px solid var(--line);
+    border-radius: var(--r-sm); transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .use-dist-option.is-selected {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 7%, var(--paper));
+  }
+  .use-dist-option input { position: absolute; opacity: 0; pointer-events: none; }
+  .use-dist-radio {
+    width: 18px; height: 18px; flex-shrink: 0; border-radius: 50%;
+    border: 2px solid var(--line); position: relative;
+  }
+  .use-dist-option.is-selected .use-dist-radio { border-color: var(--accent); }
+  .use-dist-radio::after {
+    content: ''; position: absolute; top: 50%; left: 50%;
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    transform: translate(-50%, -50%) scale(0); transition: transform 0.15s ease;
+  }
+  .use-dist-option.is-selected .use-dist-radio::after { transform: translate(-50%, -50%) scale(1); }
+  .use-dist-name { font-weight: 600; color: var(--ink); flex: 1; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .use-dist-pct {
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    color: var(--ink-soft); font-size: 0.85rem;
+  }
   .dist-salary-final.neg { color: var(--loss); }
   /* Totals block */
   .dist-totals {
@@ -7325,7 +7369,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.34';
+  const BUILD_TAG = '2026.05.21.36';
 
   // ================================================================
   // STORAGE
@@ -14679,10 +14723,6 @@
             <button class="icon-btn-light" onclick="deleteDistShareRow('${jsAttr(r.id)}')" aria-label="Remove row" title="Remove" ><svg width="12" height="12"><use href="#ico-trash"/></svg></button>
           </div>
         </div>
-        <div class="dist-row-note">
-          <label class="dist-row-note-label">Reason for share<span style="color:var(--ink-mute);font-weight:400;"> (optional)</span></label>
-          <input type="text" data-field="note" value="${escapeHtml(r.note || '')}" placeholder="e.g. Founding partner, Equal split, Investor stake" maxlength="280" ${readonly} oninput="updateDistShareField('${jsAttr(r.id)}','note',this.value)">
-        </div>
       </div>`;
     }).join('') : '<div class="dist-empty">No share recipients yet. Click + Add to start.</div>';
 
@@ -15043,10 +15083,6 @@
             <input type="number" class="no-spin" min="0" max="100" step="0.01" value="${fmtPctVal(p.pct)}" placeholder="%" inputmode="decimal" aria-label="Percentage share" oninput="updateSplitParty('${jsAttr(p.id)}','pct',this.value)">
           </div>
         </div>
-        <label class="split-party-use-toggle" title="Use this party as the Amount source in Distribution">
-          <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
-          <span>Used for distribution</span>
-        </label>
         <div class="dist-row-actions split-party-actions">
           <button class="dist-row-edit-btn" data-dist-edit="parties:${jsAttr(p.id)}" onclick="distRowToggleEdit('parties','${jsAttr(p.id)}')" title="Save this party" aria-label="Save">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -15057,6 +15093,35 @@
         </div>
       </div>`;
     }).join('');
+    // v89.32.43: render the "Use for Distribution" selector below the list.
+    try { _renderUseForDistribution(); } catch (_) {}
+  }
+
+  // v89.32.43: separate "Use for Distribution" section. Lists the saved
+  // parties as selectable options (radio-style) so the user picks ONE party
+  // whose amount feeds the Distribution below — moved out of the per-row
+  // editing UI per request. Only shows parties that have a name (saved ones).
+  function _renderUseForDistribution() {
+    const host = document.getElementById('useForDistribution');
+    if (!host) return;
+    const named = __splitParties.filter(p => (p.name || '').trim());
+    if (!named.length) {
+      host.innerHTML = '';
+      return;
+    }
+    const rows = named.map(p => {
+      const isSelected = p.id === __splitSelectedPartyId;
+      return `<label class="use-dist-option ${isSelected ? 'is-selected' : ''}">
+        <input type="radio" name="useForDistribution" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
+        <span class="use-dist-radio"></span>
+        <span class="use-dist-name">${escapeHtml(p.name)}</span>
+        <span class="use-dist-pct">${fmtPctVal(p.pct)}%</span>
+      </label>`;
+    }).join('');
+    host.innerHTML = `
+      <div class="use-dist-head">Use for Distribution</div>
+      <div class="use-dist-sub">Pick the party whose amount feeds the Distribution below.</div>
+      <div class="use-dist-list">${rows}</div>`;
   }
 
   function addSplitParty() {
@@ -15219,6 +15284,10 @@
     __splitSelectedPartyId = id;
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
+    // v89.32.43: refresh the parties list so the saved-row "Used for
+    // distribution" badge and the Use-for-Distribution selector highlight
+    // update to the newly chosen party.
+    try { renderSplitParties(); } catch (_) {}
   }
   // Used by addAuditExpense — returns the month string (YYYY-MM) the new
   // expense should be tagged with. We use the start month of the period:
@@ -16170,6 +16239,10 @@
           <div class="split-parties-totals" id="splitPartiesTotals">
             <!-- filled by updateSplitCalc() -->
           </div>
+          <!-- v89.32.43: Use for Distribution selector (filled by
+               _renderUseForDistribution) — pick which saved party feeds the
+               Distribution amount. -->
+          <div class="use-dist-section" id="useForDistribution"></div>
         </div>
 
         <!-- Per-party result lines (Name : X% of Net profit = ...) -->

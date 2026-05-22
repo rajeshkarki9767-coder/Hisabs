@@ -12,6 +12,37 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.36
+
+Profit Shares: removed the "Reason for share" field entirely.
+
+### Hash
+`2f4386ac8e9c56f1fd743d6a8fe14421`
+
+### Changes
+Removed the "Reason for share" (note) input from the Profit Shares editing row. In .34 it was dropped from the saved view but still showed while editing; it's now gone from both. Team Salaries keeps its Reason field (unchanged). Existing note data in records is left intact (just no longer shown or editable for shares).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced; Reason-for-share removed; salary Reason field confirmed untouched; share name/% inputs intact.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.35
+
+Split the %: wider name field + separate "Use for Distribution" selector.
+
+### Hash
+`c5ec1c9e3e09be443d8428ec2c744ceb`
+
+### Changes
+1. **Party name field is now full-width.** The editing row's grid still reserved a 28px column for the old radio dot (removed in .34), squeezing the name input. Dropped that dead column so the name field gets its full width.
+2. **"Used for distribution" moved out of the per-row UI into its own section below the parties list.** New **"Use for Distribution"** block lists all saved (named) parties as radio options; pick one to set which party's amount feeds the Distribution below. The per-row inline toggle is gone. Selecting a party updates both the selector highlight and the saved-row "Used for distribution" badge immediately.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced (div/span/button/label); inline toggle removed; selector renderer + host container + re-render-on-select confirmed; name-field grid widened.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.34
 
 Distribution redesign: saved rows show as clean text; Parties → "Split the %".
