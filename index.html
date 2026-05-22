@@ -6124,8 +6124,14 @@
   }
   .member-activity-stat-val.in { color: var(--gain); }
   .member-activity-stat-val.out { color: var(--loss); }
+  /* v89.32.34: this list now lives in the full-page member-activity view
+     (renderMemberActivityView), not the old modal. A fixed max-height:50vh
+     inner-scroll box clipped it to half the screen on phones (only the top
+     entries showed) and confused printing. Let it flow to its full height
+     and let the PAGE scroll — which also lets the browser paginate the
+     print correctly across all entries. */
   .member-activity-list {
-    max-height: 50vh; overflow-y: auto; margin-top: 0.5rem;
+    margin-top: 0.5rem;
     border-top: 1px solid var(--line-soft);
   }
   .member-activity-row {
@@ -7230,7 +7236,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.24';
+  const BUILD_TAG = '2026.05.21.26';
 
   // ================================================================
   // STORAGE
@@ -13584,6 +13590,26 @@
     } catch (_) {}
     // v89.6: also mirror split parties to data.splitParties for cloud sync
     try { _syncSplitPartiesArray(bizId); } catch (_) {}
+    // v89.32.33: currency + rate were previously localStorage-ONLY, so they
+    // vanished when switching devices. Mirror them onto the business object
+    // (which syncs to Supabase via the businesses table) so they persist
+    // across devices. Owner only — matches the distribution write rule;
+    // non-owners read the owner's values via sync. Requires the
+    // split_currency / split_rate columns (v89.32.33 migration).
+    try {
+      if (roleFor(bizId) === 'owner') {
+        const biz = data.businesses.find(b => b.id === bizId);
+        if (biz) {
+          const cur = (__splitCurrency || '').slice(0, 6);
+          const rate = Number(__splitRate) || 0;
+          if (biz.splitCurrency !== cur || biz.splitRate !== rate) {
+            biz.splitCurrency = cur;
+            biz.splitRate = rate;
+            saveData(); // queues the business row for sync
+          }
+        }
+      }
+    } catch (_) {}
   }
   let __splitPct = 100;           // legacy: single-% scalar. Used when __splitParties is empty.
   let __splitCurrency = '';       // free-text currency code/symbol
@@ -13713,8 +13739,14 @@
     __splitParties = local.parties || [];
     __splitSelectedPartyId = local.selectedPartyId || '';
     __splitPct = (typeof local.pct === 'number') ? local.pct : 100;
-    __splitCurrency = local.currency || '';
-    __splitRate = Number(local.rate) || 0;
+    // v89.32.33: prefer the business's cloud-synced currency/rate (so they
+    // survive a device switch); fall back to the local copy if the synced
+    // fields are absent (older rows / offline first run).
+    const biz = data.businesses.find(b => b.id === bizId);
+    __splitCurrency = (biz && typeof biz.splitCurrency === 'string' && biz.splitCurrency)
+      ? biz.splitCurrency : (local.currency || '');
+    __splitRate = (biz && Number(biz.splitRate))
+      ? Number(biz.splitRate) : (Number(local.rate) || 0);
   }
 
   // v89: per-section edit-mode flags for Distribution. When false, all
@@ -21152,12 +21184,16 @@
   // could otherwise create duplicate entries before the modal closes.
   let __savingEntryAt = 0;
   async function saveEntry(opts) {
-    // v89.27.1: 500ms guard. If the user just submitted within the last
-    // 500ms, ignore this click. Far more than any reasonable click-debounce
-    // window. Reset happens via timestamp — no flag to clear on error paths.
+    // v89.27.1 / v89.32.34: 500ms double-submit guard. IMPORTANT: we only
+    // "lock" the timestamp once validation has passed and we're about to
+    // actually commit (see __savingEntryAt = _now below, just before the
+    // entry is created). Previously the lock was set at the very top, so a
+    // first submit that hit a validation error (or any early return) still
+    // armed the guard — and a corrected retry within 500ms was silently
+    // swallowed. That was the "saved but didn't save; entered again and it
+    // worked" glitch. Now an errored/cancelled submit never blocks the next.
     const _now = Date.now();
     if (_now - __savingEntryAt < 500) return;
-    __savingEntryAt = _now;
     opts = opts || {};
     const addMore = !!opts.addMore;
     // Clear previous error states
@@ -21237,6 +21273,12 @@
     const noteRaw = document.getElementById('mNote').value;
     const note = validateNote(noteRaw);
     if (note === null) return; // toast shown by validateNote
+
+    // v89.32.34: all validation has passed and we are now committing — NOW
+    // arm the 500ms double-submit guard. (Doing this here, rather than at
+    // function entry, means an earlier validation failure never blocks a
+    // quick corrected retry — the "had to enter it twice" glitch.)
+    __savingEntryAt = _now;
 
     if (editId) {
       const e = data.entries.find(x => x.id === editId);
@@ -24120,6 +24162,17 @@
     renderMain();
   }
 
+  // v89.32.34: the member-activity page is opened from the Team page's
+  // "Activity" sub-tab (the by-team-member list). "Back" must return there
+  // — to session.view='staff' with the Activity sub-tab active — NOT to the
+  // bottom-nav "Activity" view (which is unrelated and was the wrong target).
+  function backFromMemberActivity() {
+    session.view = 'staff';
+    session.staffTab = 'activity';
+    try { saveSession(); } catch (_) {}
+    renderAll();
+  }
+
   function renderMemberActivityView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) { switchView('activity'); return; }
@@ -24132,6 +24185,19 @@
     const bucketKey = session.memberActivityBucket;
     const memberName = session.memberActivityName || 'Member';
     if (!bucketKey) { switchView('activity'); return; }
+    // v89.32.34: resolve the member's email/login for this bucket so the
+    // header can show it under the name.
+    let memberEmail = '';
+    try {
+      if (bucketKey.startsWith('u:')) {
+        const uid = bucketKey.slice(2);
+        const mem = data.members.find(m => m.userId === uid);
+        const acct = accounts.find(a => a.id === uid);
+        memberEmail = (mem && mem.userLogin) || (acct && acct.login) || '';
+      } else if (bucketKey.startsWith('login:')) {
+        memberEmail = bucketKey.slice('login:'.length);
+      }
+    } catch (_) {}
     const entries = getEntriesForMember(bucketKey);
     const cur = currencyDisplay(biz.currency);
     const periodLabel = currentPeriodLabel();
@@ -24172,14 +24238,15 @@
           </div>`;
         }).join('');
     root.innerHTML = `
-      <button class="party-detail-back" onclick="switchView('activity')">
+      <button class="party-detail-back" onclick="backFromMemberActivity()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-        Back to Activity
+        Back to Team
       </button>
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · team activity</div>
           <h1 class="page-title">Entries by ${escapeHtml(memberName)}</h1>
+          ${memberEmail ? `<div style="color:var(--ink-soft);font-size:0.85rem;margin-top:0.2rem;word-break:break-all;">${escapeHtml(memberEmail)}</div>` : ''}
           <p style="color:var(--ink-mute);font-size:0.9rem;margin-top:0.4rem;">${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} during <strong>${escapeHtml(periodLabel)}</strong>.</p>
         </div>
         <div class="page-actions">
@@ -32654,6 +32721,11 @@
         // v89.32.7: per-business IANA time zone. '' = fall back to device
         // zone client-side. Requires the time_zone column (v89.32.7 migration).
         time_zone: typeof r.timeZone === 'string' ? r.timeZone : '',
+        // v89.32.33: Distribution picked-currency + exchange rate, stored
+        // per-business so they sync across devices. Requires the
+        // split_currency / split_rate columns (v89.32.33 migration).
+        split_currency: typeof r.splitCurrency === 'string' ? r.splitCurrency : '',
+        split_rate: Number(r.splitRate) || 0,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -32664,6 +32736,9 @@
         // Tolerate the column being absent on older rows (undefined -> '').
         phoneCountryCode: typeof r.phone_country_code === 'string' ? r.phone_country_code : '',
         timeZone: typeof r.time_zone === 'string' ? r.time_zone : '',
+        // v89.32.33: tolerate the columns being absent on older rows.
+        splitCurrency: typeof r.split_currency === 'string' ? r.split_currency : '',
+        splitRate: Number(r.split_rate) || 0,
         createdAt: r.created_at_local || '',
       }),
     },

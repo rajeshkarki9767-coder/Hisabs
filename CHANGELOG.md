@@ -12,6 +12,45 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.26
+
+Member-activity page fixes + entry double-save glitch fix.
+
+### Hash
+`60691c12b153caaf7f0c2728d2c67bcd`
+
+### Changes
+1. **Entry "had to save twice" glitch — FIXED.** The 500ms double-submit guard was armed at the *top* of saveEntry, so a first submit that hit a validation error (or any early return) still armed it — and a corrected retry within 500ms was silently swallowed, looking like "it didn't save; I entered it again and then it saved." The guard now arms only *after* all validation passes (right before the entry is committed), so an errored/cancelled submit never blocks the next attempt. Genuine rapid duplicate taps are still blocked.
+2. **Member-activity page now shows all entries + scrolls.** The entry list had `max-height: 50vh; overflow-y: auto` left over from when it was a modal — on a phone it clipped to half the screen with an inner scrollbar. Removed, so the full list flows and the page scrolls naturally.
+3. **Print now spans all pages.** With the 50vh clip gone (and the existing print rules forcing full height + content-visibility:visible), the browser paginates across all entries instead of capturing one screen.
+4. **Back button goes to the right place.** "Back" on the member-activity page now returns to the Team page's Activity sub-tab (where the by-member list lives), not the unrelated bottom-nav Activity view. Relabeled "Back to Team".
+5. **Member name + email** now shown in the page header (was name only).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2151/2151; debounce fix traced (errored-then-retry now SAVES, real dup taps still BLOCKED); all 13 feature+regression checks pass.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.25
+
+Fix: Distribution currency + rate now sync across devices (were localStorage-only).
+
+### Hash
+`107be09bf4338ad2cde97c3ddab3684b`
+
+### Requires a one-time SQL migration
+**`sql/v89.32.33_app_businesses_split_currency_rate.sql`** must be run in Supabase (SQL Editor) before this works. It adds `split_currency` and `split_rate` columns to `app_businesses`.
+
+### Changes
+Root cause of "currency/rate gone when I switch devices": the Distribution picked-currency and exchange rate were stored in **localStorage only** — they were in no cloud schema, so they never reached Supabase. (Salaries, profit shares, and split parties already synced correctly via their own tables; only currency + rate were missing.)
+
+Fix: currency + rate are now mirrored onto the business object on save (owner only, matching the distribution write rule) and pushed/pulled via the `app_businesses` row. On load, the client prefers the cloud-synced values and falls back to the local copy if absent (older rows / offline). Added `split_currency` / `split_rate` to the business toDb/fromDb schema map.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2151/2151; save-mirror, owner guard, load-prefer-cloud, and both toDb/fromDb mappings confirmed in source. **Cross-device sync itself requires real-device/runtime verification after the migration is run.**
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.24
 
 Verification pass: corrected a stale code comment (no behaviour change).
