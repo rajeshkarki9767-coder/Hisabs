@@ -12,6 +12,44 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.24
+
+Verification pass: corrected a stale code comment (no behaviour change).
+
+### Hash
+`2d3173410210e19b50683f5f2fe78889`
+
+### Changes
+During the post-change verification of build .23, a stale comment still described the old remaining-for-profit-shares formula (`firstPortionDisp - totalFinal`). Updated it to document the current correct formula (`firstPortionDisp - totalSalary`, adjustments excluded). No runtime behaviour changed — the live code was already correct in .23; only the explanatory comment was brought in line.
+
+Also confirmed: the `dist-totals-card-final` CSS class still appears on the Profit Shares "Total share amount" row — that is the intended shared styling, not a leftover "Total final paid" row (which is fully removed).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2151/2151; remaining-for-profit-shares math validated 7/7 against the screenshot (82,610.20); per-row "Amount to get" 3/3; all 7 build-.23 changes confirmed intact; full session regression 10/10.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.23
+
+Welcome timing, staff party-contact lockdown, dvh idle-fix, Team Salaries relabel + remaining formula.
+
+### Hash
+`9374f405979b7afca2884a6ed39cd464`
+
+### Changes
+1. **Welcome splash min 3s.** The "Welcome to the team" overlay now stays up for at least 3 seconds (even if data loads instantly), and longer if the pull is still running — up to the existing 12s safety cap.
+2. **Staff cannot add/edit party contact info.** `canEditPartyMeta` / new `canAddPartyMeta` are now owner/manager only. The phone/email/social/DOB/notes fields are hidden from staff in both the create and edit party forms, and the save paths force-ignore any meta from staff (defense in depth). Staff can still create a party (name) and record entries against it.
+3. **Staff edit restrictions** (already enforced, re-confirmed): staff can only edit entries they created (`canEditEntry`) and only rename parties they created (`canRenameParty`).
+4. **Distribution idle-drift fix.** `.app` now uses `min-height: 100dvh` (with `100vh` fallback). Plain `100vh` counts the area behind the mobile address bar; as that bar shows/hides while idle, the layout drifted a few px — the subtle movement reported on the salary/profit rows. `dvh` tracks the visible viewport and doesn't jitter.
+5. **Team Salaries relabel.** Column "Amount" (the adjustment) → **Plus-minus**; column "Final" → **Amount to get**. Export headers updated to match.
+6. **Removed "Total final paid"** row from the salary totals card (and from exports).
+7. **Remaining-for-profit-shares formula corrected.** Now **party amount − Total Salary** (was: amount to distribute − total final paid, which wrongly subtracted the plus-minus adjustments too). The sub-label spells out the live numbers, e.g. "Rs 117,610.20 (party amount) − Rs 35,000.00 (total salary)". Verified against the screenshot: 117,610.20 − 35,000 = 82,610.20. Adjustments no longer shrink the profit pool.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2151/2151; no undefined handlers; all 7 changes confirmed in source; remaining formula validated against the real screenshot figures. Note: the dvh idle-fix and welcome timing **require real-device/runtime verification** — they target mobile-browser behaviour I can't reproduce statically.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.22
 
 Show/hide password toggle on all password fields.

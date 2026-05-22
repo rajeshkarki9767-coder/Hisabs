@@ -1736,7 +1736,14 @@
   .auth-decoration { position: absolute; z-index: 1; font-family: var(--font-sans); font-size: 22rem; line-height: 1; color: var(--accent-readable); opacity: 0.05; user-select: none; pointer-events: none; top: 50%; right: -6rem; transform: translateY(-50%); }
 
   /* ============ APP SHELL ============ */
-  .app { display: none; min-height: 100vh; position: relative; z-index: 2; }
+  /* v89.32.32: use dynamic viewport height (dvh) so the app's min-height
+     tracks the *visible* viewport. With plain 100vh, mobile browsers count
+     the area behind the address bar; as that bar shows/hides (even while
+     the user is still), 100vh changes and the layout drifts by a few px —
+     the "subtle movement when kept still" reported on the Distribution
+     salary/profit rows. dvh resolves to the current visible height and
+     doesn't jitter. 100vh stays as a fallback for older engines. */
+  .app { display: none; min-height: 100vh; min-height: 100dvh; position: relative; z-index: 2; }
   .app.active { display: grid; grid-template-columns: 232px 1fr; grid-template-areas: "sidebar main"; }
   .sidebar { grid-area: sidebar; }
   main { grid-area: main; }
@@ -7223,7 +7230,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.22';
+  const BUILD_TAG = '2026.05.21.24';
 
   // ================================================================
   // STORAGE
@@ -10070,17 +10077,22 @@
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager';
   }
-  // v89.31.0: Who can edit a party's CONTACT meta (DOB, phones, emails,
-  // description)? Per user spec: anyone in the business — including
-  // staff — can edit these contact details, even on parties they
-  // didn't create. Name editing remains restricted via canRenameParty.
-  // Rationale: contact info is collaborative reference data that any
-  // team member may need to keep current, whereas renames carry more
-  // weight and stay tied to the original creator.
+  // v89.32.32: Who can edit a party's CONTACT meta (DOB, phones, emails,
+  // socials, description)? Owner and manager ONLY. The team (staff) role
+  // can create a party (name) and record entries against it, but must not
+  // add or edit personal contact info — that's private reference data
+  // owned by management. This pairs with canSeePartyContact (staff can't
+  // see it) so staff neither view nor edit contact details.
   function canEditPartyMeta(party) {
     if (!party) return false;
     const role = roleFor(party.businessId);
-    return role === 'owner' || role === 'manager' || role === 'staff';
+    return role === 'owner' || role === 'manager';
+  }
+  // Same gate for a brand-new party being created (no party object yet):
+  // only owner/manager get the contact-detail fields in the add form.
+  function canAddPartyMeta(businessId) {
+    const role = roleFor(businessId || (session && session.activeBizId));
+    return role === 'owner' || role === 'manager';
   }
   // v89.31.6: small "SMS" / "Email" text badges shown after a party name
   // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
@@ -14100,9 +14112,8 @@
         finalCell.classList.toggle('neg', f < 0);
       }
     }
-    const remaining = firstPortionDisp - totalFinal;
-    // Section C amounts + total
-    let totalSharePct = 0;
+    // v89.32.32: remaining = selected party Amount − Total Salary only.
+    const remaining = firstPortionDisp - totalSalary;
     let totalShareAmount = 0;
     for (const r of __distShares) {
       totalSharePct += r.pct;
@@ -14124,10 +14135,13 @@
       $('.dist-total-adj').classList.toggle('pos', totalAdj > 0);
       $('.dist-total-adj').classList.toggle('neg', totalAdj < 0);
     }
-    if ($('.dist-total-final')) $('.dist-total-final').textContent = `${displayCur} ${fmt(totalFinal)}`;
     if ($('.dist-remaining')) {
       $('.dist-remaining').textContent = `${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}`;
       $('.dist-remaining').classList.toggle('neg', remaining < 0);
+    }
+    // v89.32.32: keep the remaining sub-label's live numbers in sync.
+    if ($('.dist-remaining-sub')) {
+      $('.dist-remaining-sub').textContent = `${displayCur} ${fmt(firstPortionDisp)} (party amount) − ${displayCur} ${fmt(totalSalary)} (total salary)`;
     }
     if ($('.dist-total-share-pct')) {
       $('.dist-total-share-pct').textContent = `${fmt(totalSharePct)}%`;
@@ -14226,8 +14240,9 @@
   //   For each salary row:
   //     signedAdj = (addition ? +adjustmentAmount : -adjustmentAmount)
   //     final     = salary + signedAdj
-  //   totalFinal = sum(final across all rows)        ← all in display ccy
-  //   remaining  = firstPortionDisp - totalFinal     ← all in display ccy
+  //   totalSalary = sum(salary across all rows)       ← all in display ccy
+  //   totalFinal  = sum(salary + signedAdj)            ← used for per-row "Amount to get" + Total adjustment only
+  //   remaining   = firstPortionDisp - totalSalary     ← v89.32.32: party amount minus TOTAL SALARY (adjustments excluded)
   //   For each share row:
   //     amount   = (pct / 100) × remaining           ← all in display ccy
   function distributionCardBody() {
@@ -14351,7 +14366,11 @@
       totalAdj += signedAdj;
       totalFinal += r.salary + signedAdj;
     }
-    const remaining = firstPortionDisp - totalFinal;
+    // v89.32.32: remaining for profit shares = the selected party's Amount
+    // (firstPortionDisp) minus the Total SALARY only — the plus-minus
+    // adjustments do NOT reduce the profit-share pool. (Was: minus total
+    // final paid, which incorrectly subtracted the adjustments too.)
+    const remaining = firstPortionDisp - totalSalary;
 
     const sectionB = `
       <div class="dist-section dist-section-salaries">
@@ -14369,8 +14388,8 @@
           <span>Name</span>
           <span>Salary</span>
           <span>Type</span>
-          <span>Amount</span>
-          <span>Final</span>
+          <span>Plus-minus</span>
+          <span>Amount to get</span>
           <span></span>
         </div>` : ''}
         <div class="dist-salary-list">${salaryRows}</div>
@@ -14388,15 +14407,11 @@
             <span class="dist-totals-card-label">Total adjustment</span>
             <span class="dist-totals-card-val dist-total-adj ${totalAdj > 0 ? 'pos' : totalAdj < 0 ? 'neg' : ''}">${totalAdj >= 0 ? '+' : '−'}${displayCur} ${fmt(Math.abs(totalAdj))}</span>
           </div>
-          <div class="dist-totals-card-row dist-totals-card-final">
-            <span class="dist-totals-card-label">Total final paid</span>
-            <span class="dist-totals-card-val dist-total-final">${displayCur} ${fmt(totalFinal)}</span>
-          </div>
         </div>` : ''}
         <div class="dist-remaining-card ${remaining < 0 ? 'neg' : ''}">
           <div class="dist-remaining-text">
             <span class="dist-remaining-label">Remaining for profit shares</span>
-            <span class="dist-remaining-sub">Amount to distribute − Total final paid</span>
+            <span class="dist-remaining-sub">${displayCur} ${fmt(firstPortionDisp)} (party amount) − ${displayCur} ${fmt(totalSalary)} (total salary)</span>
           </div>
           <span class="dist-remaining dist-remaining-value">${displayCur} ${remaining >= 0 ? '' : '−'}${fmt(Math.abs(remaining))}</span>
         </div>
@@ -19065,9 +19080,12 @@
   // always dismissed by hideWelcomeSplash() — and carries its own safety
   // timeout so a failed/slow pull can never leave the user stuck behind it.
   let __welcomeSplashTimer = null;
+  let __welcomeSplashShownAt = 0;
+  const WELCOME_MIN_MS = 3000; // keep the welcome up at least 3s even if data loads instantly
   function showWelcomeSplash(bizName) {
     try {
       hideWelcomeSplash(true); // clear any previous instance instantly
+      __welcomeSplashShownAt = Date.now();
       const el = document.createElement('div');
       el.className = 'welcome-splash';
       el.id = 'welcomeSplash';
@@ -19101,10 +19119,22 @@
   }
   function hideWelcomeSplash(instant) {
     try {
-      if (__welcomeSplashTimer) { clearTimeout(__welcomeSplashTimer); __welcomeSplashTimer = null; }
       const el = document.getElementById('welcomeSplash');
+      if (instant) {
+        if (__welcomeSplashTimer) { clearTimeout(__welcomeSplashTimer); __welcomeSplashTimer = null; }
+        if (el) el.remove();
+        return;
+      }
+      // Enforce a minimum on-screen time so the welcome doesn't flash by when
+      // the data loads quickly — it should feel like a deliberate greeting.
+      const elapsed = Date.now() - __welcomeSplashShownAt;
+      if (elapsed < WELCOME_MIN_MS) {
+        if (__welcomeSplashTimer) { clearTimeout(__welcomeSplashTimer); }
+        __welcomeSplashTimer = setTimeout(() => hideWelcomeSplash(), WELCOME_MIN_MS - elapsed);
+        return;
+      }
+      if (__welcomeSplashTimer) { clearTimeout(__welcomeSplashTimer); __welcomeSplashTimer = null; }
       if (!el) return;
-      if (instant) { el.remove(); return; }
       el.classList.remove('show');
       setTimeout(() => { try { el.remove(); } catch (_) {} }, 400);
     } catch (_) {}
@@ -19251,7 +19281,7 @@
           <input type="text" id="mPartyName" maxlength="120" value="${escapeHtml(p.name)}"${canRename ? '' : ' readonly'}>
           ${nameReadonlyHint}
         </div>
-        ${partyMetaFormHTML(p.meta || null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) })}
+        ${canEditPartyMeta(p) ? partyMetaFormHTML(p.meta || null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) }) : ''}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -19285,8 +19315,10 @@
     const toggle = document.getElementById('mEntityUnassigned');
     const newUnassigned = isOwnerHere && toggle ? !!toggle.checked : !!p.unassigned;
 
-    // v89.31.0: meta capture + diff
-    const newMeta = readPartyMetaFromForm();
+    // v89.32.32: meta capture + diff — but only owner/manager may write
+    // contact meta. For staff, force newMeta to the existing value so a
+    // crafted/leftover DOM can never inject contact details.
+    const newMeta = canEditPartyMeta(p) ? readPartyMetaFromForm() : (p.meta || null);
     const oldMeta = p.meta || null;
     const metaFieldsChanged = partyMetaDiffFields(oldMeta, newMeta);
 
@@ -21487,7 +21519,7 @@
       <p class="modal-sub">A customer, vendor, or person you transact with. All extra fields are optional.</p>
       <div class="form-grid">
         <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" placeholder="Ram Bahadur / Acme Wholesale"></div>
-        ${partyMetaFormHTML(null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === session.activeBizId)) })}
+        ${canAddPartyMeta(session.activeBizId) ? partyMetaFormHTML(null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === session.activeBizId)) }) : ''}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -21739,9 +21771,11 @@
     if (data.parties.find(p => p.businessId === biz.id && p.name.toLowerCase() === name.toLowerCase())) {
       toast('A party with that name already exists.'); return;
     }
-    // v89.31.0: read optional meta (DOB, phones, emails, description).
-    // Returns null if everything empty — keeps DB tidy.
-    const meta = readPartyMetaFromForm();
+    // v89.32.32: read optional meta (DOB, phones, emails, socials, notes)
+    // — but ONLY owner/manager may attach contact meta to a party. Staff
+    // create the party (name) without contact details; force null for them
+    // even if the form fields were somehow present.
+    const meta = canAddPartyMeta(biz.id) ? readPartyMetaFromForm() : null;
     const u = me();
     // v89.22: read unassigned toggle (owner-only)
     const _unassignedToggle = document.getElementById('mEntityUnassigned');
@@ -29814,7 +29848,7 @@
         r.note || '',
       ];
     });
-    const remaining = firstPortionDisp - totalFinal;
+    const remaining = firstPortionDisp - totalSalary;
 
     let totalSharePct = 0, totalShareAmount = 0;
     const shareRows = __distShares.map(r => {
@@ -29848,7 +29882,7 @@
     rows.push(['', '', '', '', '', '']);
 
     rows.push(['TEAM SALARIES', '', '', '', '', '']);
-    rows.push(['Name', 'Salary', 'Type', 'Adjustment', 'Final', 'Reason']);
+    rows.push(['Name', 'Salary', 'Type', 'Plus-minus', 'Amount to get', 'Reason']);
     if (salaryRows.length === 0) {
       rows.push(['(no team salaries)', '', '', '', '', '']);
     } else {
@@ -29856,10 +29890,9 @@
       rows.push(['', '', '', '', '', '']);
       rows.push(['Total salary',     totalSalary.toFixed(2), '', '', '', '']);
       rows.push(['Total adjustment', '', '', (totalAdj >= 0 ? '+' : '−') + Math.abs(totalAdj).toFixed(2), '', '']);
-      rows.push(['Total final paid', '', '', '', totalFinal.toFixed(2), '']);
     }
     rows.push(['', '', '', '', '', '']);
-    rows.push(['Remaining after salaries', '', '', '', remaining.toFixed(2), '']);
+    rows.push(['Remaining for profit shares (party amount − total salary)', '', '', '', remaining.toFixed(2), '']);
     rows.push(['', '', '', '', '', '']);
 
     rows.push(['PROFIT SHARES', '', '', '', '', '']);
@@ -29876,7 +29909,7 @@
     const opts = {
       title: `Distribution — ${biz.name}`,
       subtitle: `${displayCur}${hasChangedCurrency ? ` (rate ${__splitRate} per 1 ${bizCur})` : ''} · Generated ${today()}`,
-      columns: ['Item', 'Salary', 'Type', 'Adjustment', 'Amount', 'Reason'],
+      columns: ['Item', 'Salary', 'Type', 'Plus-minus', 'Amount to get', 'Reason'],
       rows,
       filename: `distribution_${biz.name.replace(/[^\w]+/g, '_')}`,
       columnAlign: { 1: 'right', 2: 'left', 3: 'right', 4: 'right', 5: 'left' },
