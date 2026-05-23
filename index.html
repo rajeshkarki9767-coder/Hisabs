@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.59';
+  const BUILD_TAG = '2026.05.21.60';
 
   // ================================================================
   // STORAGE
@@ -14185,10 +14185,26 @@
       } catch (_) {}
       return s;
     })();
-    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id) && !_isTombstoned(r.id));
+    // v89.32.60: parties are now MONTH-SCOPED. Filter by the active month
+    // (or include every month in All time / range aggregate mode), exactly
+    // like salaries/shares.
+    const am = _activeDistMonth();
+    const _partyInMonth = (r) => {
+      if (am.all) {
+        if (am.range) {
+          const pm = r.periodMonth || _currentDistMonth();
+          return pm >= am.range.from && pm <= am.range.to;
+        }
+        return true; // All time
+      }
+      const pm = r.periodMonth || _currentDistMonth();
+      return pm === (am.month || _currentDistMonth());
+    };
+    const cloudPartiesAll = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id) && !_isTombstoned(r.id));
+    const cloudParties = cloudPartiesAll.filter(_partyInMonth);
     if (cloudParties.length) {
       __splitParties = cloudParties.map(r => ({
-        id: r.id, name: r.name, pct: r.pct,
+        id: r.id, name: r.name, pct: r.pct, periodMonth: r.periodMonth || _currentDistMonth(),
       }));
       // v89.32.41: invalid legacy state could have MULTIPLE parties flagged
       // is_selected=true (created across devices before delete/sync was
@@ -14210,6 +14226,24 @@
         } catch (_) {}
       }
       return;
+    }
+    // v89.32.60: CARRY-FORWARD for parties. If the current (editable) month has
+    // no parties yet but a prior month does, carry the names + % forward with
+    // fresh ids (owner only — non-owners must not fabricate local rows). This
+    // mirrors the salary/share carry-forward so a new month starts from last
+    // month's split instead of blank.
+    if (!am.all && am.editable && cloudPartiesAll.length && roleFor(bizId) === 'owner') {
+      const wantMonth = am.month || _currentDistMonth();
+      const priorMonths = [...new Set(cloudPartiesAll.map(r => r.periodMonth || _currentDistMonth()).filter(m => m < wantMonth))].sort();
+      if (priorMonths.length) {
+        const lastPrior = priorMonths[priorMonths.length - 1];
+        const carry = cloudPartiesAll.filter(r => (r.periodMonth || _currentDistMonth()) === lastPrior);
+        if (carry.length) {
+          __splitParties = carry.map(r => ({ id: uid(), name: r.name, pct: r.pct, periodMonth: wantMonth }));
+          __splitSelectedPartyId = '';
+          return;
+        }
+      }
     }
     // Fallback to localStorage
     const local = loadSplitStateFor(bizId);
@@ -14551,6 +14585,9 @@
   function _syncSplitPartiesArray(bizId) {
     if (!bizId) return;
     if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
+    // v89.32.60: never persist while viewing an aggregate (All time / range);
+    // __splitParties there holds grouped/averaged data, not a single month's.
+    try { if (_activeDistMonth().all) return; } catch (_) {}
     try {
       // v89.32.48: only sync SAVED parties. A party that's still in edit mode
       // (just added, not yet saved) is excluded — we don't push an
@@ -14560,11 +14597,19 @@
         // keep if locked (saved). New unsaved rows are unlocked.
         try { return _distRowIsLocked('parties', r.id); } catch (_) { return true; }
       });
-      data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId)
+      // v89.32.60: parties are now MONTH-SCOPED (like salaries/shares). Replace
+      // only the rows for THIS business AND the active month, preserving all
+      // other months' party snapshots. __splitParties holds only the active
+      // month's parties (the loader scopes them).
+      const am = _activeDistMonth();
+      const mk = am.month || _currentDistMonth();
+      const keep = (r) => r.businessId !== bizId || ((r.periodMonth || _currentDistMonth()) !== mk);
+      data.splitParties = (data.splitParties || []).filter(keep)
         .concat(syncable.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', pct: Number(r.pct) || 0,
           isSelected: r.id === __splitSelectedPartyId,
+          periodMonth: r.periodMonth || mk,
           createdAt: r.createdAt || new Date().toISOString(),
         })));
       saveData();
@@ -14987,6 +15032,38 @@
     if (!_editingDist) {
       try { loadDistributionFromCloudOrLocal(session.activeBizId); } catch (_) {}
     }
+    // v89.32.60: in All time / range, the same person appears across multiple
+    // months. Collapse __distSalaries/__distShares by name so each person shows
+    // ONCE with their SUMMED salary (and summed adjustments) / summed share %.
+    // Only in aggregate (read-only) mode; single months render per-row as before.
+    try {
+      const _am = _activeDistMonth();
+      if (_am && _am.all) {
+        const salMap = new Map();
+        for (const r of __distSalaries) {
+          const key = (r.name || '').trim().toLowerCase();
+          if (!key) continue;
+          if (!salMap.has(key)) salMap.set(key, { id: r.id, name: r.name, salary: 0, adjustmentType: 'addition', adjustmentAmount: 0, note: '' });
+          const g = salMap.get(key);
+          g.salary += Number(r.salary) || 0;
+          // fold adjustments into a single signed addition total
+          const signed = (r.adjustmentType === 'addition' ? 1 : -1) * (Number(r.adjustmentAmount) || 0);
+          const prevSigned = (g.adjustmentType === 'addition' ? 1 : -1) * g.adjustmentAmount;
+          const newSigned = prevSigned + signed;
+          g.adjustmentType = newSigned >= 0 ? 'addition' : 'deduction';
+          g.adjustmentAmount = Math.abs(newSigned);
+        }
+        const shrMap = new Map();
+        for (const r of __distShares) {
+          const key = (r.name || '').trim().toLowerCase();
+          if (!key) continue;
+          if (!shrMap.has(key)) shrMap.set(key, { id: r.id, name: r.name, pct: 0, note: '' });
+          shrMap.get(key).pct += Number(r.pct) || 0;
+        }
+        if (salMap.size) __distSalaries = [...salMap.values()];
+        if (shrMap.size) __distShares = [...shrMap.values()];
+      }
+    } catch (_) {}
     // v89.8: expose role for the template — used to disable inputs and
     // hide Save buttons on non-owner devices.
     window.__distViewerIsOwner = (roleFor(session.activeBizId) === 'owner');
@@ -15759,7 +15836,7 @@
     const remain = Math.max(0, 100 - totalPct);
     // v89.15: new party row starts in edit mode
     const _newPartyId = uid();
-    __splitParties.push({ id: _newPartyId, name: '', pct: remain });
+    __splitParties.push({ id: _newPartyId, name: '', pct: remain, periodMonth: _currentDistMonth() });
     _distRowMarkUnlocked('parties', _newPartyId);
     // v89.32.48: do NOT auto-select the first party as the Distribution
     // source. The user enters + saves parties first, then deliberately picks
@@ -16842,23 +16919,48 @@
           const hasRate = (Number(__splitRate) > 0) && __splitCurrency && __splitCurrency.trim() !== '';
           const rate = hasRate ? Number(__splitRate) : 1;
           const cur = hasRate ? __splitCurrency : (__splitBusinessCurrency || '');
-          const parties = (__splitParties || []).filter(p => (p.name && p.name.trim()) || Number(p.pct) > 0);
-          const rows = parties.length
-            ? parties.map(p => {
-                const amt = net * ((Number(p.pct) || 0) / 100) * rate;
-                return `<div class="split-party-saved split-party-row-v895 is-locked" style="cursor:default;">
-                  <div class="split-party-saved-main">
-                    <span class="split-party-saved-name">${escapeHtml(p.name || '—')}</span>
-                    <span class="split-party-saved-pct">${escapeHtml(cur)} ${fmt(amt)}</span>
-                  </div>
-                </div>`;
-              }).join('')
-            : '<div class="split-parties-empty">No parties recorded for this month.</div>';
+          const am0 = (() => { try { return _activeDistMonth(); } catch (_) { return {}; } })();
+          let parties = (__splitParties || []).filter(p => (p.name && p.name.trim()) || Number(p.pct) > 0);
+          // v89.32.60: in All time / range, the same party name appears across
+          // multiple months. Group by name and SUM each party's amount across
+          // those months (amount per month = that month's net x pct x rate;
+          // here we approximate with the loaded net — see note). For a single
+          // month, no grouping needed.
+          let rows;
+          if (am0.all && parties.length) {
+            const byName = new Map();
+            for (const p of parties) {
+              const key = (p.name || '').trim().toLowerCase();
+              if (!key) continue;
+              const amt = net * ((Number(p.pct) || 0) / 100) * rate;
+              if (!byName.has(key)) byName.set(key, { name: p.name, total: 0 });
+              byName.get(key).total += amt;
+            }
+            rows = [...byName.values()].map(g => `<div class="split-party-saved split-party-row-v895 is-locked" style="cursor:default;">
+                <div class="split-party-saved-main">
+                  <span class="split-party-saved-name">${escapeHtml(g.name || '—')}</span>
+                  <span class="split-party-saved-pct">${escapeHtml(cur)} ${fmt(g.total)}</span>
+                </div>
+              </div>`).join('');
+            if (!byName.size) rows = '<div class="split-parties-empty">No parties recorded.</div>';
+          } else {
+            rows = parties.length
+              ? parties.map(p => {
+                  const amt = net * ((Number(p.pct) || 0) / 100) * rate;
+                  return `<div class="split-party-saved split-party-row-v895 is-locked" style="cursor:default;">
+                    <div class="split-party-saved-main">
+                      <span class="split-party-saved-name">${escapeHtml(p.name || '—')}</span>
+                      <span class="split-party-saved-pct">${escapeHtml(cur)} ${fmt(amt)}</span>
+                    </div>
+                  </div>`;
+                }).join('')
+              : '<div class="split-parties-empty">No parties recorded for this month.</div>';
+          }
           return `
             <div class="split-calc">
               <div class="split-calc-head">
                 <h2 class="split-calc-title">Party amounts</h2>
-                <p class="split-calc-sub">What each party received this month (read-only).</p>
+                <p class="split-calc-sub">${am0.all ? 'Total each party received across the selected months (read-only).' : 'What each party received this month (read-only).'}</p>
               </div>
               <div class="split-parties">
                 <div id="splitPartiesList">${rows}</div>
@@ -34036,6 +34138,7 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         is_selected: !!r.isSelected,
+        period_month: r.periodMonth || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -34043,6 +34146,7 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         isSelected: !!r.is_selected,
+        periodMonth: r.period_month || null,
         createdAt: r.created_at_local || '',
       }),
     },

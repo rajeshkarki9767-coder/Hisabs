@@ -12,6 +12,29 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.60
+
+Parties are now month-scoped (saved per month); All time / range groups salaries, shares, AND parties by name with summed totals.
+
+### Hash
+`3240018195e01eee8f64bfa6194c6ac5`
+
+### REQUIRES SQL MIGRATION (run before deploying)
+`sql/v89.32.60_split_parties_month_scope.sql` — adds `period_month` to `app_split_parties` + index, backfills existing rows to the current month.
+
+### Changes
+1. **Parties are now month-scoped**, exactly like team salaries and profit shares. Each month keeps its own party split; editing one month doesn't change another. New parties are tagged with the current month; the party loader filters by the active month; carry-forward brings last month's party names + % into a new blank month (owner only, fresh ids).
+2. **All time / range now groups by NAME with summed totals** for salaries, shares, AND parties. Example: salary Abc+Def in month 1, then Def+Ghi (Abc removed) in month 2 → All time shows Abc, Def, and Ghi, with Def's amount summed across both months (20000+25000 = 45000). Verified: Abc 10000, Def 45000, Ghi 15000. Parties group the same way (each name once, amounts summed).
+3. Salaries/shares collapse by name in aggregate mode (summed salary + folded adjustments + summed share %). Party amounts group by name and sum.
+
+### Verified
+Your scenario traced exactly (Abc/Def/Ghi → 10000/45000/15000; parties P1 110000). Self-test 63/63; JS valid; CSS 2191/2191; tags balanced; no undefined handlers; party schema/loader/sync/carry-forward all month-scoped.
+
+### Requires real-device/runtime verification
+Per-month parties save + carry forward; All time / range grouped totals for parties, salaries, shares; single-month exactness.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.59
 
 History / past months: hide Split & convert + Split-the-Percentage; show each party's name + amount received that month (read-only).
