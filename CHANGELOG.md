@@ -12,6 +12,30 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.65
+
+Fixes: first-added party now deletes; synced currency/rate no longer disappears when a party is added on another device. Plus polished Distribution row cards + save/delete icons.
+
+### Hash
+`6b365e48c78b2348629241371d3f8dc1`
+
+### Bug — first-added party wouldn't delete (others did)
+`removeSplitParty` persisted (saveSplitStateFor → _syncSplitPartiesArray) BEFORE adding the tombstone, so the array was rebuilt while the cloud row still existed and no tombstone protected it — a realtime echo/merge could resurrect it. Fixed by tombstoning FIRST, then persisting + cloud-deleting (matching the salary/share delete order, which works).
+
+### Bug — synced rate/currency vanished when adding a party on another device
+The party loader read currency/rate from the business row ONLY in its localStorage-fallback branch. Once parties existed, the cloud branch returned early and never loaded the synced rate — so on a second device, adding a party (cloud now has parties → cloud branch) dropped the rate to 0. Fixed by loading currency/rate from the cloud-synced business row in the cloud branch too (with the same per-month snapshot handling).
+
+### Design — Distribution row cards + icons
+Salary / share / party rows: bigger, clearer save (edit) and delete icons (34px tap target, rounded, subtle shadow) with color affordance — edit hovers brand-colored, delete hovers red, saved state shows a green check. Cards lift slightly on hover. Scoped to Distribution rows so other pages are unchanged.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2198/2198; no undefined handlers; both sync fixes + design confirmed.
+
+### Requires real-device/runtime verification
+Delete the first-added party (should stick); set rate on device A, add a party on device B (rate should remain); icon/card appearance.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.64
 
 Narrower name fields (more room for icons + columns). Cross-device delete fix from .63 retained. Diagnostics requested for remaining sync issues.

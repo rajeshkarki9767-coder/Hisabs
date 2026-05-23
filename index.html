@@ -1038,6 +1038,46 @@
     border-color: color-mix(in srgb, var(--accent) 35%, var(--line)) !important;
   }
 
+  /* v89.32.65: clearer, more polished save (edit) + delete icons on the
+     Distribution rows (salary / share / party). Scoped to dist rows so other
+     pages are untouched. Bigger tap target, subtle card, and color affordance:
+     edit = brand on hover, delete = red on hover, save state = green check. */
+  .dist-row-card .dist-row-edit-btn,
+  .split-party-row-v895 .dist-row-edit-btn {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .dist-row-card .dist-row-edit-btn:hover,
+  .split-party-row-v895 .dist-row-edit-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+    transform: translateY(-1px);
+  }
+  .dist-row-card .dist-row-edit-btn:active,
+  .split-party-row-v895 .dist-row-edit-btn:active { transform: scale(0.95); }
+  .dist-row-card .icon-btn-light,
+  .split-party-row-v895 .icon-btn-light {
+    width: 34px; height: 34px; border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--paper);
+    color: var(--ink-mute);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+  }
+  .dist-row-card .icon-btn-light:hover,
+  .split-party-row-v895 .icon-btn-light:hover {
+    border-color: var(--loss);
+    color: var(--loss);
+    background: color-mix(in srgb, var(--loss) 8%, var(--paper));
+    transform: translateY(-1px);
+  }
+  .dist-row-card .icon-btn-light:active,
+  .split-party-row-v895 .icon-btn-light:active { transform: scale(0.95); }
+  /* a touch more gap between the edit and delete icons */
+  .dist-row-actions, .split-party-actions { gap: 0.4rem !important; }
+
   /* v89.15: Party row HORIZONTAL layout — Name [____]  %  [__] */
   .split-party-fields-h {
     display: grid;
@@ -3748,10 +3788,11 @@
     display: flex;
     flex-direction: column;
     gap: 0.45rem;
-    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
   }
   .dist-row-card:hover {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    transform: translateY(-1px);
   }
   .dist-section-salaries .dist-row-card {
     background: rgba(43, 95, 138, 0.06);
@@ -7401,7 +7442,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.64';
+  const BUILD_TAG = '2026.05.21.65';
 
   // ================================================================
   // STORAGE
@@ -14211,6 +14252,30 @@
       __splitParties = cloudParties.map(r => ({
         id: r.id, name: r.name, pct: r.pct, periodMonth: r.periodMonth || _currentDistMonth(),
       }));
+      // v89.32.65: load currency/rate from the cloud-synced business row HERE
+      // too. Previously this only happened in the localStorage-fallback branch
+      // below, which is skipped when parties exist — so on another device, the
+      // moment a party was added (cloud now has parties → this branch → early
+      // return) the synced rate/currency were never loaded and "disappeared".
+      try {
+        const _biz = data.businesses.find(b => b.id === bizId);
+        __splitCurrency = (_biz && typeof _biz.splitCurrency === 'string' && _biz.splitCurrency)
+          ? _biz.splitCurrency : (__splitCurrency || '');
+        __splitRate = (_biz && Number(_biz.splitRate))
+          ? Number(_biz.splitRate) : (Number(__splitRate) || 0);
+        // Honor per-month snapshot for History; record current month's snapshot.
+        const _am = _activeDistMonth();
+        const _snaps = _monthRateSnaps(bizId);
+        if (_am && _am.editable && _am.month) {
+          _snaps[_am.month] = { currency: __splitCurrency, rate: __splitRate };
+          _saveMonthRateSnaps(bizId, _snaps);
+        } else if (_am && _am.month && _snaps[_am.month]) {
+          __splitCurrency = _snaps[_am.month].currency || '';
+          __splitRate = Number(_snaps[_am.month].rate) || 0;
+        } else if (_am && (_am.all || (_am.month && !_snaps[_am.month]))) {
+          // aggregate or unsnapshotted past month — leave business value as-is
+        }
+      } catch (_) {}
       // v89.32.41: invalid legacy state could have MULTIPLE parties flagged
       // is_selected=true (created across devices before delete/sync was
       // reliable). Only one party may feed the Distribution amount. Pick the
@@ -15902,8 +15967,14 @@
     if (__splitSelectedPartyId === id) {
       __splitSelectedPartyId = __splitParties[0]?.id || '';
     }
-    saveSplitStateFor(session.activeBizId);
+    // v89.32.65: add the tombstone BEFORE persisting/syncing (matches the
+    // salary/share delete order). Previously saveSplitStateFor ran first, so
+    // _syncSplitPartiesArray rebuilt data.splitParties while the cloud row
+    // still existed and no tombstone yet protected it — a realtime echo /
+    // merge could resurrect it, so the row appeared not to delete. Tombstone
+    // first guarantees every downstream loader + merge excludes it.
     _addTombstone(id);
+    saveSplitStateFor(session.activeBizId);
     _cloudDeleteDistRow('app_split_parties', id);
     if (session.view === 'distribution') {
       const root = document.getElementById('mainContent');
