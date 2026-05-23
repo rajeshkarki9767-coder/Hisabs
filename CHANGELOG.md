@@ -12,6 +12,33 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.79
+
+Fixes: deleting an unsaved salary/share/party no longer warns "server kept the row / 0 deleted"; removed the side +Add on salaries/shares (bottom +Add only); focus guard extended to reduce flicker.
+
+### Hash
+`951f95ec376166c96376120f7c6e8e6d`
+
+### Delete unsaved row no longer warns
+After .78, unsaved (unlocked) rows never reach the cloud. But delete still fired a cloud delete, which matched 0 rows and showed "server kept the row (0 deleted) — check permissions". Now deleteDistSalaryRow / deleteDistShareRow / removeSplitParty capture _wasSynced (is the row in data.dist*/splitParties = was it synced) BEFORE mutating, and only cloud-delete when it was actually synced. Unsaved rows are removed locally with no cloud call and no tombstone.
+
+### Side +Add removed
+Team Salaries and Profit Shares had a +Add in the section header AND a +Add at the bottom. Removed the header one; the bottom +Add is now the only one and is always shown (label "+ Add" with no rows, "+ Add another" with rows).
+
+### Flicker mitigation
+Extended renderDistributionCard's focus guard to also cover .dist-salary-row / .dist-share-row and SELECT elements, so a re-render won't reload/rebuild while the user is editing those fields. (If flicker persists, more detail on exactly when it happens is needed.)
+
+### Note on "rates gone"
+The expense rate book code (saveExpenseRates + mergeExpenseRates union) is UNCHANGED by recent builds and was console-confirmed working (savedRows:3, afterMerge:2). "Rates gone" is most likely a device that hadn't loaded the latest build / cache, not a code regression.
+
+### Verified
+Delete-unsaved trace 2/2; add-button count 1 each; self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers; mergeExpenseRates intact.
+
+### Requires real-device/runtime verification
+Delete an unsaved salary/share/party → removes cleanly, no "0 deleted" warning. Only one +Add (bottom). Flicker reduced on salary/share/% editing.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.78
 
 Fix: clicking +Add on Team Salaries / Profit Shares immediately pushed a blank "-- --" row to the other device. Now salary/share rows (like parties) sync ONLY after Save.

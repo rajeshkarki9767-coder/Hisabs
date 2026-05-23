@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.78';
+  const BUILD_TAG = '2026.05.21.79';
 
   // ================================================================
   // STORAGE
@@ -14895,6 +14895,11 @@
     }, 0);
   }
   async function deleteDistSalaryRow(id) {
+    // v89.32.79: capture whether this row was ever SAVED to the cloud BEFORE
+    // any mutation. Only saved rows exist server-side (post-.78), so only they
+    // need a cloud delete; deleting an unsaved row server-side returns 0 rows
+    // and wrongly warns "server kept the row / check permissions".
+    const _wasSynced = (data.distSalaries || []).some(r => r.id === id);
     // v89.19: clean up the row's lock state from localStorage
     try { _distRowMarkLocked('salaries', id); } catch (_) {}
     const row = __distSalaries.find(r => r.id === id);
@@ -14915,9 +14920,14 @@
       if (!ok) return;
     }
     __distSalaries = __distSalaries.filter(r => r.id !== id);
+    // v89.32.79: only cloud-delete a row that was actually saved/synced.
     _addTombstone(id);
     _persistDistribution();
-    _cloudDeleteDistRow('app_distribution_salaries', id);
+    if (_wasSynced) {
+      _cloudDeleteDistRow('app_distribution_salaries', id);
+    } else {
+      try { _removeTombstone(id); } catch (_) {}
+    }
     renderDistributionCard();
   }
   // v89.7: dirty-tracking buffer for distribution rows. Each row id
@@ -15133,6 +15143,8 @@
     }, 0);
   }
   async function deleteDistShareRow(id) {
+    // v89.32.79: only cloud-delete rows that were actually saved/synced.
+    const _wasSynced = (data.distShares || []).some(r => r.id === id);
     // v89.19: clean up the row's lock state from localStorage
     try { _distRowMarkLocked('shares', id); } catch (_) {}
     const row = __distShares.find(r => r.id === id);
@@ -15150,7 +15162,11 @@
     __distShares = __distShares.filter(r => r.id !== id);
     _addTombstone(id);
     _persistDistribution();
-    _cloudDeleteDistRow('app_distribution_shares', id);
+    if (_wasSynced) {
+      _cloudDeleteDistRow('app_distribution_shares', id);
+    } else {
+      try { _removeTombstone(id); } catch (_) {}
+    }
     renderDistributionCard();
   }
   // v89.7: BUFFERED shares field update — same pattern as salaries.
@@ -15272,10 +15288,12 @@
     // v89.6.1: prefer cloud-synced data over localStorage.
     // v89.7: skip the reload if a dist input is focused (keyboard glitch).
     const _ae = document.activeElement;
-    const _editingDist = _ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA') && _ae.closest && (
+    const _editingDist = _ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA' || _ae.tagName === 'SELECT') && _ae.closest && (
       _ae.closest('.split-party-row') ||
       _ae.closest('.split-calc-cur-row') ||
-      _ae.closest('.dist-row-card')
+      _ae.closest('.dist-row-card') ||
+      _ae.closest('.dist-salary-row') ||
+      _ae.closest('.dist-share-row')
     );
     if (!_editingDist) {
       try { loadDistributionFromCloudOrLocal(session.activeBizId); } catch (_) {}
@@ -15556,7 +15574,7 @@
           </div>
           <div class="dist-section-actions">
             <!-- v89.24: Save/Edit toggle removed; rows always editable -->
-            <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add</button>
+            <!-- v89.32.79: side +Add removed; the bottom +Add is the only one -->
           </div>
         </div>
         ${__distSalaries.length ? `<div class="dist-salary-header">
@@ -15568,11 +15586,11 @@
           <span></span>
         </div>` : ''}
         <div class="dist-salary-list">${salaryRows}</div>
-        ${__distSalaries.length ? `
-        <!-- v89.30.4: bottom + Add (after rows, before totals) -->
+        <!-- v89.32.79: bottom +Add is always shown (even with no rows yet) -->
         <div class="dist-section-add-bottom">
-          <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add another</button>
+          <button class="btn btn-sm btn-ghost" onclick="addDistSalaryRow()">+ Add${__distSalaries.length ? ' another' : ''}</button>
         </div>
+        ${__distSalaries.length ? `
         <div class="dist-totals-card">
           <div class="dist-totals-card-row">
             <span class="dist-totals-card-label">Total salary</span>
@@ -15648,7 +15666,7 @@
           </div>
           <div class="dist-section-actions">
             <!-- v89.24: Save/Edit toggle removed; rows always editable -->
-            <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add</button>
+            <!-- v89.32.79: side +Add removed; the bottom +Add is the only one -->
           </div>
         </div>
         ${__distShares.length ? `<div class="dist-share-header">
@@ -15658,11 +15676,11 @@
           <span></span>
         </div>` : ''}
         <div class="dist-share-list">${shareRows}</div>
-        ${__distShares.length ? `
-        <!-- v89.30.4: bottom + Add (after rows, before totals) -->
+        <!-- v89.32.79: bottom +Add is always shown (even with no rows yet) -->
         <div class="dist-section-add-bottom">
-          <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add another</button>
+          <button class="btn btn-sm btn-ghost" onclick="addDistShareRow()">+ Add${__distShares.length ? ' another' : ''}</button>
         </div>
+        ${__distShares.length ? `
         <div class="dist-totals-card">
           <div class="dist-totals-card-row">
             <span class="dist-totals-card-label">Total %</span>
@@ -16143,6 +16161,8 @@
     if (roleFor(session.activeBizId) !== 'owner') return;
     // v89.32.57: read-only in past months / History.
     try { if (!_activeDistMonth().editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; } } catch (_) {}
+    // v89.32.79: only cloud-delete a party that was actually saved/synced.
+    const _wasSynced = (data.splitParties || []).some(r => r.id === id);
     // v89.19: clean up the row's lock state from localStorage
     try { _distRowMarkLocked('parties', id); } catch (_) {}
     const party = __splitParties.find(p => p.id === id);
@@ -16169,14 +16189,20 @@
     // the user the server kept the row (delete-permission/RLS issue).
     _addTombstone(id);
     saveSplitStateFor(session.activeBizId);
-    const ok = await _cloudDeleteDistRow('app_split_parties', id);
-    if (!ok) {
-      // Server kept the row — bring it back into the local arrays so the UI
-      // stays consistent with the cloud (rather than showing it gone here but
-      // present on every other device).
-      try {
-        loadSplitPartiesFromCloudOrLocal(session.activeBizId);
-      } catch (_) {}
+    // v89.32.79: only attempt the cloud delete if the party was actually saved
+    // (synced). An unsaved party was never in the cloud, so a delete would
+    // return 0 rows and wrongly warn "server kept the row".
+    if (_wasSynced) {
+      const ok = await _cloudDeleteDistRow('app_split_parties', id);
+      if (!ok) {
+        // Server kept the row — bring it back so the UI matches the cloud.
+        try {
+          loadSplitPartiesFromCloudOrLocal(session.activeBizId);
+        } catch (_) {}
+      }
+    } else {
+      // never synced → drop the tombstone (nothing existed server-side).
+      try { _removeTombstone(id); } catch (_) {}
     }
     if (session.view === 'distribution') {
       const root = document.getElementById('mainContent');
