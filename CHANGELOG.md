@@ -12,6 +12,24 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.40
+
+FIX: split parties now render from cloud data — the empty "Split the Percentage" list + missing Use-for-Distribution selector.
+
+### Hash
+`28ffb1e7385412b24dcdf56e2f859da6`
+
+### The bug (confirmed via live diagnostics)
+A Mac showed an empty "Split the Percentage" list even though `data.splitParties` held 2 named parties ("s" 70% selected, "sa" 30%) and the cloud had the same. Root cause: `renderDistributionView` hydrated `__splitParties` from `loadSplitStateFor` (localStorage only) — the same class of bug fixed for salaries/shares in .39, but the **parties** path was missed. Realtime/pull write cloud parties to `data.splitParties`, not localStorage, so the list rendered empty and — because the Use-for-Distribution selector only lists named parties in `__splitParties` — that selector never appeared either. This also produced the "every device shows separate data" symptom: each device rendered whatever its localStorage happened to hold, ignoring the synced cloud parties.
+
+### Fix
+`renderDistributionView` now hydrates parties via `loadSplitPartiesFromCloudOrLocal`, which prefers cloud `data.splitParties` (and heals multi-selected state, sets the selected party from cloud `is_selected`), falling back to localStorage. Parties now render consistently across devices, and the Use-for-Distribution selector appears whenever named parties exist.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced; parties-from-cloud confirmed; old localStorage-only party hydration removed.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.39
 
 FIX: distribution data now shows on managers/viewers + other devices (was reading stale localStorage).
