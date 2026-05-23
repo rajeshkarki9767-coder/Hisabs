@@ -12,6 +12,33 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.66
+
+Fixes the cross-device currency/rate desync (one device showed a different rate than the other) + the "typed currency, it erased itself" glitch.
+
+### Hash
+`0e4b39ea1395432951b147d24f61fad9`
+
+### Root cause (found via console + SQL diagnostics)
+The columns and migration were fine. The problem: the saved value diverged from the synced value ON THE SAME DEVICE. localStorage held the latest (Rs/156) but the business row — the thing that actually syncs to the cloud — held an OLD value (NPR/150), and the cloud row was empty. Two causes:
+1. **A full re-render (realtime echo / pull) while typing** wiped the currency input ("typed NPR, it erased automatically") and reset __splitCurrency back to the stored business value, so a subsequent save could persist a stale value to the business row.
+2. **The business-row mirror only fired conditionally**, so the synced value could lag the saved value.
+
+### Fixes
+1. **Focus guard on renderDistributionView** — if the currency, rate, or a party input is focused, skip the full rebuild (no more mid-type wipe; matches the guards on renderDistributionCard and renderSplitParties).
+2. **saveSplitCurRate now force-writes** the business row to EXACTLY the just-saved currency/rate (owner) and queues the sync, so the cloud-synced value always equals what you saved — devices converge.
+
+### To fix your currently-stuck value
+On the device with the correct rate, after deploying .66: Distribution → Edit Currency and Rate → re-enter → Save. This pushes the correct value to the business row + cloud; the other device picks it up on its next sync/refresh.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2198/2198; no undefined handlers; both fixes confirmed.
+
+### Requires real-device/runtime verification
+Set rate on device A → it appears on device B; typing currency no longer erases.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.65
 
 Fixes: first-added party now deletes; synced currency/rate no longer disappears when a party is added on another device. Plus polished Distribution row cards + save/delete icons.

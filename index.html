@@ -7442,7 +7442,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.65';
+  const BUILD_TAG = '2026.05.21.66';
 
   // ================================================================
   // STORAGE
@@ -15571,6 +15571,27 @@
       __splitRate = n;
     }
     saveSplitStateFor(session.activeBizId);
+    // v89.32.66: force the business-row currency/rate to EXACTLY match what we
+    // just saved, then queue the sync. saveSplitStateFor mirrors to the biz row
+    // too, but only when the values differ AND the owner check passes at that
+    // instant; a stale __splitCurrency from a mid-type re-render could leave the
+    // synced biz row holding an OLD value (e.g. localSplitState=Rs/156 while the
+    // biz row stayed NPR/150 — so the other device pulled the wrong rate). This
+    // explicit write guarantees the cloud-synced value equals the saved value.
+    try {
+      if (roleFor(session.activeBizId) === 'owner') {
+        const _biz = data.businesses.find(b => b.id === session.activeBizId);
+        if (_biz) {
+          const _cur = (__splitCurrency || '').slice(0, 6);
+          const _rate = Number(__splitRate) || 0;
+          if (_biz.splitCurrency !== _cur || _biz.splitRate !== _rate) {
+            _biz.splitCurrency = _cur;
+            _biz.splitRate = _rate;
+            saveData(); // queues the business row for cloud sync
+          }
+        }
+      }
+    } catch (_) {}
     updateSplitCalc();
     // v89.16: was splitCurSaveBtn (renamed in v89.15)
     const btn = document.getElementById('splitCurEditBtn');
@@ -16872,6 +16893,22 @@
   // when the user navigates here without visiting Audit first), then
   // render the body.
   function renderDistributionView(root) {
+    // v89.32.66: FOCUS GUARD — if the user is mid-type in the currency, rate,
+    // or a party input, a full re-render (from a realtime echo / pull) would
+    // rebuild those inputs and WIPE what they're typing ("typed NPR, it erased
+    // automatically"). It would also reset __splitCurrency back to the stored
+    // business value, causing the saved value to diverge from the business row
+    // (why one device showed Rs/156 while the synced row stayed NPR/150). Skip
+    // the rebuild while an input is focused; the next idle render will refresh.
+    try {
+      const _ae = document.activeElement;
+      if (_ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA') && _ae.closest && (
+        _ae.id === 'splitCurInput' || _ae.id === 'splitRateInput'
+        || _ae.closest('.split-calc-cur-row') || _ae.closest('.split-party-row')
+      )) {
+        return;
+      }
+    } catch (_) {}
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) {
       root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>';
