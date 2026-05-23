@@ -12,6 +12,39 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.42
+
+Final audit fixes: disable server cron digest (true 11:59 removal) + bundle PWA manifest.
+
+### Hash
+`14e04ba14bf7ab3eda084e27348cf87f`
+
+### Changes (from the final deep audit)
+1. **Server cron digest disabled.** Build .37 removed the *client-side* 11:59 digest, but `vercel.json` still had a cron (`14 18 * * *` = 23:59 NPT) calling `/api/cron/digest`, which sends a Web Push — so the 11:59 notification could still fire from the server. Removed the `crons` block from `vercel.json` so the notification is now fully gone (client + server). (`api/cron/digest.js` is left in place, dormant, in case you want to re-enable later — it just isn't scheduled.)
+2. **Bundled `manifest.webmanifest`.** `index.html` references it and `vercel.json` has a cache rule for it, but the file wasn't in the package (served only from the live deploy). Added it so the package is self-complete for PWA installability. (Note: `icons/` and `PRIVACY.html` are still served by the live deployment and not bundled — unchanged from all prior packages.)
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; vercel.json + manifest valid JSON; cron fully removed; index.html unchanged except build tag.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.41
+
+Parties sync only after save; no auto-select for distribution.
+
+### Hash
+`c5754d951c3cbd836fb37633920ba310`
+
+### Changes
+1. **Unsaved parties no longer sync.** Adding a party used to immediately `saveSplitStateFor` (pushing a blank, unsaved party to the cloud + other devices). Now adding a party only updates the local view; the party syncs only after the user taps Save on the row. `_syncSplitPartiesArray` now filters to **saved (locked)** parties only, so an in-progress edit never reaches the cloud.
+2. **No auto-select.** The first party added was auto-selected as the Distribution source. Removed — the user enters and saves parties first, then deliberately picks one in the selector.
+3. **Selector renamed "Party to be Used for Distribution"** and sits below the saved parties; choosing one drives the Distribution amount (and the selection persists/syncs).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; no-auto-select + no-sync-on-add + saved-only-sync + header rename all confirmed.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.40
 
 FIX: split parties now render from cloud data — the empty "Split the Percentage" list + missing Use-for-Distribution selector.

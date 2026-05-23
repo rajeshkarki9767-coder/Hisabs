@@ -7369,7 +7369,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.40';
+  const BUILD_TAG = '2026.05.21.42';
 
   // ================================================================
   // STORAGE
@@ -14093,8 +14093,16 @@
     if (!bizId) return;
     if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
     try {
+      // v89.32.48: only sync SAVED parties. A party that's still in edit mode
+      // (just added, not yet saved) is excluded — we don't push an
+      // unsaved/blank party to the cloud or other devices. It becomes
+      // syncable once the user taps Save on the row (which locks it).
+      const syncable = __splitParties.filter(r => {
+        // keep if locked (saved). New unsaved rows are unlocked.
+        try { return _distRowIsLocked('parties', r.id); } catch (_) { return true; }
+      });
       data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId)
-        .concat(__splitParties.map(r => ({
+        .concat(syncable.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', pct: Number(r.pct) || 0,
           isSelected: r.id === __splitSelectedPartyId,
@@ -15217,7 +15225,7 @@
       </label>`;
     }).join('');
     host.innerHTML = `
-      <div class="use-dist-head">Use for Distribution</div>
+      <div class="use-dist-head">Party to be Used for Distribution</div>
       <div class="use-dist-sub">Pick the party whose amount feeds the Distribution below.</div>
       <div class="use-dist-list">${rows}</div>`;
   }
@@ -15233,16 +15241,18 @@
     const _newPartyId = uid();
     __splitParties.push({ id: _newPartyId, name: '', pct: remain });
     _distRowMarkUnlocked('parties', _newPartyId);
-    // If this is the first party added, auto-select it as the Distribution source
-    if (__splitParties.length === 1) {
-      __splitSelectedPartyId = _newPartyId;
-    }
-    saveSplitStateFor(session.activeBizId);
-    // Re-render Distribution view to pick up the layout change
-    // (Net profit card, legacy/multi mode swap, etc.).
+    // v89.32.48: do NOT auto-select the first party as the Distribution
+    // source. The user enters + saves parties first, then deliberately picks
+    // one in the "Party to be Used for Distribution" selector below. Auto-
+    // selecting applied a party before the user chose.
+    //
+    // v89.32.48: do NOT saveSplitStateFor here — a brand-new party is empty
+    // and unsaved. Syncing it now would push a blank party to the cloud (and
+    // to other devices) before the user has entered anything. We only persist
+    // when the user taps Save on the row (saveSplitPartyRow). Re-render
+    // locally so the edit fields appear, but nothing syncs yet.
     if (session.view === 'distribution') {
-      const root = document.getElementById('mainContent');
-      if (root) renderDistributionView(root);
+      try { renderSplitParties(); } catch (_) {}
     } else {
       updateSplitCalc();
     }

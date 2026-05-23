@@ -97,11 +97,5 @@
         }
       ]
     }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/digest",
-      "schedule": "14 18 * * *"
-    }
   ]
 }
