@@ -12,6 +12,84 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.69
+
+Per-month rate/currency snapshots now sync to the cloud. Viewing an old month on any device shows that month's saved rate, currency, AND parties — never the current values.
+
+### Hash
+`878c341d4c4ac713dc591ffa23056239`
+
+### REQUIRES SQL MIGRATION (run before deploying)
+`sql/v89.32.69_month_rate_snaps.sql` — adds a jsonb month_rate_snaps column to app_businesses (owner writes, everyone reads via the normal business-row sync). Idempotent.
+
+### What changed
+- Per-month rate/currency snapshots were localStorage-only, so they were lost on a device switch. They now mirror onto the business row (biz.monthRateSnaps) and sync across devices, with the localStorage copy kept as an offline fallback.
+- Result: in History, a past month shows the rate + currency saved THAT month on any device. Salaries, profit shares, and parties were already month-scoped + cloud-synced, so old months now show their full saved detail (rate, currency, salaries, shares, parties) — not the current month's values.
+- Sum-of-months / All time: no single rate shown (averaging rates is meaningless), but every month's underlying data is intact.
+
+### Verified
+History read path correct (current → records snapshot; past-with-snapshot → shows it; past-without → blank, not current; range → averaged). Self-test 63/63; JS valid; CSS 2218/2218; no undefined handlers; schema toDb/fromDb wired; owner-only write guard.
+
+### Requires real-device/runtime verification
+Set a rate in month A on device 1; on device 2 view month A → shows month A's rate/currency/parties (after migration + sync). Current-month values never leak into past months.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.68
+
+NEW: Expense rate book. Optional Rate field on expenses (amount = qty × rate), negative quantities allowed, and an Add/Edit Rate + View Rate panel that syncs across devices.
+
+### Hash
+`50d195f2368f4f807b57af37935c0081`
+
+### REQUIRES SQL MIGRATION (run before deploying)
+`sql/v89.32.68_create_expense_rates.sql` — creates app_expense_rates (text ids, RLS: members read / owner write, realtime). Reuses the existing app_can_read_business / app_is_business_owner helpers.
+
+### What's new
+- **Optional Rate field** on the expense add row. When both Qty and Rate are present, Amount auto-computes = qty × rate (still editable).
+- **Negative quantity** allowed (e.g. −5) → negative amount, for returns/corrections.
+- **Add/Edit Rate** button above the expenses list (owner only): a panel of Name + Rate pairs with one Save at the bottom; saves all at once and syncs to the cloud.
+- **View Rate** button (everyone who can see expenses): read-only list of the saved Name → Rate pairs.
+- **Auto-apply by name**: typing an expense whose name matches a saved rate auto-fills the Rate (and recomputes the amount).
+- Rate book stored per business, cloud-synced via the new app_expense_rates table + realtime; saves on the Save button.
+
+### Build decisions (picker didn't register; correct me if needed)
+1. Matched-name amount auto-fills (qty × rate) but stays editable.
+2. Rate book is per-business (shared across months).
+3. Negative qty allowed by typing a minus.
+
+### Verified
+Rate logic 8/8 (qty×rate, negatives, case-insensitive lookup); self-test 63/63; JS valid; CSS 2218/2218; tags balanced; no undefined handlers; data/schema/pull/merge/realtime all wired.
+
+### Requires real-device/runtime verification
+Add/Edit/View Rate UI, auto-apply on name match, qty×rate (incl. negative), cross-device rate-book sync after Save. Run the migration first.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.67
+
+Distribution: sync to cloud only on Save (not while typing); wider/better save & edit buttons and wider salary/amount/% fields.
+
+### Hash
+`13ff6d5d899e1683a2b514cf9fd6acd8`
+
+### Sync only on Save
+Typing in Add Party, Team Salaries, and Profit Shares now persists LOCALLY only (so a typed-but-unsaved row survives a re-render) and no longer queues a cloud sync per keystroke. Cloud sync fires when the row's Save button is pressed. New local-only debounced persists (_persistSplitLocalDebounced, _persistDistributionLocalDebounced) replace the cloud-syncing ones in the three typing handlers; the Save handlers still call the full sync.
+
+### Wider / better buttons + fields
+- Save (edit) and delete buttons on salary / share / party rows are bigger (42x38, rounded 9px, subtle shadow, larger glyphs) with clearer color affordance (edit→brand, delete→red on hover).
+- Team Salaries: wider Salary and Amount-to-get columns + wider action column.
+- Profit Shares: wider Amount column + wider action column.
+- Add Party: wider action area for the bigger buttons.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2200/2200; no undefined handlers; typing→local-only (3 handlers), Save→cloud sync intact; mobile grids preserved.
+
+### Requires real-device/runtime verification
+Typing no longer triggers cross-device updates until Save; button/field sizing looks right on phone + desktop.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.66
 
 Fixes the cross-device currency/rate desync (one device showed a different rate than the other) + the "typed currency, it erased itself" glitch.

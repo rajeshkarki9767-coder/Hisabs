@@ -1044,39 +1044,44 @@
      edit = brand on hover, delete = red on hover, save state = green check. */
   .dist-row-card .dist-row-edit-btn,
   .split-party-row-v895 .dist-row-edit-btn {
-    width: 34px; height: 34px; border-radius: 8px;
+    width: 42px; height: 38px; border-radius: 9px;
     border: 1px solid var(--line);
     background: var(--paper);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
   .dist-row-card .dist-row-edit-btn:hover,
   .split-party-row-v895 .dist-row-edit-btn:hover {
     border-color: var(--accent);
     color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+    background: color-mix(in srgb, var(--accent) 10%, var(--paper));
     transform: translateY(-1px);
   }
   .dist-row-card .dist-row-edit-btn:active,
   .split-party-row-v895 .dist-row-edit-btn:active { transform: scale(0.95); }
   .dist-row-card .icon-btn-light,
   .split-party-row-v895 .icon-btn-light {
-    width: 34px; height: 34px; border-radius: 8px;
+    width: 42px; height: 38px; border-radius: 9px;
     border: 1px solid var(--line);
     background: var(--paper);
     color: var(--ink-mute);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
   }
   .dist-row-card .icon-btn-light:hover,
   .split-party-row-v895 .icon-btn-light:hover {
     border-color: var(--loss);
     color: var(--loss);
-    background: color-mix(in srgb, var(--loss) 8%, var(--paper));
+    background: color-mix(in srgb, var(--loss) 10%, var(--paper));
     transform: translateY(-1px);
   }
   .dist-row-card .icon-btn-light:active,
   .split-party-row-v895 .icon-btn-light:active { transform: scale(0.95); }
+  /* slightly bigger icon glyphs inside the wider buttons */
+  .dist-row-card .dist-row-edit-btn svg,
+  .split-party-row-v895 .dist-row-edit-btn svg { width: 16px; height: 16px; }
+  .dist-row-card .icon-btn-light svg,
+  .split-party-row-v895 .icon-btn-light svg { width: 14px; height: 14px; }
   /* a touch more gap between the edit and delete icons */
-  .dist-row-actions, .split-party-actions { gap: 0.4rem !important; }
+  .dist-row-actions, .split-party-actions { gap: 0.45rem !important; }
 
   /* v89.15: Party row HORIZONTAL layout — Name [____]  %  [__] */
   .split-party-fields-h {
@@ -3749,9 +3754,10 @@
   .dist-salary-header,
   .dist-salary-row {
     display: grid;
-    /* v89.32.64: narrower name column (capped, not greedy 1fr) so salary,
-       type, plus-minus, amount, and the edit/delete icons get more room. */
-    grid-template-columns: minmax(90px, 0.7fr) 110px 120px 110px 130px 88px;
+    /* v89.32.67: wider salary + amount-to-get columns and a wider action
+       column so the bigger edit/delete buttons fit comfortably.
+       cols: name | salary | type | plus-minus | amount-to-get | actions */
+    grid-template-columns: minmax(80px, 0.6fr) 130px 115px 105px 150px 100px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -4082,9 +4088,9 @@
   .dist-share-header,
   .dist-share-row {
     display: grid;
-    /* v89.32.64: narrower name column so %, amount, and edit/delete icons
-       get more room. */
-    grid-template-columns: minmax(90px, 0.7fr) 90px 130px 88px;
+    /* v89.32.67: wider amount column + wider action column for the bigger
+       edit/delete buttons. cols: name | % | amount | actions */
+    grid-template-columns: minmax(80px, 0.6fr) 95px 150px 100px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -5405,6 +5411,23 @@
      optional Note column at the end. Stacks vertically on mobile
      (see @media below). */
   .audit-exp-add-qty { grid-template-columns: 1.5fr 100px 1fr 130px 1.4fr auto; }
+  /* v89.32.68: with the optional Rate column the add row has 6 inputs + button.
+     cols: name | qty | rate | amount | date | note | add */
+  .audit-exp-add-rate { grid-template-columns: 1.4fr 95px 95px 110px 130px 1.2fr auto; }
+  .audit-rate-actions { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; }
+  .rate-edit-modal, .rate-view-modal { max-width: 460px; }
+  .rate-edit-sub { font-size: 0.82rem; color: var(--ink-mute); margin: 0 0 0.8rem; }
+  .rate-edit-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
+  .rate-edit-row { display: grid; grid-template-columns: 1fr 110px 36px; gap: 0.5rem; align-items: center; }
+  .rate-edit-row input { padding: 0.55rem 0.7rem; font-size: 0.88rem; border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--paper); }
+  .rate-edit-row .icon-btn-light { width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); color: var(--ink-mute); }
+  .rate-edit-row .icon-btn-light:hover { border-color: var(--loss); color: var(--loss); }
+  .rate-edit-addbtn { margin-bottom: 0.8rem; }
+  .rate-view-list { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 0.6rem; }
+  .rate-view-row { display: flex; justify-content: space-between; align-items: center; padding: 0.55rem 0.75rem; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); }
+  .rate-view-name { font-size: 0.9rem; color: var(--ink); }
+  .rate-view-rate { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+  .rate-view-empty { font-size: 0.85rem; color: var(--ink-mute); padding: 0.8rem; text-align: center; }
   .audit-exp-add input { padding: 0.5rem 0.65rem; font-size: 0.82rem; }
   .audit-exp-add-note { /* lives in the new 5th column; min-width:0 lets it shrink */ min-width: 0; }
   .audit-exp-list { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -6452,6 +6475,9 @@
     .audit-summary-value { font-size: 1.25rem; }
     .audit-exp-add { grid-template-columns: 1fr; gap: 0.35rem; }
     .audit-exp-add-qty { grid-template-columns: 1fr 1fr; }
+    .audit-exp-add-rate { grid-template-columns: 1fr 1fr; }
+    .audit-exp-add-rate input[type="text"]#mAuditDesc { grid-column: 1 / -1; }
+    .rate-edit-row { grid-template-columns: 1fr 90px 32px; }
     .audit-exp-add-qty input[type="text"] { grid-column: 1 / -1; }
     .audit-exp-add-qty input[type="date"] { grid-column: 1 / -1; }
     .audit-exp-add-qty button { grid-column: 1 / -1; }
@@ -7442,7 +7468,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.66';
+  const BUILD_TAG = '2026.05.21.69';
 
   // ================================================================
   // STORAGE
@@ -8260,7 +8286,7 @@
   migrateFromV4();
 
   let accounts = [];
-  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], quickLook: [], announcements: [], transfers: [],
+  let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], expenseRates: [], quickLook: [], announcements: [], transfers: [],
     // v89.6: distribution data now syncs to Supabase (was localStorage only)
     distSalaries: [], distShares: [], splitParties: [] };
   // parties: [{ id, businessId, name, kind: 'customer'|'vendor'|'both', createdAt }]
@@ -8330,6 +8356,7 @@
           cashAccounts: Array.isArray(d.cashAccounts) ? d.cashAccounts : [],
           accountGroups: Array.isArray(d.accountGroups) ? d.accountGroups : [],
           auditExpenses: Array.isArray(d.auditExpenses) ? d.auditExpenses : [],
+          expenseRates: Array.isArray(d.expenseRates) ? d.expenseRates : [],
           quickLook: Array.isArray(d.quickLook) ? d.quickLook : [],
           announcements: Array.isArray(d.announcements) ? d.announcements : [],
           transfers: Array.isArray(d.transfers) ? d.transfers : [],
@@ -14376,16 +14403,44 @@
   // Shape: { 'YYYY-MM': { currency, rate }, ... }
   const MONTH_RATE_KEY = 'hisabs_month_rate_snaps_v1';
   function _monthRateSnaps(bizId) {
+    // v89.32.69: per-month rate/currency snapshots are now cloud-synced via
+    // the business row (biz.monthRateSnaps), so viewing an old month shows the
+    // rate/currency saved THAT month on any device. Falls back to the legacy
+    // localStorage copy when the synced field is absent (older rows / offline).
+    try {
+      const biz = data.businesses.find(b => b.id === bizId);
+      if (biz && biz.monthRateSnaps && typeof biz.monthRateSnaps === 'object') {
+        return biz.monthRateSnaps;
+      }
+    } catch (_) {}
     try {
       const all = JSON.parse(localStorage.getItem(MONTH_RATE_KEY) || '{}');
       return all[bizId] || {};
     } catch (_) { return {}; }
   }
   function _saveMonthRateSnaps(bizId, snaps) {
+    // Always keep the localStorage copy (offline / fallback).
     try {
       const all = JSON.parse(localStorage.getItem(MONTH_RATE_KEY) || '{}');
       all[bizId] = snaps;
       localStorage.setItem(MONTH_RATE_KEY, JSON.stringify(all));
+    } catch (_) {}
+    // v89.32.69: mirror onto the business row so the snapshots sync across
+    // devices. Owner only (matches the distribution write rule); non-owners
+    // read the owner's synced snapshots. Requires the month_rate_snaps column
+    // (v89.32.69 migration). Only queue a sync when the value actually changed.
+    try {
+      if (roleFor(bizId) === 'owner') {
+        const biz = data.businesses.find(b => b.id === bizId);
+        if (biz) {
+          const prev = JSON.stringify(biz.monthRateSnaps || {});
+          const next = JSON.stringify(snaps || {});
+          if (prev !== next) {
+            biz.monthRateSnaps = snaps;
+            saveData(); // queues the business row for cloud sync
+          }
+        }
+      }
     } catch (_) {}
   }
 
@@ -14467,6 +14522,23 @@
       try { _persistDistribution(); } catch (_) {}
     }, 700);
   }
+  // v89.32.67: local-ONLY debounced persist for typing in salaries/shares.
+  // Writes to localStorage (so a typed-but-unsaved row survives a re-render)
+  // WITHOUT _syncDistributionArrays — i.e. no cloud queue. Cloud sync is
+  // deferred to the explicit Save (saveDistSalaryRow / saveDistShareRow →
+  // _persistDistribution). Stops per-keystroke cloud writes.
+  function _persistDistributionLocalDebounced() {
+    if (__distPersistTimer) clearTimeout(__distPersistTimer);
+    __distPersistTimer = setTimeout(() => {
+      __distPersistTimer = null;
+      try {
+        saveDistributionStateFor(session.activeBizId, {
+          salaries: __distSalaries,
+          shares: __distShares,
+        });
+      } catch (_) {}
+    }, 700);
+  }
   function _flushDistPersist() {
     if (__distPersistTimer) { clearTimeout(__distPersistTimer); __distPersistTimer = null; }
     try { _persistDistribution(); } catch (_) {}
@@ -14477,6 +14549,28 @@
     __splitPersistTimer = setTimeout(() => {
       __splitPersistTimer = null;
       try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+    }, 700);
+  }
+  // v89.32.67: local-ONLY debounced persist for typing. Writes the split state
+  // to localStorage so a typed-but-unsaved party survives a re-render, WITHOUT
+  // mirroring to data.splitParties / queuing a cloud sync. Cloud sync is
+  // deferred to the explicit Save (saveSplitPartyRow → saveSplitStateFor).
+  function _persistSplitLocalDebounced() {
+    if (__splitPersistTimer) clearTimeout(__splitPersistTimer);
+    __splitPersistTimer = setTimeout(() => {
+      __splitPersistTimer = null;
+      try {
+        const raw = localStorage.getItem(SPLIT_STATE_KEY);
+        const all = raw ? JSON.parse(raw) : {};
+        all[session.activeBizId] = {
+          pct: __splitPct,
+          currency: __splitCurrency,
+          rate: __splitRate,
+          parties: __splitParties,
+          selectedPartyId: __splitSelectedPartyId,
+        };
+        localStorage.setItem(SPLIT_STATE_KEY, JSON.stringify(all));
+      } catch (_) {}
     }, 700);
   }
   function _flushSplitPersist() {
@@ -14914,10 +15008,9 @@
       try { refreshDistributionTotals(); } catch (_) {}
       // v89.32.49: persist DEBOUNCED so we don't sync on every keystroke
       // (that caused the realtime echo -> re-render -> keyboard jump). The
-      // row object is already updated above, so nothing is lost; the
-      // localStorage+cloud persist fires ~700ms after typing stops (and on
-      // blur / Save).
-      try { _persistDistributionDebounced(); } catch (_) {}
+      // row object is already updated above, so nothing is lost.
+      // v89.32.67: LOCAL-ONLY while typing — cloud sync is deferred to Save.
+      try { _persistDistributionLocalDebounced(); } catch (_) {}
     }
   }
   function saveDistSalaryRow(id) {
@@ -14995,8 +15088,8 @@
       }
       else if (field === 'note') row.note = String(value || '').slice(0, 280);
       try { refreshDistributionTotals(); } catch (_) {}
-      // v89.32.49: debounced persist (no per-keystroke sync → no keyboard jump)
-      try { _persistDistributionDebounced(); } catch (_) {}
+      // v89.32.67: LOCAL-ONLY while typing — cloud sync deferred to Save.
+      try { _persistDistributionLocalDebounced(); } catch (_) {}
     }
   }
   function saveDistShareRow(id) {
@@ -16021,7 +16114,11 @@
         if (value === '' || value === null) party.pct = 0;
         else { const n = Number(value); party.pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
       }
-      try { _persistSplitDebounced(); } catch (_) {}
+      // v89.32.67: typing persists LOCALLY only (durable across re-render /
+      // navigation) but does NOT sync to the cloud. Cloud sync happens when
+      // the Save button is pressed (saveSplitPartyRow → saveSplitStateFor →
+      // _syncSplitPartiesArray). This stops per-keystroke cloud writes.
+      try { _persistSplitLocalDebounced(); } catch (_) {}
       // Refresh only the math UI — never rebuild the inputs (would break typing).
       try { updateSplitCalcMathOnly(); } catch (_) {}
     }
@@ -16271,48 +16368,60 @@
     if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can manage audit data.'); return; }
     const desc = validateDescription(document.getElementById('mAuditDesc')?.value);
     if (desc === null) return;
-    const amt = validateAmount(document.getElementById('mAuditAmt')?.value);
-    if (amt === null) return;
-    // The new date input — falls back to today if missing (e.g. on the
-    // legacy code path that doesn't render the date field yet).
     const dateInput = document.getElementById('mAuditDate')?.value;
     const expenseDateStr = dateInput || today();
     if (!/^\d{4}-\d{2}-\d{2}$/.test(expenseDateStr)) { toast('Enter a valid date.'); return; }
-    // Optional quantity. Blank = not specified. Must be positive when
-    // present. Numeric (not integer) so fractional units work
-    // (e.g. "1.5 kg sugar").
+    // v89.32.68: optional quantity. Blank = not specified. May be NEGATIVE
+    // (e.g. a return/correction → negative amount). Numeric (fractional ok).
     const qtyRaw = document.getElementById('mAuditQty')?.value;
     let qty = null;
     if (qtyRaw != null && String(qtyRaw).trim() !== '') {
       const qn = Number(qtyRaw);
-      if (!Number.isFinite(qn) || qn <= 0 || qn > 1e9) { toast('Invalid quantity.'); return; }
+      if (!Number.isFinite(qn) || Math.abs(qn) > 1e9) { toast('Invalid quantity.'); return; }
       qty = qn;
     }
-    // v56: optional note — free-form context for this specific
-    // addition. Survives auto-merge into the group (each child keeps
-    // its own note; the group card shows them stacked).
+    // v89.32.68: optional rate. If provided (or auto-found from the rate book
+    // by name), amount = qty × rate. The rate field falls back to the saved
+    // rate for this name when left blank.
+    const rateRaw = document.getElementById('mAuditRate')?.value;
+    let rate = null;
+    if (rateRaw != null && String(rateRaw).trim() !== '') {
+      const rn = Number(rateRaw);
+      if (!Number.isFinite(rn) || Math.abs(rn) > 1e9) { toast('Invalid rate.'); return; }
+      rate = rn;
+    } else {
+      const booked = _expenseRateFor(desc);
+      if (booked != null) rate = booked;
+    }
+    // Determine the amount. If qty AND rate are present, amount = qty × rate
+    // (may be negative when qty is negative). Otherwise read the Amount field.
+    let amt;
+    if (qty != null && rate != null) {
+      amt = +(qty * rate).toFixed(2);
+    } else {
+      const amtRaw = document.getElementById('mAuditAmt')?.value;
+      const an = (amtRaw === '' || amtRaw == null) ? NaN : Number(amtRaw);
+      if (!Number.isFinite(an) || an === 0) { toast('Enter a valid amount (or qty + rate).'); return; }
+      if (Math.abs(an) > LIMITS.amount) { toast(`Amount too large (max ${LIMITS.amount.toExponential(0)}).`); return; }
+      amt = an;
+    }
+    if (Math.abs(amt) > LIMITS.amount) { toast(`Amount too large.`); return; }
     const noteRaw = document.getElementById('mAuditNote')?.value || '';
     const note = noteRaw.trim().slice(0, 500);
     data.auditExpenses.push({
       id: uid(),
       businessId: biz.id,
-      // Keep `month` for backward compatibility with cloud rows that
-      // still expect it; `date` is the canonical field going forward.
       month: expenseDateStr.slice(0, 7),
       date: expenseDateStr,
       description: desc,
       amount: amt,
       qty,
+      rate: rate != null ? rate : undefined,
       note: note || undefined,
       createdAt: Date.now(),
     });
     saveData();
-    // v89.32.29: full re-render (not just the content area) so the
-    // Net profit (after tax) hero — on Audit AND Distribution — reflects
-    // the new expense immediately, in real time, without a refresh.
     renderAll();
-    // Different toast when merging into existing group vs creating
-    // a new one — helps the user see auto-merge is happening.
     const norm = desc.trim().toLowerCase();
     const matchCount = data.auditExpenses.filter(x =>
       x.businessId === biz.id && (x.description || '').trim().toLowerCase() === norm
@@ -16322,6 +16431,152 @@
     } else {
       toast('Expense added.');
     }
+  }
+
+  // v89.32.68: look up a saved rate for an expense name (case-insensitive).
+  // Returns the numeric rate or null if no rate is booked for that name.
+  function _expenseRateFor(name) {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return null;
+    const key = String(name || '').trim().toLowerCase();
+    if (!key) return null;
+    const hit = (data.expenseRates || []).find(r =>
+      r.businessId === biz.id && String(r.name || '').trim().toLowerCase() === key);
+    return hit ? Number(hit.rate) || 0 : null;
+  }
+
+  // When typing the description, if a rate is booked for that name, prefill
+  // the Rate field (only if the user hasn't typed their own rate) and recompute.
+  function onAuditDescInput(v) {
+    const rateInp = document.getElementById('mAuditRate');
+    if (!rateInp) return;
+    if (rateInp.dataset.useredited === '1') { recalcAuditAmount(); return; }
+    const booked = _expenseRateFor(v);
+    rateInp.value = (booked != null) ? booked : '';
+    recalcAuditAmount();
+  }
+
+  // Recompute the Amount field = qty × rate when both are present. Leaves the
+  // Amount editable; if qty or rate is blank, does not overwrite a manual amount.
+  function recalcAuditAmount() {
+    const qtyInp = document.getElementById('mAuditQty');
+    const rateInp = document.getElementById('mAuditRate');
+    const amtInp = document.getElementById('mAuditAmt');
+    if (!amtInp) return;
+    if (rateInp && document.activeElement === rateInp) rateInp.dataset.useredited = '1';
+    const q = qtyInp && String(qtyInp.value).trim() !== '' ? Number(qtyInp.value) : null;
+    const r = rateInp && String(rateInp.value).trim() !== '' ? Number(rateInp.value) : null;
+    if (q != null && r != null && Number.isFinite(q) && Number.isFinite(r)) {
+      amtInp.value = +(q * r).toFixed(2);
+    }
+  }
+
+  // ---- Rate book CRUD ---------------------------------------------------
+  // The rate book is a per-business list of { id, businessId, name, rate }.
+  // Owner edits via the Add/Edit Rate modal; saved all at once; syncs to cloud.
+  function openExpenseRateEditor() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz) return;
+    if (!canManageExpenses(biz.id)) { toast('Only the owner can edit rates.'); return; }
+    openModal('expenseRateEdit');
+  }
+  function openExpenseRateView() {
+    openModal('expenseRateView');
+  }
+  function expenseRateEditModal() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    const rows = (data.expenseRates || []).filter(r => r.businessId === biz.id)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const rowHtml = (r) => `<div class="rate-edit-row" data-rate-id="${escapeHtml(r.id)}">
+        <input type="text" class="rate-edit-name" maxlength="120" placeholder="Name" value="${escapeHtml(r.name || '')}">
+        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate" value="${(r.rate != null && r.rate !== '') ? escapeHtml(String(r.rate)) : ''}">
+        <button class="icon-btn-light" onclick="this.closest('.rate-edit-row').remove()" title="Remove" aria-label="Remove">✕</button>
+      </div>`;
+    const existing = rows.map(rowHtml).join('');
+    return `<div class="modal-card rate-edit-modal">
+      <div class="modal-head"><h2>Add / Edit Rate</h2></div>
+      <p class="rate-edit-sub">Name a rate (e.g. Sugar = 120). When you add an expense with that name, the rate is applied automatically (amount = qty × rate).</p>
+      <div id="rateEditList" class="rate-edit-list">${existing}</div>
+      <button class="btn btn-sm btn-ghost rate-edit-addbtn" onclick="addExpenseRateRow()">+ Add another</button>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-accent" onclick="saveExpenseRates()">Save</button>
+      </div>
+    </div>`;
+  }
+  function addExpenseRateRow() {
+    const list = document.getElementById('rateEditList');
+    if (!list) return;
+    const div = document.createElement('div');
+    div.className = 'rate-edit-row';
+    div.innerHTML = `<input type="text" class="rate-edit-name" maxlength="120" placeholder="Name">
+        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate">
+        <button class="icon-btn-light" onclick="this.closest('.rate-edit-row').remove()" title="Remove" aria-label="Remove">✕</button>`;
+    list.appendChild(div);
+    div.querySelector('.rate-edit-name')?.focus();
+  }
+  function saveExpenseRates() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can edit rates.'); return; }
+    const rowsEls = Array.from(document.querySelectorAll('#rateEditList .rate-edit-row'));
+    const next = [];
+    const seen = new Set();
+    for (const el of rowsEls) {
+      const name = (el.querySelector('.rate-edit-name')?.value || '').trim().slice(0, 120);
+      const rateRaw = el.querySelector('.rate-edit-rate')?.value;
+      if (!name) continue; // skip blank-name rows
+      const rate = Number(rateRaw);
+      if (!Number.isFinite(rate)) { toast(`Enter a valid rate for "${name}".`); return; }
+      const key = name.toLowerCase();
+      if (seen.has(key)) { toast(`Duplicate name "${name}". Keep one.`); return; }
+      seen.add(key);
+      // reuse existing id for this business+name if present (stable id → clean sync)
+      const existing = (data.expenseRates || []).find(r =>
+        r.businessId === biz.id && String(r.name || '').trim().toLowerCase() === key);
+      next.push({
+        id: existing ? existing.id : uid(),
+        businessId: biz.id,
+        name,
+        rate,
+        createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      });
+    }
+    // Replace this business's rate rows; delete-sync any that were removed.
+    const prev = (data.expenseRates || []).filter(r => r.businessId === biz.id);
+    const nextIds = new Set(next.map(r => r.id));
+    const removed = prev.filter(r => !nextIds.has(r.id));
+    data.expenseRates = (data.expenseRates || []).filter(r => r.businessId !== biz.id).concat(next);
+    saveData(); // queues upserts for the kept rows
+    // direct cloud-delete for removed rows (best effort; owner only)
+    try {
+      if (__syncEnabled && __syncEnabled()) {
+        for (const r of removed) {
+          sb().from('app_expense_rates').delete().eq('id', r.id);
+        }
+      }
+    } catch (_) {}
+    closeModal();
+    renderAll();
+    toast('Rates saved.');
+  }
+  function expenseRateViewModal() {
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    const cur = currencyDisplay(biz ? biz.currency : '');
+    const rows = (data.expenseRates || []).filter(r => r.businessId === biz.id)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    const body = rows.length
+      ? rows.map(r => `<div class="rate-view-row">
+          <span class="rate-view-name">${escapeHtml(r.name || '—')}</span>
+          <span class="rate-view-rate">${cur} ${fmt(Number(r.rate) || 0)}</span>
+        </div>`).join('')
+      : '<div class="rate-view-empty">No rates added yet.</div>';
+    return `<div class="modal-card rate-view-modal">
+      <div class="modal-head"><h2>View Rate</h2></div>
+      <div class="rate-view-list">${body}</div>
+      <div class="modal-actions">
+        <button class="btn btn-accent" onclick="closeModal()">Close</button>
+      </div>
+    </div>`;
   }
   async function deleteAuditExpense(id) {
     const x = data.auditExpenses.find(e => e.id === id);
@@ -19840,14 +20095,22 @@
     // submission creates a new row but the list view groups them.
     // v56: added optional "Note" field for free-form context on each
     // individual addition (e.g. "Rent — paid in advance").
-    const addRow = canEditExpenses ? `<div class="audit-exp-add audit-exp-add-qty">
-        <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
-        <input type="number" id="mAuditQty" placeholder="Qty (optional)" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
-        <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" min="0" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
+    const addRow = canEditExpenses ? `<div class="audit-exp-add audit-exp-add-qty audit-exp-add-rate">
+        <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" oninput="onAuditDescInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
+        <input type="number" id="mAuditQty" placeholder="Qty (optional, − ok)" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditRate').focus();}">
+        <input type="number" id="mAuditRate" placeholder="Rate (optional)" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
+        <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
         <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
         <input type="text" id="mAuditNote" maxlength="500" placeholder="Note (optional)" class="audit-exp-add-note" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
         <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
       </div>` : '';
+
+    // v89.32.68: Rate book actions — owner can Add/Edit the named rates;
+    // anyone who can see expenses can View them (read-only).
+    const rateActions = `<div class="audit-rate-actions">
+        ${canEditExpenses ? `<button class="btn btn-sm btn-ghost" onclick="openExpenseRateEditor()">Add/Edit Rate</button>` : ''}
+        <button class="btn btn-sm btn-ghost" onclick="openExpenseRateView()">View Rate</button>
+      </div>`;
 
     // Add the visual PDF / print action to the page header — same row
     // as the existing CSV/PDF export icon button.
@@ -19876,6 +20139,7 @@
       <div class="audit-section">
         <h2 class="audit-section-title">Expenses for ${escapeHtml(rangeLabel)}</h2>
         <p class="audit-section-sub">Typing an existing expense name adds to it automatically. Tap any expense to see all individual additions with dates.</p>
+        ${rateActions}
         ${addRow}
         <div class="audit-exp-list">${expenseList}</div>
       </div>
@@ -20804,6 +21068,11 @@
       if (!canManageBusiness(session.activeBizId)) { toast('Only the owner can manage the team.'); return; }
       modal.innerHTML = staffModal();
     } else if (kind === 'period') { modal.innerHTML = periodModal(); }
+    else if (kind === 'expenseRateEdit') {
+      modal.innerHTML = expenseRateEditModal();
+      setTimeout(() => document.querySelector('#rateEditList .rate-edit-name')?.focus(), 50);
+    }
+    else if (kind === 'expenseRateView') { modal.innerHTML = expenseRateViewModal(); }
     else if (kind === 'distHistory') { modal.innerHTML = distHistoryModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
     else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
@@ -29242,6 +29511,7 @@
         cashAccounts: arr(p.data.cashAccounts),
         accountGroups: arr(p.data.accountGroups),
         auditExpenses: arr(p.data.auditExpenses),
+        expenseRates: arr(p.data.expenseRates),
         quickLook: arr(p.data.quickLook),
         announcements: arr(p.data.announcements),
       };
@@ -32337,6 +32607,7 @@
         members: data.members.map(cloneShallow),
         entries: data.entries.map(cloneShallow),
         auditExpenses: data.auditExpenses.map(cloneShallow),
+        expenseRates: (data.expenseRates||[]).map(cloneShallow),
         quickLook: (data.quickLook || []).map(cloneShallow),
         announcements: (data.announcements || []).map(cloneShallow),
         transfers: (data.transfers || []).map(cloneShallow),
@@ -32916,6 +33187,9 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_split_parties' },
           (payload) => onRealtimeEvent('splitParties', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_expense_rates' },
+          (payload) => onRealtimeEvent('expenseRates', payload))
         .subscribe((status) => {
           // v88: guard against stale callbacks. If our channel ref was
           // cleared (stopRealtimeListener ran) or swapped (rapid stop/
@@ -33991,6 +34265,10 @@
         // split_currency / split_rate columns (v89.32.33 migration).
         split_currency: typeof r.splitCurrency === 'string' ? r.splitCurrency : '',
         split_rate: Number(r.splitRate) || 0,
+        // v89.32.69: per-month rate/currency snapshots (JSON map keyed by
+        // 'YYYY-MM'). Lets History show the rate/currency saved THAT month on
+        // any device. Requires the month_rate_snaps jsonb column (v89.32.69).
+        month_rate_snaps: (r.monthRateSnaps && typeof r.monthRateSnaps === 'object') ? r.monthRateSnaps : {},
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -34004,6 +34282,8 @@
         // v89.32.33: tolerate the columns being absent on older rows.
         splitCurrency: typeof r.split_currency === 'string' ? r.split_currency : '',
         splitRate: Number(r.split_rate) || 0,
+        // v89.32.69: tolerate the column being absent on older rows (→ {}).
+        monthRateSnaps: (r.month_rate_snaps && typeof r.month_rate_snaps === 'object') ? r.month_rate_snaps : {},
         createdAt: r.created_at_local || '',
       }),
     },
@@ -34185,6 +34465,21 @@
         qty: (r.qty === null || r.qty === undefined) ? null : Number(r.qty),
         note: r.note || undefined,
         createdAt: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+      }),
+    },
+    expenseRates: {
+      table: 'app_expense_rates',
+      toDb: (r) => ({
+        id: r.id, business_id: r.businessId,
+        name: r.name || '',
+        rate: Number(r.rate) || 0,
+        created_at_local: r.createdAt || null,
+      }),
+      fromDb: (r) => ({
+        id: r.id, businessId: r.business_id,
+        name: r.name || '',
+        rate: Number(r.rate) || 0,
+        createdAt: r.created_at_local || '',
       }),
     },
     quickLook: {
@@ -34375,7 +34670,7 @@
   // Push order matters because of foreign keys: parents before children.
   const cloudPushOrder = [
     'businesses', 'books', 'accountGroups', 'cashAccounts',
-    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'quickLook', 'announcements', 'transfers',
+    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'expenseRates', 'quickLook', 'announcements', 'transfers',
     // v89.6: distribution sync — businesses must come first because of FK
     'distSalaries', 'distShares', 'splitParties',
   ];
@@ -34584,6 +34879,7 @@
       } catch (_) {}
       data.entries       = mergeWithPending('entries',       fetched.entries,       data.entries);
       data.auditExpenses = mergeWithPending('auditExpenses', fetched.auditExpenses, data.auditExpenses);
+      data.expenseRates = mergeWithPending('expenseRates', fetched.expenseRates, data.expenseRates);
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
       data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       data.transfers     = mergeWithPending('transfers',     fetched.transfers,     data.transfers);
