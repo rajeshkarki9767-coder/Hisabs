@@ -12,6 +12,29 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.70
+
+Expense rate is now a percentage; removed "optional" wording; salaries/shares/parties no longer sync on blur (only on Save).
+
+### Hash
+`da5e6f953fba3d8026205583449289ba`
+
+### Changes
+1. **Rate is a percentage.** Expense amount = qty × (rate ÷ 100). Placeholders updated (Qty, Rate %), rate book editor + View Rate show %. e.g. qty 1000 × 15% = 150.
+2. **Removed "(optional)" wording** from the Qty/Rate fields.
+3. **Sync only on Save (blur fix).** A focusout handler was flushing distribution + party edits to the CLOUD when a field lost focus — so tabbing/clicking away synced unsaved edits to the other device. Blur now flushes to localStorage ONLY; cloud sync stays deferred to the Save button. (New _flushDistPersistLocal / _flushSplitPersistLocal.)
+
+### Still investigating (needs runtime diagnostic)
+- 2nd party add + delete glitch. First party works; second add/delete glitches. Traced to the per-month party load/echo path; requires the console diagnostic (see notes) to fix precisely rather than speculatively.
+
+### Verified
+Rate% calc 3/3 (incl. negative); self-test 63/63; JS valid; CSS 2218/2218; no undefined handlers; blur now local-only.
+
+### Requires real-device/runtime verification
+Rate-as-% on expenses; no cross-device update until Save (incl. on blur); rate book shows %.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.69
 
 Per-month rate/currency snapshots now sync to the cloud. Viewing an old month on any device shows that month's saved rate, currency, AND parties — never the current values.

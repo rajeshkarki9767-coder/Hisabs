@@ -7468,7 +7468,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.69';
+  const BUILD_TAG = '2026.05.21.70';
 
   // ================================================================
   // STORAGE
@@ -8124,16 +8124,16 @@
   document.addEventListener('focusout', (e) => {
     const target = e.target;
     if (!target || !target.tagName) return;
-    // v89.32.49: when a distribution/split input loses focus, flush any
-    // pending debounced persist immediately so leaving a field commits the
-    // value to localStorage + cloud right away (no data loss if the user
-    // navigates away before the 700ms debounce fires).
+    // v89.32.70: when a distribution/split input loses focus, flush the
+    // pending value to localStorage ONLY (no cloud sync). Cloud sync is
+    // deferred to the Save button, so tabbing/clicking away no longer pushes
+    // unsaved edits to the other device.
     try {
       if (target.closest && (target.closest('.dist-row-card') || target.closest('.dist-salary-row') || target.closest('.dist-share-row'))) {
-        _flushDistPersist();
+        _flushDistPersistLocal();
       }
       if (target.closest && target.closest('.split-party-row')) {
-        _flushSplitPersist();
+        _flushSplitPersistLocal();
       }
     } catch (_) {}
     // Defer removal so a focus shift between inputs in the same modal
@@ -14543,6 +14543,17 @@
     if (__distPersistTimer) { clearTimeout(__distPersistTimer); __distPersistTimer = null; }
     try { _persistDistribution(); } catch (_) {}
   }
+  // v89.32.70: local-only flush — used on blur so leaving a field commits to
+  // localStorage WITHOUT a cloud sync. Cloud sync stays deferred to Save.
+  function _flushDistPersistLocal() {
+    if (__distPersistTimer) { clearTimeout(__distPersistTimer); __distPersistTimer = null; }
+    try {
+      saveDistributionStateFor(session.activeBizId, {
+        salaries: __distSalaries,
+        shares: __distShares,
+      });
+    } catch (_) {}
+  }
   let __splitPersistTimer = null;
   function _persistSplitDebounced() {
     if (__splitPersistTimer) clearTimeout(__splitPersistTimer);
@@ -14576,6 +14587,23 @@
   function _flushSplitPersist() {
     if (__splitPersistTimer) { clearTimeout(__splitPersistTimer); __splitPersistTimer = null; }
     try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+  }
+  // v89.32.70: local-only split flush for blur — localStorage only, no cloud
+  // sync (cloud sync deferred to the party Save button).
+  function _flushSplitPersistLocal() {
+    if (__splitPersistTimer) { clearTimeout(__splitPersistTimer); __splitPersistTimer = null; }
+    try {
+      const raw = localStorage.getItem(SPLIT_STATE_KEY);
+      const all = raw ? JSON.parse(raw) : {};
+      all[session.activeBizId] = {
+        pct: __splitPct,
+        currency: __splitCurrency,
+        rate: __splitRate,
+        parties: __splitParties,
+        selectedPartyId: __splitSelectedPartyId,
+      };
+      localStorage.setItem(SPLIT_STATE_KEY, JSON.stringify(all));
+    } catch (_) {}
   }
 
   // v89.32.40: belt-and-suspenders direct cloud delete. The normal path is
@@ -16397,7 +16425,7 @@
     // (may be negative when qty is negative). Otherwise read the Amount field.
     let amt;
     if (qty != null && rate != null) {
-      amt = +(qty * rate).toFixed(2);
+      amt = +(qty * (rate / 100)).toFixed(2); // v89.32.70: rate is a percentage
     } else {
       const amtRaw = document.getElementById('mAuditAmt')?.value;
       const an = (amtRaw === '' || amtRaw == null) ? NaN : Number(amtRaw);
@@ -16467,7 +16495,7 @@
     const q = qtyInp && String(qtyInp.value).trim() !== '' ? Number(qtyInp.value) : null;
     const r = rateInp && String(rateInp.value).trim() !== '' ? Number(rateInp.value) : null;
     if (q != null && r != null && Number.isFinite(q) && Number.isFinite(r)) {
-      amtInp.value = +(q * r).toFixed(2);
+      amtInp.value = +(q * (r / 100)).toFixed(2); // v89.32.70: rate is a percentage
     }
   }
 
@@ -16489,13 +16517,13 @@
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
     const rowHtml = (r) => `<div class="rate-edit-row" data-rate-id="${escapeHtml(r.id)}">
         <input type="text" class="rate-edit-name" maxlength="120" placeholder="Name" value="${escapeHtml(r.name || '')}">
-        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate" value="${(r.rate != null && r.rate !== '') ? escapeHtml(String(r.rate)) : ''}">
+        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate %" value="${(r.rate != null && r.rate !== '') ? escapeHtml(String(r.rate)) : ''}">
         <button class="icon-btn-light" onclick="this.closest('.rate-edit-row').remove()" title="Remove" aria-label="Remove">✕</button>
       </div>`;
     const existing = rows.map(rowHtml).join('');
     return `<div class="modal-card rate-edit-modal">
       <div class="modal-head"><h2>Add / Edit Rate</h2></div>
-      <p class="rate-edit-sub">Name a rate (e.g. Sugar = 120). When you add an expense with that name, the rate is applied automatically (amount = qty × rate).</p>
+      <p class="rate-edit-sub">Name a rate % (e.g. Tax = 13). When you add an expense with that name, the rate is applied automatically (amount = qty × rate%).</p>
       <div id="rateEditList" class="rate-edit-list">${existing}</div>
       <button class="btn btn-sm btn-ghost rate-edit-addbtn" onclick="addExpenseRateRow()">+ Add another</button>
       <div class="modal-actions">
@@ -16510,7 +16538,7 @@
     const div = document.createElement('div');
     div.className = 'rate-edit-row';
     div.innerHTML = `<input type="text" class="rate-edit-name" maxlength="120" placeholder="Name">
-        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate">
+        <input type="number" class="rate-edit-rate" step="0.01" inputmode="decimal" placeholder="Rate %">
         <button class="icon-btn-light" onclick="this.closest('.rate-edit-row').remove()" title="Remove" aria-label="Remove">✕</button>`;
     list.appendChild(div);
     div.querySelector('.rate-edit-name')?.focus();
@@ -16567,7 +16595,7 @@
     const body = rows.length
       ? rows.map(r => `<div class="rate-view-row">
           <span class="rate-view-name">${escapeHtml(r.name || '—')}</span>
-          <span class="rate-view-rate">${cur} ${fmt(Number(r.rate) || 0)}</span>
+          <span class="rate-view-rate">${fmt(Number(r.rate) || 0)}%</span>
         </div>`).join('')
       : '<div class="rate-view-empty">No rates added yet.</div>';
     return `<div class="modal-card rate-view-modal">
@@ -20097,8 +20125,8 @@
     // individual addition (e.g. "Rent — paid in advance").
     const addRow = canEditExpenses ? `<div class="audit-exp-add audit-exp-add-qty audit-exp-add-rate">
         <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" oninput="onAuditDescInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
-        <input type="number" id="mAuditQty" placeholder="Qty (optional, − ok)" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditRate').focus();}">
-        <input type="number" id="mAuditRate" placeholder="Rate (optional)" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
+        <input type="number" id="mAuditQty" placeholder="Qty" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditRate').focus();}">
+        <input type="number" id="mAuditRate" placeholder="Rate %" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
         <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
         <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
         <input type="text" id="mAuditNote" maxlength="500" placeholder="Note (optional)" class="audit-exp-add-note" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
