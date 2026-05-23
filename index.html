@@ -7369,7 +7369,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.37';
+  const BUILD_TAG = '2026.05.21.38';
 
   // ================================================================
   // STORAGE
@@ -13974,6 +13974,84 @@
     } catch (_) { /* queued delete op remains as the fallback */ }
   }
 
+  // v89.32.45: one-tap reset of ALL distribution data for the active
+  // business — team salaries, profit shares, split parties, and the
+  // currency/rate. Owner only. Order matters so the wipe sticks:
+  //   1. confirm
+  //   2. clear LOCAL state first (so nothing re-pushes a cached copy)
+  //   3. persist locally + queue the sync diff (emits deletes)
+  //   4. directly delete the cloud rows for this business + reset the
+  //      business currency/rate columns (belt-and-suspenders, owner-only)
+  //   5. re-render the Distribution view
+  async function resetAllDistributionData() {
+    const bizId = session.activeBizId;
+    if (!bizId) return;
+    if (roleFor(bizId) !== 'owner') {
+      try { toast('Only the business owner can reset distribution data.'); } catch (_) {}
+      return;
+    }
+    const ok = await uiConfirm(
+      'This permanently clears ALL team salaries, profit shares, parties, and the currency/rate for this business — on every device. This cannot be undone. Continue?',
+      { title: 'Reset distribution data', confirmLabel: 'Reset everything', danger: true }
+    );
+    if (!ok) return;
+
+    // Capture ids BEFORE clearing, for the direct cloud delete.
+    const salIds = (__distSalaries || []).map(r => r.id);
+    const shrIds = (__distShares || []).map(r => r.id);
+    const partyIds = (__splitParties || []).map(p => p.id);
+
+    // 1) Clear local module state.
+    __distSalaries = [];
+    __distShares = [];
+    __splitParties = [];
+    __splitSelectedPartyId = '';
+    __splitCurrency = '';
+    __splitRate = 0;
+    __splitPct = 100;
+
+    // 2) Clear the business currency/rate locally.
+    try {
+      const biz = data.businesses.find(b => b.id === bizId);
+      if (biz) { biz.splitCurrency = ''; biz.splitRate = 0; }
+    } catch (_) {}
+
+    // 3) Persist locally + push the cleared arrays through the sync diff
+    //    (this emits delete ops for the now-missing rows, and an upsert for
+    //    the business with cleared currency/rate).
+    try {
+      saveDistributionStateFor(bizId, { salaries: [], shares: [] });
+      _syncDistributionArrays(bizId);
+      _syncSplitPartiesArray(bizId);
+      saveSplitStateFor(bizId);
+      saveData();
+    } catch (_) {}
+
+    // 4) Direct cloud delete (owner-only) so the wipe is immediate and not
+    //    dependent on the queue draining. Best-effort; queued ops are the
+    //    fallback if any of these fail (offline etc.).
+    try {
+      if (__syncEnabled && __syncEnabled()) {
+        if (salIds.length)   await sb().from('app_distribution_salaries').delete().in('id', salIds);
+        if (shrIds.length)   await sb().from('app_distribution_shares').delete().in('id', shrIds);
+        if (partyIds.length) await sb().from('app_split_parties').delete().in('id', partyIds);
+        // Reset currency/rate columns on the business row directly.
+        await sb().from('app_businesses')
+          .update({ split_currency: '', split_rate: 0 })
+          .eq('id', bizId);
+        try { [...salIds, ...shrIds, ...partyIds].forEach(id => _markSelfWrite(id)); } catch (_) {}
+      }
+    } catch (_) { /* queued ops remain as fallback */ }
+
+    try { toast('Distribution data reset.'); } catch (_) {}
+
+    // 5) Re-render.
+    if (session.view === 'distribution') {
+      const root = document.getElementById('mainContent');
+      if (root) renderDistributionView(root);
+    }
+  }
+
   // v89.6: write current __distSalaries / __distShares to data arrays
   // scoped to the active business. saveData() then queues sync ops to
   // Supabase. If Supabase is offline, localStorage is the fallback.
@@ -16178,6 +16256,7 @@
         <div class="page-actions">
           ${printIconButton()}
           ${exportIconButton('distribution')}
+          ${roleFor(session.activeBizId) === 'owner' ? `<button class="btn btn-sm btn-danger-outline" onclick="resetAllDistributionData()" title="Clear all team salaries, profit shares, parties, and currency/rate for this business">Reset distribution</button>` : ''}
         </div>
       </div>
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>

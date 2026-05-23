@@ -12,6 +12,28 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.38
+
+New: one-tap "Reset distribution" button.
+
+### Hash
+`f9427c27765619210b956bb67bccddfe`
+
+### Changes
+Added a **Reset distribution** button to the Distribution page header (owner only). One tap clears, for the active business: all team salaries, all profit shares, all split parties, and the currency/rate — locally AND in the cloud, in the correct order so the wipe sticks:
+1. Confirmation prompt (destructive, can't be undone).
+2. Clears local state first (so no device re-pushes a cached copy).
+3. Persists the cleared state + pushes the sync diff (emits deletes).
+4. Directly deletes the cloud rows for this business and resets the business `split_currency`/`split_rate` columns (owner-only, best-effort; queued ops are the fallback).
+5. Re-renders the Distribution view to the clean empty state.
+
+No more manual SQL needed for a distribution reset.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced; no undefined handlers; function defined + wired owner-only; confirm-before-reset + local/cloud/currency clearing all confirmed.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.37
 
 Remove 11:59 notification; fix Edit Currency/Rate + party save; redesign "Split the Percentage" empty state.
