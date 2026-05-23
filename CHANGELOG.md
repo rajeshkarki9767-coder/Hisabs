@@ -12,6 +12,31 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.51
+
+FIX: deleted split party reappears.
+
+### Hash
+`44fccd2b1d348ea13c488eb9916ce1ca`
+
+### The bug
+Deleting a split party, then it comes back. Root cause: the party row left `__splitParties` and `data.splitParties`, and a cloud delete was fired — but the cloud row survives until that delete drains, so a sync pull or realtime echo re-added the party to `data.splitParties`, and the next render re-read it. Two gaps allowed the resurrection:
+1. `loadSplitPartiesFromCloudOrLocal` didn't honor pending DELETE ops (the salary/share loader does, via `_pendDel`) — so it re-read the still-present cloud party.
+2. The realtime INSERT/UPDATE handler re-added any echoed row unconditionally, even one with a queued delete.
+
+### Fix
+1. Party loader now drops any party id with a queued `app_split_parties` delete (`_pendDelParties`).
+2. The realtime handler now ignores an INSERT/UPDATE echo for any id that has a pending delete in the queue — the local delete is authoritative. (This also hardens salary/share deletes against the same echo.)
+The pull-merge already honored pending deletes generically by table (covers parties).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; both guards confirmed; pull-merge coverage confirmed.
+
+### Requires real-device/runtime verification
+Delete a saved party on-device and confirm it stays gone after the cloud delete drains + across devices.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.50
 
 Regression recheck: fix All Time localStorage-fallback edge case.

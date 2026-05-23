@@ -7385,7 +7385,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.50';
+  const BUILD_TAG = '2026.05.21.51';
 
   // ================================================================
   // STORAGE
@@ -14003,7 +14003,23 @@
       __splitSelectedPartyId = '';
       return;
     }
-    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId);
+    // v89.32.54: honor pending party DELETE ops (same fix as the salary/share
+    // loader's _pendDel). Without this, deleting a party then re-rendering
+    // re-reads data.splitParties — which still holds the row until the cloud
+    // delete drains (or a pull/realtime echo re-adds it) — so the deleted
+    // party REAPPEARS. Drop any party with a queued delete here too.
+    const _pendDelParties = (() => {
+      const s = new Set();
+      try {
+        for (const op of (__syncQueue || [])) {
+          if (op && op.kind === 'delete' && op.table === 'app_split_parties') {
+            s.add(op.recordId);
+          }
+        }
+      } catch (_) {}
+      return s;
+    })();
+    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id));
     if (cloudParties.length) {
       __splitParties = cloudParties.map(r => ({
         id: r.id, name: r.name, pct: r.pct,
@@ -33131,6 +33147,16 @@
       const restored = map.fromDb(newRow);
       const idx = list.findIndex(r => r.id === newRow.id);
       const isInsert = (idx === -1);
+      // v89.32.54: if we have a QUEUED DELETE for this id, the delete is
+      // authoritative — do NOT let a realtime INSERT/UPDATE echo (the cloud
+      // row still existing because our delete hasn't drained yet) re-add it.
+      // Without this, deleting a split party (or any row) then receiving the
+      // echo resurrected it on screen.
+      try {
+        if (__syncQueue && __syncQueue.some(op => op && op.kind === 'delete' && op.recordId === newRow.id)) {
+          return; // ignore the echo; our delete wins
+        }
+      } catch (_) {}
       // v89.32.23: if this is an UPDATE echo that's identical to what we
       // already hold (very common — it's the server echoing back our own
       // just-saved row), skip applying AND skip the re-render. A needless
