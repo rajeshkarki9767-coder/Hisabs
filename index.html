@@ -7385,7 +7385,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.45';
+  const BUILD_TAG = '2026.05.21.50';
 
   // ================================================================
   // STORAGE
@@ -11993,6 +11993,33 @@
     if (root && session.view === 'audit') renderAuditView(root);
   }
 
+  // v89.32.53: distribution-specific period bar. The generic renderPeriodBar
+  // (Today/Yesterday/etc.) doesn't fit distribution, which is month-based.
+  // Here: This Month · Last Month · All Time.
+  function renderDistPeriodBar() {
+    if (!session.activeBizId) return '';
+    const p = session.period || { mode: 'current' };
+    const cur = _currentDistMonth();
+    const t = today();
+    const [yyyy, mm] = t.split('-').map(Number);
+    const lastD = new Date(yyyy, mm - 2, 1);
+    const lastMonthKey = `${lastD.getFullYear()}-${String(lastD.getMonth() + 1).padStart(2, '0')}`;
+    const isCurrent = p.mode === 'current' || (p.mode === 'month' && p.monthKey === cur);
+    const isLast = p.mode === 'month' && p.monthKey === lastMonthKey;
+    const isAll = p.mode === 'all';
+    const isCustom = p.mode === 'month' && !isCurrent && !isLast;
+    const label = isAll ? 'All time (all months combined)'
+      : (p.mode === 'month' && p.monthKey ? monthLabel(p.monthKey) : monthLabel(cur));
+    return `<div class="period-bar">
+      <span class="period-bar-label">Showing</span>
+      <button class="period-tab ${isCurrent ? 'active' : ''}" onclick="setPeriod({mode:'current'})">This Month</button>
+      <button class="period-tab ${isLast ? 'active' : ''}" onclick="setPeriodLastMonth()">Last Month</button>
+      <button class="period-tab ${isAll ? 'active' : ''}" onclick="setPeriod({mode:'all'})">All Time</button>
+      <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom month ${isCustom ? '·' : '…'}</button>
+      <span class="period-current">${escapeHtml(label)}</span>
+    </div>`;
+  }
+
   function renderPeriodBar() {
     if (!session.activeBizId) return '';
     const p = session.period;
@@ -13897,9 +13924,13 @@
     // v89.32.50: month-scope. Only load rows for the active month. Rows from
     // before month-scoping (no periodMonth) are treated as the current month
     // so legacy data still appears.
+    // v89.32.53: in 'all' aggregate mode (All Time), load EVERY month's rows
+    // so the totals sum across all months — each row keeps its own month's
+    // amount, and the currency conversion uses the (business-level) rate.
     const am = _activeDistMonth();
     const wantMonth = am.month;
     const _inMonth = (r) => {
+      if (am.all) return true; // All Time: include every month
       const pm = r.periodMonth || _currentDistMonth();
       return pm === wantMonth;
     };
@@ -13911,7 +13942,7 @@
       __distSalaries = cloudSal.map(r => ({
         id: r.id, name: r.name, salary: r.salary,
         adjustmentType: r.adjustmentType, adjustmentAmount: r.adjustmentAmount,
-        note: r.note, periodMonth: r.periodMonth || wantMonth, createdAt: r.createdAt,
+        note: r.note, periodMonth: r.periodMonth || wantMonth || _currentDistMonth(), createdAt: r.createdAt,
       }));
       __distShares = cloudShares.map(r => ({
         id: r.id, name: r.name, pct: r.pct, note: r.note,
@@ -13958,10 +13989,12 @@
       }
       return;
     }
-    // Fallback to localStorage (filtered to the active month).
+    // Fallback to localStorage (filtered to the active month, or ALL months
+    // in All Time aggregate mode).
     const local = loadDistributionStateFor(bizId);
-    __distSalaries = (local.salaries || []).filter(r => (r.periodMonth || _currentDistMonth()) === wantMonth);
-    __distShares = (local.shares || []).filter(r => (r.periodMonth || _currentDistMonth()) === wantMonth);
+    const _localInMonth = (r) => am.all ? true : ((r.periodMonth || _currentDistMonth()) === wantMonth);
+    __distSalaries = (local.salaries || []).filter(_localInMonth);
+    __distShares = (local.shares || []).filter(_localInMonth);
   }
 
   function loadSplitPartiesFromCloudOrLocal(bizId) {
@@ -14049,16 +14082,19 @@
   function _activeDistMonth() {
     const cur = _currentDistMonth();
     const p = session.period || { mode: 'current' };
-    if (p.mode === 'current') return { month: cur, editable: true };
+    if (p.mode === 'current') return { month: cur, editable: true, all: false };
     if (p.mode === 'month' && p.monthKey) {
-      return { month: p.monthKey, editable: p.monthKey === cur };
+      return { month: p.monthKey, editable: p.monthKey === cur, all: false };
     }
     if (p.mode === 'range' && p.from && p.to && p.from.slice(0, 7) === p.to.slice(0, 7)) {
       const mk = p.from.slice(0, 7);
-      return { month: mk, editable: mk === cur };
+      return { month: mk, editable: mk === cur, all: false };
     }
-    // 'all' or multi-month range: show current month's data, read-only view.
-    return { month: cur, editable: (p.mode === 'all' ? false : true) };
+    // v89.32.53: 'all' = aggregate across ALL months, read-only. month=null
+    // signals the loader to include every month's rows.
+    if (p.mode === 'all') return { month: null, editable: false, all: true };
+    // multi-month range: read-only, show current month.
+    return { month: cur, editable: true, all: false };
   }
 
   // v89.32.49: debounced persist. The keyboard "jump" while typing in a
@@ -14210,6 +14246,11 @@
   function _syncDistributionArrays(bizId) {
     if (!bizId) return;
     if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
+    // v89.32.53: never persist while viewing the All Time aggregate — in that
+    // mode __distSalaries/__distShares hold EVERY month's rows merged, so
+    // writing them back would corrupt the per-month storage. All Time is
+    // read-only; this is a safety guard in case a persist is triggered.
+    try { if (_activeDistMonth().all) return; } catch (_) {}
     try {
       // v89.32.50: month-scoped. Replace only the rows for THIS business AND
       // the active month, preserving all other months' rows (so editing this
@@ -15385,6 +15426,15 @@
   function _renderUseForDistribution() {
     const host = document.getElementById('useForDistribution');
     if (!host) return;
+    // v89.32.52 FIX: fmtPctVal was defined locally inside renderSplitParties,
+    // NOT in this function's scope — calling it here threw a ReferenceError
+    // that the caller's try/catch swallowed, so the selector silently never
+    // rendered ("I don't see the option to select the party"). Use a local
+    // inline percent formatter here.
+    const _pct = (p) => {
+      const n = Number(p);
+      return Number.isFinite(n) && n !== 0 ? String(n) : (p === 0 ? '0' : '');
+    };
     const named = __splitParties.filter(p => (p.name || '').trim());
     if (!named.length) {
       host.innerHTML = '';
@@ -15396,7 +15446,7 @@
         <input type="radio" name="useForDistribution" ${isSelected ? 'checked' : ''} onchange="setSplitSelectedParty('${jsAttr(p.id)}')">
         <span class="use-dist-radio"></span>
         <span class="use-dist-name">${escapeHtml(p.name)}</span>
-        <span class="use-dist-pct">${fmtPctVal(p.pct)}%</span>
+        <span class="use-dist-pct">${_pct(p.pct)}%</span>
       </label>`;
     }).join('');
     host.innerHTML = `
@@ -16457,13 +16507,13 @@
       </div>
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
 
-      ${renderPeriodBar()}
+      ${renderDistPeriodBar()}
 
       ${(() => {
         const am = _activeDistMonth();
         if (am.editable) return '';
-        const lbl = am.month ? monthLabel(am.month) : 'this period';
-        return `<div class="dist-readonly-banner">Viewing <strong>${escapeHtml(lbl)}</strong> — past months are a read-only snapshot. Switch to <strong>This Month</strong> to make changes.</div>`;
+        const lbl = (session.period && session.period.mode === 'all') ? 'All time' : (am.month ? monthLabel(am.month) : 'this period');
+        return `<div class="dist-readonly-banner">Viewing <strong>${escapeHtml(lbl)}</strong> — ${(session.period && session.period.mode === 'all') ? 'this is a combined view of all months' : 'past months are a read-only snapshot'}. Switch to <strong>This Month</strong> to make changes.</div>`;
       })()}
 
       <!-- v75: Net profit (after tax) summary card. Lives at the top

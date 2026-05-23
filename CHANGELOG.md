@@ -12,6 +12,96 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.50
+
+Regression recheck: fix All Time localStorage-fallback edge case.
+
+### Hash
+`27c99da0c6e041d68366668f72ef2494`
+
+### Found + fixed
+**All Time + localStorage fallback** could show empty. In All Time mode `wantMonth` is null; the localStorage fallback filter compared `(periodMonth || currentMonth) === wantMonth`, which matches nothing when null — so if the cloud arrays were empty and localStorage was the only source (offline/edge), All Time showed no rows. Fixed: the fallback now includes all months when in All Time mode (mirrors the cloud-path `_inMonth` behavior).
+
+### Recheck result
+Full session regression **29/29 intact**; untouched systems **13/13** (auth, entries, audit, transfers, export/print, theme, SW, realtime, sounds, generic period bar with Today/Yesterday for other views — all unaffected). Structural gates clean; calculations 4/4; All Time interaction risks (carry-forward skip, sync guard, read-only banner) all verified safe.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; tags balanced; no undefined handlers.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.49
+
+Distribution period filter: This Month / Last Month / All Time / Custom month (4 buttons).
+
+### Hash
+`ac2974b91ca4fcbf8327024920a274ce`
+
+### Changes
+Re-added the **Custom month** button to the Distribution period bar (now 4: This Month · Last Month · All Time · Custom month), per the confirmed selection. Custom month opens the existing month-picker grid (`pickMonth` → `mode:'month'`), showing that month as a read-only snapshot. All Time aggregation and read-only behavior unchanged.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; exactly 4 period-tab buttons; month-picker (pickMonth) confirmed wired.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.48
+
+Distribution period filter: This Month / Last Month / All Time only (removed Custom month).
+
+### Hash
+`cdcc5787c36c002946a8e83bf3baba79`
+
+### Changes
+Per request, the Distribution period bar now has exactly three options: **This Month · Last Month · All Time**. The Custom month button (added in .47) was removed. All Time aggregation across months is unchanged: it sums every month's salary/share rows, each keeping that month's own amount; parties + currency/rate stay business-level. All Time remains read-only with its combined-view banner and persist guard.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; exactly 3 period-tab buttons in the distribution bar; "Custom month" fully removed; All Time loader + read-only guard intact; aggregation re-traced.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.47
+
+Distribution period filter simplified + All Time aggregation across months.
+
+### Hash
+`2e5e88ad53309849e3adc9ca0bc722d4`
+
+### Changes
+1. **Distribution-specific period bar.** Replaced the generic period bar (Today/Yesterday/Custom range) on the Distribution page with a month-based one: **This Month · Last Month · All Time · Custom month**. Other views keep the original period bar — only Distribution changed (new `renderDistPeriodBar`).
+2. **All Time aggregates every month.** Selecting All Time loads every month's salary/share rows together, so the totals sum across all months — each month's rows keep that month's own amounts (e.g. Goku 30000 + 30000 + 31000 = 91000). Parties + currency/rate are business-level, so the conversion uses the current rate. (Logic-traced.)
+3. **All Time is read-only** with a "combined view of all months" banner. Added a safety guard so a persist can never fire in All Time mode (which holds all months merged) and corrupt per-month storage.
+4. **Custom month** opens the month picker (`openModal('period')`) to jump to any specific month (read-only snapshot).
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; tags balanced; no undefined handlers; period bar + all-mode loader + sync guard + aggregation all confirmed and logic-traced.
+
+### Requires real-device/runtime verification
+On-device rendering of All Time totals and the month-picker flow.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.46
+
+FIX: "Party to be Used for Distribution" selector now appears (was crashing silently).
+
+### Hash
+`a53fa13de604a3db61d1c0d280470e07`
+
+### The bug
+The selector never showed because `_renderUseForDistribution` called `fmtPctVal()` — a `const` defined locally inside `renderSplitParties`, NOT in this separate function's scope. That threw a `ReferenceError` which the caller's `try/catch` swallowed, so `host.innerHTML` was never set and the selector silently failed to render. Introduced when the selector was split into its own function (.35/.43).
+
+### Fix
+`_renderUseForDistribution` now uses its own local percent formatter (`_pct`) instead of the out-of-scope `fmtPctVal`. The selector renders whenever there's at least one named party.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; selector uses in-scope formatter; confirmed no other out-of-scope `fmtPctVal` usage.
+
+### To see it
+With a saved, named party present, the "Party to be Used for Distribution" selector appears below the parties list. (If you reset earlier and have no parties, add + save one first.)
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.45
 
 Regression audit: fix two issues introduced by .44 month-scoping.
