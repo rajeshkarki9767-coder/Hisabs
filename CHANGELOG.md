@@ -12,6 +12,96 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.90
+
+UPGRADE: "Hide Distribution" is now a TRUE per-member ACCESS CONTROL, not just a hidden tab. **Requires running the new SQL migration.**
+
+### Hash
+`926f51b3a0ce693a0cb88b83203799d1`
+
+### What changed vs .89
+.89 hid the tab in the UI but the data still synced to the member's device (UI-only). .90 makes it real access control enforced at the database, with client defense-in-depth.
+
+### Backend / security (the real boundary)
+NEW migration sql/v89.34_distribution_rls_hide.sql:
+  • Adds SECURITY DEFINER helper app_can_read_distribution(business_id): owner always true; a member reads only if COALESCE(member_hide_distribution,false)=false; otherwise false.
+  • Replaces ONLY the SELECT policy on app_distribution_salaries / app_distribution_shares / app_split_parties to use it. INSERT/UPDATE/DELETE remain owner-only (untouched).
+  • Owner read is checked FIRST (owner_id = auth.uid()) so the owner can NEVER be locked out. Members with no/NULL/false flag are unaffected.
+  With the rows withheld by RLS, a hidden member's realtime subscription delivers nothing, a direct route shows an empty view, and there is no data to export — satisfying "data access / realtime / direct-access / export all blocked" at one centralized chokepoint.
+  RUN v89.33 first (adds the column), then v89.34.
+
+### Frontend defense-in-depth (client mirror)
+  • onRealtimeEvent now ignores distSalaries/distShares/splitParties events for a member who can't see distribution (covers the brief window before RLS re-runs).
+  • NEW _purgeDistributionData(bizId): when a member's own row arrives via realtime showing distribution is now hidden, the in-memory distribution rows are dropped immediately so nothing lingers.
+  • Tab hidden in sidebar, switchView + render guards block the route, anti-flicker snapshot (all from .89) — retained.
+  • Distribution export was already owner-only, so hidden manager/viewer never had export access.
+
+### Centralized handling
+All client checks route through the single canSeeDistribution() helper; the server routes through the single app_can_read_distribution() function. One source of truth on each side.
+
+### Verified
+Access-control trace 14/14 (hidden member: all 3 distribution realtime keys ignored, other tables applied; visible/owner applied; purge clears all 3 arrays; RLS helper logic owner/member/flag matrix). Regression + feature 19/19 (incl. .80–.84 fixes, .63 distribution-DELETE tombstone, seesTotals untouched, DELETE branch structurally whole). Self-test 63/63; JS valid; CSS 2214/2214; tags balanced; no undefined handlers.
+
+NOTE: a JS edit transiently removed the realtime DELETE-branch opener; the syntax gate caught it pre-package and it was restored. Shipped build is clean.
+
+### Requires real-device/runtime verification + SQL migration (order matters)
+1. Run sql/v89.33 (if not already), then sql/v89.34 in Supabase.
+2. Owner toggles "Hide Distribution tab" for a manager/viewer → on THEIR device the tab vanishes live, the view is unreachable, and (after pull) they hold ZERO distribution rows. Owner and non-hidden members unaffected.
+3. CRITICAL test before trusting: confirm the OWNER still reads distribution and a NON-hidden manager/viewer still reads it (the RLS change is the highest-risk piece).
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.89
+
+Hide-Distribution-tab now applies LIVE (no refresh) + anti-flicker. No SQL change beyond the .88 migration.
+
+### Hash
+`e680b22cc31a13108ea7fb687d88dc68`
+
+### Live update (confirmed by design)
+When the owner toggles "Hide Distribution tab", the member's row syncs over realtime (app_members is subscribed + in the supabase_realtime publication with REPLICA IDENTITY FULL). On the member's device the event applies to data.members and triggers renderAll → renderSidebarNav (the tab appears/disappears immediately) and renderMain (if the member is sitting on the Distribution view when it's hidden, they're bounced to Entries). No refresh needed. The owner's write is not a self-write on the member's device, so the render is not suppressed. Verified by trace 5/5.
+
+### Anti-flicker (this build's change)
+canSeeDistribution now snapshots its answer to the persistent access cache (the same mechanism canSeeTotals uses). During a sync pull the member's own row can momentarily drop out of data.members; without the snapshot a freshly-hidden tab could flash back into view for one frame. Now the cached value holds the hidden state stable across that race. _setAccess gained an optional 5th param (hideDistribution); the existing canSeeTotals 4-arg call is unchanged.
+
+### Verified
+Anti-flicker trace 5/5 (hidden persists through mid-pull; unhide persists too). Live-hide trace 5/5 (apply → nav hides → bounce off view → unhide restores). canSeeTotals snapshot path untouched. Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers.
+
+### Requires real-device/runtime verification
+With two devices: as owner toggle "Hide Distribution tab" for a manager/viewer → on THEIR device the tab disappears WITHOUT a refresh (and if they were on the Distribution view, they land on Entries). Toggle off → it reappears live.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.88
+
+NEW FEATURE: owner can hide the Distribution tab per manager/viewer from Team & Access. **Requires running the new SQL migration.**
+
+### Hash
+`750d50d48e1ec2af2e765959489899c3`
+
+### What it does
+On the Team & Access page, each accepted manager or viewer now has a "Hide Distribution tab" toggle (owner-only). Default OFF (tab visible — unchanged from before). Turn it ON to remove the Distribution nav tab from that member's UI. Owner always sees the tab; staff never saw it (unchanged). The choice syncs across devices via the member row.
+
+### IMPORTANT — scope
+This controls TAB VISIBILITY only; it declutters the member's UI. It is NOT a data restriction: the existing app_distribution_* / app_split_parties RLS still permits any member of the business to READ distribution rows (writes remain owner-only). If you ever need managers/viewers to be unable to access distribution data at all, that is a separate, larger change to the SELECT policies on those tables.
+
+### Implementation (mirrors the v89.31.5 member_sees_totals pattern)
+  • NEW migration sql/v89.33_app_members_hide_distribution.sql — adds member_hide_distribution boolean (default false) to app_members. RUN THIS in Supabase BEFORE deploying .88 (the members sync map references the column).
+  • members schema toDb/fromDb sync the flag (member_hide_distribution <-> hideDistribution), missing/NULL coerced to false (visible).
+  • NEW helper canSeeDistribution(bizId): owner always true; manager/viewer true unless their member row has hideDistribution=true; staff false; defaults visible mid-pull / on legacy rows.
+  • Distribution nav gate now uses canSeeDistribution.
+  • Guards: switchView() redirects a hidden member's 'distribution' navigation to 'entries'; the render router also bounces a hidden member off a stale distribution view. So the tab can't be reached even if session.view is stale.
+  • NEW owner-only handler changeMemberHideDistribution + a toggle row shown for accepted manager/viewer in the team list.
+
+### Verified
+Feature trace 15/15 (owner always sees; manager/viewer default visible, hidden when flag set; staff unaffected; switchView + render redirects; toggle shows only for accepted manager/viewer). Regression 13/13 (all .80–.84 fixes + seesTotals intact). Self-test 63/63; JS valid; CSS 2214/2214; tags balanced; no undefined handlers.
+
+### Requires real-device/runtime verification + SQL migration
+1. RUN sql/v89.33_app_members_hide_distribution.sql in Supabase FIRST.
+2. As owner, toggle "Hide Distribution tab" for a manager/viewer → on THEIR device the tab disappears (and they can't reach it); toggling off restores it.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.87
 
 Added a combined realtime-publication + RLS audit script after a user query showed only 3 tables in the realtime publication. No code change.

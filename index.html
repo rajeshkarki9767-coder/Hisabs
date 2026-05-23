@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.87';
+  const BUILD_TAG = '2026.05.21.90';
 
   // ================================================================
   // STORAGE
@@ -10158,11 +10158,12 @@
   }
   const __accessCache = _loadAccessCache(); // { "uid|bid": { role: 'viewer'|'owner'|..., staffSeesTotals: bool, t: ms } }
   function _accessKey(uid, bid) { return `${uid}|${bid}`; }
-  function _setAccess(uid, bid, role, staffSeesTotals) {
+  function _setAccess(uid, bid, role, staffSeesTotals, hideDistribution) {
     const key = _accessKey(uid, bid);
     const entry = __accessCache[key] || {};
     if (role !== undefined) entry.role = role;
     if (staffSeesTotals !== undefined) entry.staffSeesTotals = staffSeesTotals;
+    if (hideDistribution !== undefined) entry.hideDistribution = hideDistribution;
     entry.t = Date.now();
     __accessCache[key] = entry;
     _saveAccessCache(__accessCache);
@@ -10460,6 +10461,45 @@
   function canSeeAudit(businessId) {
     const r = roleFor(businessId);
     return r === 'owner' || r === 'manager' || r === 'viewer';
+  }
+  // v89.33: who can see the DISTRIBUTION tab? Same base roles as Audit
+  // (owner/manager/viewer), but the owner can HIDE it per-member for
+  // manager/viewer via a Team & Access toggle. Owner always sees it. This
+  // gates VISIBILITY of the tab only — it is not a data restriction (members
+  // can still read distribution rows per RLS); it declutters their UI.
+  function canSeeDistribution(businessId) {
+    const role = roleFor(businessId);
+    if (!role) return false;
+    if (role === 'owner') return true;            // owner always sees it
+    if (role !== 'manager' && role !== 'viewer') return false; // staff never saw it
+    // manager/viewer: visible unless the owner hid it for this member.
+    const u = me();
+    if (!u) return false;
+    const myLogin = normalize(u.login);
+    const myMember = data.members.find(mm =>
+      mm.businessId === businessId
+      && mm.status === 'accepted'
+      && (mm.userId === u.id || normalize(mm.userLogin) === myLogin)
+    );
+    let hidden;
+    if (myMember && myMember.hideDistribution !== undefined) {
+      hidden = !!myMember.hideDistribution;
+    } else if (myMember) {
+      // Member row present but no flag (legacy/just-migrated) → visible.
+      hidden = false;
+    } else {
+      // No live member row this render (mid-pull race) → fall back to the
+      // cached snapshot so a freshly-hidden tab doesn't flash back into view
+      // during a sync pull. Default visible if nothing cached. Mirrors the
+      // canSeeTotals anti-flicker pattern.
+      const cached = _getAccess(u.id, businessId);
+      hidden = (cached && cached.hideDistribution !== undefined) ? !!cached.hideDistribution : false;
+    }
+    // Snapshot the live answer for the next render.
+    if (myMember) {
+      _setAccess(u.id, businessId, undefined, undefined, hidden);
+    }
+    return !hidden;
   }
   // Who can ADD / EDIT / DELETE audit expenses? Owner and manager.
   // Owner is the only role that can write to the audit pages
@@ -11623,7 +11663,7 @@
     // Staff still don't see it (no financial roll-ups for staff).
     const navDistribution = document.getElementById('navDistribution');
     if (navDistribution) {
-      const canSeeDist = session.activeBizId && canSeeAudit(session.activeBizId);
+      const canSeeDist = session.activeBizId && canSeeDistribution(session.activeBizId);
       navDistribution.style.display = canSeeDist ? 'flex' : 'none';
       setActive('navDistribution', session.view === 'distribution');
     }
@@ -11803,7 +11843,16 @@
     if (session.view === 'account-detail') { renderAccountDetailView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'audit') { renderAuditView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'forecast') { renderForecastView(root); _restoreFocusAfterRender(_preservedFocus); return; }
-    if (session.view === 'distribution') { renderDistributionView(root); _restoreFocusAfterRender(_preservedFocus); return; }
+    if (session.view === 'distribution') {
+      // v89.33: a manager/viewer with the tab hidden must not render it even
+      // if session.view is stale. Redirect to entries.
+      if (session.activeBizId && !canSeeDistribution(session.activeBizId)) {
+        session.view = 'entries';
+        try { saveSession(); } catch (_) {}
+        renderEntriesView(root); _restoreFocusAfterRender(_preservedFocus); return;
+      }
+      renderDistributionView(root); _restoreFocusAfterRender(_preservedFocus); return;
+    }
     if (session.view === 'insights') { renderInsightsView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'expenses') { renderExpensesView(root); _restoreFocusAfterRender(_preservedFocus); return; }
     if (session.view === 'activity') { renderActivityView(root); _restoreFocusAfterRender(_preservedFocus); return; }
@@ -20657,6 +20706,13 @@
     renderAll();
   }
   function switchView(view) {
+    // v89.33: if distribution is hidden for this member, don't let them land
+    // on it (covers stale session.view or any non-nav navigation). Owners are
+    // always allowed; this only affects manager/viewer with the tab hidden.
+    if (view === 'distribution' && session.activeBizId
+        && !canSeeDistribution(session.activeBizId)) {
+      view = 'entries';
+    }
     session.view = view;
     if (view !== 'party-detail') {
       session.selectedPartyId = null;
@@ -24333,6 +24389,17 @@
     const label = (member.displayName || member.userLogin || 'Member').trim();
     toast(checked ? `${label} can now see totals.` : `${label} can no longer see totals.`);
   }
+  // v89.33: owner toggles whether a manager/viewer sees the Distribution tab.
+  // Default false (visible). Mirrors changeStaffSeesTotals exactly.
+  function changeMemberHideDistribution(id, checked) {
+    const member = data.members.find(m => m.id === id);
+    if (!member) return;
+    if (!canManageBusiness(member.businessId)) { toast('Only the owner can change this.'); refreshStaffSurface(); return; }
+    member.hideDistribution = !!checked;
+    saveData(); refreshStaffSurface();
+    const label = (member.displayName || member.userLogin || 'Member').trim();
+    toast(checked ? `Distribution tab hidden for ${label}.` : `Distribution tab visible for ${label}.`);
+  }
   // Re-render whichever surface is showing the staff list — full-page view
   // (session.view === 'staff') or the legacy modal. The modal is still kept
   // around for fallbacks (e.g. when a non-owner triggers the legacy code path),
@@ -25556,6 +25623,15 @@
                  <label class="toggle"><input type="checkbox" ${m.seesTotals ? 'checked' : ''} onchange="changeStaffSeesTotals('${jsAttr(m.id)}', this.checked)"><span class="toggle-slider"></span></label>
                </div>`
             : '';
+          // v89.33: per-member "hide Distribution tab" toggle. Only for
+          // accepted manager/viewer (owner always sees it; staff never did).
+          // Checked = hidden. Default unchecked (visible).
+          const hideDistRow = (isAccepted && (m.role === 'manager' || m.role === 'viewer'))
+            ? `<div class="staff-sees-row">
+                 <span class="staff-sees-label">Hide Distribution tab</span>
+                 <label class="toggle"><input type="checkbox" ${m.hideDistribution ? 'checked' : ''} onchange="changeMemberHideDistribution('${jsAttr(m.id)}', this.checked)"><span class="toggle-slider"></span></label>
+               </div>`
+            : '';
           return `<div class="staff-row">
             <div class="staff-info">
               <div class="user-avatar" style="background:var(--accent-soft);opacity:${m.status === 'accepted' ? 1 : 0.5};">${escapeHtml(displayName[0].toUpperCase())}</div>
@@ -25572,6 +25648,7 @@
                 ${statusBadge}${roleControl}
               </div>
               ${seesTotalsRow}
+              ${hideDistRow}
             </div>
           </div>`;
         }).join('')}
@@ -34204,6 +34281,15 @@
 
   function onRealtimeEvent(localKey, payload) {
     if (!payload) return;
+    // v89.34: centralized distribution access gate. If this member can't see
+    // distribution (owner hid it for them), ignore all distribution realtime
+    // events — the data must not load on their device. Belt-and-braces with the
+    // server-side RLS that already withholds the rows; this also covers the
+    // brief window before a permission change has re-run RLS. Owner unaffected.
+    if ((localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties')
+        && session.activeBizId && !canSeeDistribution(session.activeBizId)) {
+      return;
+    }
     const map = cloudSchemaMap[localKey];
     if (!map) return;
     const eventType = payload.eventType || payload.event;
@@ -34306,6 +34392,18 @@
           try { playEntrySound(restored.type); } catch (_) {}
         }
       }
+      // v89.34: if MY own member row just changed such that I can no longer
+      // see distribution (owner hid it for me), purge the in-memory
+      // distribution data immediately so it doesn't linger on this device.
+      // Mirrors the server RLS which already withholds the rows on next pull.
+      if (localKey === 'members' && restored) {
+        const u = me();
+        const mine = u && ((restored.userId && restored.userId === u.id)
+          || (restored.userLogin && normalize(restored.userLogin) === normalize(u.login)));
+        if (mine && restored.businessId && !canSeeDistribution(restored.businessId)) {
+          try { _purgeDistributionData(restored.businessId); } catch (_) {}
+        }
+      }
       scheduleRemoteRender(localKey, newRow.id, 'upsert');
     } else if (eventType === 'DELETE') {
       const id = (oldRow && oldRow.id);
@@ -34349,6 +34447,20 @@
   // their member row is removed or its status changes. Called from
   // the realtime DELETE/UPDATE handlers above. Safe to call with a
   // null member.
+  // v89.34: drop all in-memory distribution data for a business. Called when a
+  // member loses distribution access live, so the data doesn't linger on their
+  // device after the owner hides the tab. Local-only wipe (no cloud delete):
+  // the rows still exist server-side for the owner; this member just can't hold
+  // them. The server RLS is the real gate; this is the client mirror.
+  function _purgeDistributionData(bizId) {
+    if (!bizId) return;
+    try {
+      data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId);
+      data.distShares   = (data.distShares   || []).filter(r => r.businessId !== bizId);
+      data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId);
+      try { storageWrite(DATA_KEY, JSON.stringify(data)); } catch (_) {}
+    } catch (_) {}
+  }
   function _invalidateRoleCacheIfMine(member) {
     if (!member) return;
     const u = me(); if (!u) return;
@@ -34879,6 +34991,11 @@
         // the owner on Team & Access. Default false. Requires the
         // member_sees_totals column (v89.31.5 migration).
         member_sees_totals: !!r.seesTotals,
+        // v89.33: per-member "hide the Distribution tab" flag, set by the
+        // owner on Team & Access for manager/viewer members. Default false
+        // (tab visible). Requires the member_hide_distribution column
+        // (v89.33 migration).
+        member_hide_distribution: !!r.hideDistribution,
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -34894,6 +35011,9 @@
         // v89.31.5: tolerate the column being absent on older rows
         // (undefined/null -> false).
         seesTotals: r.member_sees_totals === true,
+        // v89.33: tolerate the column being absent on older rows
+        // (undefined/null -> false -> tab visible).
+        hideDistribution: r.member_hide_distribution === true,
       }),
     },
   };

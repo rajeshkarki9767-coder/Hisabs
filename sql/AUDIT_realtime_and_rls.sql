@@ -1,3 +1,17 @@
+-- =============================================================================
+-- KNOWN-GOOD EXCEPTION: app_entry_no_hwm
+-- This table will show "RLS on but NO POLICIES". That is CORRECT and INTENTIONAL,
+-- not a bug. app_entry_no_hwm stores entry-number high-water-marks for atomic
+-- invoice/entry numbering. The client NEVER accesses it directly (it has zero
+-- .from('app_entry_no_hwm') calls — the client's __entryNoHwm is a separate
+-- localStorage cache). The table is written ONLY by the SECURITY DEFINER function
+-- assign_entry_no() (see v89.13_fix_invoice_numbering.sql), which runs with the
+-- function owner's privileges and bypasses RLS by design. RLS-on + 0-policies
+-- means "no direct client access," which is exactly what's wanted: only the
+-- controlled atomic function may mutate it, so invoice numbering can't be
+-- corrupted by a client write. Do NOT add client policies to this table.
+-- =============================================================================
+
 -- AUDIT — Realtime publication + RLS status (run each block separately)
 -- =============================================================================
 -- You pasted a result with columns (kind | table_name) showing only 3 tables
