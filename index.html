@@ -1041,7 +1041,9 @@
   /* v89.15: Party row HORIZONTAL layout — Name [____]  %  [__] */
   .split-party-fields-h {
     display: grid;
-    grid-template-columns: 1fr auto;
+    /* v89.32.64: cap the name field so it's not overly wide; leaves room
+       for the % field and the edit/delete icons. */
+    grid-template-columns: minmax(110px, 0.65fr) auto;
     gap: 0.7rem;
     align-items: end;
   }
@@ -1080,7 +1082,7 @@
      [fields | actions]. Dropping the dead 28px first column gives the name
      field its full width. */
   .split-party-row-v895 {
-    grid-template-columns: 1fr auto !important;
+    grid-template-columns: minmax(110px, 0.65fr) auto !important;
   }
   .split-party-actions {
     display: inline-flex;
@@ -3707,8 +3709,9 @@
   .dist-salary-header,
   .dist-salary-row {
     display: grid;
-    /* v89.30 fix #7: narrower name column, wider action column to fit edit+trash */
-    grid-template-columns: minmax(120px, 1fr) 100px 120px 100px 120px 70px;
+    /* v89.32.64: narrower name column (capped, not greedy 1fr) so salary,
+       type, plus-minus, amount, and the edit/delete icons get more room. */
+    grid-template-columns: minmax(90px, 0.7fr) 110px 120px 110px 130px 88px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -4038,7 +4041,9 @@
   .dist-share-header,
   .dist-share-row {
     display: grid;
-    grid-template-columns: 1fr 90px 110px 70px;
+    /* v89.32.64: narrower name column so %, amount, and edit/delete icons
+       get more room. */
+    grid-template-columns: minmax(90px, 0.7fr) 90px 130px 88px;
     gap: 0.4rem;
     align-items: center;
   }
@@ -7396,7 +7401,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.63';
+  const BUILD_TAG = '2026.05.21.64';
 
   // ================================================================
   // STORAGE

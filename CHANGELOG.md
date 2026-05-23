@@ -12,6 +12,26 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.64
+
+Narrower name fields (more room for icons + columns). Cross-device delete fix from .63 retained. Diagnostics requested for remaining sync issues.
+
+### Hash
+`a13717c75b2cad8cc747cf5aa8bedb1b`
+
+### Changes
+- **Name field width reduced** on Team Salaries, Profit Shares, and Split-the-Percentage parties — capped (no longer greedy `1fr`), giving more room to %, type, plus-minus, salary, amount, and the edit/delete icons.
+- Cross-device delete fix (.63: realtime DELETE adds tombstone + mergeWithPending honors it) retained.
+
+### Still under investigation (need runtime data)
+- **2nd party saves then vanishes after a few seconds** — traced to a realtime-echo / period_month filter race; need to see the party's stored period_month vs current month.
+- **Cross-device delete + currency/rate sync** — need to confirm both devices are on .64 and what the realtime channel delivers.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2191/2191; width changes confirmed; no undefined handlers.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.63
 
 Cross-device delete now propagates: deleting on one device sticks on the other.
