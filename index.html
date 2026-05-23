@@ -4116,7 +4116,7 @@
     .dist-salary-header { display: none; }
     .dist-share-header { display: none; }
     .dist-salary-row {
-      grid-template-columns: 1fr 1fr 70px;
+      grid-template-columns: 1fr 1fr 96px;
       grid-template-areas:
         "name name actions"
         "salary type type"
@@ -4130,13 +4130,27 @@
     .dist-salary-row .dist-salary-final { grid-area: final; }
     /* v89.30 fix #7: action area (edit + trash) now occupies right column */
     .dist-salary-row .dist-row-actions { grid-area: actions; }
+    /* v89.32.71: let cells shrink so amount + buttons stay inside the card on
+       small screens (was overflowing the row box). */
+    .dist-salary-row > * { min-width: 0; }
+    .dist-salary-row input, .dist-salary-row select { min-width: 0; width: 100%; box-sizing: border-box; }
+    .dist-salary-row .dist-salary-final { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .dist-salary-row .dist-row-actions { justify-content: flex-end; flex-wrap: nowrap; }
+    /* slightly smaller action buttons on mobile so two fit the column */
+    .dist-row-card .dist-row-edit-btn, .dist-row-card .icon-btn-light,
+    .split-party-row-v895 .dist-row-edit-btn, .split-party-row-v895 .icon-btn-light {
+      width: 38px; height: 36px;
+    }
     .dist-share-row {
-      grid-template-columns: 1fr 80px 70px;
+      grid-template-columns: 1fr 80px 96px;
       grid-template-areas:
         "name pct actions"
         "amt amt amt";
       gap: 0.4rem;
     }
+    .dist-share-row > * { min-width: 0; }
+    .dist-share-row input { min-width: 0; width: 100%; box-sizing: border-box; }
+    .dist-share-row .dist-share-amount { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
     .dist-share-row input[data-field="name"] { grid-area: name; }
     .dist-share-row input[data-field="pct"] { grid-area: pct; }
     .dist-share-row .dist-share-amount { grid-area: amt; text-align: right; }
@@ -7468,7 +7482,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.70';
+  const BUILD_TAG = '2026.05.21.72';
 
   // ================================================================
   // STORAGE
@@ -14615,34 +14629,38 @@
   // removed from any pending queue op afterwards so we don't double-handle.
   async function _cloudDeleteDistRow(table, id) {
     try {
-      if (!id || !table) return;
-      if (!__syncEnabled || !__syncEnabled()) { console.warn('[distDelete] sync disabled, queued op will retry', { table, id }); return; }
-      if (roleFor(session.activeBizId) !== 'owner') { console.warn('[distDelete] not owner, skipping direct delete', { table, id, role: roleFor(session.activeBizId) }); return; }
+      if (!id || !table) return false;
+      if (!__syncEnabled || !__syncEnabled()) { console.warn('[distDelete] sync disabled, queued op will retry', { table, id }); return false; }
+      if (roleFor(session.activeBizId) !== 'owner') { console.warn('[distDelete] not owner, skipping direct delete', { table, id, role: roleFor(session.activeBizId) }); return false; }
       const { data: delData, error } = await sb().from(table).delete().eq('id', id).select();
       if (error) {
         console.error('[distDelete] CLOUD DELETE FAILED', { table, id, error: error.message || error.code, details: error });
         try { toast('Delete did not reach the server: ' + (error.message || error.code || 'unknown')); } catch (_) {}
+        return false;
       } else {
         const n = (delData || []).length;
         console.log('[distDelete] cloud delete result', { table, id, deletedRows: n });
         if (n === 0) {
           // The delete ran but matched no rows — almost always an RLS DELETE
-          // policy that doesn't permit this user. Surface it so it's not silent.
+          // policy that doesn't permit this user. v89.32.71: REMOVE the local
+          // tombstone in this case. Otherwise the row stays in the cloud but is
+          // hidden locally by the tombstone, then re-syncs and gets re-deleted
+          // and re-tombstoned forever (this is what produced 30+ tombstones and
+          // the "added then vanishes / delete says 0 deleted" party loop). With
+          // the tombstone removed, the row is at least visible + consistent
+          // until the RLS DELETE policy is fixed server-side.
           console.warn('[distDelete] 0 rows deleted — likely RLS blocking DELETE on ' + table);
+          try { _removeTombstone(id); } catch (_) {}
           try { toast('Server kept the row (0 deleted) — check delete permissions.'); } catch (_) {}
+          return false;
         } else {
-          // v89.32.62: do NOT prune the tombstone here. Pruning immediately on
-          // confirm caused the "delete twice" bug: a realtime DELETE echo or a
-          // late local-mirror re-render arriving AFTER the prune would resurrect
-          // the row (no tombstone left to block it), forcing a second delete.
-          // Keeping the tombstone is cheap (small set) and guarantees the row
-          // stays gone. New rows always get a fresh id, so the tombstone never
-          // blocks a legitimate future add.
-          // (was: _pruneTombstone(id))
+          // Confirmed deleted on the server. Keep the tombstone (do NOT prune)
+          // so a late realtime echo can't resurrect it. New rows get fresh ids.
+          try { _markSelfWrite(id); } catch (_) {}
+          return true;
         }
-        try { _markSelfWrite(id); } catch (_) {}
       }
-    } catch (e) { console.error('[distDelete] threw', { table, id, err: e && e.message }); }
+    } catch (e) { console.error('[distDelete] threw', { table, id, err: e && e.message }); return false; }
   }
 
   // v89.32.45: one-tap reset of ALL distribution data for the active
@@ -16109,15 +16127,23 @@
     if (__splitSelectedPartyId === id) {
       __splitSelectedPartyId = __splitParties[0]?.id || '';
     }
-    // v89.32.65: add the tombstone BEFORE persisting/syncing (matches the
-    // salary/share delete order). Previously saveSplitStateFor ran first, so
-    // _syncSplitPartiesArray rebuilt data.splitParties while the cloud row
-    // still existed and no tombstone yet protected it — a realtime echo /
-    // merge could resurrect it, so the row appeared not to delete. Tombstone
-    // first guarantees every downstream loader + merge excludes it.
+    // v89.32.71: tombstone first (so a realtime echo can't resurrect it during
+    // the delete), but AWAIT the cloud delete. If the server blocked it (RLS,
+    // deletedRows: 0) _cloudDeleteDistRow removes the tombstone again so we
+    // don't permanently hide a row that still exists in the cloud — that loop
+    // is what produced 30+ tombstones and the party flicker. The toast tells
+    // the user the server kept the row (delete-permission/RLS issue).
     _addTombstone(id);
     saveSplitStateFor(session.activeBizId);
-    _cloudDeleteDistRow('app_split_parties', id);
+    const ok = await _cloudDeleteDistRow('app_split_parties', id);
+    if (!ok) {
+      // Server kept the row — bring it back into the local arrays so the UI
+      // stays consistent with the cloud (rather than showing it gone here but
+      // present on every other device).
+      try {
+        loadSplitPartiesFromCloudOrLocal(session.activeBizId);
+      } catch (_) {}
+    }
     if (session.view === 'distribution') {
       const root = document.getElementById('mainContent');
       if (root) renderDistributionView(root);
@@ -16466,11 +16492,18 @@
   function _expenseRateFor(name) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return null;
-    const key = String(name || '').trim().toLowerCase();
+    // v89.32.71: normalize so case + extra/leading/trailing spaces don't matter
+    // ("Sugar" == "sugar" == "  SUGAR ").
+    const key = _normRateName(name);
     if (!key) return null;
     const hit = (data.expenseRates || []).find(r =>
-      r.businessId === biz.id && String(r.name || '').trim().toLowerCase() === key);
+      r.businessId === biz.id && _normRateName(r.name) === key);
     return hit ? Number(hit.rate) || 0 : null;
+  }
+  // Normalized key for rate-name matching: lowercase, trim, collapse internal
+  // whitespace runs to a single space.
+  function _normRateName(s) {
+    return String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
   }
 
   // When typing the description, if a rate is booked for that name, prefill
@@ -16555,12 +16588,12 @@
       if (!name) continue; // skip blank-name rows
       const rate = Number(rateRaw);
       if (!Number.isFinite(rate)) { toast(`Enter a valid rate for "${name}".`); return; }
-      const key = name.toLowerCase();
+      const key = _normRateName(name);
       if (seen.has(key)) { toast(`Duplicate name "${name}". Keep one.`); return; }
       seen.add(key);
       // reuse existing id for this business+name if present (stable id → clean sync)
       const existing = (data.expenseRates || []).find(r =>
-        r.businessId === biz.id && String(r.name || '').trim().toLowerCase() === key);
+        r.businessId === biz.id && _normRateName(r.name) === key);
       next.push({
         id: existing ? existing.id : uid(),
         businessId: biz.id,
@@ -16574,15 +16607,37 @@
     const nextIds = new Set(next.map(r => r.id));
     const removed = prev.filter(r => !nextIds.has(r.id));
     data.expenseRates = (data.expenseRates || []).filter(r => r.businessId !== biz.id).concat(next);
-    saveData(); // queues upserts for the kept rows
-    // direct cloud-delete for removed rows (best effort; owner only)
+    saveData(); // queues upserts for the kept rows + persists to localStorage
+    // v89.32.72: direct cloud upsert with diagnostic — the queued diff is the
+    // normal path, but (like the distribution delete bug) if RLS silently
+    // blocks the write the rates would only live in localStorage and vanish on
+    // refresh when the empty cloud pull overwrites them. Fire the upsert here
+    // too and LOG the server result so a blocked write is visible, not silent.
     try {
-      if (__syncEnabled && __syncEnabled()) {
+      if (__syncEnabled && __syncEnabled() && roleFor(biz.id) === 'owner') {
+        const map = cloudSchemaMap['expenseRates'];
+        const rows = next.map(r => map.toDb(r));
+        if (rows.length) {
+          sb().from('app_expense_rates').upsert(rows, { onConflict: 'id' }).select()
+            .then(({ data: up, error }) => {
+              if (error) {
+                console.error('[rateSave] CLOUD UPSERT FAILED', { error: error.message || error.code, details: error });
+                try { toast('Rates did not reach the server: ' + (error.message || error.code || 'unknown')); } catch (_) {}
+              } else {
+                console.log('[rateSave] cloud upsert result', { sent: rows.length, savedRows: (up || []).length });
+                if ((up || []).length === 0 && rows.length > 0) {
+                  console.warn('[rateSave] 0 rows saved — likely RLS blocking INSERT/UPDATE on app_expense_rates');
+                  try { toast('Server kept 0 rates — check rate-table permissions.'); } catch (_) {}
+                }
+                try { rows.forEach(r => _markSelfWrite(r.id)); } catch (_) {}
+              }
+            });
+        }
         for (const r of removed) {
           sb().from('app_expense_rates').delete().eq('id', r.id);
         }
       }
-    } catch (_) {}
+    } catch (e) { console.error('[rateSave] threw', e && e.message); }
     closeModal();
     renderAll();
     toast('Rates saved.');
@@ -32543,6 +32598,12 @@
   // local/echo copy lingers it's dropped by the loaders before pruning, and a
   // genuinely new row would have a different id.
   function _pruneTombstone(id) {
+    if (__distTombstones.has(id)) { __distTombstones.delete(id); _saveTombstones(); }
+  }
+  // v89.32.71: remove a tombstone when a delete did NOT actually succeed on the
+  // server (RLS blocked it). Keeping the tombstone in that case hides a row that
+  // still exists in the cloud, causing it to flicker/re-tombstone on every sync.
+  function _removeTombstone(id) {
     if (__distTombstones.has(id)) { __distTombstones.delete(id); _saveTombstones(); }
   }
 

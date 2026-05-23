@@ -12,6 +12,59 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.72
+
+Expense rate book sometimes not saving / empty after refresh — added a cloud-write diagnostic (logs the server result so a blocked write is visible) and an RLS verify/fix migration. Same class as the distribution delete bug: a silently-blocked cloud write leaves rates in localStorage only, then the empty pull overwrites them on refresh.
+
+### Hash
+`0be9f81af9079026c390020f36dd5db4`
+
+### LIKELY REQUIRES SQL MIGRATION
+`sql/v89.32.72_fix_expense_rates_rls.sql` — (re)creates SELECT/INSERT/UPDATE/DELETE policies on app_expense_rates using app_can_read_business / app_is_business_owner. Run it if the new console diagnostic shows savedRows: 0.
+
+### What changed
+- saveExpenseRates now fires a direct cloud upsert (in addition to the queued diff) and LOGS the result: `[rateSave] cloud upsert result { sent, savedRows }`. If savedRows is 0 or there's an error, it warns "likely RLS blocking INSERT/UPDATE on app_expense_rates" and toasts the user — so a silently-blocked write is no longer invisible (this is what made rates vanish on refresh).
+
+### Diagnosis path
+1. Deploy .72, open Add/Edit Rate, add a rate, Save.
+2. Watch the browser console for `[rateSave] cloud upsert result`.
+3. If savedRows: 0 (or an error) → run sql/v89.32.72_fix_expense_rates_rls.sql, then retry.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2226/2226; no undefined handlers; diagnostic + direct upsert wired; rate-as-% + name-normalize intact.
+
+### Requires real-device/runtime verification
+The console diagnostic on rate save; rates persist across refresh after the RLS fix; rates appear on the other device.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.71
+
+ROOT CAUSE of the party saga found via console diagnostic: the DELETE RLS policy on app_split_parties was blocking deletes (deletedRows: 0), and the app kept tombstoning rows that never actually deleted — 33 tombstones hiding live parties. Fixed both the SQL and the app's tombstone handling. Plus rate-name normalization and mobile salary overflow.
+
+### Hash
+`191efb0252fb68820063c53ce2941bd7`
+
+### REQUIRES SQL MIGRATION (run before deploying)
+`sql/v89.32.71_fix_distribution_delete_rls.sql` — (re)creates the DELETE policy on app_split_parties, app_distribution_salaries, app_distribution_shares using app_is_business_owner. THIS is what makes party/salary/share deletes actually work cross-device.
+
+### ALSO: clear stale tombstones once (browser console, BOTH devices)
+`localStorage.removeItem('hisabs_dist_tombstones_v1'); location.reload();`
+33 tombstones had accumulated from failed deletes and were hiding live parties (inMemory 0 while cloudParties 2).
+
+### Fixes
+1. **Delete no longer self-poisons.** _cloudDeleteDistRow now returns success; on a server "0 deleted" (RLS) it REMOVES the local tombstone instead of keeping it, so a row that still exists in the cloud is no longer hidden locally and re-tombstoned on every sync. removeSplitParty awaits the result and reloads from cloud if the server kept the row — UI stays consistent with the cloud.
+2. **Rate name match ignores case AND spaces.** "Sugar" == "sugar" == "  SUGAR " == "sugar  " (normalize: lowercase, trim, collapse internal whitespace).
+3. **Mobile salary/share overflow fixed.** Amount-to-get + save/edit/delete buttons no longer spill outside the card on small screens (wider action column, min-width:0 so cells shrink, slightly smaller buttons on mobile).
+
+### Verified
+Self-test 63/63; JS valid; CSS 2226/2226; no undefined handlers; delete returns bool + un-tombstone on RLS fail; rate-as-% intact; mobile grid fixed.
+
+### Requires real-device/runtime verification (AFTER running the RLS migration + clearing tombstones)
+Party delete returns "deleted" not "server kept the row"; 2nd party saves + appears on other device; rate name matches regardless of case/spaces; salary row fits on phone.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.70
 
 Expense rate is now a percentage; removed "optional" wording; salaries/shares/parties no longer sync on blur (only on Save).
