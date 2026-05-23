@@ -3892,6 +3892,10 @@
      so only the snapshot text shows. */
   body.dist-readonly [onclick*="addDistSalaryRow"],
   body.dist-readonly [onclick*="addDistShareRow"],
+  body.dist-readonly [onclick*="addSplitParty"],
+  body.dist-readonly .split-party-remove,
+  body.dist-readonly #splitCurEditBtn,
+  body.dist-readonly .split-cur-edit-btn,
   body.dist-readonly .dist-row-edit-btn,
   body.dist-readonly .dist-row-card .icon-btn-light {
     display: none !important;
@@ -7392,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.54';
+  const BUILD_TAG = '2026.05.21.55';
 
   // ================================================================
   // STORAGE
@@ -14275,11 +14279,19 @@
       const { data: delData, error } = await sb().from(table).delete().eq('id', id).select();
       if (error) {
         console.error('[distDelete] CLOUD DELETE FAILED', { table, id, error: error.message || error.code, details: error });
+        try { toast('Delete did not reach the server: ' + (error.message || error.code || 'unknown')); } catch (_) {}
       } else {
-        console.log('[distDelete] cloud delete OK', { table, id, deletedRows: (delData || []).length });
+        const n = (delData || []).length;
+        console.log('[distDelete] cloud delete result', { table, id, deletedRows: n });
+        if (n === 0) {
+          // The delete ran but matched no rows — almost always an RLS DELETE
+          // policy that doesn't permit this user. Surface it so it's not silent.
+          console.warn('[distDelete] 0 rows deleted — likely RLS blocking DELETE on ' + table);
+          try { toast('Server kept the row (0 deleted) — check delete permissions.'); } catch (_) {}
+        }
         try { _markSelfWrite(id); } catch (_) {}
       }
-    } catch (e) { console.error('[distDelete] threw', { table, id, err: e && e.message }); /* queued delete op remains as the fallback */ }
+    } catch (e) { console.error('[distDelete] threw', { table, id, err: e && e.message }); }
   }
 
   // v89.32.45: one-tap reset of ALL distribution data for the active
@@ -14577,6 +14589,10 @@
       toast('Only the owner can edit.');
       return;
     }
+    // v89.32.57: in a past month or History (all/range) view, nothing is
+    // editable — block entering edit mode for currency/rate, parties,
+    // salaries, and shares. Switch to This Month to make changes.
+    try { if (!_activeDistMonth().editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; } } catch (_) {}
     const wasLocked = _distRowIsLocked(kind, id);
     if (wasLocked) {
       // Switch to edit mode
@@ -15606,6 +15622,9 @@
 
   function addSplitParty() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage split.'); return; }
+    // v89.32.57: parties/currency are only editable in the current month.
+    // Past months + History (all/range) are read-only snapshots.
+    try { if (!_activeDistMonth().editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; } } catch (_) {}
     // Default pct: split the remaining unallocated % evenly across new
     // additions. If current total is 100, new party gets 0 (user can
     // edit). If less than 100, give the new party the leftover.
@@ -15638,6 +15657,8 @@
   }
   async function removeSplitParty(id) {
     if (roleFor(session.activeBizId) !== 'owner') return;
+    // v89.32.57: read-only in past months / History.
+    try { if (!_activeDistMonth().editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; } } catch (_) {}
     // v89.19: clean up the row's lock state from localStorage
     try { _distRowMarkLocked('parties', id); } catch (_) {}
     const party = __splitParties.find(p => p.id === id);

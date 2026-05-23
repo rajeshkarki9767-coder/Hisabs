@@ -12,6 +12,36 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.55
+
+Read-only lockdown for non-current months (parties + currency/rate) + visible delete diagnostic.
+
+### Hash
+`f3a97f24fe3228f2a80b409378a2cefa`
+
+### Changes
+1. **Parties + currency/rate are now fully read-only in past months and History.** Previously only the salary/share Add buttons were hidden; you could still add/remove parties and edit currency/rate while viewing a non-current month. Now `addSplitParty`, `removeSplitParty`, and `distRowToggleEdit` (which covers currency/rate, parties, salaries, shares) all block with a toast unless you're on This Month, and the read-only CSS hides the add-party / remove-party / Edit-Currency-and-Rate buttons too. Only the current month is editable.
+2. **Party delete — visible diagnostic.** Since the deleted party still reappears and the delete code is verified correct, the cloud delete now reports its result as a TOAST (not just console): if the server keeps the row ("0 deleted"), it shows "Server kept the row (0 deleted) — check delete permissions" — the signature of an RLS DELETE policy blocking it. This makes the root cause visible without opening the console.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2191/2191; all read-only guards confirmed; delete diagnostic confirmed.
+
+### IMPORTANT — likely root cause of the party-delete issue
+The party reappearing on refresh almost certainly means the DELETE is being rejected by Supabase RLS (the row never leaves the server, so a refresh pulls it back). After deploying, delete a party and watch for the toast. If you see "Server kept the row", run this SQL to allow deletes on the distribution tables:
+
+```sql
+-- Allow owners/writers to DELETE split parties + distribution rows
+DROP POLICY IF EXISTS sp_delete ON public.app_split_parties;
+CREATE POLICY sp_delete ON public.app_split_parties FOR DELETE USING (public.app_can_write_business(business_id));
+DROP POLICY IF EXISTS ds_delete ON public.app_distribution_salaries;
+CREATE POLICY ds_delete ON public.app_distribution_salaries FOR DELETE USING (public.app_can_write_business(business_id));
+DROP POLICY IF EXISTS dsh_delete ON public.app_distribution_shares;
+CREATE POLICY dsh_delete ON public.app_distribution_shares FOR DELETE USING (public.app_can_write_business(business_id));
+```
+(Function name `app_can_write_business` may differ in your schema — adjust to your existing write-check function.)
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.54
 
 Final audit fix: History month-picker modal refresh used a non-existent element id.
