@@ -12,6 +12,62 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.45
+
+Regression audit: fix two issues introduced by .44 month-scoping.
+
+### Hash
+`7362ce8147ab06d4f79c6027b0109c30`
+
+### Regressions found + fixed (introduced by .44)
+1. **Reset distribution only cleared the current month.** After month-scoping, `resetAllDistributionData` captured ids from the live (month-scoped) arrays and relied on `_syncDistributionArrays` (which now only touches the active month) — so other months' rows survived a "reset everything." Fixed: reset now captures every month's ids from `data.*` for the business and drops the entire business slice from all three arrays before persisting, so it truly wipes all months + parties + currency/rate.
+2. **Carry-forward could run on non-owner devices.** The new-month carry-forward (copy names, reset amounts) ran on any device viewing the current month with no rows — including managers/viewers — fabricating local rows with fresh ids that weren't in the cloud, and two devices would fabricate different ids (the cross-device divergence class). Fixed: carry-forward is now owner-only; non-owners show only what the cloud has.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; tags balanced; no undefined handlers; full session regression 28/28 intact; both fixes confirmed; calculations correct.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.44
+
+Month-scoped distribution: per-month history, carry-forward names, read-only past months.
+
+### Hash
+`28ae67787b052eb1cd123fa30d6de639`
+
+### Changes
+Distribution (Team Salaries + Profit Shares) is now **per-month**. Using the period filter, each month shows its own data, and old months are read-only snapshots.
+- **New `period_month` column** on `app_distribution_salaries` + `app_distribution_shares` (migration `sql/v89.32.50_distribution_month_scope.sql`, backfills existing rows to the current month + adds indexes). Synced via the schema map.
+- **Loader is month-scoped** — only the active month's rows load. Editing one month never affects another (`_syncDistributionArrays` replaces only the active month's slice, preserving all other months).
+- **Carry-forward at a new month:** when the current month has no rows yet but a prior month does, Team Salary **names carry over with amounts reset to 0**, and Profit Share **names + % carry over** unchanged. (Logic-traced: names kept, salary/adjustment reset, shares intact, old months preserved.)
+- **Past months are read-only:** a banner explains it, Add/Edit/Delete controls are hidden, and the add handlers guard with a toast. Only the current month is editable.
+- **Parties + currency/rate stay business-level** (not month-scoped) — unchanged.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2184/2184; tags balanced; migration BEGIN/COMMIT balanced + 2 columns + 2 indexes; month-scope + carry-forward + read-only all confirmed and logic-traced.
+
+### Requires real-device/runtime verification
+Multi-month rollover behavior across a real month boundary and the read-only rendering on device.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.43
+
+Fix keyboard jump while typing in distribution/party fields (debounced persist).
+
+### Hash
+`d34a28b7d07f2010742347b07b156de8`
+
+### Changes
+1. **Keyboard no longer jumps while typing** in Team Salaries, Profit Shares, and split-party name/% fields. Cause: every keystroke called persist → `saveData` → sync diff → cloud write → realtime echo → a scheduled re-render that (despite the typing-defer guard) could rebuild the input and collapse the mobile keyboard. Fix: the localStorage+cloud persist is now **debounced** (~700ms after the last keystroke) instead of firing per character, and **flushed on blur** (and on Save) so nothing is lost. The live row object + on-screen math still update instantly on each keystroke.
+2. The **"Party to be Used for Distribution"** selector renders once you have a saved, named party — it appears below the parties. (It depends on being able to type + save a party, which the keyboard fix now makes reliable.)
+3. The **period filter** (This Month / Today / Yesterday / All Time / Custom) is already present on the Distribution page via the standard period bar — confirmed.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; debounce helpers + blur flush + period bar + selector all confirmed.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.42
 
 Final audit fixes: disable server cron digest (true 11:59 removal) + bundle PWA manifest.

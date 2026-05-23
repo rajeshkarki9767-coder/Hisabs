@@ -3879,7 +3879,23 @@
   .split-party-use-toggle input { cursor: pointer; }
   /* v89.32.43: "Use for Distribution" selector below the parties list. */
   .use-dist-section:empty { display: none; }
-  .use-dist-section {
+  /* v89.32.50: read-only banner for past-month distribution snapshots. */
+  .dist-readonly-banner {
+    background: color-mix(in srgb, var(--accent) 8%, var(--paper));
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, var(--line));
+    color: var(--ink); font-size: 0.85rem;
+    padding: 0.6rem 0.85rem; border-radius: var(--r-sm);
+    margin-bottom: 0.85rem;
+  }
+  .dist-readonly-banner strong { font-weight: 700; }
+  /* v89.32.50: in a read-only past month, hide the add/edit/delete controls
+     so only the snapshot text shows. */
+  body.dist-readonly [onclick*="addDistSalaryRow"],
+  body.dist-readonly [onclick*="addDistShareRow"],
+  body.dist-readonly .dist-row-edit-btn,
+  body.dist-readonly .dist-row-card .icon-btn-light {
+    display: none !important;
+  }  .use-dist-section {
     margin-top: 0.9rem; padding-top: 0.85rem;
     border-top: 1px solid var(--line);
   }
@@ -7369,7 +7385,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.42';
+  const BUILD_TAG = '2026.05.21.45';
 
   // ================================================================
   // STORAGE
@@ -8025,6 +8041,18 @@
   document.addEventListener('focusout', (e) => {
     const target = e.target;
     if (!target || !target.tagName) return;
+    // v89.32.49: when a distribution/split input loses focus, flush any
+    // pending debounced persist immediately so leaving a field commits the
+    // value to localStorage + cloud right away (no data loss if the user
+    // navigates away before the 700ms debounce fires).
+    try {
+      if (target.closest && (target.closest('.dist-row-card') || target.closest('.dist-salary-row') || target.closest('.dist-share-row'))) {
+        _flushDistPersist();
+      }
+      if (target.closest && target.closest('.split-party-row')) {
+        _flushSplitPersist();
+      }
+    } catch (_) {}
     // Defer removal so a focus shift between inputs in the same modal
     // doesn't briefly drop the class
     setTimeout(() => {
@@ -13866,23 +13894,74 @@
       } catch (_) {}
       return s;
     })();
-    const cloudSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
-    const cloudShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
+    // v89.32.50: month-scope. Only load rows for the active month. Rows from
+    // before month-scoping (no periodMonth) are treated as the current month
+    // so legacy data still appears.
+    const am = _activeDistMonth();
+    const wantMonth = am.month;
+    const _inMonth = (r) => {
+      const pm = r.periodMonth || _currentDistMonth();
+      return pm === wantMonth;
+    };
+    const allSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
+    const allShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
+    const cloudSal = allSal.filter(_inMonth);
+    const cloudShares = allShares.filter(_inMonth);
     if (cloudSal.length || cloudShares.length) {
       __distSalaries = cloudSal.map(r => ({
         id: r.id, name: r.name, salary: r.salary,
         adjustmentType: r.adjustmentType, adjustmentAmount: r.adjustmentAmount,
-        note: r.note, createdAt: r.createdAt,
+        note: r.note, periodMonth: r.periodMonth || wantMonth, createdAt: r.createdAt,
       }));
       __distShares = cloudShares.map(r => ({
-        id: r.id, name: r.name, pct: r.pct, note: r.note, createdAt: r.createdAt,
+        id: r.id, name: r.name, pct: r.pct, note: r.note,
+        periodMonth: r.periodMonth || wantMonth, createdAt: r.createdAt,
       }));
       return;
     }
-    // Fallback to localStorage
+    // v89.32.50: CARRY-FORWARD. The active (current) month has no rows yet,
+    // but a previous month does — carry the structure forward:
+    //   • Team Salaries: copy NAMES, reset salary + adjustment amounts to 0.
+    //   • Profit Shares: copy NAMES + % (nothing resets).
+    // Only do this for the editable current month (never fabricate history
+    // for a past read-only month). New rows get fresh ids + the active month.
+    // v89.32.51 FIX: carry-forward is OWNER-ONLY. Previously it ran on any
+    // device (incl. managers/viewers) when the current month had no rows,
+    // fabricating local rows with fresh ids — non-owners would see phantom
+    // rows that aren't in the cloud, and two devices would fabricate DIFFERENT
+    // ids → the exact cross-device divergence we fixed earlier. Only the owner
+    // creates the new month's carried rows (and persists them); everyone else
+    // just shows whatever the cloud has (empty until the owner populates it).
+    if (am.editable && wantMonth === _currentDistMonth()
+        && roleFor(bizId) === 'owner'
+        && (allSal.length || allShares.length)) {
+      // Find the most recent prior month that has data.
+      const priorMonthsSal = [...new Set(allSal.map(r => r.periodMonth || _currentDistMonth()).filter(m => m < wantMonth))].sort();
+      const priorMonthsShr = [...new Set(allShares.map(r => r.periodMonth || _currentDistMonth()).filter(m => m < wantMonth))].sort();
+      const lastSalMonth = priorMonthsSal[priorMonthsSal.length - 1];
+      const lastShrMonth = priorMonthsShr[priorMonthsShr.length - 1];
+      const carrySal = lastSalMonth ? allSal.filter(r => (r.periodMonth || _currentDistMonth()) === lastSalMonth) : [];
+      const carryShr = lastShrMonth ? allShares.filter(r => (r.periodMonth || _currentDistMonth()) === lastShrMonth) : [];
+      __distSalaries = carrySal.map(r => ({
+        id: uid(), name: r.name,
+        salary: 0, adjustmentType: 'deduction', adjustmentAmount: 0, // amounts reset
+        note: '', periodMonth: wantMonth, createdAt: new Date().toISOString(),
+      }));
+      __distShares = carryShr.map(r => ({
+        id: uid(), name: r.name, pct: r.pct, // name + % carry over
+        note: '', periodMonth: wantMonth, createdAt: new Date().toISOString(),
+      }));
+      // Persist the carried-forward rows so they exist for this month going
+      // forward (owner only; the persist itself is owner-gated downstream).
+      if (__distSalaries.length || __distShares.length) {
+        try { _persistDistribution(); } catch (_) {}
+      }
+      return;
+    }
+    // Fallback to localStorage (filtered to the active month).
     const local = loadDistributionStateFor(bizId);
-    __distSalaries = local.salaries || [];
-    __distShares = local.shares || [];
+    __distSalaries = (local.salaries || []).filter(r => (r.periodMonth || _currentDistMonth()) === wantMonth);
+    __distShares = (local.shares || []).filter(r => (r.periodMonth || _currentDistMonth()) === wantMonth);
   }
 
   function loadSplitPartiesFromCloudOrLocal(bizId) {
@@ -13955,6 +14034,69 @@
     _syncDistributionArrays(session.activeBizId);
   }
 
+  // v89.32.50: month-scoping for distribution.
+  // The current Kathmandu month as 'YYYY-MM'.
+  function _currentDistMonth() {
+    try { return _todayInKathmanduYYYYMMDD().slice(0, 7); }
+    catch (_) { return today().slice(0, 7); }
+  }
+  // The month the Distribution view is currently showing, derived from the
+  // period filter. Returns { month: 'YYYY-MM'|null, editable: bool }.
+  //   - current        -> this month, editable
+  //   - month:<key>    -> that month; editable only if it's the current month
+  //   - all / range    -> null month (multi-month) -> read-only, shows current
+  // Old months are READ-ONLY snapshots; only the current month is editable.
+  function _activeDistMonth() {
+    const cur = _currentDistMonth();
+    const p = session.period || { mode: 'current' };
+    if (p.mode === 'current') return { month: cur, editable: true };
+    if (p.mode === 'month' && p.monthKey) {
+      return { month: p.monthKey, editable: p.monthKey === cur };
+    }
+    if (p.mode === 'range' && p.from && p.to && p.from.slice(0, 7) === p.to.slice(0, 7)) {
+      const mk = p.from.slice(0, 7);
+      return { month: mk, editable: mk === cur };
+    }
+    // 'all' or multi-month range: show current month's data, read-only view.
+    return { month: cur, editable: (p.mode === 'all' ? false : true) };
+  }
+
+  // v89.32.49: debounced persist. The keyboard "jump" while typing in a
+  // salary / share / party field was caused by persisting on EVERY keystroke:
+  // each persist -> saveData -> sync diff -> cloud write -> realtime echo ->
+  // a scheduled re-render that (despite the typing-defer guard) could rebuild
+  // the input and collapse the mobile keyboard. We now debounce the
+  // localStorage+sync persist to ~700ms after the last keystroke, so a burst
+  // of typing produces a single persist instead of one per character. The
+  // live row object (__distSalaries/__splitParties) is still updated
+  // synchronously on each keystroke (done by the callers), so nothing is lost
+  // and the on-screen math stays live; only the sync-triggering persist is
+  // deferred. Also flushed on blur (see input handlers) and on Save.
+  let __distPersistTimer = null;
+  function _persistDistributionDebounced() {
+    if (__distPersistTimer) clearTimeout(__distPersistTimer);
+    __distPersistTimer = setTimeout(() => {
+      __distPersistTimer = null;
+      try { _persistDistribution(); } catch (_) {}
+    }, 700);
+  }
+  function _flushDistPersist() {
+    if (__distPersistTimer) { clearTimeout(__distPersistTimer); __distPersistTimer = null; }
+    try { _persistDistribution(); } catch (_) {}
+  }
+  let __splitPersistTimer = null;
+  function _persistSplitDebounced() {
+    if (__splitPersistTimer) clearTimeout(__splitPersistTimer);
+    __splitPersistTimer = setTimeout(() => {
+      __splitPersistTimer = null;
+      try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+    }, 700);
+  }
+  function _flushSplitPersist() {
+    if (__splitPersistTimer) { clearTimeout(__splitPersistTimer); __splitPersistTimer = null; }
+    try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+  }
+
   // v89.32.40: belt-and-suspenders direct cloud delete. The normal path is
   // delete-locally -> diff emits a delete op -> drainQueueOnce pushes it. That
   // works, but to make sure a deleted distribution row leaves Supabase
@@ -13997,9 +14139,12 @@
     if (!ok) return;
 
     // Capture ids BEFORE clearing, for the direct cloud delete.
-    const salIds = (__distSalaries || []).map(r => r.id);
-    const shrIds = (__distShares || []).map(r => r.id);
-    const partyIds = (__splitParties || []).map(p => p.id);
+    // v89.32.51 FIX: after month-scoping (.44), __distSalaries/__distShares
+    // only hold the ACTIVE month. Reset must clear ALL months, so capture ids
+    // from data.* (every month) for this business, not just the live arrays.
+    const salIds = (data.distSalaries || []).filter(r => r.businessId === bizId).map(r => r.id);
+    const shrIds = (data.distShares || []).filter(r => r.businessId === bizId).map(r => r.id);
+    const partyIds = (data.splitParties || []).filter(r => r.businessId === bizId).map(p => p.id);
 
     // 1) Clear local module state.
     __distSalaries = [];
@@ -14016,13 +14161,15 @@
       if (biz) { biz.splitCurrency = ''; biz.splitRate = 0; }
     } catch (_) {}
 
-    // 3) Persist locally + push the cleared arrays through the sync diff
-    //    (this emits delete ops for the now-missing rows, and an upsert for
-    //    the business with cleared currency/rate).
+    // 3) Persist locally + push the cleared state. v89.32.51: directly drop
+    //    EVERY month's rows for this business from data.* (not just the active
+    //    month slice that _syncDistributionArrays would touch), so reset truly
+    //    wipes all months. Then persist + sync.
     try {
+      data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId);
+      data.distShares = (data.distShares || []).filter(r => r.businessId !== bizId);
+      data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId);
       saveDistributionStateFor(bizId, { salaries: [], shares: [] });
-      _syncDistributionArrays(bizId);
-      _syncSplitPartiesArray(bizId);
       saveSplitStateFor(bizId);
       saveData();
     } catch (_) {}
@@ -14064,21 +14211,29 @@
     if (!bizId) return;
     if (roleFor(bizId) !== 'owner') return; // v89.8: non-owners skip
     try {
-      // Replace the slice of data.distSalaries that belongs to this biz
-      data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId)
+      // v89.32.50: month-scoped. Replace only the rows for THIS business AND
+      // the active month, preserving all other months' rows (so editing this
+      // month never wipes prior months' snapshots). __distSalaries/__distShares
+      // hold only the active month's rows (the loader scopes them).
+      const am = _activeDistMonth();
+      const mk = am.month || _currentDistMonth();
+      const keep = (r) => r.businessId !== bizId || ((r.periodMonth || _currentDistMonth()) !== mk);
+      data.distSalaries = (data.distSalaries || []).filter(keep)
         .concat(__distSalaries.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', salary: Number(r.salary) || 0,
           adjustmentType: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
           adjustmentAmount: Number(r.adjustmentAmount) || 0,
           note: r.note || '',
+          periodMonth: r.periodMonth || mk,
           createdAt: r.createdAt || new Date().toISOString(),
         })));
-      data.distShares = (data.distShares || []).filter(r => r.businessId !== bizId)
+      data.distShares = (data.distShares || []).filter(keep)
         .concat(__distShares.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', pct: Number(r.pct) || 0,
           note: r.note || '',
+          periodMonth: r.periodMonth || mk,
           createdAt: r.createdAt || new Date().toISOString(),
         })));
       saveData();
@@ -14117,6 +14272,10 @@
   // Add a blank salary row. Focuses the name input afterwards.
   function addDistSalaryRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
+    // v89.32.50: only the current month is editable. Past months are
+    // read-only snapshots.
+    const am = _activeDistMonth();
+    if (!am.editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; }
     const _newSalId = uid();
     __distSalaries.push({
       id: _newSalId,
@@ -14128,6 +14287,7 @@
       // (e.g. "Advance taken", "Performance bonus"). Shows in print
       // + PDF + CSV exports too.
       note: '',
+      periodMonth: am.month || _currentDistMonth(),
     });
     // v89.15: new salary row starts in edit mode
     _distRowMarkUnlocked('salaries', _newSalId);
@@ -14324,10 +14484,12 @@
       // Recompute totals + per-row final amount. This updates the DOM
       // text content directly without re-rendering inputs (preserves focus).
       try { refreshDistributionTotals(); } catch (_) {}
-      // v89.32.12: persist on type so a salary edit isn't lost if the user
-      // navigates away without clicking the row's Save button (matches the
-      // party-row fix). Writes to localStorage + queues cloud sync.
-      try { _persistDistribution(); } catch (_) {}
+      // v89.32.49: persist DEBOUNCED so we don't sync on every keystroke
+      // (that caused the realtime echo -> re-render -> keyboard jump). The
+      // row object is already updated above, so nothing is lost; the
+      // localStorage+cloud persist fires ~700ms after typing stops (and on
+      // blur / Save).
+      try { _persistDistributionDebounced(); } catch (_) {}
     }
   }
   function saveDistSalaryRow(id) {
@@ -14355,9 +14517,11 @@
 
   function addDistShareRow() {
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can manage distribution.'); return; }
+    const am = _activeDistMonth();
+    if (!am.editable) { toast('Past months are read-only. Switch to This Month to edit.'); return; }
     // v89.15: new row starts in edit mode
     const _newShrId = uid();
-    __distShares.push({ id: _newShrId, name: '', pct: 0, note: '' });
+    __distShares.push({ id: _newShrId, name: '', pct: 0, note: '', periodMonth: am.month || _currentDistMonth() });
     _distRowMarkUnlocked('shares', _newShrId);
     _persistDistribution();
     renderDistributionCard();
@@ -14402,6 +14566,8 @@
       }
       else if (field === 'note') row.note = String(value || '').slice(0, 280);
       try { refreshDistributionTotals(); } catch (_) {}
+      // v89.32.49: debounced persist (no per-keystroke sync → no keyboard jump)
+      try { _persistDistributionDebounced(); } catch (_) {}
     }
   }
   function saveDistShareRow(id) {
@@ -14520,6 +14686,15 @@
     } else {
       document.body.classList.add('dist-view-only');
     }
+    // v89.32.50: past-month read-only — hides Add buttons + edit affordances
+    // via CSS (the add/edit handlers also guard, this is the visual layer).
+    try {
+      if (_activeDistMonth().editable) {
+        document.body.classList.remove('dist-readonly');
+      } else {
+        document.body.classList.add('dist-readonly');
+      }
+    } catch (_) {}
     // v89.15: apply readonly state to splitCurInput / splitRateInput based on lock
     setTimeout(() => {
       const isLocked = _distRowIsLocked('splitcurate', 'main');
@@ -15308,7 +15483,7 @@
         if (value === '' || value === null) party.pct = 0;
         else { const n = Number(value); party.pct = Number.isFinite(n) ? Math.max(0, Math.min(100, n)) : 0; }
       }
-      try { saveSplitStateFor(session.activeBizId); } catch (_) {}
+      try { _persistSplitDebounced(); } catch (_) {}
       // Refresh only the math UI — never rebuild the inputs (would break typing).
       try { updateSplitCalcMathOnly(); } catch (_) {}
     }
@@ -16283,6 +16458,13 @@
       <p class="page-intro">Allocate the Net profit (after tax) to team salaries and profit shares. Split &amp; convert below lets you split the net profit by % and see it in any currency. Saved per business.</p>
 
       ${renderPeriodBar()}
+
+      ${(() => {
+        const am = _activeDistMonth();
+        if (am.editable) return '';
+        const lbl = am.month ? monthLabel(am.month) : 'this period';
+        return `<div class="dist-readonly-banner">Viewing <strong>${escapeHtml(lbl)}</strong> — past months are a read-only snapshot. Switch to <strong>This Month</strong> to make changes.</div>`;
+      })()}
 
       <!-- v75: Net profit (after tax) summary card. Lives at the top
            of the Distribution page so the user sees the bottom-line
@@ -33383,6 +33565,7 @@
         adjustment_type: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
         adjustment_amount: Number(r.adjustmentAmount) || 0,
         note: r.note || '',
+        period_month: r.periodMonth || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -33392,6 +33575,7 @@
         adjustmentType: r.adjustment_type === 'addition' ? 'addition' : 'deduction',
         adjustmentAmount: Number(r.adjustment_amount) || 0,
         note: r.note || '',
+        periodMonth: r.period_month || '',
         createdAt: r.created_at_local || '',
       }),
     },
@@ -33402,6 +33586,7 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         note: r.note || '',
+        period_month: r.periodMonth || null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -33409,6 +33594,7 @@
         name: r.name || '',
         pct: Number(r.pct) || 0,
         note: r.note || '',
+        periodMonth: r.period_month || '',
         createdAt: r.created_at_local || '',
       }),
     },
