@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.55';
+  const BUILD_TAG = '2026.05.21.56';
 
   // ================================================================
   // STORAGE
@@ -12020,7 +12020,7 @@
     const isAll = p.mode === 'all';
     const isRange = p.mode === 'monthrange';
     const isCustom = p.mode === 'month' && !isCurrent && !isLast;
-    const isHistory = isAll || isRange;
+    const isHistory = isAll || isRange || isLast || isCustom;
     let label;
     if (isAll) label = 'All time (all months combined)';
     else if (isRange) label = `${monthLabel(p.fromMonth)} – ${monthLabel(p.toMonth)} (combined)`;
@@ -12029,8 +12029,6 @@
     return `<div class="period-bar">
       <span class="period-bar-label">Showing</span>
       <button class="period-tab ${isCurrent ? 'active' : ''}" onclick="setPeriod({mode:'current'})">This Month</button>
-      <button class="period-tab ${isLast ? 'active' : ''}" onclick="setPeriodLastMonth()">Last Month</button>
-      <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom month ${isCustom ? '·' : '…'}</button>
       <button class="period-tab period-history-tab ${isHistory ? 'active' : ''}" onclick="openDistHistory()">History ${isHistory ? '·' : '…'}</button>
       <span class="period-current">${escapeHtml(label)}</span>
     </div>`;
@@ -12100,15 +12098,21 @@
     openModal('distHistory');
   }
   function distHistoryModal() {
+    const t = today();
+    const [yyyy, mm] = t.split('-').map(Number);
+    const lastD = new Date(yyyy, mm - 2, 1);
+    const lastMonthKey = `${lastD.getFullYear()}-${String(lastD.getMonth() + 1).padStart(2, '0')}`;
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">History</h2>
-      <p class="modal-sub">View combined distribution across months. Rate and party % are averaged; amounts are summed.</p>
+      <p class="modal-sub">View a past month's saved distribution, or combine a range. These are read-only snapshots of what was saved that month.</p>
       <div class="hist-options">
-        <button class="btn btn-block" onclick="setDistAllTime()">All time (every month)</button>
+        <button class="btn btn-block" onclick="histPickLastMonth()">Last month (${escapeHtml(monthLabel(lastMonthKey))})</button>
+        <button class="btn btn-block" onclick="histChooseMonth()" style="margin-top:0.5rem;">Choose a month…</button>
+        <button class="btn btn-block" onclick="setDistAllTime()" style="margin-top:0.5rem;">All time (every month)</button>
       </div>
       <div class="hist-range-wrap">
-        <div class="hist-range-title">Or pick a month range</div>
+        <div class="hist-range-title">Or a custom month range</div>
         <div class="hist-range-pills">
           <button class="hist-range-pill ${__histPicking === 'from' ? 'active' : ''}" onclick="histSetPicking('from')">From: <strong>${__histRangeFrom ? monthLabel(__histRangeFrom) : '—'}</strong></button>
           <button class="hist-range-pill ${__histPicking === 'to' ? 'active' : ''}" onclick="histSetPicking('to')">To: <strong>${__histRangeTo ? monthLabel(__histRangeTo) : '—'}</strong></button>
@@ -12119,6 +12123,46 @@
           <button class="btn btn-primary" onclick="applyDistRange()">Show range</button>
         </div>
       </div>`;
+  }
+  // Single-month history pickers (Last month / Choose month).
+  function histPickLastMonth() {
+    const t = today();
+    const [yyyy, mm] = t.split('-').map(Number);
+    const lastD = new Date(yyyy, mm - 2, 1);
+    const key = `${lastD.getFullYear()}-${String(lastD.getMonth() + 1).padStart(2, '0')}`;
+    setPeriod({ mode: 'month', monthKey: key });
+    closeModal();
+    toast(`Showing ${monthLabel(key)} (saved snapshot).`);
+  }
+  // "Choose a month" reuses the From-grid as a single-month picker.
+  let __histSingleMode = false;
+  function histChooseMonth() {
+    __histSingleMode = true;
+    __histPicking = 'single';
+    const body = document.getElementById('histPickerBody');
+    if (body) body.innerHTML = renderHistSingleGrid();
+    // also show a hint by replacing the pills row title
+    const wrap = document.querySelector('.hist-range-title');
+    if (wrap) wrap.textContent = 'Pick a month to view its saved snapshot';
+  }
+  function renderHistSingleGrid() {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const cells = months.map((m, i) => {
+      const key = `${__histPickYear}-${String(i+1).padStart(2, '0')}`;
+      return `<button class="month-grid-item" onclick="histPickSingle('${key}')">${m}</button>`;
+    }).join('');
+    return `
+      <div class="year-nav">
+        <button onclick="histChangeYear(-1)">‹</button>
+        <span class="year-nav-label">${__histPickYear}</span>
+        <button onclick="histChangeYear(1)">›</button>
+      </div>
+      <div class="month-grid">${cells}</div>`;
+  }
+  function histPickSingle(key) {
+    setPeriod({ mode: 'month', monthKey: key });
+    closeModal();
+    toast(`Showing ${monthLabel(key)} (saved snapshot).`);
   }
   function renderHistMonthGrid() {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

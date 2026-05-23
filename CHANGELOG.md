@@ -12,6 +12,27 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.56
+
+Distribution period bar = This Month + History; History holds Last month / Choose month / All time / Custom range.
+
+### Hash
+`f4211f9ebec2a3214c12b15cba609c84`
+
+### Changes
+- **Period bar simplified to two buttons: This Month and History.** Last Month and Custom month moved into the History modal.
+- **History modal now offers:** Last month (one tap), Choose a month (month-grid picker), All time (every month combined), and Custom month range (From–To). All open as read-only snapshots.
+- **Past months show their SAVED snapshot, not current entries.** This is inherent to the month-scoping: salaries/shares/parties are stored per `period_month`, so viewing a past month loads exactly what was saved for that month. The Net Profit figure for a past month is scoped to that month's own entries (which don't change retroactively).
+- **Currency/rate sync verified.** The save path writes `split_currency`/`split_rate` to the business row and queues it for cloud sync (owner-only). This was previously blocked by the missing-business-record + stale-role-cache issue (now resolved by the data fix), so it should now save and sync correctly.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2191/2191; period bar = 2 buttons (This Month + History); all History functions defined (Last month, Choose month, single-grid, All time, range); currency/rate sync path confirmed.
+
+### Requires real-device/runtime verification
+History modal options, single-month snapshot rendering, and currency/rate actually persisting across devices.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.55
 
 Read-only lockdown for non-current months (parties + currency/rate) + visible delete diagnostic.
