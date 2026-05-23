@@ -7482,7 +7482,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.72';
+  const BUILD_TAG = '2026.05.21.74';
 
   // ================================================================
   // STORAGE
@@ -16187,6 +16187,14 @@
       row.pct = (Number.isFinite(n) && n >= 0 && n <= 100) ? n : 0;
     }
     _distBufferClear('parties', id);
+    // v89.32.74: LOCK the row BEFORE syncing. _syncSplitPartiesArray only
+    // syncs parties whose row is locked (saved). Previously saveSplitPartyRow
+    // called saveSplitStateFor (→ sync) while the row was still 'editing'
+    // (unlocked), so a just-saved 2nd party was filtered OUT of syncable and
+    // the month-rebuild dropped it — the "2nd party saves then vanishes / never
+    // reaches the other device" bug. _markRowSavedUI only animates the button;
+    // it does NOT set the lock. Mark locked first, then persist + sync.
+    try { _distRowMarkLocked('parties', id); } catch (_) {}
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
     _markRowSavedUI('parties', id);
@@ -34921,6 +34929,19 @@
         // is only for records the cloud genuinely doesn't have yet.
         return [...cloud, ...carryOver];
       }
+      // v89.32.73: race-resilient union merge for the expense rate book.
+      // Cloud rows win for ids present on both sides (authoritative). Local
+      // rows the cloud doesn't have yet are KEPT (they're either pending saves
+      // or just-confirmed writes the pull raced past) — NOT dropped. Deleting a
+      // rate removes it from the local array, so it won't be in localRows and
+      // therefore won't be resurrected here.
+      function mergeExpenseRates(cloudRows, localRows) {
+        const cloud = cloudRows || [];
+        const local = localRows || [];
+        const cloudIds = new Set(cloud.map(r => r.id));
+        const localOnly = local.filter(r => r && r.id && !cloudIds.has(r.id));
+        return [...cloud, ...localOnly];
+      }
 
       // Snapshot the current user's locally-accepted memberships BEFORE the
       // merge reassigns data.members — used just below to stop a racing pull
@@ -34968,7 +34989,17 @@
       } catch (_) {}
       data.entries       = mergeWithPending('entries',       fetched.entries,       data.entries);
       data.auditExpenses = mergeWithPending('auditExpenses', fetched.auditExpenses, data.auditExpenses);
-      data.expenseRates = mergeWithPending('expenseRates', fetched.expenseRates, data.expenseRates);
+      // v89.32.73: expense rates use a RACE-RESILIENT merge. The generic merge
+      // only keeps a local row if it still has a PENDING upsert op the cloud
+      // lacks; once the op drains (or a pull races the upsert's round-trip), a
+      // just-saved rate the cloud hasn't returned yet gets dropped — that is
+      // the "rates vanish on refresh" bug (RLS was confirmed OK). Here we
+      // instead UNION cloud + local by id: cloud is authoritative for ids it
+      // has, and any local-only rate is kept unless it was explicitly deleted
+      // (delete removes it from data.expenseRates directly, so it simply won't
+      // be in localRows). This can't resurrect a deleted rate because deletes
+      // mutate the local array; it only protects not-yet-confirmed saves.
+      data.expenseRates = mergeExpenseRates(fetched.expenseRates, data.expenseRates);
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
       data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       data.transfers     = mergeWithPending('transfers',     fetched.transfers,     data.transfers);

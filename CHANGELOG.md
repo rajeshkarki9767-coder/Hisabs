@@ -12,6 +12,50 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.74
+
+ROOT-CAUSE FIX for the party sync glitch: saved parties weren't being recognized as "saved" at sync time, so the 2nd party was filtered out of the sync and dropped, and the 1st only synced on a later trigger ("shows later on another device").
+
+### Hash
+`bd4d6ef74eab71aa479c53e2758abc85`
+
+### Root cause (code, not RLS)
+_syncSplitPartiesArray only syncs parties whose row is LOCKED (saved); unsaved/blank rows are intentionally excluded. But saveSplitPartyRow called saveSplitStateFor (→ _syncSplitPartiesArray) while the row was still in the 'editing' (unlocked) state — it only called _markRowSavedUI afterward, which merely animates the Save button and does NOT set the lock. So a just-saved party was seen as still-editing → excluded from `syncable` → the month-scoped rebuild of data.splitParties dropped it. Result: 2nd party "saves then vanishes / never reaches the other device"; 1st party only synced when some later render/save happened to run after the lock got set.
+
+### Fix
+saveSplitPartyRow now calls _distRowMarkLocked('parties', id) BEFORE saveSplitStateFor, so the row is locked when _syncSplitPartiesArray reads its state and the party is included in the sync immediately.
+
+### Verified
+Lock-order trace 3/3 (old order excludes the party, new order includes it); self-test 63/63; JS valid; CSS 2226/2226; no undefined handlers; full session regression intact.
+
+### Requires real-device/runtime verification
+Add a 2nd party → Save → it stays + appears on the other device; 1st party appears on the other device promptly (not only after a later action).
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.73
+
+FIX: expense rates vanishing on refresh. RLS was confirmed CORRECT (INSERT check_expr = app_is_business_owner) — the cause was a code-side merge race that dropped a just-saved rate when a cloud pull arrived before the upsert's round-trip landed. Replaced the generic pending-only merge with a race-resilient union merge for the rate book.
+
+### Hash
+`3a455fd947e3cd3ba16f95559baf618c`
+
+### Root cause (confirmed, not speculative)
+- INSERT/UPDATE/SELECT/DELETE policies on app_expense_rates are all correct (verified via pg_policy: insert check_expr = app_is_business_owner(business_id)). So writes ARE permitted.
+- The generic mergeWithPending only preserved a local row if it still had a PENDING upsert op the cloud lacked. On refresh, if the op had drained (or the pull raced the upsert), the empty cloud result overwrote the just-saved rate -> "vanish on refresh".
+
+### Fix
+- New mergeExpenseRates(cloud, local): UNION by id. Cloud is authoritative for ids it has; any local-only rate is KEPT (pending or just-confirmed), never dropped. Cannot resurrect a deleted rate because delete mutates the local array (the row simply isn't in localRows).
+- The .72 direct upsert + diagnostic stays (belt-and-suspenders: write lands immediately + logs the server result).
+
+### Verified
+mergeExpenseRates trace 5/5 (keeps just-saved during race; cloud wins on shared id; no dup; deleted stays gone; union); self-test 63/63; JS valid; CSS 2226/2226; no undefined handlers; full session regression intact.
+
+### Requires real-device/runtime verification
+Save a rate -> refresh -> it persists; appears on the other device; deleting a rate keeps it gone after refresh.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.72
 
 Expense rate book sometimes not saving / empty after refresh — added a cloud-write diagnostic (logs the server result so a blocked write is visible) and an RLS verify/fix migration. Same class as the distribution delete bug: a silently-blocked cloud write leaves rates in localStorage only, then the empty pull overwrites them on refresh.
