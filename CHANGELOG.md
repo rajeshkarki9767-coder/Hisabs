@@ -12,6 +12,27 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.76
+
+Fix mobile salary/share row overflow (proper structure-agnostic layout) + add a diagnostic to pinpoint why expense rates still vanish after navigating.
+
+### Hash
+`d3aa8d12d013cb849fe9f27ffc10d87f`
+
+### Mobile salary/share overflow (real fix this time)
+The .71 mobile fix used grid-areas keyed to input[data-field=...], which only matched the EDIT view. The LOCKED display row uses .dist-cell divs with no grid-area, so its amount-to-get + edit/delete buttons fell outside the grid and overflowed the card. Replaced with a flex-wrap layout that works for BOTH the display and edit views: name on its own line, middle fields wrap, amount on its own full-width line (right-aligned, ellipsis), action buttons on their own right-aligned line — never overflowing. Compact 40x36 buttons on mobile.
+
+### Expense rates still vanish — diagnostic added
+Confirmed: navigating Expenses→Distribution→Expenses does NOT re-hydrate data from localStorage, and the realtime echo handler doesn't wipe the array — so the only thing that can clear data.expenseRates is the cloudPullAll merge. Added `[rateMerge] pull {fetched, afterMerge, names}` logging at the merge point so we can see exactly when/where rates are lost. The .73 union-merge is still in place.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2214/2214 (leftover grid-area share rules removed); no undefined handlers.
+
+### Requires real-device/runtime verification
+Salary/share rows fit inside the card on phone (locked AND edit views). For rates: save a rate, navigate to Distribution and back, and READ the console — paste the `[rateMerge] pull {...}` and `[rateSave] cloud upsert result {...}` lines so the exact loss point is identified.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.75
 
 DEPLOY FIX: removed the orphaned api/cron/digest.js serverless function that was failing the Vercel build. App logic unchanged from .74.
