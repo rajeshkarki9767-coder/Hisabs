@@ -12,6 +12,30 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.62
+
+Fixes: keyboard kick-off when typing a party name; delete-twice (tombstone pruned too early).
+
+### Hash
+`35c8434fcc461c4413ecae58cc68c916`
+
+### Bug 1 — typing a party name "kicks the keyboard off"
+`renderSplitParties` had no focus guard, so a background re-render (from debounced persist / realtime echo) rebuilt the party input DOM mid-type and stole focus. Added a focus guard: if a `.split-party-row` input is focused, skip the rebuild (same guard `renderDistributionCard` already uses).
+
+### Bug 3 — salaries/shares need deleting twice (first delete reappears)
+The tombstone was pruned immediately on confirmed cloud delete. A realtime DELETE echo or late local re-render arriving AFTER the prune resurrected the row (no tombstone left), forcing a second delete. Fix: do NOT prune the tombstone on confirm — keep it (the set is small; new rows get fresh ids so it never blocks a legitimate add). One delete now sticks.
+
+### Bugs 2 & 4 — party not saving past the first / History shows current parties: LIKELY NEEDS THE SQL MIGRATION
+Both depend on party month-scoping (`period_month` on `app_split_parties`). If `sql/v89.32.60_split_parties_month_scope.sql` has NOT been run, parties have no `period_month`, so per-month save + History filtering can't work. CONFIRM that migration ran (see deploy notes). The save/sync logic itself is verified correct when both parties are locked and the column exists.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2191/2191; focus guard + no-prune confirmed; .61 totalSharePct fix intact; no undefined handlers.
+
+### Requires real-device/runtime verification
+Typing party names (no kick-off); single-delete sticks; per-month parties + History (after confirming v89.32.60 migration ran).
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.61
 
 CRITICAL FIX: Save/delete crashed whenever profit shares existed (undeclared variable). This broke saving salaries, shares, AND deleting parties.

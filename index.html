@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.61';
+  const BUILD_TAG = '2026.05.21.62';
 
   // ================================================================
   // STORAGE
@@ -14439,10 +14439,14 @@
           console.warn('[distDelete] 0 rows deleted — likely RLS blocking DELETE on ' + table);
           try { toast('Server kept the row (0 deleted) — check delete permissions.'); } catch (_) {}
         } else {
-          // Confirmed gone from the cloud — the tombstone has done its job and
-          // can be pruned so the set stays small. The row is already removed
-          // from local mirror + working arrays, so nothing can resurrect it.
-          try { _pruneTombstone(id); } catch (_) {}
+          // v89.32.62: do NOT prune the tombstone here. Pruning immediately on
+          // confirm caused the "delete twice" bug: a realtime DELETE echo or a
+          // late local-mirror re-render arriving AFTER the prune would resurrect
+          // the row (no tombstone left to block it), forcing a second delete.
+          // Keeping the tombstone is cheap (small set) and guarantees the row
+          // stays gone. New rows always get a fresh id, so the tombstone never
+          // blocks a legitimate future add.
+          // (was: _pruneTombstone(id))
         }
         try { _markSelfWrite(id); } catch (_) {}
       }
@@ -15703,6 +15707,17 @@
   function renderSplitParties() {
     const listEl = document.getElementById('splitPartiesList');
     if (!listEl) return;
+    // v89.32.62: FOCUS GUARD — if the user is currently typing in a party
+    // input (name or %), do NOT rebuild the list. Rebuilding replaces the
+    // input DOM and steals focus, which "kicks the keyboard off" mid-type.
+    // (renderDistributionCard has the same guard; the party list lacked it.)
+    try {
+      const _ae = document.activeElement;
+      if (_ae && (_ae.tagName === 'INPUT' || _ae.tagName === 'TEXTAREA')
+          && _ae.closest && _ae.closest('.split-party-row')) {
+        return;
+      }
+    } catch (_) {}
     // v89.32.59: in a read-only month (History / past), the Split & convert
     // card is replaced by a static "Party amounts" list rendered inline in
     // renderDistributionView. Don't overwrite it here.
