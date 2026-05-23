@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.62';
+  const BUILD_TAG = '2026.05.21.63';
 
   // ================================================================
   // STORAGE
@@ -33700,6 +33700,17 @@
     } else if (eventType === 'DELETE') {
       const id = (oldRow && oldRow.id);
       if (!id) return;
+      // v89.32.63: when another device deletes a distribution row, record a
+      // tombstone HERE too. Otherwise this device removes it from memory now,
+      // but on its next refresh the local mirror / pull carries it back —
+      // which is exactly why "delete on device A didn't stick on device B".
+      // The tombstone makes the deletion durable on the receiving device.
+      try {
+        if (typeof _addTombstone === 'function'
+            && (localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties')) {
+          _addTombstone(id);
+        }
+      } catch (_) {}
       const idx = list.findIndex(r => r.id === id);
       if (idx !== -1) {
         const removed = list[idx];
@@ -33708,6 +33719,10 @@
         // Clear cached role if this DELETE was our own member row.
         if (localKey === 'members') _invalidateRoleCacheIfMine(removed);
         scheduleRemoteRender(localKey, id, 'delete');
+      } else {
+        // Row not in our in-memory list (we may not have loaded it yet), but
+        // the tombstone above still prevents it from reappearing on refresh.
+        try { scheduleRemoteRender(localKey, id, 'delete'); } catch (_) {}
       }
     }
   }
@@ -34392,7 +34407,16 @@
         const pending = (map && pendingByTable.get(map.table)) || null;
         if (!pending || pending.size === 0) return cloud;
         const cloudIds = new Set(cloud.map(r => r.id));
-        const carryOver = (localRows || []).filter(r => pending.has(r.id) && !cloudIds.has(r.id));
+        // v89.32.63: carryOver preserves local-only rows with a pending upload
+        // op that the cloud doesn't have yet. BUT it must NOT resurrect a row
+        // that was DELETED on another device: if the cloud no longer has the
+        // row AND it's tombstoned locally, it's a deletion, not a pending add.
+        // Without this, deleting on device A left device B carrying the row
+        // over on its next pull (cross-device delete didn't propagate).
+        const carryOver = (localRows || []).filter(r =>
+          pending.has(r.id) && !cloudIds.has(r.id)
+          && !(typeof _isTombstoned === 'function' && _isTombstoned(r.id))
+        );
         if (!carryOver.length) return cloud;
         // Cloud rows take priority for IDs that exist on both sides — if a
         // pending op exists for a record that the cloud already knows about,

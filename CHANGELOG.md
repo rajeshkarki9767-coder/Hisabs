@@ -12,6 +12,28 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.63
+
+Cross-device delete now propagates: deleting on one device sticks on the other.
+
+### Hash
+`5fde29429e5450b5279811b2e669955d`
+
+### Bug — delete on device A didn't stick on device B
+Deleting a salary/share/party on device A removed it on A (even after refresh), but device B still showed it until separately deleted there. Reset worked cross-device, which was the clue: reset does a bulk cloud delete that B's pull reflects, while a single delete relied on B's merge logic — which carried the row back.
+
+Two root causes, both fixed:
+1. **`mergeWithPending` resurrected deleted rows.** On B's next pull, a row gone from the cloud (deleted by A) but still in B's local data with a pending op was "carried over" as if it were a local-only addition. Now carryOver skips tombstoned ids.
+2. **B had no tombstone for A's deletion.** B received the realtime DELETE event and removed the row from memory, but on refresh the local mirror/pull brought it back because B never recorded the deletion durably. Now the realtime DELETE handler adds a tombstone on the receiving device for distribution rows, so the deletion survives B's refresh.
+
+### Verified
+Cross-device trace 3/3 (B tombstones on realtime DELETE → carryOver skips it → row stays deleted on B). Self-test 63/63; JS valid; CSS 2191/2191; no undefined handlers; all prior fixes intact (totalSharePct, focus guard, tombstones, party month-scope).
+
+### Requires real-device/runtime verification
+Delete on device A → confirm it disappears on device B (after B's realtime event or next refresh) WITHOUT deleting separately on B.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.62
 
 Fixes: keyboard kick-off when typing a party name; delete-twice (tombstone pruned too early).
