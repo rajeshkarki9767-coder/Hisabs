@@ -12,6 +12,25 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.75
+
+DEPLOY FIX: removed the orphaned api/cron/digest.js serverless function that was failing the Vercel build. App logic unchanged from .74.
+
+### Hash
+`0a669338e333c5c86d6de5710dde5ee0`
+
+### Why the Vercel deploy failed
+api/cron/digest.js did `import webpush from 'web-push'`, but the project has no package.json, so Vercel could not install the dependency when building the serverless function → build failed. The function was ORPHANED: not scheduled (vercel.json has 0 crons), not referenced by index.html, and unused. Removing it makes the project fully static (no build step), which is how it has always deployed.
+
+### Change
+- Deleted api/ (the lone digest cron). No app code changed; index.html is identical to .74 except the BUILD_TAG bump. vercel.json remains buildCommand:null, framework:null, 0 crons → pure static serve.
+- (Daily push digests, if ever wanted, would need a proper package.json + cron schedule + env vars as a separate feature.)
+
+### Verified
+Self-test 63/63; JS valid; no serverless functions remain; vercel.json static; .74 party lock-before-sync fix intact.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.74
 
 ROOT-CAUSE FIX for the party sync glitch: saved parties weren't being recognized as "saved" at sync time, so the 2nd party was filtered out of the sync and dropped, and the 1st only synced on a later trigger ("shows later on another device").
