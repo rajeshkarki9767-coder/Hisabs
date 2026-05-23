@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.90';
+  const BUILD_TAG = '2026.05.21.93';
 
   // ================================================================
   // STORAGE
@@ -20946,42 +20946,83 @@
         showWelcomeSplash(__acceptedBiz?.name || '');
         (async () => {
           try {
-            // Best-effort drain: push our membership-accepted op to the
-            // cloud so the server-side RLS check unlocks reads. Wait
-            // briefly for the queue to clear, then pull.
-            let waited = 0;
-            while (Array.isArray(__syncQueue) && __syncQueue.length > 0 && waited < 5000) {
-              try { await drainQueueOnce(); } catch (_) {}
-              await new Promise(r => setTimeout(r, 250));
-              waited += 250;
+            // v89.36 (invite-accept: "No books yet" + ~15s delay fix).
+            // The membership-accepted op must reach the cloud (with our
+            // user_id) BEFORE the pull, or RLS returns no books and the new
+            // member sees an empty "No books yet" sidebar until realtime
+            // trickles in ~15s later. The old code drained best-effort for
+            // up to 5s then pulled ONCE regardless — so if the accept-op was
+            // still queued (e.g. first push hit RLS/backoff), the pull ran
+            // too early and books never showed promptly.
+            //
+            // New approach: drain → pull → VERIFY books arrived for this
+            // business. If not (and the accept-op is still pending or RLS
+            // hadn't caught up), drain + re-pull a few short times until the
+            // books appear. This converges in ~1–2s on the happy path and
+            // bounds the worst case well under the old ~15s.
+            const _bizId = m.businessId;
+            const _accepted = () => {
+              const r = data.members.find(x => x.id === m.id)
+                || data.members.find(x => x.businessId === _bizId
+                      && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
+              return r && r.status === 'accepted';
+            };
+            const _hasBooks = () => data.books.some(b => b.businessId === _bizId);
+
+            // Up to ~9s total (much tighter than the old 5s-wait-then-blind-
+            // pull-then-15s-realtime path), in short cycles. Each cycle:
+            // push the accept op, then pull everything.
+            const MAX_CYCLES = 6;
+            for (let cycle = 0; cycle < MAX_CYCLES; cycle++) {
+              // Push pending ops (the accept). Try a couple of quick drains so
+              // a single transient failure doesn't cost a whole cycle.
+              let drainTries = 0;
+              while (Array.isArray(__syncQueue) && __syncQueue.length > 0 && drainTries < 3) {
+                try { await drainQueueOnce(); } catch (_) {}
+                if (Array.isArray(__syncQueue) && __syncQueue.length === 0) break;
+                await new Promise(r => setTimeout(r, 250));
+                drainTries++;
+              }
+              // Pull every table so books/entries/parties/categories/accounts/
+              // announcements for this business arrive in one round trip.
+              try {
+                await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
+              } catch (_) {}
+              // v89.32.4: re-assert acceptance locally in case the pull fetched
+              // an older pending row and regressed our local accepted status.
+              const mm = data.members.find(x => x.id === m.id)
+                      || data.members.find(x => x.businessId === _bizId
+                            && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
+              if (mm && mm.status !== 'accepted') {
+                mm.status = 'accepted';
+                mm.respondedAt = mm.respondedAt || today();
+                if (u?.cloud) mm.userId = u.id;
+                if (u?.name && u.name.trim()) mm.displayName = u.name.trim();
+                saveData();
+                try { scheduleSyncDiff && scheduleSyncDiff(); } catch (_) {}
+                try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
+              }
+              // Make sure the active book is selected now that books may exist.
+              try {
+                if (!session.activeBookId || !data.books.find(b => b.id === session.activeBookId && b.businessId === _bizId)) {
+                  const first = data.books.find(b => b.businessId === _bizId);
+                  if (first) { session.activeBookId = first.id; saveSession(); }
+                }
+              } catch (_) {}
+              try { renderAll(); } catch (_) {}
+              // Done as soon as the books are in (or the business legitimately
+              // has none AND our acceptance has landed in the cloud).
+              if (_hasBooks()) break;
+              if (_accepted() && cycle >= 1) {
+                // Acceptance is confirmed locally and we've pulled at least
+                // twice; if there are still no books, the business genuinely
+                // has none yet — stop waiting and let realtime add any later.
+                break;
+              }
+              await new Promise(r => setTimeout(r, 1200));
             }
-            // Now pull every table so books/entries/parties/categories/
-            // accounts/announcements for this business arrive in one
-            // round trip. Silent + suppressReload so no UI confirm and
-            // no full-page reload.
-            await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
-            // v89.32.4 FIX (invite accept loop): if the queued accept-op
-            // had not yet reached the cloud when the pull above ran, the
-            // pull would fetch this membership row with its OLD
-            // status='pending' and overwrite our local 'accepted' — making
-            // the invite reappear and the business not show until an app
-            // restart. Re-assert the acceptance locally after the pull, and
-            // re-queue the update if the pulled row regressed it, so the
-            // cloud converges without the user having to do anything.
-            const mm = data.members.find(x => x.id === m.id)
-                    || data.members.find(x => x.businessId === m.businessId
-                          && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
-            if (mm && mm.status !== 'accepted') {
-              mm.status = 'accepted';
-              mm.respondedAt = mm.respondedAt || today();
-              if (u?.cloud) mm.userId = u.id;
-              if (u?.name && u.name.trim()) mm.displayName = u.name.trim();
-              saveData();
-              try { scheduleSyncDiff && scheduleSyncDiff(); } catch (_) {}
-              try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
-            }
-            try { renderAll(); } catch (_) {}
-            // v89.32.31: data is in — let the new member see their books.
+            // v89.32.31: data is in (or confirmed empty) — let the new member
+            // see their books / a correct empty state instead of the splash.
             hideWelcomeSplash();
           } catch (e) {
             console.warn('Post-accept pull failed (will retry via realtime):', e?.message || e);
