@@ -12,6 +12,69 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.54
+
+Final audit fix: History month-picker modal refresh used a non-existent element id.
+
+### Hash
+`0bf54fe7f790ebca86757c1af348913c`
+
+### Found + fixed (final audit)
+`histPickMonth` refreshed the History modal via `querySelector('#modalRoot .modal')`, but there is no `#modalRoot` element — the modal is `#modalContent`. It only worked by luck through the `.modal` fallback. Fixed to target `#modalContent` directly so the From/To pills + month grid re-render reliably after each pick.
+
+### Audit result
+Structure clean (JS valid, CSS 2191/2191, tags balanced, 0 undefined handlers, 0 TODO/FIXME); calculations 14/14; auth/security 11/11; sync/realtime 9/9; History feature 14/14; PWA/SQL/package valid (manifest + vercel valid JSON, 0 crons, 14 migrations balanced); theme/responsive intact (59 media queries). Self-test 63/63.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2191/2191; modalContent fix confirmed; no stray #modalRoot in code.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.53
+
+Distribution History: All time + custom month range, with averaged %/rate and summed amounts.
+
+### Hash
+`f8084886760a7649c4b70936018dce9f`
+
+### Changes
+- **Removed "All Time"** from the period row. The Distribution period bar is now This Month · Last Month · Custom month, plus a **History** button.
+- **History button** opens a modal with two options: **All time** (every month) and **Custom month range** (pick From + To months). New period mode `monthrange` (fromMonth/toMonth), inclusive.
+- **History is an aggregate, read-only view:**
+  - **Amounts** (team salaries, profit shares, party amounts): **summed** across the months in range (the loader includes every in-range month's rows; totals add them).
+  - **Party %**: **averaged** per party by name across the months in range (e.g. 70/70/60 → 66.67%).
+  - Read-only banner + hidden add/edit controls (same as past-month snapshots).
+- Logic-traced: avg % 66.67, sum salary 91000, range-filter Mar–Apr 60000 — all correct.
+
+### Known limitation (honest)
+**Rate averaging is not yet meaningful** because the currency rate is still a single business-level value, not stored per month — so there is no per-month rate to average. History currently applies the current business rate to the summed totals. Storing the rate per month (so History can average it) is a further change; flagged for follow-up.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2191/2191; tags balanced; all 8 new History functions defined; no undefined handlers.
+
+### Requires real-device/runtime verification
+History modal flow, range picker, and aggregate rendering on device.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.52
+
+DIAGNOSTIC: surface why a deleted party reappears.
+
+### Hash
+`6204524dab4ff8896085d07d7734b673`
+
+### Why
+A split party still reappears on refresh after .51. The delete logic is verified correct in code (filter local -> persist localStorage -> direct cloud delete -> queued delete fallback -> .51 re-add guards), so the failure is at runtime: the cloud delete is most likely returning 0 rows (RLS) or being rejected, leaving the row in the cloud to be pulled back on refresh. The error was being swallowed silently.
+
+### Change
+`_cloudDeleteDistRow` now logs its outcome to the console: success with deleted-row count, or the exact error/why-skipped. Uses `.delete().eq('id', id).select()` so we can see how many rows the delete actually removed (0 = RLS/permission blocking). No behavior change otherwise.
+
+### Next step
+Deploy, open the browser console, delete a party, and read the `[distDelete]` line — it will say either "cloud delete OK deletedRows: 1" (then the issue is elsewhere) or "CLOUD DELETE FAILED" / "deletedRows: 0" (RLS). That tells us exactly where to fix.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.51
 
 FIX: deleted split party reappears.

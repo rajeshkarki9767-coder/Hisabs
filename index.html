@@ -6153,9 +6153,16 @@
   .period-picker-tabs button { padding: 0.7rem; background: transparent; border: none; cursor: pointer; font-size: 0.8rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; transition: all 0.15s; }
   .period-picker-tabs button.active { background: var(--ink); color: var(--paper); font-weight: 500; }
   .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; max-height: 280px; overflow-y: auto; }
-  .month-grid-item { padding: 0.7rem; border: 1px solid var(--line); background: var(--input-bg-focus); cursor: pointer; text-align: center; font-size: 0.85rem; transition: all 0.15s; }
-  .month-grid-item:hover { border-color: var(--ink-soft); }
+  .month-grid-item { padding: 0.7rem; border: 1px solid var(--line); background: var(--input-bg-focus); cursor: pointer; text-align: center; font-size: 0.85rem; transition: all 0.15s; }  .month-grid-item:hover { border-color: var(--ink-soft); }
   .month-grid-item.active { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  /* v89.32.55: History modal (All time / month range) */
+  .hist-options { margin: 0.5rem 0 1rem; }
+  .hist-range-wrap { border-top: 1px solid var(--line); padding-top: 0.85rem; }
+  .hist-range-title { font-size: 0.8rem; color: var(--ink-soft); margin-bottom: 0.6rem; font-weight: 600; }
+  .hist-range-pills { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .hist-range-pill { flex: 1; padding: 0.55rem 0.7rem; border: 1px solid var(--line); background: var(--input-bg-focus); border-radius: var(--r-sm); cursor: pointer; font-size: 0.82rem; color: var(--ink-soft); text-align: center; }
+  .hist-range-pill.active { border-color: var(--ink); color: var(--ink); background: color-mix(in srgb, var(--accent) 8%, var(--paper)); }
+  .hist-range-pill strong { color: var(--ink); }
   .year-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
   .year-nav button { background: transparent; border: 1px solid var(--line); padding: 0.4rem 0.7rem; cursor: pointer; }
   .year-nav-label { font-family: var(--font-sans); font-size: 1.2rem; }
@@ -7385,7 +7392,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.51';
+  const BUILD_TAG = '2026.05.21.54';
 
   // ================================================================
   // STORAGE
@@ -12007,15 +12014,20 @@
     const isCurrent = p.mode === 'current' || (p.mode === 'month' && p.monthKey === cur);
     const isLast = p.mode === 'month' && p.monthKey === lastMonthKey;
     const isAll = p.mode === 'all';
+    const isRange = p.mode === 'monthrange';
     const isCustom = p.mode === 'month' && !isCurrent && !isLast;
-    const label = isAll ? 'All time (all months combined)'
-      : (p.mode === 'month' && p.monthKey ? monthLabel(p.monthKey) : monthLabel(cur));
+    const isHistory = isAll || isRange;
+    let label;
+    if (isAll) label = 'All time (all months combined)';
+    else if (isRange) label = `${monthLabel(p.fromMonth)} – ${monthLabel(p.toMonth)} (combined)`;
+    else if (p.mode === 'month' && p.monthKey) label = monthLabel(p.monthKey);
+    else label = monthLabel(cur);
     return `<div class="period-bar">
       <span class="period-bar-label">Showing</span>
       <button class="period-tab ${isCurrent ? 'active' : ''}" onclick="setPeriod({mode:'current'})">This Month</button>
       <button class="period-tab ${isLast ? 'active' : ''}" onclick="setPeriodLastMonth()">Last Month</button>
-      <button class="period-tab ${isAll ? 'active' : ''}" onclick="setPeriod({mode:'all'})">All Time</button>
       <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom month ${isCustom ? '·' : '…'}</button>
+      <button class="period-tab period-history-tab ${isHistory ? 'active' : ''}" onclick="openDistHistory()">History ${isHistory ? '·' : '…'}</button>
       <span class="period-current">${escapeHtml(label)}</span>
     </div>`;
   }
@@ -12067,6 +12079,93 @@
     const last = new Date(yyyy, mm - 2, 1); // mm is 1-indexed; -2 gets prev month
     const monthKey = `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, '0')}`;
     setPeriod({ mode: 'month', monthKey });
+  }
+
+  // v89.32.55: Distribution "History" — All time, or a custom month range.
+  // History views are aggregated (read-only): rate = AVERAGE across the
+  // months in range, party % = AVERAGE per party, amounts = SUM.
+  let __histRangeFrom = null; // 'YYYY-MM'
+  let __histRangeTo = null;
+  let __histPickYear = new Date().getFullYear();
+  let __histPicking = 'from'; // 'from' | 'to'
+  function openDistHistory() {
+    const cur = _currentDistMonth();
+    __histRangeFrom = __histRangeFrom || cur;
+    __histRangeTo = __histRangeTo || cur;
+    __histPicking = 'from';
+    openModal('distHistory');
+  }
+  function distHistoryModal() {
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">History</h2>
+      <p class="modal-sub">View combined distribution across months. Rate and party % are averaged; amounts are summed.</p>
+      <div class="hist-options">
+        <button class="btn btn-block" onclick="setDistAllTime()">All time (every month)</button>
+      </div>
+      <div class="hist-range-wrap">
+        <div class="hist-range-title">Or pick a month range</div>
+        <div class="hist-range-pills">
+          <button class="hist-range-pill ${__histPicking === 'from' ? 'active' : ''}" onclick="histSetPicking('from')">From: <strong>${__histRangeFrom ? monthLabel(__histRangeFrom) : '—'}</strong></button>
+          <button class="hist-range-pill ${__histPicking === 'to' ? 'active' : ''}" onclick="histSetPicking('to')">To: <strong>${__histRangeTo ? monthLabel(__histRangeTo) : '—'}</strong></button>
+        </div>
+        <div id="histPickerBody">${renderHistMonthGrid()}</div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="applyDistRange()">Show range</button>
+        </div>
+      </div>`;
+  }
+  function renderHistMonthGrid() {
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const activeKey = __histPicking === 'from' ? __histRangeFrom : __histRangeTo;
+    const cells = months.map((m, i) => {
+      const key = `${__histPickYear}-${String(i+1).padStart(2, '0')}`;
+      return `<button class="month-grid-item ${key === activeKey ? 'active' : ''}" onclick="histPickMonth('${key}')">${m}</button>`;
+    }).join('');
+    return `
+      <div class="year-nav">
+        <button onclick="histChangeYear(-1)">‹</button>
+        <span class="year-nav-label">${__histPickYear}</span>
+        <button onclick="histChangeYear(1)">›</button>
+      </div>
+      <div class="month-grid">${cells}</div>`;
+  }
+  function histSetPicking(which) {
+    __histPicking = which;
+    const body = document.getElementById('histPickerBody');
+    if (body) body.innerHTML = renderHistMonthGrid();
+    document.querySelectorAll('.hist-range-pill').forEach((b, idx) => {
+      b.classList.toggle('active', (which === 'from' && idx === 0) || (which === 'to' && idx === 1));
+    });
+  }
+  function histChangeYear(d) {
+    __histPickYear += d;
+    const body = document.getElementById('histPickerBody');
+    if (body) body.innerHTML = renderHistMonthGrid();
+  }
+  function histPickMonth(key) {
+    if (__histPicking === 'from') { __histRangeFrom = key; __histPicking = 'to'; }
+    else { __histRangeTo = key; }
+    // refresh modal to show updated pills + picker state.
+    // v89.32.56: the modal element is #modalContent (not #modalRoot, which
+    // doesn't exist). Use it directly so the range pills + grid re-render
+    // reliably after each pick.
+    const modalBody = document.getElementById('modalContent');
+    if (modalBody) modalBody.innerHTML = distHistoryModal();
+  }
+  function setDistAllTime() {
+    setPeriod({ mode: 'all' });
+    closeModal();
+    toast('Showing all time (every month combined).');
+  }
+  function applyDistRange() {
+    let from = __histRangeFrom, to = __histRangeTo;
+    if (!from || !to) { toast('Pick both a From and To month.'); return; }
+    if (from > to) { const tmp = from; from = to; to = tmp; } // normalize
+    setPeriod({ mode: 'monthrange', fromMonth: from, toMonth: to });
+    closeModal();
+    toast(`Showing ${monthLabel(from)} – ${monthLabel(to)} combined.`);
   }
 
   function renderStats() {
@@ -13930,7 +14029,13 @@
     const am = _activeDistMonth();
     const wantMonth = am.month;
     const _inMonth = (r) => {
-      if (am.all) return true; // All Time: include every month
+      if (am.all) {
+        if (am.range) {
+          const pm = r.periodMonth || _currentDistMonth();
+          return pm >= am.range.from && pm <= am.range.to; // inclusive range
+        }
+        return true; // All Time: include every month
+      }
       const pm = r.periodMonth || _currentDistMonth();
       return pm === wantMonth;
     };
@@ -14108,7 +14213,13 @@
     }
     // v89.32.53: 'all' = aggregate across ALL months, read-only. month=null
     // signals the loader to include every month's rows.
-    if (p.mode === 'all') return { month: null, editable: false, all: true };
+    if (p.mode === 'all') return { month: null, editable: false, all: true, range: null };
+    // v89.32.55: 'monthrange' = aggregate across an inclusive month range,
+    // read-only. month=null + range={from,to} signals the loader to include
+    // only months within the range.
+    if (p.mode === 'monthrange' && p.fromMonth && p.toMonth) {
+      return { month: null, editable: false, all: true, range: { from: p.fromMonth, to: p.toMonth } };
+    }
     // multi-month range: read-only, show current month.
     return { month: cur, editable: true, all: false };
   }
@@ -14159,13 +14270,16 @@
   async function _cloudDeleteDistRow(table, id) {
     try {
       if (!id || !table) return;
-      if (!__syncEnabled || !__syncEnabled()) return;
-      if (roleFor(session.activeBizId) !== 'owner') return;
-      const { error } = await sb().from(table).delete().eq('id', id);
-      if (!error) {
+      if (!__syncEnabled || !__syncEnabled()) { console.warn('[distDelete] sync disabled, queued op will retry', { table, id }); return; }
+      if (roleFor(session.activeBizId) !== 'owner') { console.warn('[distDelete] not owner, skipping direct delete', { table, id, role: roleFor(session.activeBizId) }); return; }
+      const { data: delData, error } = await sb().from(table).delete().eq('id', id).select();
+      if (error) {
+        console.error('[distDelete] CLOUD DELETE FAILED', { table, id, error: error.message || error.code, details: error });
+      } else {
+        console.log('[distDelete] cloud delete OK', { table, id, deletedRows: (delData || []).length });
         try { _markSelfWrite(id); } catch (_) {}
       }
-    } catch (_) { /* queued delete op remains as the fallback */ }
+    } catch (e) { console.error('[distDelete] threw', { table, id, err: e && e.message }); /* queued delete op remains as the fallback */ }
   }
 
   // v89.32.45: one-tap reset of ALL distribution data for the active
@@ -15372,7 +15486,26 @@
   function renderSplitParties() {
     const listEl = document.getElementById('splitPartiesList');
     if (!listEl) return;
-    if (__splitParties.length === 0) {
+    // v89.32.55: History (All time / month range) is an aggregate read-only
+    // view. The same party appears once per month, so group by name and show
+    // the AVERAGE % across the months. We render from a grouped copy; the real
+    // __splitParties (per-month source of truth) is untouched.
+    let __renderParties = __splitParties;
+    const _histAgg = (() => { try { return _activeDistMonth().all; } catch (_) { return false; } })();
+    if (_histAgg && __splitParties.length) {
+      const byName = new Map();
+      for (const p of __splitParties) {
+        const key = (p.name || '').trim().toLowerCase();
+        if (!key) continue;
+        if (!byName.has(key)) byName.set(key, { id: p.id, name: p.name, pctSum: 0, n: 0 });
+        const g = byName.get(key);
+        g.pctSum += Number(p.pct) || 0; g.n += 1;
+      }
+      __renderParties = [...byName.values()].map(g => ({
+        id: g.id, name: g.name, pct: g.n ? (g.pctSum / g.n) : 0, // AVERAGE %
+      }));
+    }
+    if (__renderParties.length === 0) {
       listEl.innerHTML = '<div class="split-parties-empty">Add a party to split the percentage.</div>';
       // also clear the Use-for-Distribution selector below
       const host = document.getElementById('useForDistribution');
@@ -15387,7 +15520,7 @@
     // The remaining lock state on Salaries and Profit Shares is unchanged.
     // v89.8: refresh the total-% indicator on every render
     try { setTimeout(_v898_validatePartyTotal, 0); } catch (_) {}
-    listEl.innerHTML = __splitParties.map(p => {
+    listEl.innerHTML = __renderParties.map(p => {
       const isSelected = p.id === __splitSelectedPartyId;
       const isLocked = _distRowIsLocked('parties', p.id);
       const lockClass = isLocked ? 'is-locked' : 'is-editing';
@@ -20252,6 +20385,7 @@
       if (!canManageBusiness(session.activeBizId)) { toast('Only the owner can manage the team.'); return; }
       modal.innerHTML = staffModal();
     } else if (kind === 'period') { modal.innerHTML = periodModal(); }
+    else if (kind === 'distHistory') { modal.innerHTML = distHistoryModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
     else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
     else if (kind === 'party') {
