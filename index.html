@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.84';
+  const BUILD_TAG = '2026.05.21.87';
 
   // ================================================================
   // STORAGE
@@ -14674,7 +14674,6 @@
         return false;
       } else {
         const n = (delData || []).length;
-        console.log('[distDelete] cloud delete result', { table, id, deletedRows: n });
         if (n === 0) {
           // The delete ran but matched no rows — almost always an RLS DELETE
           // policy that doesn't permit this user. v89.32.71: REMOVE the local
@@ -16733,7 +16732,6 @@
                 console.error('[rateSave] CLOUD UPSERT FAILED', { error: error.message || error.code, details: error });
                 try { toast('Rates did not reach the server: ' + (error.message || error.code || 'unknown')); } catch (_) {}
               } else {
-                console.log('[rateSave] cloud upsert result', { sent: rows.length, savedRows: (up || []).length });
                 if ((up || []).length === 0 && rows.length > 0) {
                   console.warn('[rateSave] 0 rows saved — likely RLS blocking INSERT/UPDATE on app_expense_rates');
                   try { toast('Server kept 0 rates — check rate-table permissions.'); } catch (_) {}
@@ -32790,7 +32788,6 @@
       !(op && op.kind === 'delete' && op.table === 'app_expense_rates'));
     if (__syncQueue.length !== _before) {
       try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
-      console.warn('[rateFix] purged', _before - __syncQueue.length, 'stale expense-rate delete op(s) from the sync queue');
     }
   } catch (_) {}
 

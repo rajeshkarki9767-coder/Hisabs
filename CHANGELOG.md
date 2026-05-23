@@ -12,6 +12,71 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.87
+
+Added a combined realtime-publication + RLS audit script after a user query showed only 3 tables in the realtime publication. No code change.
+
+### Hash
+`0859ffbf275bb9c7bdb3ac603b806804`
+
+### Why
+The client subscribes to 17 app_* tables for live updates. A user-run query returned only 3 tables (the distribution ones) as REALTIME. If the realtime publication truly contains only those 3, the other 14 (entries, businesses, expense_rates, members, transfers, etc.) would sync only on refresh — the same class as the .84 rate bug. Live sync IS confirmed working for rates/parties/salaries/shares on devices, so the publication likely has more than 3 (the user's query was probably filtered), but this must be confirmed before launch.
+
+### New: sql/AUDIT_realtime_and_rls.sql
+Two read-only blocks:
+  • BLOCK 1 — lists app_* tables in the supabase_realtime publication (expect all 17; lists the expected set in a comment).
+  • BLOCK 2 — RLS status per table (rls_enabled / policy_count / status).
+If BLOCK 1 is missing tables, re-run sql/v89.32.5_enable_realtime.sql (idempotent — adds only the missing ones).
+
+### Verified
+index.html byte-identical to .86 except BUILD_TAG (revert-tag reproduces the .86 hash). Self-test 63/63. All previous fixes intact.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.86
+
+Added an RLS audit script. No code change (index.html identical to .85 except build tag).
+
+### Hash
+`e15da4bc8e14d404bd1a3a346fbb3d75`
+
+### New: sql/AUDIT_rls_status.sql
+Read-only script that reports, for every public.app_* table, whether RLS is ENABLED and how many policies it has — so "full RLS" can be confirmed on the live database (which can't be verified from the client bundle). Changes nothing; includes an enable template for any table that comes back unprotected.
+
+### Clarifications (no fix needed)
+- Image alt text: BOTH <img> tags in the app already have alt (profile photo = name; preview = "Preview"). The "sparse alt" audit note was misleading — the count is low only because the app has just 2 images, and both are covered. SVG icons use aria-label (114), which is correct. Nothing to change.
+- Performance: confirmed good on all devices by the user.
+
+### Verified
+index.html byte-identical to .85 except BUILD_TAG (revert-tag reproduces the .85 hash). Self-test 63/63. All previous fixes intact.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.85
+
+Production console cleanup. No behavior change.
+
+### Hash
+`693b9055f1c848b10f4484645d26e7aa`
+
+### Console hygiene
+Removed the three routine SUCCESS-path diagnostic logs that fired on every normal operation:
+  • console.log('[distDelete] cloud delete result', ...)
+  • console.log('[rateSave] cloud upsert result', ...)
+  • console.warn('[rateFix] purged N stale ...')
+KEPT the failure-only diagnostics (4 console.error + 5 console.warn) — these fire ONLY on a real problem (cloud delete/upsert failed, RLS blocking, rates dropped on pull) and are valuable for triaging production issues. The happy path is now silent.
+
+### Service worker registration
+Confirmed navigator.serviceWorker.register(...).then(...) DOES have a .catch (console.warn on failure) — the earlier audit flag was a false positive (the .catch sits 18 lines below the .then). No change needed; unhandled-rejection risk does not exist.
+
+### All previously reported issues — confirmed fixed (15/15)
+party add/delete/2nd-add, expense-rate vanish (merge + diff-delete block + stale-purge + realtime-DELETE-ignore), rate live cross-device sync (replica migration .84, run + confirmed), mobile salary/share overflow, +Add stops working, delete-unsaved false warning, side +Add removed, periodic flicker/jump, party-for-distribution selection, reset cross-device currency/rate, rate-as-%, Vercel deploy. Confirmed working on real devices: live rate sync, sound notifications, and (per user) reset-cross-device, party-selection, +Add, flicker, multi-minute persistence.
+
+### Verified
+All previous fixes intact (15/15). Self-test 63/63. JS valid; CSS 2214/2214; no undefined handlers. Routine success logs: 0 remaining; failure diagnostics retained.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.84
 
 Fix: an expense rate added/edited on one device only appeared on the other device AFTER a manual refresh — not live. **Requires running the new SQL migration.**
