@@ -12,6 +12,49 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.59
+
+History / past months: hide Split & convert + Split-the-Percentage; show each party's name + amount received that month (read-only).
+
+### Hash
+`def683130a5ffc03096702c245b18421`
+
+### Change
+In a past month or any History view (Last month / Choose month / All time / Custom range), the editable "Split & convert" card and "Split the Percentage" editor are no longer shown. Instead a read-only "Party amounts" list shows each party's NAME + the MONEY AMOUNT they received that month (net profit x their % x rate, in that month's currency). The current month (This Month) is unchanged — full Split & convert + Split-the-Percentage editor as before.
+
+- `renderDistributionView` branches on `_activeDistMonth().editable`: editable -> full card; read-only -> party-amounts list.
+- `renderSplitParties` skips overwriting the list in read-only mode.
+- Amount = net x (pct/100) x rate; verified 105000 (70% of 100000 x1.5) and 15000 (30% of 50000, no rate).
+
+### Verified
+Self-test 63/63; JS valid; CSS 2191/2191; tags balanced; amount calc traced; branch logic correct (This Month editable, past/all/range read-only).
+
+### Requires real-device/runtime verification
+Past-month/History showing party amounts read-only; This Month still fully editable.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.58
+
+Two fixes: tombstones now cover the localStorage fallback (deletes finally stick); past months with no saved rate show blank, not the current rate.
+
+### Hash
+`3f9db5f5cf743e702c62947b77743055`
+
+### Bug 1 — deleted parties/salaries/shares STILL reappeared
+The .57 tombstone filtered the CLOUD branch of the loaders but NOT the localStorage-fallback branch. When the cloud had no rows, the loader fell back to the local copy — which still held the deleted row — and resurrected it. Now BOTH branches (cloud + local fallback) for parties, salaries, and shares honor the tombstone, so a deleted row cannot reappear from any source.
+
+### Bug 2 — rate/currency appeared in past months never entered
+The per-month snapshot logic, when viewing a past month with NO saved snapshot, fell through and kept the live business-level rate/currency loaded just before — so the current rate "appeared" in a past month you never touched. Fixed: a past (non-editable) month with no snapshot now shows blank currency and 0 rate.
+
+### Verified
+Tombstone covers cloud + local paths (3/3 simulation); past-month-no-snapshot shows blank; self-test 63/63; JS valid; CSS 2191/2191; no undefined handlers; regression 9/9; carry-forward unaffected (fresh ids).
+
+### Requires real-device/runtime verification
+THE KEY TEST: add a party/salary, delete it, refresh — must stay gone (this build fixes the local-fallback path that .57 missed). Past month rate/currency shows blank when nothing was entered.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.57
 
 Persistent delete tombstones (ends "deleted data comes back") + per-month rate/currency in History.

@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.57';
+  const BUILD_TAG = '2026.05.21.59';
 
   // ================================================================
   // STORAGE
@@ -14156,7 +14156,9 @@
     // Fallback to localStorage (filtered to the active month, or ALL months
     // in All Time aggregate mode).
     const local = loadDistributionStateFor(bizId);
-    const _localInMonth = (r) => am.all ? true : ((r.periodMonth || _currentDistMonth()) === wantMonth);
+    // v89.32.58: honor tombstones here too — a deleted salary/share can linger
+    // in the local copy and resurrect when the cloud has no rows.
+    const _localInMonth = (r) => (am.all ? true : ((r.periodMonth || _currentDistMonth()) === wantMonth)) && !_isTombstoned(r.id);
     __distSalaries = (local.salaries || []).filter(_localInMonth);
     __distShares = (local.shares || []).filter(_localInMonth);
   }
@@ -14211,7 +14213,11 @@
     }
     // Fallback to localStorage
     const local = loadSplitStateFor(bizId);
-    __splitParties = local.parties || [];
+    // v89.32.58: the localStorage fallback ALSO must honor tombstones — a
+    // deleted party can survive in the local copy and resurrect here when the
+    // cloud has no rows. Filter it out. (This was the remaining resurrection
+    // path that the cloud-branch tombstone filter didn't cover.)
+    __splitParties = (local.parties || []).filter(p => !_isTombstoned(p.id));
     __splitSelectedPartyId = local.selectedPartyId || '';
     __splitPct = (typeof local.pct === 'number') ? local.pct : 100;
     // v89.32.33: prefer the business's cloud-synced currency/rate (so they
@@ -14238,6 +14244,12 @@
         // a specific past month with a saved snapshot — show it
         __splitCurrency = snaps[am.month].currency || '';
         __splitRate = Number(snaps[am.month].rate) || 0;
+      } else if (am && am.month && !am.editable) {
+        // a past month with NO saved snapshot — nothing was entered that month,
+        // so show blank, NOT the current business-level value. (Fixes "rate/
+        // currency appears in a past month I never entered".)
+        __splitCurrency = '';
+        __splitRate = 0;
       } else if (am && am.all && am.range) {
         // a month range — average the saved rates across months in range that
         // have a snapshot (currency shown is the most recent in range).
@@ -15613,6 +15625,10 @@
   function renderSplitParties() {
     const listEl = document.getElementById('splitPartiesList');
     if (!listEl) return;
+    // v89.32.59: in a read-only month (History / past), the Split & convert
+    // card is replaced by a static "Party amounts" list rendered inline in
+    // renderDistributionView. Don't overwrite it here.
+    try { if (!_activeDistMonth().editable) return; } catch (_) {}
     // v89.32.55: History (All time / month range) is an aggregate read-only
     // view. The same party appears once per month, so group by name and show
     // the AVERAGE % across the months. We render from a grouped copy; the real
@@ -16812,7 +16828,45 @@
            Middle: party list (name + %) with + Add button. Bottom:
            currency/rate selector + per-party result lines and the
            total check. Old single-% scalar is still wired up under
-           the hood; you can ignore it by adding parties. -->
+           the hood; you can ignore it by adding parties.
+           v89.32.59: only shown in the editable (current) month. In
+           History / past months it's replaced by a read-only list of
+           each party's NAME + the money AMOUNT they received that month. -->
+      ${(() => {
+        let editable = true;
+        try { editable = _activeDistMonth().editable; } catch (_) {}
+        if (!editable) {
+          // READ-ONLY: party name + amount received that month. No Split &
+          // convert card, no editable Split-the-Percentage.
+          const net = Number(__splitNetProfit) || 0;
+          const hasRate = (Number(__splitRate) > 0) && __splitCurrency && __splitCurrency.trim() !== '';
+          const rate = hasRate ? Number(__splitRate) : 1;
+          const cur = hasRate ? __splitCurrency : (__splitBusinessCurrency || '');
+          const parties = (__splitParties || []).filter(p => (p.name && p.name.trim()) || Number(p.pct) > 0);
+          const rows = parties.length
+            ? parties.map(p => {
+                const amt = net * ((Number(p.pct) || 0) / 100) * rate;
+                return `<div class="split-party-saved split-party-row-v895 is-locked" style="cursor:default;">
+                  <div class="split-party-saved-main">
+                    <span class="split-party-saved-name">${escapeHtml(p.name || '—')}</span>
+                    <span class="split-party-saved-pct">${escapeHtml(cur)} ${fmt(amt)}</span>
+                  </div>
+                </div>`;
+              }).join('')
+            : '<div class="split-parties-empty">No parties recorded for this month.</div>';
+          return `
+            <div class="split-calc">
+              <div class="split-calc-head">
+                <h2 class="split-calc-title">Party amounts</h2>
+                <p class="split-calc-sub">What each party received this month (read-only).</p>
+              </div>
+              <div class="split-parties">
+                <div id="splitPartiesList">${rows}</div>
+              </div>
+            </div>`;
+        }
+        // EDITABLE (current month) — full Split & convert card.
+        return `
       <div class="split-calc">
         <div class="split-calc-head">
           <h2 class="split-calc-title">Split &amp; convert</h2>
@@ -16883,7 +16937,8 @@
         <div class="split-results" id="splitResults">
           <!-- filled by updateSplitCalc() -->
         </div>
-      </div>
+      </div>`;
+      })()}
 
       <div class="distribution-card" id="distributionCard"><!-- filled below --></div>
     `;
