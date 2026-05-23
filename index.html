@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.81';
+  const BUILD_TAG = '2026.05.21.82';
 
   // ================================================================
   // STORAGE
@@ -16339,6 +16339,17 @@
   function setSplitSelectedParty(id) {
     if (!__splitParties.some(p => p.id === id)) return;
     __splitSelectedPartyId = id;
+    // v89.32.82: the selection used to live only in __splitSelectedPartyId +
+    // localStorage split-state, so it was lost on refresh and never reached the
+    // other device. The cloud carries the choice via each party row's
+    // is_selected flag — so set it explicitly on the in-memory rows here, and
+    // make sure the chosen party is LOCKED (only locked rows are mirrored to
+    // the cloud by _syncSplitPartiesArray; an unlocked, just-added party would
+    // otherwise be excluded and its selection never sync).
+    try {
+      __splitParties.forEach(p => { p.isSelected = (p.id === id); });
+    } catch (_) {}
+    try { _distRowMarkLocked('parties', id); } catch (_) {}
     saveSplitStateFor(session.activeBizId);
     updateSplitCalc();
     // v89.32.43: refresh the parties list so the saved-row "Used for
@@ -32752,6 +32763,24 @@
     if (!Array.isArray(__syncQueue)) __syncQueue = [];
   } catch (_) { __syncQueue = []; }
 
+  // v89.32.82: one-time purge of any queued DELETE ops targeting expense rates.
+  // Builds before .81 emitted diff-based deletes for app_expense_rates whenever
+  // a pull/merge transiently dropped a rate the snapshot still held. Those
+  // DELETE ops were saved into the localStorage sync queue and KEEP draining on
+  // every device after the .81 code fix — re-deleting rates from the cloud and
+  // firing realtime DELETE echoes that wipe them on both devices after a few
+  // minutes. .81 stopped CREATING them but never removed the ones already
+  // queued. Strip them here so the stale deletes can never fire again.
+  try {
+    const _before = __syncQueue.length;
+    __syncQueue = __syncQueue.filter(op =>
+      !(op && op.kind === 'delete' && op.table === 'app_expense_rates'));
+    if (__syncQueue.length !== _before) {
+      try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
+      console.warn('[rateFix] purged', _before - __syncQueue.length, 'stale expense-rate delete op(s) from the sync queue');
+    }
+  } catch (_) {}
+
   function persistQueue() {
     try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
   }
@@ -34271,6 +34300,14 @@
     } else if (eventType === 'DELETE') {
       const id = (oldRow && oldRow.id);
       if (!id) return;
+      // v89.32.82: NEVER honor a realtime DELETE for expense rates. Rate
+      // removals happen only through saveExpenseRates() locally (which already
+      // updates data + cloud). A stray DELETE echo (e.g. a stale queued op on
+      // another device, or a transient diff-delete from an older build still
+      // in someone's queue) would otherwise wipe the rate on every receiving
+      // device — exactly the "rates gone after a few minutes on both devices"
+      // bug. Ignore it; the explicit-editor path is the only authority.
+      if (localKey === 'expenseRates') return;
       // v89.32.63: when another device deletes a distribution row, record a
       // tombstone HERE too. Otherwise this device removes it from memory now,
       // but on its next refresh the local mirror / pull carries it back —

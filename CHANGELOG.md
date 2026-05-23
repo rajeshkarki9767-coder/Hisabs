@@ -12,6 +12,30 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.82
+
+Two fixes the .81 attempt did not fully resolve: expense rates STILL vanishing after a few minutes on both devices, and the "party to use for distribution" selection not saving / not syncing.
+
+### Hash
+`aadab8fbffde569b1c26d0a2876989d9`
+
+### FIX — Expense rates still wiped (the real remaining cause)
+.81 stopped the diff from CREATING new expense-rate deletes, but builds before .81 had already queued DELETE ops for app_expense_rates into the localStorage sync queue. Those stale ops KEPT draining on every device after the code fix — re-deleting rates from the cloud and firing realtime DELETE echoes that wiped them on both devices a few minutes later (the backstop-pull / drain cadence). Two-part fix:
+  1. ONE-TIME PURGE on load: strip any queued {kind:'delete', table:'app_expense_rates'} ops from the sync queue so the stale deletes can never fire again. Logs "[rateFix] purged N stale expense-rate delete op(s)".
+  2. DEFENSE-IN-DEPTH: onRealtimeEvent now IGNORES DELETE events for expenseRates entirely. Rate removals happen only through the explicit rate editor (saveExpenseRates), which is the sole authority — so no realtime DELETE echo can ever wipe a rate on a receiving device again.
+
+### FIX — "Party to use for distribution" selection not saving/syncing
+setSplitSelectedParty only set an in-memory id + localStorage split-state; it never set the party rows' isSelected flag and (for an unlocked/just-added party) never synced. So the choice was lost on refresh and never appeared selected on the other device. Now it: sets isSelected=true on the chosen party and false on the rest, LOCKS the chosen party (only locked rows are mirrored to the cloud), persists, and syncs. The selection rides the cloud is_selected flag, so it survives refresh and shows on both devices.
+
+### Verified
+Trace 9/9 (rate purge removes stale rate-deletes / keeps upserts + other-table deletes; realtime expenseRates DELETE ignored, other tables applied; party-select sets exactly one isSelected and survives a pull). Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers; .81 diff-delete block + mergeExpenseRates union still intact.
+
+### Requires real-device/runtime verification
+- Save expense rates → leave both devices several minutes → rates STAY (check console once for "[rateFix] purged" on first load after deploy).
+- Select a party for distribution → refresh → still selected; shows selected on the other device too.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.81
 
 Two critical fixes: (1) expense rates being wiped from BOTH devices after a few minutes, and (2) the +Add button on salaries/shares doing nothing once an unsaved row existed.
