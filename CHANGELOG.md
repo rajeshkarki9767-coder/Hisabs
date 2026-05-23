@@ -12,6 +12,29 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.61
+
+CRITICAL FIX: Save/delete crashed whenever profit shares existed (undeclared variable). This broke saving salaries, shares, AND deleting parties.
+
+### Hash
+`af5ec2b7727fc5da2adf8e8f7afffd97`
+
+### Root cause (found via runtime stack trace)
+`refreshDistributionTotals` referenced `totalSharePct` without declaring it (`totalSharePct += r.pct` with no `let totalSharePct = 0`). This threw `ReferenceError: totalSharePct is not defined` — but ONLY when `__distShares` had rows (the crash line is inside `for (const r of __distShares)`). With profit shares present, the error crashed every save (salaries + shares) and delete mid-execution, so "nothing happened" on click. This is why it surfaced now: once profit shares were added, the loop body ran and threw.
+
+This was a PRE-EXISTING latent bug (present in shipped builds), not a fresh regression — it was dormant until profit shares existed.
+
+### Fix
+Declared `let totalSharePct = 0;` before the share loop in `refreshDistributionTotals`. Verified via the exact stack trace: save now runs clean (totalSharePct 99.996%, remaining Rs 306,913.92, share amounts ~102,303 each — matching the on-screen values).
+
+### Audit
+Scanned the entire file for other undeclared bare accumulators — `totalSharePct` was the ONLY one. All other `x +=` are object properties (g.pctSum, g.qtyCount, etc.), correctly initialized. Self-test 63/63; JS valid.
+
+### Requires real-device/runtime verification
+Save salary/share rows (locks in), delete salary/share/party rows — all should now work with profit shares present.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.60
 
 Parties are now month-scoped (saved per month); All time / range groups salaries, shares, AND parties by name with summed totals.

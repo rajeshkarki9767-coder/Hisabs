@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.60';
+  const BUILD_TAG = '2026.05.21.61';
 
   // ================================================================
   // STORAGE
@@ -14981,6 +14981,7 @@
     // v89.32.32: remaining = selected party Amount − Total Salary only.
     const remaining = firstPortionDisp - totalSalary;
     let totalShareAmount = 0;
+    let totalSharePct = 0;
     for (const r of __distShares) {
       totalSharePct += r.pct;
       const amt = (r.pct / 100) * remaining;
