@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.82';
+  const BUILD_TAG = '2026.05.21.84';
 
   // ================================================================
   // STORAGE
@@ -14743,6 +14743,19 @@
       if (biz) { biz.splitCurrency = ''; biz.splitRate = 0; }
     } catch (_) {}
 
+    // v89.32.83: ALSO clear the per-month rate/currency SNAPSHOTS. Reset cleared
+    // the business splitCurrency/splitRate columns but left month_rate_snaps
+    // intact. On the OTHER device, loadSplitPartiesFromCloudOrLocal re-derives
+    // __splitCurrency/__splitRate from the snapshot for the active month, so the
+    // stale snapshot kept showing the old currency/rate there even though the
+    // reset device looked clean. Wipe the snapshots locally + on the business
+    // row (which syncs) so every device clears.
+    try {
+      _saveMonthRateSnaps(bizId, {});
+      const biz2 = data.businesses.find(b => b.id === bizId);
+      if (biz2) biz2.monthRateSnaps = {};
+    } catch (_) {}
+
     // 3) Persist locally + push the cleared state. v89.32.51: directly drop
     //    EVERY month's rows for this business from data.* (not just the active
     //    month slice that _syncDistributionArrays would touch), so reset truly
@@ -14764,9 +14777,9 @@
         if (salIds.length)   await sb().from('app_distribution_salaries').delete().in('id', salIds);
         if (shrIds.length)   await sb().from('app_distribution_shares').delete().in('id', shrIds);
         if (partyIds.length) await sb().from('app_split_parties').delete().in('id', partyIds);
-        // Reset currency/rate columns on the business row directly.
+        // Reset currency/rate columns + month snapshots on the business row.
         await sb().from('app_businesses')
-          .update({ split_currency: '', split_rate: 0 })
+          .update({ split_currency: '', split_rate: 0, month_rate_snaps: {} })
           .eq('id', bizId);
         try { [...salIds, ...shrIds, ...partyIds].forEach(id => _markSelfWrite(id)); } catch (_) {}
       }

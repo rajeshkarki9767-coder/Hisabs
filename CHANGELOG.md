@@ -12,6 +12,58 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.84
+
+Fix: an expense rate added/edited on one device only appeared on the other device AFTER a manual refresh — not live. **Requires running the new SQL migration.**
+
+### Hash
+`7ba16bf832fcfd769a7626b01e639013`
+
+### Root cause (database side, not code)
+The client correctly subscribes to app_expense_rates realtime and applies + re-renders incoming rate events. But the table was never given REPLICA IDENTITY FULL. v89.32.68 added app_expense_rates to the supabase_realtime PUBLICATION but skipped the REPLICA IDENTITY FULL step that v89.32.5 sets on every other synced table. Without it, Postgres omits non-key columns (name, rate, business_id) from realtime payloads, so the client can't apply the change live — it only appears on the next full pull (manual refresh).
+
+### Fix
+NEW MIGRATION sql/v89.32.84_expense_rates_realtime_replica.sql:
+  • ALTER TABLE public.app_expense_rates REPLICA IDENTITY FULL;
+  • re-affirms publication membership (idempotent).
+RUN THIS in Supabase (Dashboard → SQL Editor → paste → Run). No data is modified; safe to re-run. After running, a rate added on one device appears on the other live (the .80 backstop pull already covered it within ~60s as a fallback; this makes it instant).
+
+### No code change
+index.html is byte-identical to .83 except the BUILD_TAG bump — the fix is entirely the migration. All .57–.83 fixes remain intact.
+
+### Verified
+Session regression 23/23 (incl. .83 reset-clears-snaps both local + cloud, confirmed directly). Calc 4/4. Self-test 63/63. JS valid; CSS 2214/2214. Client realtime path for expenseRates confirmed correct (subscribe + apply + render + backstop-pull signature coverage).
+
+### Requires real-device/runtime verification + SQL migration
+1. RUN sql/v89.32.84 in Supabase FIRST.
+2. Add/edit a rate on device A → it appears on device B WITHOUT a refresh.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.83
+
+Fix: Reset Distribution cleared the Split & Convert currency/rate on the device that ran it, but the OTHER device kept showing the old currency/rate.
+
+### Hash
+`c46a0c3d226a856bbd7df2feb235adc5`
+
+### Root cause
+resetAllDistributionData cleared the business splitCurrency/splitRate columns (locally + cloud) but did NOT clear month_rate_snaps — the per-month rate/currency snapshot stored on the business row (jsonb, synced across devices). On the other device, loadSplitPartiesFromCloudOrLocal re-derives __splitCurrency/__splitRate for the active month FROM that snapshot, so the stale snapshot kept the old currency/rate visible there even though the columns were blank.
+
+### Fix
+Reset now also wipes month_rate_snaps: locally (_saveMonthRateSnaps(bizId, {})), in-memory (biz.monthRateSnaps = {}), and on the cloud business row (update ... month_rate_snaps: {}). With the snapshot cleared, the other device's loader derives an empty currency/rate for the current month, so the reset is consistent across devices.
+
+### Note on minor screen movement (Split & Convert / %, add party / salaries / shares)
+The periodic ~60s page jump was fixed in .80. The small remaining movement during interaction is the live preview header + totals reflowing as content changes height (expected for a live-preview UI), not the periodic glitch. Left as-is to avoid destabilizing the typing/focus handling right before deployment; can be revisited if it's intrusive.
+
+### Verified
+Reset trace 6/6 (currency/rate/snaps cleared; other device derives empty). Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers; businesses schema syncs month_rate_snaps both ways.
+
+### Requires real-device/runtime verification
+Run Reset Distribution on device A → on device B the Split & Convert currency AND rate also clear (not just on A).
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.82
 
 Two fixes the .81 attempt did not fully resolve: expense rates STILL vanishing after a few minutes on both devices, and the "party to use for distribution" selection not saving / not syncing.

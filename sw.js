@@ -29,7 +29,7 @@
 // index.html's About page) so devices reliably pick up the new code.
 // =====================================================================
 
-const CACHE_VERSION = 'hisabs-1.11-build-2026.05.21.82';
+const CACHE_VERSION = 'hisabs-1.11-build-2026.05.21.84';
 const SHELL_CACHE   = `${CACHE_VERSION}-shell`;
 const RUNTIME_CACHE = `${CACHE_VERSION}-runtime`;
 
