@@ -12,6 +12,54 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.81
+
+Two critical fixes: (1) expense rates being wiped from BOTH devices after a few minutes, and (2) the +Add button on salaries/shares doing nothing once an unsaved row existed.
+
+### Hash
+`08fc972f6c0e4089d50d261aa1dab355`
+
+### FIX 1 — Expense rates deleted from the cloud (both devices)
+ROOT CAUSE: the sync diff (runSyncDiff/diffKey) emits a DELETE for any row that is in the snapshot but not in current data. Combined with the per-table push of expenseRates, a transient pull/merge where data.expenseRates momentarily didn't contain a rate the snapshot still held caused the diff to queue a cloud DELETE — wiping the rate server-side, so it vanished on every device. The "few minutes" timing matched the 60s backstop pull.
+FIX: the diff now NEVER auto-deletes expenseRates. Rate removals go solely through saveExpenseRates(), which deletes exactly the rows the user removed from the rate editor. The union mergeExpenseRates already preserves rates across pulls, so no legitimate path needs the diff-delete for this table. (Other tables keep diff-deletes unchanged.)
+
+### FIX 2 — +Add stops working after one unsaved row
+ROOT CAUSE: after .78, only SAVED rows are mirrored to data.distSalaries/Shares; unsaved rows live only in the local store. But loadDistributionFromCloudOrLocal preferred the cloud data and RETURNED EARLY whenever any saved row existed — rebuilding __distSalaries from cloud rows ONLY and dropping the freshly-added unsaved row on the next render. So once a saved row was present, +Add appeared to do nothing (and "worked again" only after deleting the saved row left cloud empty, falling through to the local store).
+FIX: the loader now UNIONS local-only unsaved rows (those not in the cloud set, in-month, not pending-delete) on top of the cloud rows, so unsaved rows survive re-render while saved rows still come from the cloud.
+
+### Verified
+Trace 5/5 (unsaved row survives reload, not duplicated, only-unsaved works; diff does NOT delete expenseRates, other tables still delete). Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers; mergeExpenseRates union intact.
+
+### Requires real-device/runtime verification
+- Save expense rates → leave both devices a few minutes → rates STAY on both.
+- Add a salary, then +Add again → second row appears; profit-shares +Add also works, all without needing to delete a row first.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.80
+
+Fix the periodic screen jump (page/section moves up and down every ~minute) on the Distribution and other pages.
+
+### Hash
+`c253c390aa385ef9b7190e6ab0d05151`
+
+### Root cause
+A backstop sync pull runs every 60 seconds as a safety net (in case realtime missed an event). After each pull, cloudPullAll called renderAll() UNCONDITIONALLY — even when the pull fetched nothing new. On the Distribution page (Split, Team Salaries, Profit Shares, Split %), that full DOM rebuild made the page visibly jump up/down every ~minute. This matches the user report exactly ("screen/certain portion moves up and down between few minutes", not on typing or save).
+
+### Fix
+cloudPullAll now computes a compact data signature BEFORE and AFTER the merge (counts + content hashes of distSalaries / distShares / splitParties / expenseRates / business currency+rate, plus top-level table counts). On a SILENT background pull, if the signature is unchanged, the re-render is skipped entirely — no rebuild, no jump. A real change (new/edited row, rate, currency, or anything from the other device) changes the signature and renders exactly as before. Non-silent (user-initiated) pulls always render. If signature computation fails for any reason, it safely falls back to rendering.
+
+### Why sync is unaffected
+The skip only happens when nothing the UI shows changed AND the pull was silent. Any actual data difference still triggers the render, so cross-device updates appear normally.
+
+### Verified
+Skip-logic trace 6/6 (silent+unchanged→skip; silent+changed→render; non-silent→render; null sig→render). Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers.
+
+### Requires real-device/runtime verification
+Sit on the Distribution page for a few minutes without touching it — the page should no longer jump up/down. A change made on the other device should still appear within ~60s.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.79
 
 Fixes: deleting an unsaved salary/share/party no longer warns "server kept the row / 0 deleted"; removed the side +Add on salaries/shares (bottom +Add only); focus guard extended to reduce flicker.

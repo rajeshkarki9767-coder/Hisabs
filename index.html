@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.79';
+  const BUILD_TAG = '2026.05.21.81';
 
   // ================================================================
   // STORAGE
@@ -14217,6 +14217,23 @@
         id: r.id, name: r.name, pct: r.pct, note: r.note,
         periodMonth: r.periodMonth || wantMonth, createdAt: r.createdAt,
       }));
+      // v89.32.81 FIX: also fold in UNSAVED (local-only) rows. After .78 only
+      // SAVED rows are mirrored to data.distSalaries/Shares; unsaved rows live
+      // only in the local store. The old code returned here using cloud rows
+      // ONLY, so whenever at least one saved row existed, a freshly-added
+      // unsaved row was dropped on the next render — the "+Add does nothing /
+      // works again after deleting a row" bug. Union the local-only rows (those
+      // not present in the cloud set) so unsaved rows survive re-render.
+      try {
+        const local = loadDistributionStateFor(bizId);
+        const _localInMonth = (r) => (am.all ? true : ((r.periodMonth || _currentDistMonth()) === wantMonth)) && !_isTombstoned(r.id);
+        const cloudSalIds = new Set(__distSalaries.map(r => r.id));
+        const cloudShrIds = new Set(__distShares.map(r => r.id));
+        const localOnlySal = (local.salaries || []).filter(r => r && r.id && !cloudSalIds.has(r.id) && _localInMonth(r) && !_pendDel.has(r.id));
+        const localOnlyShr = (local.shares || []).filter(r => r && r.id && !cloudShrIds.has(r.id) && _localInMonth(r) && !_pendDel.has(r.id));
+        if (localOnlySal.length) __distSalaries = __distSalaries.concat(localOnlySal);
+        if (localOnlyShr.length) __distShares = __distShares.concat(localOnlyShr);
+      } catch (_) {}
       return;
     }
     // v89.32.50: CARRY-FORWARD. The active (current) month has no rows yet,
@@ -32905,19 +32922,29 @@
       }
     }
     // Deletes
-    for (const prev of snap) {
-      if (!curById.has(prev.id)) {
-        ops.push({
-          id: uid(),
-          table: map.table,
-          kind: 'delete',
-          recordId: prev.id,
-          row: null,
-          localKey,
-          ts: Date.now(),
-          attempts: 0,
-          deviceId: __deviceId,
-        });
+    // v89.32.81 FIX: expense rates are NEVER auto-deleted by the diff. Rate
+    // removals go through saveExpenseRates(), which deletes the specific rows
+    // the user removed from the editor. The diff-based delete (snapshot has it,
+    // current data momentarily doesn't) was wiping rates from the cloud — and
+    // therefore from BOTH devices — whenever a pull/merge transiently rebuilt
+    // data.expenseRates without a rate that the snapshot still held. Skipping
+    // diff-deletes for this table removes that whole class of accidental wipe;
+    // the union mergeExpenseRates already preserves rates across pulls.
+    if (localKey !== 'expenseRates') {
+      for (const prev of snap) {
+        if (!curById.has(prev.id)) {
+          ops.push({
+            id: uid(),
+            table: map.table,
+            kind: 'delete',
+            recordId: prev.id,
+            row: null,
+            localKey,
+            ts: Date.now(),
+            attempts: 0,
+            deviceId: __deviceId,
+          });
+        }
       }
     }
   }
@@ -35007,6 +35034,30 @@
       // merge reassigns data.members — used just below to stop a racing pull
       // from reverting a just-accepted invite (v89.32.4).
       const localMembersSnapshot = Array.isArray(data.members) ? data.members.slice() : [];
+      // v89.32.80: cheap change signature BEFORE the merge. A periodic backstop
+      // pull (every 60s) was calling renderAll() unconditionally, rebuilding the
+      // whole view even when nothing changed — on the Distribution page that
+      // full DOM rebuild made the page visibly jump up/down every ~minute.
+      // We compute a compact signature of the data the UI renders, then after
+      // the merge compare it; if identical AND this is a silent pull, skip the
+      // re-render entirely (nothing to show).
+      const _sigBefore = (() => {
+        try {
+          return JSON.stringify([
+            (data.businesses||[]).length, (data.books||[]).length, (data.entries||[]).length,
+            (data.members||[]).length, (data.auditExpenses||[]).length, (data.expenseRates||[]).length,
+            (data.transfers||[]).length, (data.distSalaries||[]).length, (data.distShares||[]).length,
+            (data.splitParties||[]).length,
+            // include content hashes for the active business's distribution +
+            // rates so a value edit (not just count) still triggers a render
+            (data.distSalaries||[]).map(r=>r.id+':'+r.name+':'+r.salary+':'+r.adjustmentAmount).join('|'),
+            (data.distShares||[]).map(r=>r.id+':'+r.name+':'+r.pct).join('|'),
+            (data.splitParties||[]).map(r=>r.id+':'+r.name+':'+r.pct+':'+r.isSelected).join('|'),
+            (data.expenseRates||[]).map(r=>r.id+':'+r.name+':'+r.rate).join('|'),
+            (data.businesses||[]).map(b=>b.id+':'+b.splitCurrency+':'+b.splitRate).join('|'),
+          ]);
+        } catch (_) { return null; }
+      })();
       // Replace the local in-memory state, preserving local-only pending records.
       data.businesses    = mergeWithPending('businesses',    fetched.businesses,    data.businesses);
       data.books         = mergeWithPending('books',         fetched.books,         data.books);
@@ -35120,7 +35171,30 @@
           try { localStorage.removeItem('hisabs_entry_no_v1'); } catch (_) {}
           backfillEntryNumbers();
         } catch (e) { console.warn('Post-pull entryNo backfill:', e.message); }
-        try { renderAll(); } catch (_) {}
+        // v89.32.80: compute the signature AFTER the merge. If this is a silent
+        // background pull and nothing the UI shows actually changed, skip the
+        // re-render — this is what stops the Distribution page (and others)
+        // from jumping up/down every ~60s on the backstop pull. A real change
+        // (new/edited row, rate, currency, etc.) changes the signature and the
+        // render proceeds as before.
+        let _sigAfter = null;
+        try {
+          _sigAfter = JSON.stringify([
+            (data.businesses||[]).length, (data.books||[]).length, (data.entries||[]).length,
+            (data.members||[]).length, (data.auditExpenses||[]).length, (data.expenseRates||[]).length,
+            (data.transfers||[]).length, (data.distSalaries||[]).length, (data.distShares||[]).length,
+            (data.splitParties||[]).length,
+            (data.distSalaries||[]).map(r=>r.id+':'+r.name+':'+r.salary+':'+r.adjustmentAmount).join('|'),
+            (data.distShares||[]).map(r=>r.id+':'+r.name+':'+r.pct).join('|'),
+            (data.splitParties||[]).map(r=>r.id+':'+r.name+':'+r.pct+':'+r.isSelected).join('|'),
+            (data.expenseRates||[]).map(r=>r.id+':'+r.name+':'+r.rate).join('|'),
+            (data.businesses||[]).map(b=>b.id+':'+b.splitCurrency+':'+b.splitRate).join('|'),
+          ]);
+        } catch (_) { _sigAfter = null; }
+        const _unchanged = (silent && _sigBefore !== null && _sigAfter !== null && _sigBefore === _sigAfter);
+        if (!_unchanged) {
+          try { renderAll(); } catch (_) {}
+        }
       }
       return true;
     } catch (e) {
