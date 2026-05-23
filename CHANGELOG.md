@@ -12,6 +12,28 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.39
+
+FIX: distribution data now shows on managers/viewers + other devices (was reading stale localStorage).
+
+### Hash
+`b9510d9ab3a81152b7ca35f3816b1cc4`
+
+### The bug
+Saving distribution data synced to the cloud fine, but other users (managers/viewers) and the same user on another device didn't see it. Root cause: `renderDistributionView` hydrated `__distSalaries`/`__distShares` from `loadDistributionStateFor` — which reads **localStorage only**. But the realtime handler and cloud pull update `data.distSalaries`/`data.distShares` (the synced arrays), NOT localStorage. So a realtime event landed in `data.*`, the view re-rendered, but it re-read stale localStorage and ignored the update — the other device never showed the owner's rows.
+
+### Fix
+`renderDistributionView` now hydrates via `loadDistributionFromCloudOrLocal`, which prefers the cloud-synced `data.*` arrays (honouring pending deletes) and falls back to localStorage. Realtime/pull updates now appear immediately on all devices.
+
+(Realtime subscription + cloudPushOrder already included all three distribution tables — confirmed; the gap was purely the view reading the wrong source.)
+
+The "Use for Distribution" selector below the parties (pick which party feeds the Distribution amount) was already in place (.35) and is confirmed wired: selecting a party drives the Distribution amount via its %.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced; view-loads-from-cloud confirmed; old localStorage-only hydration removed; realtime + push order confirmed for all 3 dist tables.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.38
 
 New: one-tap "Reset distribution" button.

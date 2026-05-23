@@ -7369,7 +7369,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.38';
+  const BUILD_TAG = '2026.05.21.39';
 
   // ================================================================
   // STORAGE
@@ -16243,10 +16243,16 @@
     const tax = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
     __splitNetProfit = operatingProfit - tax;
     __splitBusinessCurrency = currencyDisplay(biz.currency);
-    // Hydrate distribution rows
-    const distState = loadDistributionStateFor(biz.id);
-    __distSalaries = distState.salaries;
-    __distShares = distState.shares;
+    // Hydrate distribution rows.
+    // v89.32.46 FIX: load via loadDistributionFromCloudOrLocal (prefers the
+    // cloud-synced data.distSalaries / data.distShares) rather than
+    // loadDistributionStateFor (localStorage only). The realtime handler and
+    // cloud pull update data.* — NOT localStorage — so reading localStorage
+    // here meant a manager/viewer (or the same user on another device) never
+    // saw the owner's just-synced rows: the realtime event landed in data.*
+    // but this render read stale localStorage. loadDistributionFromCloudOrLocal
+    // sets __distSalaries/__distShares from the freshest source.
+    loadDistributionFromCloudOrLocal(biz.id);
     root.innerHTML = `
       <div class="page-header">
         <div class="page-title-wrap">
