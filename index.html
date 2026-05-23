@@ -7396,7 +7396,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.56';
+  const BUILD_TAG = '2026.05.21.57';
 
   // ================================================================
   // STORAGE
@@ -13957,6 +13957,17 @@
             biz.splitRate = rate;
             saveData(); // queues the business row for sync
           }
+          // v89.32.57: also snapshot this month's rate/currency so History
+          // shows what was saved for the month, not the current value.
+          try {
+            const am = _activeDistMonth();
+            const mk = (am && am.month) ? am.month : _currentDistMonth();
+            if (!am || am.editable) { // only record for the editable (current) month
+              const snaps = _monthRateSnaps(bizId);
+              snaps[mk] = { currency: cur, rate };
+              _saveMonthRateSnaps(bizId, snaps);
+            }
+          } catch (_) {}
         }
       }
     } catch (_) {}
@@ -14087,8 +14098,8 @@
       const pm = r.periodMonth || _currentDistMonth();
       return pm === wantMonth;
     };
-    const allSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
-    const allShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id));
+    const allSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id) && !_isTombstoned(r.id));
+    const allShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id) && !_isTombstoned(r.id));
     const cloudSal = allSal.filter(_inMonth);
     const cloudShares = allShares.filter(_inMonth);
     if (cloudSal.length || cloudShares.length) {
@@ -14172,7 +14183,7 @@
       } catch (_) {}
       return s;
     })();
-    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id));
+    const cloudParties = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id) && !_isTombstoned(r.id));
     if (cloudParties.length) {
       __splitParties = cloudParties.map(r => ({
         id: r.id, name: r.name, pct: r.pct,
@@ -14211,6 +14222,55 @@
       ? biz.splitCurrency : (local.currency || '');
     __splitRate = (biz && Number(biz.splitRate))
       ? Number(biz.splitRate) : (Number(local.rate) || 0);
+    // v89.32.57: per-month rate/currency snapshot. In History (a past month or
+    // a range/all view), show the rate + currency that were SAVED for that
+    // month, not the current business-level value. The current month always
+    // uses the live business value (and records a snapshot for that month so a
+    // later History view shows what it was).
+    try {
+      const am = _activeDistMonth();
+      const snaps = _monthRateSnaps(bizId);
+      if (am && am.editable && am.month) {
+        // current/editable month — record the live value as this month's snapshot
+        snaps[am.month] = { currency: __splitCurrency, rate: __splitRate };
+        _saveMonthRateSnaps(bizId, snaps);
+      } else if (am && am.month && snaps[am.month]) {
+        // a specific past month with a saved snapshot — show it
+        __splitCurrency = snaps[am.month].currency || '';
+        __splitRate = Number(snaps[am.month].rate) || 0;
+      } else if (am && am.all && am.range) {
+        // a month range — average the saved rates across months in range that
+        // have a snapshot (currency shown is the most recent in range).
+        const months = Object.keys(snaps).filter(m => m >= am.range.from && m <= am.range.to).sort();
+        if (months.length) {
+          const rates = months.map(m => Number(snaps[m].rate) || 0).filter(r => r > 0);
+          if (rates.length) __splitRate = +(rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(4);
+          __splitCurrency = snaps[months[months.length - 1]].currency || __splitCurrency;
+        }
+      } else if (am && am.all) {
+        // All time — average every saved month's rate.
+        const months = Object.keys(snaps).sort();
+        const rates = months.map(m => Number(snaps[m].rate) || 0).filter(r => r > 0);
+        if (rates.length) __splitRate = +(rates.reduce((a, b) => a + b, 0) / rates.length).toFixed(4);
+        if (months.length) __splitCurrency = snaps[months[months.length - 1]].currency || __splitCurrency;
+      }
+    } catch (_) {}
+  }
+  // Per-month rate/currency snapshots, stored per business in localStorage.
+  // Shape: { 'YYYY-MM': { currency, rate }, ... }
+  const MONTH_RATE_KEY = 'hisabs_month_rate_snaps_v1';
+  function _monthRateSnaps(bizId) {
+    try {
+      const all = JSON.parse(localStorage.getItem(MONTH_RATE_KEY) || '{}');
+      return all[bizId] || {};
+    } catch (_) { return {}; }
+  }
+  function _saveMonthRateSnaps(bizId, snaps) {
+    try {
+      const all = JSON.parse(localStorage.getItem(MONTH_RATE_KEY) || '{}');
+      all[bizId] = snaps;
+      localStorage.setItem(MONTH_RATE_KEY, JSON.stringify(all));
+    } catch (_) {}
   }
 
   // v89: per-section edit-mode flags for Distribution. When false, all
@@ -14332,6 +14392,11 @@
           // policy that doesn't permit this user. Surface it so it's not silent.
           console.warn('[distDelete] 0 rows deleted — likely RLS blocking DELETE on ' + table);
           try { toast('Server kept the row (0 deleted) — check delete permissions.'); } catch (_) {}
+        } else {
+          // Confirmed gone from the cloud — the tombstone has done its job and
+          // can be pruned so the set stays small. The row is already removed
+          // from local mirror + working arrays, so nothing can resurrect it.
+          try { _pruneTombstone(id); } catch (_) {}
         }
         try { _markSelfWrite(id); } catch (_) {}
       }
@@ -14549,6 +14614,7 @@
       if (!ok) return;
     }
     __distSalaries = __distSalaries.filter(r => r.id !== id);
+    _addTombstone(id);
     _persistDistribution();
     _cloudDeleteDistRow('app_distribution_salaries', id);
     renderDistributionCard();
@@ -14778,6 +14844,7 @@
       if (!ok) return;
     }
     __distShares = __distShares.filter(r => r.id !== id);
+    _addTombstone(id);
     _persistDistribution();
     _cloudDeleteDistRow('app_distribution_shares', id);
     renderDistributionCard();
@@ -15722,6 +15789,7 @@
       __splitSelectedPartyId = __splitParties[0]?.id || '';
     }
     saveSplitStateFor(session.activeBizId);
+    _addTombstone(id);
     _cloudDeleteDistRow('app_split_parties', id);
     if (session.view === 'distribution') {
       const root = document.getElementById('mainContent');
@@ -31861,6 +31929,39 @@
   const SYNC_DIFF_DEBOUNCE_MS = 200;
   const SYNC_DRAIN_INTERVAL_MS = 2000;
   const SYNC_BATCH_SIZE = 50;
+
+  // v89.32.57: PERSISTENT TOMBSTONES for distribution rows (salaries, shares,
+  // parties). The recurring "deleted row comes back on refresh" bug had many
+  // disguises (stale local mirror, late cloud pull, realtime echo, queue
+  // drained-then-refresh). A tombstone is the definitive fix: when a dist row
+  // is deleted, we record its id in a persistent set. Both loaders exclude any
+  // tombstoned id, so a deleted row can NEVER reappear regardless of which
+  // source (local mirror / cloud pull / echo) still holds it. Tombstones are
+  // pruned once the row is confirmed gone from the cloud (so the set can't grow
+  // forever and can't block a legitimate future re-add of a NEW row — new rows
+  // always get a fresh uid()).
+  const DIST_TOMBSTONE_KEY = 'hisabs_dist_tombstones_v1';
+  let __distTombstones = (() => {
+    try { return new Set(JSON.parse(localStorage.getItem(DIST_TOMBSTONE_KEY) || '[]')); }
+    catch (_) { return new Set(); }
+  })();
+  function _saveTombstones() {
+    try { localStorage.setItem(DIST_TOMBSTONE_KEY, JSON.stringify([...__distTombstones])); } catch (_) {}
+  }
+  function _addTombstone(id) {
+    if (!id) return;
+    __distTombstones.add(id);
+    _saveTombstones();
+  }
+  function _isTombstoned(id) { return __distTombstones.has(id); }
+  // Prune a tombstone once the row is confirmed deleted from the cloud — keeps
+  // the set small. Safe because the row is gone from the server; if any stale
+  // local/echo copy lingers it's dropped by the loaders before pruning, and a
+  // genuinely new row would have a different id.
+  function _pruneTombstone(id) {
+    if (__distTombstones.has(id)) { __distTombstones.delete(id); _saveTombstones(); }
+  }
+
 
   // Stable per-device id so we can ignore our own realtime echoes.
   let __deviceId = localStorage.getItem(SYNC_DEVICE_ID_KEY);

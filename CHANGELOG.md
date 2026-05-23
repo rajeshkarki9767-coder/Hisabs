@@ -12,6 +12,30 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.57
+
+Persistent delete tombstones (ends "deleted data comes back") + per-month rate/currency in History.
+
+### Hash
+`ed3949e9b303755967f5efacd998baf8`
+
+### 1. Persistent tombstones — the definitive fix for resurrecting deletes
+The "add data → delete it → refresh → it's back" bug had several disguises (stale local mirror, late cloud pull, realtime echo, sync queue drained-then-refreshed). Root fix: when any distribution row (salary, share, party) is deleted, its id is recorded in a PERSISTENT tombstone set (localStorage, survives refresh). Both loaders exclude any tombstoned id, so a deleted row can never reappear regardless of which stale source still holds it. The tombstone is pruned once the cloud delete is confirmed (so the set stays small and never blocks a genuinely new row, which always gets a fresh id).
+
+### 2. History shows that month's SAVED rate + currency
+Rate/currency are now snapshotted per month. When you view a past month in History, it shows the rate + currency that were saved THAT month, not the current value. For a month range or All time, the rate is averaged across the saved months (currency shown is the most recent in range). The current month always uses the live value and records its snapshot. Party/salary/share data was already per-month (month-scoped), so those already showed the saved snapshot.
+
+### Logic verified
+Tombstone: 3 deletes record, 3 loaders exclude, prune on confirm. Per-month rate: All-time avg 157, Mar–Apr avg 157.5, Apr exact 160, currency = most recent in range. Self-test 63/63; JS valid; CSS 2191/2191; no undefined handlers.
+
+### Note (honest)
+Per-month rate snapshots are stored locally (localStorage). They persist across refreshes on the same device. Full cross-device sync of per-month rate history would need a small schema addition — flagged as a follow-up. The live current rate/currency still syncs across devices via the business row as before.
+
+### Requires real-device/runtime verification
+Delete-stays-gone across refresh (the key fix), History per-month rate display, currency/rate cross-device sync.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.56
 
 Distribution period bar = This Month + History; History holds Last month / Choose month / All time / Custom range.
