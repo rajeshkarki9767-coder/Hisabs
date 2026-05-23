@@ -12,6 +12,54 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.78
+
+Fix: clicking +Add on Team Salaries / Profit Shares immediately pushed a blank "-- --" row to the other device. Now salary/share rows (like parties) sync ONLY after Save.
+
+### Hash
+`e936573727e84a27d78015d19c6b4e5e`
+
+### Root cause
+_syncDistributionArrays synced ALL salary/share rows (unlike parties, which sync only locked/saved rows). So addDistSalaryRow/addDistShareRow → _persistDistribution → pushed the freshly-added blank row to the cloud → it appeared as "-- --" on the other device before any data was entered or saved.
+
+### Fix (two parts, mirrors the .74 party fix)
+1. _syncDistributionArrays now mirrors ONLY locked (saved) salary/share rows to the cloud. Unsaved rows persist to localStorage (survive re-render on this device) but are excluded from the cloud mirror until Save.
+2. distRowToggleEdit now LOCKS the row BEFORE calling the save fn (which triggers the sync). Previously it locked AFTER, so with the locked-only filter the just-saved row would have been excluded at sync time (same ordering trap as the .74 party fix). Applies to salaries, shares, parties, and currency/rate.
+
+### Verified
+Add→edit→save flow trace 5/5 (+Add → other device empty; editing → not synced; Save → appears; 2nd add doesn't wipe 1st; 2nd save → both). Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers.
+
+### Requires real-device/runtime verification
+Click +Add on salaries/shares → other device shows nothing (no "-- --"); after Save → row appears on the other device.
+
+---
+
+## [1.11] — 2026-05-21 · build 2026.05.21.77
+
+Confirmed via console that the rate book now works (saves + persists + syncs); quieted the rate-merge diagnostic to warn only on a real drop.
+
+### Hash
+`558b6f50d58e0d248bb48b7b3cbd045a`
+
+### What the diagnostic confirmed
+Console on the deployed build showed:
+- [rateSave] cloud upsert result {sent: 3, savedRows: 3}  → cloud write SUCCEEDS (RLS is correct).
+- [rateMerge] pull {fetched: 2, afterMerge: 2}            → cloud HAS the rates and the union merge KEEPS them (nothing wiped).
+- [distDelete] ... deletedRows: 1 (salaries + shares)     → distribution deletes work.
+So the .72 direct-upsert + .73 union-merge fixed rate persistence. The earlier "rates gone" was on a pre-.73 deployed build.
+
+### Change
+- [rateMerge] now logs (console.warn) ONLY when a pull would reduce the rate count (a real regression), instead of on every pull. [rateSave] result log kept (fires only on save).
+- The repeated google-analytics CSP-block console message is NOT from this app (no gtag/GA code anywhere in index.html) — it's injected by a browser extension or the preview wrapper, and the CSP is correctly blocking it. No action needed.
+
+### Verified
+Self-test 63/63; JS valid; CSS 2214/2214; no undefined handlers; mergeExpenseRates intact; no api/ (Vercel deploys clean).
+
+### Requires real-device/runtime verification
+Rates persist across navigate + refresh and show on the other device (the console already indicates they do).
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.76
 
 Fix mobile salary/share row overflow (proper structure-agnostic layout) + add a diagnostic to pinpoint why expense rates still vanish after navigating.

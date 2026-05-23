@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.76';
+  const BUILD_TAG = '2026.05.21.78';
 
   // ================================================================
   // STORAGE
@@ -14788,8 +14788,20 @@
       const am = _activeDistMonth();
       const mk = am.month || _currentDistMonth();
       const keep = (r) => r.businessId !== bizId || ((r.periodMonth || _currentDistMonth()) !== mk);
+      // v89.32.78: only sync SAVED (locked) rows — matches the party rule. A
+      // freshly-added salary/share row is unlocked until the user taps Save;
+      // syncing it earlier pushed a blank "-- --" row to the other device on
+      // +Add (before any data was entered). Unsaved rows persist locally (so
+      // they survive a re-render) but are excluded from the cloud mirror until
+      // Save locks them.
+      const _salLocked = __distSalaries.filter(r => {
+        try { return _distRowIsLocked('salaries', r.id); } catch (_) { return true; }
+      });
+      const _shrLocked = __distShares.filter(r => {
+        try { return _distRowIsLocked('shares', r.id); } catch (_) { return true; }
+      });
       data.distSalaries = (data.distSalaries || []).filter(keep)
-        .concat(__distSalaries.map(r => ({
+        .concat(_salLocked.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', salary: Number(r.salary) || 0,
           adjustmentType: r.adjustmentType === 'addition' ? 'addition' : 'deduction',
@@ -14799,7 +14811,7 @@
           createdAt: r.createdAt || new Date().toISOString(),
         })));
       data.distShares = (data.distShares || []).filter(keep)
-        .concat(__distShares.map(r => ({
+        .concat(_shrLocked.map(r => ({
           id: r.id, businessId: bizId,
           name: r.name || '', pct: Number(r.pct) || 0,
           note: r.note || '',
@@ -14997,7 +15009,12 @@
       // Switch to edit mode
       _distRowMarkUnlocked(kind, id);
     } else {
-      // Commit save based on kind
+      // v89.32.78: LOCK the row BEFORE running the save (which triggers the
+      // cloud sync). _syncDistributionArrays / _syncSplitPartiesArray now sync
+      // ONLY locked rows; if we locked AFTER saving, the just-saved row would
+      // still be unlocked at sync time and get excluded (same class of bug as
+      // the party .74 fix). Lock first, then commit + sync.
+      _distRowMarkLocked(kind, id);
       if (kind === 'salaries') {
         saveDistSalaryRow(id);
       } else if (kind === 'shares') {
@@ -15007,7 +15024,6 @@
       } else if (kind === 'splitcurate') {
         saveSplitCurRate();
       }
-      _distRowMarkLocked(kind, id);
     }
     // Re-render so the row's button flips Edit<->Save and inputs lock/unlock.
     // v89.32.38: most kinds use renderDistributionCard() (patches just
@@ -35017,16 +35033,22 @@
       // (delete removes it from data.expenseRates directly, so it simply won't
       // be in localRows). This can't resurrect a deleted rate because deletes
       // mutate the local array; it only protects not-yet-confirmed saves.
-      data.expenseRates = mergeExpenseRates(fetched.expenseRates, data.expenseRates);
-      // v89.32.76: diagnostic — log how the rate book changed across a pull so
-      // the "rates vanish after navigating" path is visible. Remove once fixed.
-      try {
-        console.log('[rateMerge] pull', {
-          fetched: (fetched.expenseRates || []).length,
-          afterMerge: (data.expenseRates || []).length,
-          names: (data.expenseRates || []).map(r => r.name),
-        });
-      } catch (_) {}
+      // v89.32.77: race-resilient rate merge. Log ONLY if the merge would
+      // drop a rate (afterMerge < before) — silent in normal operation, but a
+      // regression that wipes rates would still surface in the console.
+      {
+        const _ratesBefore = (data.expenseRates || []).length;
+        data.expenseRates = mergeExpenseRates(fetched.expenseRates, data.expenseRates);
+        const _ratesAfter = (data.expenseRates || []).length;
+        if (_ratesAfter < _ratesBefore) {
+          try {
+            console.warn('[rateMerge] rates dropped on pull', {
+              before: _ratesBefore, after: _ratesAfter,
+              fetched: (fetched.expenseRates || []).length,
+            });
+          } catch (_) {}
+        }
+      }
       data.quickLook     = mergeWithPending('quickLook',     fetched.quickLook,     data.quickLook);
       data.announcements = mergeWithPending('announcements', fetched.announcements, data.announcements);
       data.transfers     = mergeWithPending('transfers',     fetched.transfers,     data.transfers);
