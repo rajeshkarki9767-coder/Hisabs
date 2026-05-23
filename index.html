@@ -7369,7 +7369,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.36';
+  const BUILD_TAG = '2026.05.21.37';
 
   // ================================================================
   // STORAGE
@@ -11748,6 +11748,11 @@
 
   let __digestCheckRunningOnce = false;
   function checkDailyDigestClientFallback() {
+    // v89.32.44: daily digest notification (fired at 23:59 NPT) removed per
+    // user request. Disabled here rather than ripping out the helpers below
+    // (still referenced elsewhere / harmless). Early-return = no toast, no
+    // browser notification.
+    return;
     if (__digestCheckRunningOnce) return;
     __digestCheckRunningOnce = true;
     setTimeout(() => { __digestCheckRunningOnce = false; }, 60000); // 1/min throttle
@@ -14173,15 +14178,27 @@
       _distRowMarkLocked(kind, id);
     }
     // Re-render so the row's button flips Edit<->Save and inputs lock/unlock.
-    // v89.32.38: use renderDistributionCard() (same path as addDistSalaryRow)
-    // rather than a full renderDistributionView(). The full view re-hydrates
-    // __distSalaries/__distShares from storage and rebuilds #mainContent,
-    // which on the Save click could land the button in an inconsistent state
-    // ("Save not clickable / does nothing"). renderDistributionCard patches
-    // just #distributionCard with the current lock states, which is exactly
-    // what a per-row Edit/Save toggle needs.
+    // v89.32.38: most kinds use renderDistributionCard() (patches just
+    // #distributionCard) — same path as addDistSalaryRow.
+    // v89.32.44 FIX: 'splitcurate' is the exception. The currency/rate
+    // summary, its inputs, and the Edit/Save button live in the
+    // renderDistributionView markup (#mainContent), NOT inside
+    // #distributionCard. So re-rendering only the card left the currency
+    // section untouched — clicking "Edit Currency and Rate" toggled the lock
+    // but the inputs never appeared (the button "did nothing"). For this kind
+    // we re-render the full distribution view so the summary<->inputs swap.
     if (session.view === 'distribution') {
-      if (document.getElementById('distributionCard')) {
+      if (kind === 'splitcurate') {
+        const root = document.getElementById('mainContent');
+        if (root) renderDistributionView(root);
+      } else if (kind === 'parties') {
+        // v89.32.44 FIX: the party list (#splitPartiesList) lives in the
+        // renderDistributionView markup, not #distributionCard. Re-rendering
+        // only the card left the just-saved party row stuck in edit mode
+        // (the "save glitch"). Re-render the party list directly so the row
+        // flips edit<->saved and the Use-for-Distribution selector updates.
+        try { renderSplitParties(); } catch (_) {}
+      } else if (document.getElementById('distributionCard')) {
         renderDistributionCard();
       } else {
         const root = document.getElementById('mainContent');
@@ -15038,7 +15055,10 @@
     const listEl = document.getElementById('splitPartiesList');
     if (!listEl) return;
     if (__splitParties.length === 0) {
-      listEl.innerHTML = '<div class="split-parties-empty">No parties yet. Click "+ Add party" above.</div>';
+      listEl.innerHTML = '<div class="split-parties-empty">Add a party to split the percentage.</div>';
+      // also clear the Use-for-Distribution selector below
+      const host = document.getElementById('useForDistribution');
+      if (host) host.innerHTML = '';
       return;
     }
     const fmtPctVal = (p) => {
@@ -16228,7 +16248,7 @@
         <!-- Party list with name + % inputs -->
         <div class="split-parties">
           <div class="split-parties-head">
-            <div class="split-parties-title">Split the %</div>
+            <div class="split-parties-title">Split the Percentage</div>
             <button class="btn btn-sm btn-ghost" onclick="addSplitParty()">+ Add party</button>
           </div>
           <!-- v89.8: live total % indicator for parties. -->
@@ -16249,26 +16269,6 @@
         <div class="split-results" id="splitResults">
           <!-- filled by updateSplitCalc() -->
         </div>
-
-        ${__splitParties.length === 0 ? `
-        <!-- Legacy single-% mode (shown only when no named parties yet)
-             so existing users see the old behaviour without surprise.
-             Adding a named party hides this entirely. -->
-        <div class="split-calc-divider"></div>
-        <div class="split-calc-legacy">
-          <div class="split-calc-pct-row">
-            <div class="split-calc-pct-input">
-              <label>% of net profit (single-party mode)</label>
-              <input type="number" id="splitPctInput" min="0" max="100" step="0.01" value="${escapeHtml(String(__splitPct))}" oninput="onSplitPctInput(this.value)" onblur="this.value = String(__splitPct)" inputmode="decimal">
-            </div>
-            <div class="split-calc-pct-results" id="splitPctResults">
-              <!-- filled by updateSplitCalc() -->
-            </div>
-          </div>
-          <div class="split-calc-converted" id="splitConverted">
-            <!-- filled by updateSplitCalc() -->
-          </div>
-        </div>` : ''}
       </div>
 
       <div class="distribution-card" id="distributionCard"><!-- filled below --></div>

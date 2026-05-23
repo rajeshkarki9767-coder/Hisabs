@@ -12,6 +12,26 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.11] — 2026-05-21 · build 2026.05.21.37
+
+Remove 11:59 notification; fix Edit Currency/Rate + party save; redesign "Split the Percentage" empty state.
+
+### Hash
+`2e12d318c337fc2060b23163c319df28`
+
+### Changes
+1. **Removed the 11:59 PM daily-summary notification.** The client-side daily digest (toast + browser notification fired at 23:59 NPT) is disabled.
+2. **"Edit Currency and Rate" button now works.** Root cause: the currency summary/inputs and the button live in the `renderDistributionView` markup (`#mainContent`), but the toggle re-rendered only `#distributionCard` — so clicking Edit toggled the lock but never revealed the inputs. The `splitcurate` toggle now re-renders the full distribution view, so the summary↔inputs swap correctly.
+3. **Party "save glitch" fixed (same root cause).** The party list (`#splitPartiesList`) also lives in the view, not the card. The `parties` toggle now re-renders the party list directly, so a saved party row flips edit→saved and the selector updates.
+4. **Renamed "Split the %" → "Split the Percentage".**
+5. **Nothing shows before a party is added.** The legacy single-party % input/results block is removed; with no parties the section just shows "Add a party to split the percentage." (Distribution still defaults to 100% of net profit until a party is selected.)
+6. **Add party = name + % only** (already the case), and after saving, the **"Use for Distribution"** selector below lets you pick which party feeds the Distribution; the amount follows the selection.
+
+### Verification
+Self-test 63/63; JS valid; CSS 2181/2181; tags balanced; all six items confirmed in source; distribution-amount fallback (no party = 100%) confirmed intact.
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.36
 
 Profit Shares: removed the "Reason for share" field entirely.
