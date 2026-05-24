@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.106';
+  const BUILD_TAG = '2026.05.21.107';
 
   // ================================================================
   // STORAGE
@@ -17225,10 +17225,21 @@
               // v89.46: surface the stored qty + rate (already saved per expense)
               // so the audit shows how an amount was derived (qty × rate), not
               // just the total. Only shown when the expense was entered that way.
-              const _hasQR = (x.qty != null && x.qty !== '' && Number(x.qty) > 0)
-                          || (x.rate != null && x.rate !== '' && Number(x.rate) > 0);
-              const _qr = _hasQR
-                ? `<span class="audit-exp-qr" style="font-size:0.72rem;color:var(--ink-mute);font-family:var(--font-mono);">${Number(x.qty) > 0 ? fmt(Number(x.qty)) : '—'} × ${cur} ${Number(x.rate) > 0 ? fmt(Number(x.rate)) : '—'}</span>`
+              // v89.51: rate is a PERCENTAGE (amount = qty × rate%). Show a
+              // meaningful breakdown only:
+              //   • qty + rate both present → "qty × rate%"
+              //   • qty only (no rate)      → "qty <n>"
+              //   • neither                 → nothing
+              // Previously this rendered "qty × $ —" (currency symbol on a
+              // percentage, and a dash when rate wasn't stored), which was
+              // confusing for expenses entered as qty + amount directly.
+              const _q = (x.qty != null && x.qty !== '' && Number(x.qty) > 0) ? Number(x.qty) : null;
+              const _r = (x.rate != null && x.rate !== '' && Number(x.rate) > 0) ? Number(x.rate) : null;
+              const _qrText = (_q != null && _r != null)
+                ? `${fmt(_q)} × ${fmt(_r)}%`
+                : (_q != null ? `qty ${fmt(_q)}` : '');
+              const _qr = _qrText
+                ? `<span class="audit-exp-qr" style="font-size:0.72rem;color:var(--ink-mute);font-family:var(--font-mono);">${_qrText}</span>`
                 : '';
               return `<div class="audit-acct-row">
               <span class="audit-acct-name">${escapeHtml(x.description)}${_qr ? `<br>${_qr}` : ''}</span>
@@ -20492,9 +20503,9 @@
     const qtyTotal = rows.reduce((s, x) => s + (x.qty != null ? Number(x.qty) : 0), 0);
     const list = rows.map(x => {
       const qtyCell = x.qty != null ? `<span class="exp-hist-qty">qty ${fmt(x.qty)}</span>` : '';
-      // v89.49: also show the rate per addition when present (was qty-only).
+      // v89.51: rate is a percentage, not currency.
       const rateCell = (x.rate != null && x.rate !== '' && Number(x.rate) > 0)
-        ? `<span class="exp-hist-qty">rate ${fmt(Number(x.rate))}</span>` : '';
+        ? `<span class="exp-hist-qty">rate ${fmt(Number(x.rate))}%</span>` : '';
       // v56: optional note shown under qty in muted text. If both qty
       // and note exist, qty appears first then note on its own line.
       const noteCell = x.note ? `<div class="exp-hist-note">${escapeHtml(x.note)}</div>` : '';
@@ -33504,6 +33515,54 @@
     if (__syncQueue.length === 0) return;
     __syncDraining = true;
     try {
+      // v89.51: proactively purge ops that are ALREADY known to be stuck on a
+      // permission error (attempts >= 3 with an RLS/permission lastError),
+      // BEFORE the backoff check. These can never succeed for this user, and a
+      // high attempt count puts them in long backoff — so without this they sit
+      // forever pinning the badge at "N pending" (the viewer bug persisted past
+      // v89.50 because the perm-drop only ran AFTER a fresh failed attempt, which
+      // backoff prevented). Dropping them loses no data: a permission-denied
+      // write never persisted anything. Transient failures are NOT purged here.
+      try {
+        const _isPermErr = (msg) => {
+          const m = String(msg || '').toLowerCase();
+          return m.includes('row-level security') || m.includes('rls')
+              || m.includes('42501') || m.includes('403')
+              || m.includes('permission') || m.includes('policy');
+        };
+        const before = __syncQueue.length;
+        __syncQueue = __syncQueue.filter(o => !(o && (o.attempts || 0) >= 3 && _isPermErr(o.lastError)));
+        // Belt-and-suspenders: also drop any stuck op (attempts >= 2) whose
+        // TABLE the current user's role cannot write — e.g. a viewer can never
+        // write distribution, so such an op is permanently doomed regardless of
+        // how its error text was recorded. Uses the same role map as the push
+        // gate. Resolves the op's business via its row/localKey when possible;
+        // if the role for that business can't write that localKey, drop it.
+        try {
+          __syncQueue = __syncQueue.filter(o => {
+            if (!o || (o.attempts || 0) < 2) return true; // only stuck ones
+            const lk = o.localKey;
+            if (!lk || typeof _roleCanWriteTable !== 'function') return true;
+            // resolve business id from the op's row if present
+            let bizId = null;
+            try {
+              if (o.row && o.row.business_id) bizId = o.row.business_id;
+              else if (lk === 'entries' && o.row && o.row.book_id) {
+                bizId = data.books.find(b => b.id === o.row.book_id)?.businessId || null;
+              }
+            } catch (_) {}
+            if (!bizId) return true; // can't resolve → leave it (server decides)
+            const role = (typeof roleFor === 'function') ? roleFor(bizId) : null;
+            if (!role) return true;
+            return _roleCanWriteTable(role, lk); // keep only if writable
+          });
+        } catch (_) {}
+        if (__syncQueue.length !== before) {
+          persistQueue();
+          try { updateSyncBadge(); } catch (_) {}
+          if (__syncQueue.length === 0) { __syncDraining = false; return; }
+        }
+      } catch (_) {}
       // Backoff for stuck ops: if the first op in the queue has failed
       // recently, don't hammer the server. Wait time grows with attempts:
       // attempt 1 → no wait, 2 → 4s, 3 → 16s, 4 → 64s, 5+ → 5 min cap.
