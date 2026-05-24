@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.104';
+  const BUILD_TAG = '2026.05.21.106';
 
   // ================================================================
   // STORAGE
@@ -20492,6 +20492,9 @@
     const qtyTotal = rows.reduce((s, x) => s + (x.qty != null ? Number(x.qty) : 0), 0);
     const list = rows.map(x => {
       const qtyCell = x.qty != null ? `<span class="exp-hist-qty">qty ${fmt(x.qty)}</span>` : '';
+      // v89.49: also show the rate per addition when present (was qty-only).
+      const rateCell = (x.rate != null && x.rate !== '' && Number(x.rate) > 0)
+        ? `<span class="exp-hist-qty">rate ${fmt(Number(x.rate))}</span>` : '';
       // v56: optional note shown under qty in muted text. If both qty
       // and note exist, qty appears first then note on its own line.
       const noteCell = x.note ? `<div class="exp-hist-note">${escapeHtml(x.note)}</div>` : '';
@@ -20502,7 +20505,7 @@
         </div>` : '';
       return `<div class="exp-hist-row">
         <div class="exp-hist-date">${escapeHtml(expenseDate(x))}</div>
-        <div class="exp-hist-body">${qtyCell}${noteCell}</div>
+        <div class="exp-hist-body">${qtyCell}${rateCell}${noteCell}</div>
         <div class="exp-hist-amt">${cur} ${fmt(x.amount)}</div>
         ${actions}
       </div>`;
@@ -27999,6 +28002,9 @@
         <h3 class="settings-heading">Local storage</h3>
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">How much of this device's browser storage Hisabs is using. Your data is always safe in the cloud — this only affects how much can be held offline on this device. If it gets high, Hisabs automatically clears its local sync cache (which rebuilds from the cloud) so you can keep working.</p>
         <div id="storageMeter">${storageMeterHTML()}</div>
+        <div style="margin-top:0.6rem;">
+          <button class="btn btn-sm btn-ghost" onclick="reclaimLocalStorage()" title="Clears the local sync cache (a rebuildable copy used for offline diffing). Frees roughly half the space with no effect on your data — the cache rebuilds automatically from the cloud.">Free up space</button>
+        </div>
       </div>
       <div class="settings-section">
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
@@ -28957,6 +28963,28 @@
   // simple usage bar. Browsers cap localStorage at ~5MB per origin; we show
   // usage against a conservative 5MB so the owner can act (back up, start a new
   // book) before hitting a wall. Pure read — measures key/value string lengths.
+  // v89.48: user-triggered space reclaim. Drops the local sync snapshot — a
+  // full, rebuildable copy of the data kept only for offline diffing — which
+  // is typically ~half the footprint. No effect on real data: it rebuilds from
+  // the cloud on the next sync. Gives the owner (who holds the most data, so
+  // hits the limit first) an explicit, safe way to free space on demand.
+  async function reclaimLocalStorage() {
+    try {
+      const had = localStorage.getItem('hisabs_sync_snapshot_v1') !== null
+               || localStorage.getItem('hisabs_auto_backups_v1') !== null;
+      try { localStorage.removeItem('hisabs_auto_backups_v1'); } catch (_) {}
+      try { localStorage.removeItem('hisabs_sync_snapshot_v1'); } catch (_) {}
+      try { if (typeof __syncSnapshot !== 'undefined') __syncSnapshot = null; } catch (_) {}
+      toast(had ? 'Freed local space — the sync cache will rebuild automatically.' : 'Nothing to reclaim right now.');
+      // Refresh the meter in place if the settings modal is open.
+      try {
+        const m = document.getElementById('storageMeter');
+        if (m) m.innerHTML = storageMeterHTML();
+      } catch (_) {}
+    } catch (_) {
+      toast('Could not reclaim space.');
+    }
+  }
   function storageMeterHTML() {
     try {
       let totalBytes = 0, biggestKey = '', biggestBytes = 0;
@@ -33143,6 +33171,35 @@
   // Skips records whose required parent reference (e.g. book for an entry)
   // is missing — sending those would fail the DB NOT NULL constraint and
   // poison-pill the queue.
+  // v89.50: which tables a given role may WRITE (push to cloud). This mirrors
+  // the server RLS so we never queue an op that RLS will reject and that would
+  // then retry forever (the "viewer stuck at N pending" bug — a viewer mutating
+  // local data, e.g. via a tombstone reconcile or render-side write, generated
+  // upsert/delete ops it has no permission to push). owner: everything.
+  // manager: operational tables (not members/businesses/distribution).
+  // staff: entries + expense additions only. viewer: NOTHING.
+  function _roleCanWriteTable(role, localKey) {
+    if (role === 'owner') return true;
+    if (role === 'manager') {
+      return ['entries', 'auditExpenses', 'expenseRates', 'parties',
+              'categories', 'cashAccounts', 'accountGroups', 'quickLook',
+              'transfers', 'books'].includes(localKey);
+    }
+    if (role === 'staff') {
+      return ['entries', 'auditExpenses'].includes(localKey);
+    }
+    return false; // viewer / unknown — read-only
+  }
+  function _canPushRecord(localKey, rec) {
+    try {
+      const bizId = (localKey === 'entries')
+        ? (data.books.find(b => b.id === rec.bookId)?.businessId)
+        : rec.businessId;
+      if (!bizId) return true; // can't resolve biz → let server RLS decide
+      return _roleCanWriteTable(roleFor(bizId), localKey);
+    } catch (_) { return true; }
+  }
+
   function diffKey(localKey, ctx, ops) {
     const cur = data[localKey] || [];
     const snap = (__syncSnapshot && __syncSnapshot[localKey]) || [];
@@ -33164,6 +33221,9 @@
         if (!row) continue;
         // Final sanity: any required FK was resolved.
         if (localKey === 'entries' && row.business_id == null) continue;
+        // v89.50: skip if this user's role can't write this table for this
+        // record's business — prevents RLS-rejected ops piling up (viewer bug).
+        if (!_canPushRecord(localKey, rec)) continue;
         ops.push({
           id: uid(),
           table: map.table,
@@ -33189,6 +33249,9 @@
     if (localKey !== 'expenseRates') {
       for (const prev of snap) {
         if (!curById.has(prev.id)) {
+          // v89.50: same role gate for deletes — a viewer/non-writer must not
+          // emit delete ops that RLS will reject and retry forever.
+          if (!_canPushRecord(localKey, prev)) continue;
           ops.push({
             id: uid(),
             table: map.table,
@@ -33534,6 +33597,25 @@
       // what hasn't reached the cloud yet — losing entries from it loses
       // user data.
       const removedIds = new Set(successfulOps.map(o => o.id));
+      // v89.50: also drop ops that keep failing with a PERMISSION error
+      // (RLS / 42501 / 403). Unlike transient errors (network, conflicts),
+      // these can NEVER succeed for this user — the server will always reject
+      // the write — so retrying forever just pins the queue at "N pending"
+      // (the viewer-stuck bug). A permission-denied write never persisted
+      // anything, so dropping it loses no real data. Transient failures still
+      // retry indefinitely (data safety preserved).
+      const _isPermError = (msg) => {
+        const m = String(msg || '').toLowerCase();
+        return m.includes('row-level security') || m.includes('rls')
+            || m.includes('42501') || m.includes('403')
+            || m.includes('permission') || m.includes('policy');
+      };
+      let _droppedPerm = 0;
+      for (const op of stuckOps) {
+        if (op.attempts >= 3 && _isPermError(op.lastError)) {
+          removedIds.add(op.id); _droppedPerm++;
+        }
+      }
       __syncQueue = __syncQueue.filter(o => !removedIds.has(o.id));
       persistQueue();
       // Update snapshot for successful ops so we don't re-emit them next
@@ -33543,10 +33625,13 @@
       // If any ops are stuck (3+ failed attempts), surface that to the
       // user with a non-alarming toast — they need to know something
       // isn't getting through, but the data is safe locally.
-      if (stuckOps.length) {
-        const tables = Array.from(new Set(stuckOps.map(o => o.table))).join(', ');
-        const reason = stuckOps[0].lastError || 'server rejected the push';
-        toast(`Sync is retrying: ${stuckOps.length} record${stuckOps.length === 1 ? '' : 's'} in ${tables} couldn't sync yet (${reason.slice(0, 60)}). Your data is safe locally and will keep retrying.`);
+      // Surface only TRANSIENT stuck ops (not the permission-denied ones we
+      // just dropped — those are expected for read-only roles and not errors).
+      const _transientStuck = stuckOps.filter(o => !(o.attempts >= 3 && _isPermError(o.lastError)));
+      if (_transientStuck.length) {
+        const tables = Array.from(new Set(_transientStuck.map(o => o.table))).join(', ');
+        const reason = _transientStuck[0].lastError || 'server rejected the push';
+        toast(`Sync is retrying: ${_transientStuck.length} record${_transientStuck.length === 1 ? '' : 's'} in ${tables} couldn't sync yet (${reason.slice(0, 60)}). Your data is safe locally and will keep retrying.`);
       }
       updateSyncBadge();
     } catch (e) {
