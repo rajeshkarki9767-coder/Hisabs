@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.103';
+  const BUILD_TAG = '2026.05.21.104';
 
   // ================================================================
   // STORAGE
@@ -8373,27 +8373,39 @@
       localStorage.setItem(key, value);
       return true;
     } catch (e) {
-      // v89.38: quota exceeded. The biggest reclaimable consumer is the local
-      // auto-backup set (full data copies). Before giving up, drop the
-      // auto-backups and any prior snapshot and RETRY once — so a heavy user
-      // can always keep entering data even when storage is tight. A
-      // cloud-signed-in user's data is safe on the server regardless.
+      // v89.47: quota exceeded. Reclaim space in increasing order of impact,
+      // retrying after each step, so a heavy user can always keep saving:
+      //   1) drop local auto-backups (legacy bloat, if any remain);
+      //   2) drop the sync SNAPSHOT — a full second copy of the data kept only
+      //      to compute sync diffs. It is safely reclaimable: the sync engine
+      //      rebuilds it from the cloud on the next pull. Dropping it frees
+      //      roughly half the footprint without touching any real data.
+      // A cloud-signed-in user's data is safe on the server throughout; the
+      // snapshot is purely a local optimisation.
+      const _retry = () => { try { localStorage.setItem(key, value); return true; } catch (_) { return false; } };
       try {
-        const reclaim = ['hisabs_auto_backups_v1'];
+        // Step 1: legacy auto-backups.
         let freed = false;
-        for (const k of reclaim) {
-          if (localStorage.getItem(k) !== null) { localStorage.removeItem(k); freed = true; }
+        if (localStorage.getItem('hisabs_auto_backups_v1') !== null) {
+          localStorage.removeItem('hisabs_auto_backups_v1'); freed = true;
         }
-        if (freed) {
-          try {
-            localStorage.setItem(key, value);
-            try { toast('Storage was full — old local auto-backups were cleared to make room. Your data is saved.'); } catch (_) {}
+        if (freed && _retry()) {
+          try { toast('Storage was full — cleared old local backups. Your data is saved.'); } catch (_) {}
+          return true;
+        }
+        // Step 2: the sync snapshot (rebuilds from cloud automatically).
+        if (localStorage.getItem('hisabs_sync_snapshot_v1') !== null) {
+          localStorage.removeItem('hisabs_sync_snapshot_v1');
+          if (_retry()) {
+            // Force the snapshot to rebuild on the next sync cycle.
+            try { if (typeof __syncSnapshot !== 'undefined') __syncSnapshot = null; } catch (_) {}
+            try { toast('Storage was full — freed space by clearing the local sync cache (it rebuilds automatically). Your data is saved.'); } catch (_) {}
             return true;
-          } catch (_) { /* still full → fall through to the warning below */ }
+          }
         }
       } catch (_) {}
       console.warn('localStorage write failed for', key, e);
-      try { toast('Storage is full. Back up and delete old data.'); } catch (_) {}
+      try { toast('Storage is full even after clearing caches. Back up to file — your cloud data is safe, but this device cannot hold more offline.'); } catch (_) {}
       return false;
     }
   }
@@ -27985,7 +27997,7 @@
       </div>
       <div class="settings-section">
         <h3 class="settings-heading">Local storage</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">How much of this device's browser storage Hisabs is using. Your data is always safe in the cloud — this only affects how much can be held offline on this device. If it gets high, back up and start a fresh book for the new period.</p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">How much of this device's browser storage Hisabs is using. Your data is always safe in the cloud — this only affects how much can be held offline on this device. If it gets high, Hisabs automatically clears its local sync cache (which rebuilds from the cloud) so you can keep working.</p>
         <div id="storageMeter">${storageMeterHTML()}</div>
       </div>
       <div class="settings-section">
@@ -28966,9 +28978,9 @@
         hisabs_dist_tombstones_v1: 'deletion records',
       }[biggestKey] || biggestKey;
       const warn = pct > 85
-        ? `<p style="font-size:0.8rem;color:var(--loss);margin-top:0.5rem;line-height:1.45;">Storage is getting full. Back up to file, then consider starting a fresh book for the new period so this device isn't holding all history at once. Your cloud data is unaffected.</p>`
+        ? `<p style="font-size:0.8rem;color:var(--loss);margin-top:0.5rem;line-height:1.45;">Storage is nearly full. Hisabs will automatically clear its local sync cache to make room when needed (it rebuilds from the cloud), so you can keep working. Your cloud data is always safe. If this device stays full, back up to file and sign in on a device with more free space; permanent per-device archiving is planned.</p>`
         : (pct > 60
-          ? `<p style="font-size:0.8rem;color:#c9882a;margin-top:0.5rem;line-height:1.45;">Storage is over half full. A good time to back up and think about a new book for the next period.</p>`
+          ? `<p style="font-size:0.8rem;color:#c9882a;margin-top:0.5rem;line-height:1.45;">Storage is over half full. A good time to back up to file. Hisabs manages its local caches automatically; your cloud data is always safe.</p>`
           : '');
       return `
         <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.82rem;margin-bottom:0.35rem;">
