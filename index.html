@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.107';
+  const BUILD_TAG = '2026.05.21.109';
 
   // ================================================================
   // STORAGE
@@ -17221,31 +17221,41 @@
         <p class="audit-section-sub">Logged on the Expenses tab. ${expensesForRange.length} entr${expensesForRange.length === 1 ? 'y' : 'ies'} in ${escapeHtml(rangeLabel)}.</p>
         ${expensesForRange.length ? `
           <div class="audit-balances">
-            ${expensesForRange.map(x => {
-              // v89.46: surface the stored qty + rate (already saved per expense)
-              // so the audit shows how an amount was derived (qty × rate), not
-              // just the total. Only shown when the expense was entered that way.
-              // v89.51: rate is a PERCENTAGE (amount = qty × rate%). Show a
-              // meaningful breakdown only:
-              //   • qty + rate both present → "qty × rate%"
-              //   • qty only (no rate)      → "qty <n>"
-              //   • neither                 → nothing
-              // Previously this rendered "qty × $ —" (currency symbol on a
-              // percentage, and a dash when rate wasn't stored), which was
-              // confusing for expenses entered as qty + amount directly.
-              const _q = (x.qty != null && x.qty !== '' && Number(x.qty) > 0) ? Number(x.qty) : null;
-              const _r = (x.rate != null && x.rate !== '' && Number(x.rate) > 0) ? Number(x.rate) : null;
-              const _qrText = (_q != null && _r != null)
-                ? `${fmt(_q)} × ${fmt(_r)}%`
-                : (_q != null ? `qty ${fmt(_q)}` : '');
-              const _qr = _qrText
-                ? `<span class="audit-exp-qr" style="font-size:0.72rem;color:var(--ink-mute);font-family:var(--font-mono);">${_qrText}</span>`
-                : '';
-              return `<div class="audit-acct-row">
-              <span class="audit-acct-name">${escapeHtml(x.description)}${_qr ? `<br>${_qr}` : ''}</span>
-              <span class="audit-acct-bal neg">${cur} ${fmt(x.amount)}</span>
+            ${(() => {
+              // v89.52: group audit expenses by NAME so the Audit matches the
+              // Expenses tab (which groups), instead of listing each addition
+              // separately. Also derive the rate% to show: prefer a stored rate
+              // on a row, else look it up from the rate book by name, else
+              // derive it from amount/qty. This shows the rate even for older
+              // expenses saved before the rate was stored per-row.
+              const groups = new Map();
+              for (const x of expensesForRange) {
+                const nm = (x.description || '').trim();
+                const key = nm.toLowerCase();
+                if (!groups.has(key)) groups.set(key, { name: nm, amount: 0, qty: 0, qtyCount: 0, rows: 0 });
+                const g = groups.get(key);
+                g.amount += Number(x.amount) || 0;
+                g.rows += 1;
+                if (x.qty != null && x.qty !== '' && Number.isFinite(Number(x.qty))) { g.qty += Number(x.qty); g.qtyCount += 1; }
+              }
+              return [...groups.values()].map(g => {
+                const _q = (g.qtyCount === g.rows && g.qty > 0) ? g.qty : null;
+                // rate: rate-book lookup by name, else derive from amount/qty.
+                let _r = null;
+                try { const booked = _expenseRateFor(g.name); if (booked != null && Number(booked) > 0) _r = Number(booked); } catch (_) {}
+                if (_r == null && _q != null && g.amount) { const d = (g.amount / _q) * 100; if (Number.isFinite(d) && d > 0) _r = +d.toFixed(2); }
+                const _qrText = (_q != null && _r != null)
+                  ? `${fmt(_q)} × ${fmt(_r)}%`
+                  : (_q != null ? `qty ${fmt(_q)}` : '');
+                const _qr = _qrText
+                  ? `<span class="audit-exp-qr" style="font-size:0.72rem;color:var(--ink-mute);font-family:var(--font-mono);">${_qrText}</span>`
+                  : '';
+                return `<div class="audit-acct-row">
+              <span class="audit-acct-name">${escapeHtml(g.name)}${_qr ? `<br>${_qr}` : ''}</span>
+              <span class="audit-acct-bal neg">${cur} ${fmt(g.amount)}</span>
             </div>`;
-            }).join('')}
+              }).join('');
+            })()}
           </div>
           <div class="audit-balances-total">
             <span>Total expenses</span>
@@ -20398,6 +20408,20 @@
       } else if (g.qtyCount > 0) {
         qtyLine = `<span class="audit-exp-qty">qty: various</span>`;
       }
+      // v89.52: also show the rate% (rate-book lookup by name, else derived
+      // from total amount / total qty) so the Expenses tab shows how the
+      // amount was derived, consistent with the Audit view.
+      let rateLine = '';
+      try {
+        let _r = null;
+        const booked = _expenseRateFor(g.name);
+        if (booked != null && Number(booked) > 0) _r = Number(booked);
+        if (_r == null && g.qtyCount === g.rows.length && g.qtyTotal > 0 && g.total) {
+          const d = (g.total / g.qtyTotal) * 100;
+          if (Number.isFinite(d) && d > 0) _r = +d.toFixed(2);
+        }
+        if (_r != null) rateLine = `<span class="audit-exp-qty">rate ${fmt(_r)}%</span>`;
+      } catch (_) {}
       const latestDateLabel = g.latestDate ? `<span class="audit-exp-date">latest ${escapeHtml(g.latestDate)}</span>` : '';
       const safeKey = jsAttr(g.key);
       const safeName = jsAttr(g.name);
@@ -20407,6 +20431,7 @@
           <div class="audit-exp-group-meta">
             <span class="audit-exp-count">${countLabel}</span>
             ${qtyLine}
+            ${rateLine}
             ${latestDateLabel}
           </div>
         </div>
@@ -29008,8 +29033,13 @@
       }
       const CAP = 5 * 1024 * 1024;
       const pct = Math.min(100, Math.round((totalBytes / CAP) * 100));
-      const usedKB = (totalBytes / 1024).toFixed(0);
-      const capMB = (CAP / 1024 / 1024).toFixed(0);
+      // v89.53: show MB once usage is ≥ ~1 MB (e.g. "5.7 MB of 5 MB used"),
+      // otherwise KB for small footprints — cleaner than always-KB.
+      const usedMB = totalBytes / 1024 / 1024;
+      const capMBnum = CAP / 1024 / 1024;
+      const usedLabel = usedMB >= 1
+        ? `${usedMB.toFixed(1)} MB of ${capMBnum.toFixed(0)} MB used`
+        : `${(totalBytes / 1024).toFixed(0)} KB of ~${capMBnum.toFixed(0)} MB used`;
       const color = pct > 85 ? 'var(--loss)' : (pct > 60 ? '#c9882a' : 'var(--gain)');
       const friendly = {
         ledger_data_v5: 'your ledger data',
@@ -29023,7 +29053,7 @@
           : '');
       return `
         <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.82rem;margin-bottom:0.35rem;">
-          <span style="color:var(--ink-soft);">${usedKB} KB of ~${capMB} MB used</span>
+          <span style="color:var(--ink-soft);">${usedLabel}</span>
           <span style="font-family:var(--font-mono);color:${color};font-weight:600;">${pct}%</span>
         </div>
         <div style="height:8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:4px;overflow:hidden;">
