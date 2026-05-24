@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.101';
+  const BUILD_TAG = '2026.05.21.103';
 
   // ================================================================
   // STORAGE
@@ -17209,10 +17209,20 @@
         <p class="audit-section-sub">Logged on the Expenses tab. ${expensesForRange.length} entr${expensesForRange.length === 1 ? 'y' : 'ies'} in ${escapeHtml(rangeLabel)}.</p>
         ${expensesForRange.length ? `
           <div class="audit-balances">
-            ${expensesForRange.map(x => `<div class="audit-acct-row">
-              <span class="audit-acct-name">${escapeHtml(x.description)}</span>
+            ${expensesForRange.map(x => {
+              // v89.46: surface the stored qty + rate (already saved per expense)
+              // so the audit shows how an amount was derived (qty × rate), not
+              // just the total. Only shown when the expense was entered that way.
+              const _hasQR = (x.qty != null && x.qty !== '' && Number(x.qty) > 0)
+                          || (x.rate != null && x.rate !== '' && Number(x.rate) > 0);
+              const _qr = _hasQR
+                ? `<span class="audit-exp-qr" style="font-size:0.72rem;color:var(--ink-mute);font-family:var(--font-mono);">${Number(x.qty) > 0 ? fmt(Number(x.qty)) : '—'} × ${cur} ${Number(x.rate) > 0 ? fmt(Number(x.rate)) : '—'}</span>`
+                : '';
+              return `<div class="audit-acct-row">
+              <span class="audit-acct-name">${escapeHtml(x.description)}${_qr ? `<br>${_qr}` : ''}</span>
               <span class="audit-acct-bal neg">${cur} ${fmt(x.amount)}</span>
-            </div>`).join('')}
+            </div>`;
+            }).join('')}
           </div>
           <div class="audit-balances-total">
             <span>Total expenses</span>
@@ -27974,6 +27984,11 @@
         <input type="file" id="mergeImportFile" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
       </div>
       <div class="settings-section">
+        <h3 class="settings-heading">Local storage</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">How much of this device's browser storage Hisabs is using. Your data is always safe in the cloud — this only affects how much can be held offline on this device. If it gets high, back up and start a fresh book for the new period.</p>
+        <div id="storageMeter">${storageMeterHTML()}</div>
+      </div>
+      <div class="settings-section">
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
         <p style="font-size:0.82rem;color:var(--ink-mute);margin-bottom:0.6rem;line-height:1.45;">
           Permanently deletes every business you own and all its data from the cloud, then signs you out. Your sign-in email will remain registered until support clears it — to fully remove your account, request deletion separately after this.
@@ -28925,6 +28940,49 @@
     const safeBiz = (biz.name || 'business').replace(/[^a-z0-9]+/gi, '_').slice(0, 30);
     downloadJson(payload, `hisabs_${labelMap[kind]}_${safeBiz}_${today()}.json`);
     toast(`Exported ${list.length} ${labelMap[kind]}.`);
+  }
+  // v89.45: measure how much localStorage this origin is using and render a
+  // simple usage bar. Browsers cap localStorage at ~5MB per origin; we show
+  // usage against a conservative 5MB so the owner can act (back up, start a new
+  // book) before hitting a wall. Pure read — measures key/value string lengths.
+  function storageMeterHTML() {
+    try {
+      let totalBytes = 0, biggestKey = '', biggestBytes = 0;
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        const v = localStorage.getItem(k) || '';
+        const bytes = (k.length + v.length) * 2; // approx UTF-16 bytes
+        totalBytes += bytes;
+        if (bytes > biggestBytes) { biggestBytes = bytes; biggestKey = k; }
+      }
+      const CAP = 5 * 1024 * 1024;
+      const pct = Math.min(100, Math.round((totalBytes / CAP) * 100));
+      const usedKB = (totalBytes / 1024).toFixed(0);
+      const capMB = (CAP / 1024 / 1024).toFixed(0);
+      const color = pct > 85 ? 'var(--loss)' : (pct > 60 ? '#c9882a' : 'var(--gain)');
+      const friendly = {
+        ledger_data_v5: 'your ledger data',
+        hisabs_sync_snapshot_v1: 'sync snapshot',
+        hisabs_dist_tombstones_v1: 'deletion records',
+      }[biggestKey] || biggestKey;
+      const warn = pct > 85
+        ? `<p style="font-size:0.8rem;color:var(--loss);margin-top:0.5rem;line-height:1.45;">Storage is getting full. Back up to file, then consider starting a fresh book for the new period so this device isn't holding all history at once. Your cloud data is unaffected.</p>`
+        : (pct > 60
+          ? `<p style="font-size:0.8rem;color:#c9882a;margin-top:0.5rem;line-height:1.45;">Storage is over half full. A good time to back up and think about a new book for the next period.</p>`
+          : '');
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:0.82rem;margin-bottom:0.35rem;">
+          <span style="color:var(--ink-soft);">${usedKB} KB of ~${capMB} MB used</span>
+          <span style="font-family:var(--font-mono);color:${color};font-weight:600;">${pct}%</span>
+        </div>
+        <div style="height:8px;background:var(--paper-deep);border:1px solid var(--line);border-radius:4px;overflow:hidden;">
+          <div style="height:100%;width:${pct}%;background:${color};transition:width 0.3s;"></div>
+        </div>
+        <p style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.4rem;">Largest item: ${escapeHtml(friendly)}</p>
+        ${warn}`;
+    } catch (_) {
+      return '<p style="font-size:0.8rem;color:var(--ink-mute);">Storage usage unavailable.</p>';
+    }
   }
   function exportAllData() {
     const payload = { kind: 'hisabs.full', version: 1, exportedAt: new Date().toISOString(), user: safeUser(), data };
