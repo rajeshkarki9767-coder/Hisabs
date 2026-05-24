@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.98';
+  const BUILD_TAG = '2026.05.21.101';
 
   // ================================================================
   // STORAGE
@@ -14288,6 +14288,18 @@
       const pm = r.periodMonth || _currentDistMonth();
       return pm === wantMonth;
     };
+    // v89.42: the cloud mirror (data.distSalaries/distShares) is authoritative.
+    // If a row is present there for this business, any local tombstone for its
+    // id is STALE (e.g. a delete that never actually succeeded on the server, or
+    // a tombstone that got out of sync) and must not hide a live row — that is
+    // exactly the "one device shows 3 profit shares, another shows 2 even after
+    // refresh" divergence. Clear those stale tombstones before filtering so the
+    // row becomes visible everywhere the cloud has it.
+    try {
+      (data.distSalaries || []).concat(data.distShares || [])
+        .filter(r => r && r.businessId === bizId && r.id && _isTombstoned(r.id))
+        .forEach(r => { try { _removeTombstone(r.id); } catch (_) {} });
+    } catch (_) {}
     const allSal = (data.distSalaries || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id) && !_isTombstoned(r.id));
     const allShares = (data.distShares || []).filter(r => r.businessId === bizId && !_pendDel.has(r.id) && !_isTombstoned(r.id));
     const cloudSal = allSal.filter(_inMonth);
@@ -14407,6 +14419,14 @@
       const pm = r.periodMonth || _currentDistMonth();
       return pm === (am.month || _currentDistMonth());
     };
+    // v89.42: cloud is authoritative for split parties too — clear stale
+    // tombstones for any party the cloud still returns (see the salaries/shares
+    // note above).
+    try {
+      (data.splitParties || [])
+        .filter(r => r && r.businessId === bizId && r.id && _isTombstoned(r.id))
+        .forEach(r => { try { _removeTombstone(r.id); } catch (_) {} });
+    } catch (_) {}
     const cloudPartiesAll = (data.splitParties || []).filter(r => r.businessId === bizId && !_pendDelParties.has(r.id) && !_isTombstoned(r.id));
     const cloudParties = cloudPartiesAll.filter(_partyInMonth);
     if (cloudParties.length) {
@@ -34366,6 +34386,20 @@
       const restored = map.fromDb(newRow);
       const idx = list.findIndex(r => r.id === newRow.id);
       const isInsert = (idx === -1);
+      // v89.44: honor distribution tombstones on realtime echoes. A deleted
+      // salary/share/party is tombstoned locally; the queued-delete guard below
+      // only protects it until our delete drains. AFTER it drains, a later
+      // realtime INSERT/UPDATE echo (from another device's stale subscription,
+      // or a re-broadcast) had nothing stopping it from re-adding the row —
+      // this is the "deleted parties / salaries / shares reappear after some
+      // time" resurrection. If the row is tombstoned, drop the echo. (The
+      // cloud-authoritative pull-reconcile in v89.43 clears the tombstone if
+      // the row legitimately still exists server-side, so a genuinely-live row
+      // is not permanently blocked.)
+      if ((localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties')
+          && typeof _isTombstoned === 'function' && _isTombstoned(newRow.id)) {
+        return;
+      }
       // v89.32.54: if we have a QUEUED DELETE for this id, the delete is
       // authoritative — do NOT let a realtime INSERT/UPDATE echo (the cloud
       // row still existing because our delete hasn't drained yet) re-add it.
@@ -35354,6 +35388,30 @@
       data.distSalaries  = mergeWithPending('distSalaries',  fetched.distSalaries,  data.distSalaries);
       data.distShares    = mergeWithPending('distShares',    fetched.distShares,    data.distShares);
       data.splitParties  = mergeWithPending('splitParties',  fetched.splitParties,  data.splitParties);
+      // v89.43: cloud is authoritative — reconcile tombstones against what the
+      // server ACTUALLY returned in THIS pull. If a row the cloud still has is
+      // tombstoned locally, the tombstone is stale (e.g. left behind by a
+      // failed delete or a storage-full save failure) and would hide a live
+      // row, causing cross-device divergence ("one device shows 3 shares,
+      // another shows 2 even after refresh"). Clearing here heals a device even
+      // when its local mirror was empty before this pull — which the v89.42
+      // loader-side clear could not do (it keyed off the possibly-empty
+      // mirror). Genuine deletes (ids the cloud no longer returns) keep their
+      // tombstones, so truly-deleted rows are not resurrected.
+      try {
+        const _cloudDistIds = []
+          .concat((fetched.distSalaries || []).map(r => r && r.id))
+          .concat((fetched.distShares   || []).map(r => r && r.id))
+          .concat((fetched.splitParties || []).map(r => r && r.id))
+          .filter(Boolean);
+        let _clearedAny = false;
+        for (const id of _cloudDistIds) {
+          if (typeof _isTombstoned === 'function' && _isTombstoned(id)) {
+            try { _removeTombstone(id); _clearedAny = true; } catch (_) {}
+          }
+        }
+        if (_clearedAny) { try { _saveTombstones(); } catch (_) {} }
+      } catch (_) {}
       saveData();
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.
