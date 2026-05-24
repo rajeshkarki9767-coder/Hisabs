@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.93';
+  const BUILD_TAG = '2026.05.21.98';
 
   // ================================================================
   // STORAGE
@@ -8314,8 +8314,26 @@
     try { if (oldAcc) localStorage.setItem(ACCOUNTS_KEY, oldAcc); } catch (_) {}
     try { if (oldData) localStorage.setItem(DATA_KEY, oldData); } catch (_) {}
     try { if (oldSess) localStorage.setItem(SESSION_KEY, oldSess); } catch (_) {}
+    // v89.40: once the v5 copy is confirmed written, delete the old v4 keys.
+    // Previously they were left behind, leaving a FULL DUPLICATE of the data
+    // (ledger_data_v4) wasting localStorage for long-time users — a real
+    // contributor to "Storage is full". Only delete after verifying the new
+    // key exists, so a failed/partial migration never loses data.
+    try { if (oldData && localStorage.getItem(DATA_KEY)) localStorage.removeItem('ledger_data_v4'); } catch (_) {}
+    try { if (oldAcc && localStorage.getItem(ACCOUNTS_KEY)) localStorage.removeItem('ledger_accounts_v4'); } catch (_) {}
+    try { if (oldSess && localStorage.getItem(SESSION_KEY)) localStorage.removeItem('ledger_session_v4'); } catch (_) {}
   }
   migrateFromV4();
+  // v89.40: also clean up the old v4 keys for users who already migrated on a
+  // prior build (before the cleanup above existed) — if v5 data is present, the
+  // v4 copies are stale duplicates and safe to drop.
+  try {
+    if (localStorage.getItem('ledger_data_v5')) {
+      ['ledger_data_v4', 'ledger_accounts_v4', 'ledger_session_v4'].forEach(k => {
+        try { localStorage.removeItem(k); } catch (_) {}
+      });
+    }
+  } catch (_) {}
 
   let accounts = [];
   let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], expenseRates: [], quickLook: [], announcements: [], transfers: [],
@@ -8355,6 +8373,25 @@
       localStorage.setItem(key, value);
       return true;
     } catch (e) {
+      // v89.38: quota exceeded. The biggest reclaimable consumer is the local
+      // auto-backup set (full data copies). Before giving up, drop the
+      // auto-backups and any prior snapshot and RETRY once — so a heavy user
+      // can always keep entering data even when storage is tight. A
+      // cloud-signed-in user's data is safe on the server regardless.
+      try {
+        const reclaim = ['hisabs_auto_backups_v1'];
+        let freed = false;
+        for (const k of reclaim) {
+          if (localStorage.getItem(k) !== null) { localStorage.removeItem(k); freed = true; }
+        }
+        if (freed) {
+          try {
+            localStorage.setItem(key, value);
+            try { toast('Storage was full — old local auto-backups were cleared to make room. Your data is saved.'); } catch (_) {}
+            return true;
+          } catch (_) { /* still full → fall through to the warning below */ }
+        }
+      } catch (_) {}
       console.warn('localStorage write failed for', key, e);
       try { toast('Storage is full. Back up and delete old data.'); } catch (_) {}
       return false;
@@ -10845,12 +10882,11 @@
     // 3s branded moment; this just ensures we never reveal an empty
     // dashboard before the real view is on screen.
     hideBootSplash();
-    // Begin auto-backup loop if user owns any business
-    if (userOwnsAnyBiz()) {
-      startAutoBackupTimer();
-      // Take an initial silent snapshot so we have at least one
-      runAutoBackup({ silent: true });
-    }
+    // v89.39: auto-backups removed (owners back up manually). They stored full
+    // data copies in localStorage and were the cause of "Storage is full" for
+    // heavy users. Purge any previously-stored auto-backups so existing users
+    // immediately reclaim that space.
+    try { localStorage.removeItem('hisabs_auto_backups_v1'); } catch (_) {}
     // F2: We do NOT auto-prompt for notification permission. Asking out
     // of context guarantees users tap "Deny" and we lose the chance
     // forever. The Settings → Notifications panel has an explicit
@@ -20961,68 +20997,79 @@
             // books appear. This converges in ~1–2s on the happy path and
             // bounds the worst case well under the old ~15s.
             const _bizId = m.businessId;
-            const _accepted = () => {
-              const r = data.members.find(x => x.id === m.id)
-                || data.members.find(x => x.businessId === _bizId
-                      && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
-              return r && r.status === 'accepted';
-            };
             const _hasBooks = () => data.books.some(b => b.businessId === _bizId);
 
-            // Up to ~9s total (much tighter than the old 5s-wait-then-blind-
-            // pull-then-15s-realtime path), in short cycles. Each cycle:
-            // push the accept op, then pull everything.
-            const MAX_CYCLES = 6;
-            for (let cycle = 0; cycle < MAX_CYCLES; cycle++) {
-              // Push pending ops (the accept). Try a couple of quick drains so
-              // a single transient failure doesn't cost a whole cycle.
-              let drainTries = 0;
-              while (Array.isArray(__syncQueue) && __syncQueue.length > 0 && drainTries < 3) {
-                try { await drainQueueOnce(); } catch (_) {}
-                if (Array.isArray(__syncQueue) && __syncQueue.length === 0) break;
-                await new Promise(r => setTimeout(r, 250));
-                drainTries++;
-              }
-              // Pull every table so books/entries/parties/categories/accounts/
-              // announcements for this business arrive in one round trip.
-              try {
-                await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
-              } catch (_) {}
-              // v89.32.4: re-assert acceptance locally in case the pull fetched
-              // an older pending row and regressed our local accepted status.
-              const mm = data.members.find(x => x.id === m.id)
-                      || data.members.find(x => x.businessId === _bizId
-                            && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
-              if (mm && mm.status !== 'accepted') {
-                mm.status = 'accepted';
-                mm.respondedAt = mm.respondedAt || today();
-                if (u?.cloud) mm.userId = u.id;
-                if (u?.name && u.name.trim()) mm.displayName = u.name.trim();
-                saveData();
-                try { scheduleSyncDiff && scheduleSyncDiff(); } catch (_) {}
-                try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
-              }
-              // Make sure the active book is selected now that books may exist.
-              try {
-                if (!session.activeBookId || !data.books.find(b => b.id === session.activeBookId && b.businessId === _bizId)) {
-                  const first = data.books.find(b => b.businessId === _bizId);
-                  if (first) { session.activeBookId = first.id; saveSession(); }
-                }
-              } catch (_) {}
-              try { renderAll(); } catch (_) {}
-              // Done as soon as the books are in (or the business legitimately
-              // has none AND our acceptance has landed in the cloud).
-              if (_hasBooks()) break;
-              if (_accepted() && cycle >= 1) {
-                // Acceptance is confirmed locally and we've pulled at least
-                // twice; if there are still no books, the business genuinely
-                // has none yet — stop waiting and let realtime add any later.
-                break;
-              }
-              await new Promise(r => setTimeout(r, 1200));
+            // v89.37 (invite-accept rework). The previous v89.36 loop did up to
+            // 6 full cloudPullAll cycles (~15–20s) of synchronous network work.
+            // On a real device that long burst collided with the Supabase token
+            // refresh, which could fail and fire SIGNED_OUT — the "no books for
+            // 20s → slow refresh → session timeout → logged out" report. The
+            // data was never lost (it appeared after re-login) but the flow was
+            // hostile.
+            //
+            // New flow: do the MINIMUM synchronous work, then hand off to the
+            // realtime listener + the 60s backstop pull that already populate
+            // every other device. (1) push the accept once, briefly; (2) ONE
+            // delta pull; (3) if books are in, great; if not, DON'T loop — just
+            // schedule a couple of light background pulls and let realtime fill
+            // in. Total foreground work is ~2–3s and never threatens the session.
+
+            // (1) Push the accept op (this is what unlocks RLS reads). A couple
+            // of quick tries; do not block for long.
+            let drainTries = 0;
+            while (Array.isArray(__syncQueue) && __syncQueue.length > 0 && drainTries < 3) {
+              try { await drainQueueOnce(); } catch (_) {}
+              if (Array.isArray(__syncQueue) && __syncQueue.length === 0) break;
+              await new Promise(r => setTimeout(r, 300));
+              drainTries++;
             }
-            // v89.32.31: data is in (or confirmed empty) — let the new member
-            // see their books / a correct empty state instead of the splash.
+
+            // (2) One pull so books/entries/etc. for this business arrive.
+            try {
+              await cloudPullAll({ silent: true, skipConfirm: true, suppressReload: true });
+            } catch (_) {}
+
+            // v89.32.4: re-assert acceptance locally in case the pull fetched an
+            // older pending row and regressed our local accepted status.
+            const mm = data.members.find(x => x.id === m.id)
+                    || data.members.find(x => x.businessId === _bizId
+                          && ((u?.cloud && x.userId === u.id) || (myLogin && normalize(x.userLogin) === myLogin)));
+            if (mm && mm.status !== 'accepted') {
+              mm.status = 'accepted';
+              mm.respondedAt = mm.respondedAt || today();
+              if (u?.cloud) mm.userId = u.id;
+              if (u?.name && u.name.trim()) mm.displayName = u.name.trim();
+              saveData();
+              try { scheduleSyncDiff && scheduleSyncDiff(); } catch (_) {}
+              try { _setAccess(u.id, mm.businessId, mm.role, undefined); } catch (_) {}
+            }
+
+            // Select the first book if books exist, and render.
+            try {
+              if (!session.activeBookId || !data.books.find(b => b.id === session.activeBookId && b.businessId === _bizId)) {
+                const first = data.books.find(b => b.businessId === _bizId);
+                if (first) { session.activeBookId = first.id; saveSession(); }
+              }
+            } catch (_) {}
+            try { renderAll(); } catch (_) {}
+
+            // (3) If the books didn't arrive on the first pull (the accept may
+            // still be propagating server-side), DON'T spin. Schedule a few
+            // light background delta-pulls and let realtime deliver them as soon
+            // as RLS unlocks. These are non-blocking timers — they cannot stall
+            // the token refresh or the UI. The sidebar already shows the
+            // business; books pop in within a few seconds without a refresh.
+            if (!_hasBooks()) {
+              [1500, 4000, 8000].forEach(delay => {
+                setTimeout(() => {
+                  try { if (!_hasBooks()) schedulePullDelta(); } catch (_) {}
+                  try { renderAll(); } catch (_) {}
+                }, delay);
+              });
+            }
+
+            // Dismiss the splash now — the business is in the sidebar and books
+            // either are in or will arrive via the background pulls / realtime.
             hideWelcomeSplash();
           } catch (e) {
             console.warn('Post-accept pull failed (will retry via realtime):', e?.message || e);
@@ -26922,7 +26969,7 @@
         <ul>
           <li><strong>Profile</strong> — profile picture, display name, password reset, action sounds, active sessions on this account. Upload a photo and it's cropped to a circle and shown on your sidebar avatar; it follows you across devices.</li>
           <li><strong>Appearance</strong> — Light / Dark / Auto theme, and a choice of accent color. The whole app retints, including the brand mark.</li>
-          <li><strong>Data</strong> — backups, auto-backups, the danger zone (delete account).</li>
+          <li><strong>Data</strong> — backup/export, restore, the danger zone (delete account).</li>
         </ul>
 
         <h3>Per-business settings</h3>
@@ -26942,7 +26989,7 @@
         <p>To restore, use the <strong>Restore</strong> button in the same place you'd back up. Restore merges incoming data into your current data; it does not wipe existing records.</p>
         <div class="doc-callout doc-callout-warn">
           <div class="doc-callout-title">Deletion is permanent</div>
-          When you delete a business, account, entry, or anything else, it's removed from the cloud within a few seconds and gone for good — there's no trash bin. For accidental-deletion recovery, your local auto-backups are your safety net.
+          When you delete a business, account, entry, or anything else, it's removed from the cloud within a few seconds and gone for good — there's no trash bin. For accidental-deletion recovery, keep your own manual exports (Settings → Data → Export) — export regularly.
         </div>
 
         <h2 id="ug-install">Install as an app</h2>
@@ -27905,11 +27952,6 @@
         </div>
         <input type="file" id="restoreAllFile" accept="application/json,.json" style="display:none;" onchange="restoreAllDataFromFile(event)">
         <input type="file" id="mergeImportFile" accept="application/json,.json" style="display:none;" onchange="mergeImportFromFile(event)">
-      </div>
-      <div class="settings-section">
-        <h3 class="settings-heading">Auto-backups</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Hisabs keeps the last ${AUTO_BACKUP_MAX} automatic snapshots of everything in this browser and offers a download every 30 minutes.</p>
-        <div id="autoBackupList">${autoBackupListHTML()}</div>
       </div>
       <div class="settings-section">
         <h3 class="settings-heading" style="color:var(--loss);">Danger zone</h3>
@@ -29841,35 +29883,17 @@
   }
 
   // ---------- Auto-backup (every 30 minutes) ----------
-  const AUTO_BACKUP_KEY = 'hisabs_auto_backups_v1';
-  const AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000;
-  // H1: keep at most 2 rolling auto-backups. Each one stores the full data
-  // payload, so for a heavy user the total of (live data) + (N × backup) can
-  // approach the 5MB localStorage quota. 2 backups + live = ~3× total, which
-  // gives headroom even for ~1MB worth of entries.
-  const AUTO_BACKUP_MAX = 2;
-  function loadAutoBackups() {
-    try { return JSON.parse(localStorage.getItem(AUTO_BACKUP_KEY)) || []; } catch (_) { return []; }
-  }
-  function saveAutoBackupList(list) {
-    try { localStorage.setItem(AUTO_BACKUP_KEY, JSON.stringify(list)); }
-    catch (e) { console.warn('Auto-backup save failed (storage full?):', e); }
-  }
-  function autoBackupListHTML() {
-    const list = loadAutoBackups();
-    if (!list.length) return '<p style="font-size:0.82rem;color:var(--ink-mute);">No snapshots yet.</p>';
-    return '<ul style="list-style:none;display:flex;flex-direction:column;gap:0.4rem;">' +
-      list.map((b, i) => `<li style="display:flex;justify-content:space-between;gap:0.5rem;align-items:center;font-size:0.85rem;">
-        <span>${new Date(b.at).toLocaleString()}</span>
-        <button class="btn btn-sm btn-ghost" onclick="downloadAutoBackup(${i})">Download</button>
-      </li>`).join('') + '</ul>';
-  }
-  function downloadAutoBackup(i) {
-    const list = loadAutoBackups();
-    const b = list[i];
-    if (!b) { toast('Snapshot missing.'); return; }
-    downloadJson(b.payload, `hisabs_auto_${b.at.replace(/[:.]/g, '-')}.json`);
-  }
+  // v89.39: AUTO-BACKUPS REMOVED. Owners back up manually (Settings → Data →
+  // Export). The old auto-backup system stored 2 FULL copies of the data in
+  // localStorage every 30 min, which — on top of the live data and the sync
+  // snapshot — overran the ~5MB quota for heavy users and produced "Storage is
+  // full" errors that blocked new entries. The functions below are retained as
+  // safe no-ops so any remaining references (e.g. sign-out cleanup) don't break.
+  function loadAutoBackups() { return []; }
+  function downloadAutoBackup() { /* removed */ }
+  function runAutoBackup() { /* removed — manual export only */ }
+  function startAutoBackupTimer() { /* removed */ }
+  function stopAutoBackupTimer() { /* removed */ }
   function userOwnsAnyBiz() {
     const u = me();
     return !!u && data.businesses.some(b => b.ownerId === u.id);
@@ -29881,27 +29905,6 @@
     const u = me();
     if (!u) return null;
     return { id: u.id, name: u.name, login: u.login, joined: u.joined, provider: u.provider, gColor: u.gColor };
-  }
-
-  function runAutoBackup(opts) {
-    if (!userOwnsAnyBiz()) return;
-    const payload = { kind: 'hisabs.full', version: 1, exportedAt: new Date().toISOString(), user: safeUser(), data };
-    const list = loadAutoBackups();
-    list.unshift({ at: payload.exportedAt, payload });
-    while (list.length > AUTO_BACKUP_MAX) list.pop();
-    saveAutoBackupList(list);
-    // v89.32.20: the backup still runs and is downloadable from
-    // Settings → Data → Auto-backups, but we no longer surface a
-    // "completed" toast — it added noise without value.
-  }
-  // Start the auto-backup timer once the user is signed in
-  let __autoBackupTimer = null;
-  function startAutoBackupTimer() {
-    if (__autoBackupTimer) return;
-    __autoBackupTimer = setInterval(runAutoBackup, AUTO_BACKUP_INTERVAL_MS);
-  }
-  function stopAutoBackupTimer() {
-    if (__autoBackupTimer) { clearInterval(__autoBackupTimer); __autoBackupTimer = null; }
   }
 
   // ============================================================
@@ -32810,7 +32813,13 @@
     catch (_) { return new Set(); }
   })();
   function _saveTombstones() {
-    try { localStorage.setItem(DIST_TOMBSTONE_KEY, JSON.stringify([...__distTombstones])); } catch (_) {}
+    // v89.41: use the self-healing storageWrite, NOT a silent try/catch. The
+    // old version swallowed QuotaExceededError, so when storage was full the
+    // tombstone was never persisted — and on the next reload the deleted
+    // distribution row had no guard and could resurrect from a stale cloud
+    // echo. storageWrite frees space (clears leftover backups) and retries, so
+    // the deletion guard survives even under storage pressure.
+    try { storageWrite(DIST_TOMBSTONE_KEY, JSON.stringify([...__distTombstones])); } catch (_) {}
   }
   function _addTombstone(id) {
     if (!id) return;
