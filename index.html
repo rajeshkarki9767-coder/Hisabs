@@ -44,9 +44,9 @@
   Eliminates the supply-chain risk of a compromised CDN serving altered code, and makes
   the app fully offline-capable. To update: replace these files from the upstream package.
 -->
-<script src="vendor/jspdf.umd.min.js" integrity="sha384-JcnsjUPPylna1s1fvi1u12X5qjY5OL56iySh75FdtrwhO/SWXgMjoVqcKyIIWOLk" crossorigin="anonymous"></script>
-<script src="vendor/jspdf.plugin.autotable.min.js" integrity="sha384-fCAW/rDWORTbQXSiB7mOg0QtQ5c+r0f544y6XoKjuVva0nMBlCpNUjiFeG5iMdS3" crossorigin="anonymous"></script>
-<script src="vendor/supabase.umd.js" integrity="sha384-7SfFUrg31wOnGWBLLniKFCNmCSguYA5wI1WPDOt7kP/mom4R9/0pwghVEnv0uwYP" crossorigin="anonymous"></script>
+<script src="vendor/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js" integrity="sha384-Xl/CUCfJbzsngMp0CFxkmF0VW/8C160IsGujqeQlIhaGxKz2+JsIGORFqtCPeldF" crossorigin="anonymous"></script>
+<script src="vendor/supabase.umd.js" integrity="sha384-8A8NbbMug1jd/CYs7b0nSc6FPM4L9GKg/VzKxg6hst+UgTcWTQr0ry7knxGrSOtT" crossorigin="anonymous"></script>
 <style>
   :root {
     /* These are written by applyTheme() at runtime. The values here are
@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.117';
+  const BUILD_TAG = '2026.05.21.119';
 
   // ================================================================
   // STORAGE
@@ -26794,7 +26794,6 @@
         <h3>What stays in your browser only</h3>
         <ul>
           <li>Your appearance preferences (theme, accent color, period filter)</li>
-          <li>Local auto-backup snapshots (the last 3, taken every 30 minutes)</li>
           <li>UI state like which view you were on, scroll position, draft entry text</li>
           <li>A device identifier used to deduplicate sync events (random, not linked to you)</li>
         </ul>
@@ -26815,9 +26814,6 @@
         <h3>Cookies and storage</h3>
         <p>Hisabs uses your browser's <code>localStorage</code> (not cookies) to keep you signed in and to cache your data for fast access. Supabase's auth library uses storage keys prefixed <code>sb-*</code> to hold your session token. Hisabs itself uses keys prefixed <code>ledger_</code> and <code>hisabs_</code>. None of these are tracking cookies — they're functional storage that the app needs to work.</p>
 
-        <h3>Auto-backups</h3>
-        <p>Every 30 minutes, Hisabs takes a snapshot of your data and keeps the last 3 in your browser's local storage. These never leave your device — they're a local recovery aid, separate from cloud sync. Download them from <strong>Settings → Data → Auto-backups</strong>.</p>
-
         <h3>Deletion</h3>
         <p>When you delete a record (business, account, entry, etc.), it is <strong>permanently removed</strong> from the cloud database within a few seconds. There is no soft-delete or trash bin. Deletion cascades: deleting a business removes all its books, entries, and associated data in one transaction.</p>
         <p>To delete <strong>everything</strong>: <strong>Settings → Data → Danger zone → Delete all my data and sign out</strong>. This removes every business you own from the cloud, removes your profile row, and signs you out. Your sign-in email remains registered with Supabase — to remove that, contact support.</p>
@@ -26833,7 +26829,7 @@
         <p>The Hisabs app code is served from Vercel as a static web page. Vercel can see your IP and visit time (standard for any website) but cannot see the data inside Hisabs — that's only visible to the Supabase database under your account. The Supabase server is hosted in the region selected when the project was created.</p>
 
         <h3>Children</h3>
-        <p>Hisabs is bookkeeping software for adults running businesses. We do not knowingly collect data from anyone under 13. If you believe a minor has signed up, contact support.</p>
+        <p>Hisabs is bookkeeping software for adults running businesses, and our Terms require users to be at least 18. We do not knowingly collect data from anyone under 18. If you believe a minor has signed up, contact support.</p>
 
         <h3>Changes to this policy</h3>
         <p>If Hisabs's data handling changes meaningfully, this policy will be updated. The app version shown in <strong>Settings → About</strong> corresponds to a snapshot of this policy at deployment time.</p>
@@ -27110,8 +27106,8 @@
         <ul>
           <li><strong>Everything</strong> — Settings → Data → <strong>Backup everything</strong> downloads a JSON file containing every business you own.</li>
           <li><strong>Per business</strong> — sidebar gear next to a business → <strong>Backup &amp; restore</strong> downloads one business as a JSON file.</li>
-          <li><strong>Auto-backups</strong> — the last 2 snapshots of your data, taken every 30 minutes, stored only in your browser. Open them from Settings → Data → Auto-backups. They never leave the device.</li>
         </ul>
+        <p style="font-size:0.85rem;color:var(--ink-mute);">Tip: your data is always safe in the cloud and syncs across your devices — these manual backups are for keeping your own offline copy (e.g. a year-end record).</p>
         <p>To restore, use the <strong>Restore</strong> button in the same place you'd back up. Restore merges incoming data into your current data; it does not wipe existing records.</p>
         <div class="doc-callout doc-callout-warn">
           <div class="doc-callout-title">Deletion is permanent</div>
