@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.110';
+  const BUILD_TAG = '2026.05.21.111';
 
   // ================================================================
   // STORAGE
@@ -33150,9 +33150,19 @@
         quickLook: (data.quickLook || []).map(cloneShallow),
         announcements: (data.announcements || []).map(cloneShallow),
         transfers: (data.transfers || []).map(cloneShallow),
+        distSalaries: (data.distSalaries || []).map(cloneShallow),
+        distShares: (data.distShares || []).map(cloneShallow),
+        splitParties: (data.splitParties || []).map(cloneShallow),
       };
-      localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(snap));
+      // v89.55: set the IN-MEMORY baseline FIRST, then attempt the disk write.
+      // Critical ordering: on a full device the setItem below throws, and
+      // previously __syncSnapshot was assigned AFTER it — so it never ran, the
+      // baseline stayed empty, and the next diff treated every record as new
+      // (the "free up space → 25 pending → synced → full again" loop). With the
+      // assignment first, the running session always has a correct baseline
+      // (zero spurious ops) even when the disk copy can't be written.
       __syncSnapshot = snap;
+      try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(snap)); } catch (_) {}
     } catch (_) {}
   }
 
