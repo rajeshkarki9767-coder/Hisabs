@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.111';
+  const BUILD_TAG = '2026.05.21.112';
 
   // ================================================================
   // STORAGE
@@ -20183,7 +20183,7 @@
     const btn = document.getElementById('actLogClearAllBtn');
     if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
     try {
-      const { error } = await sb()
+      const { data: _deleted, error } = await sb()
         .from('app_audit_log')
         .delete()
         .eq('business_id', biz.id)
@@ -20191,10 +20191,21 @@
           'entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated',
           // v89.31.0: include party events in Clear-all scope
           'party_created', 'party_edited', 'party_deleted',
-        ]);
+        ])
+        .select('id');
       if (error) {
         toast('Could not clear: ' + (error.message || 'unknown error'));
         if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
+        return;
+      }
+      // v89.56: if the delete reported success but removed ZERO rows, a DELETE
+      // RLS policy is missing/withholding permission — the old "clears then
+      // reappears" symptom. Tell the truth instead of falsely showing cleared,
+      // and reload so the still-present rows are shown accurately.
+      if (Array.isArray(_deleted) && _deleted.length === 0) {
+        toast('Nothing was cleared — the server did not permit it. If this persists, the audit-log delete policy (sql/v89.56) may not be applied yet.');
+        if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
+        try { await loadBizActivityLog(); } catch (_) {}
         return;
       }
       toast('Activity log cleared.');
