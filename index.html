@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.112';
+  const BUILD_TAG = '2026.05.21.113';
 
   // ================================================================
   // STORAGE
@@ -16926,6 +16926,13 @@
     }
     if (!(await uiConfirm('Delete this expense? Cannot be undone.', { destructive: true, confirmLabel: 'Delete' }))) return;
     data.auditExpenses = data.auditExpenses.filter(x => x.id !== id);
+    // v89.57: tombstone the deleted expense so a realtime echo or a pull that
+    // still carries the row (before our cloud-delete drains, or from another
+    // device's stale subscription) cannot resurrect it. Same protection the
+    // distribution tables already have; auditExpenses was missing it, which is
+    // why deleted expenses "reappeared". The pull-reconcile clears the
+    // tombstone if the row legitimately still exists server-side.
+    try { if (typeof _addTombstone === 'function') _addTombstone(id); } catch (_) {}
     saveData();
     renderAll();
     toast('Expense deleted.');
@@ -34701,7 +34708,8 @@
       // cloud-authoritative pull-reconcile in v89.43 clears the tombstone if
       // the row legitimately still exists server-side, so a genuinely-live row
       // is not permanently blocked.)
-      if ((localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties')
+      if ((localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties'
+           || localKey === 'auditExpenses')
           && typeof _isTombstoned === 'function' && _isTombstoned(newRow.id)) {
         return;
       }
@@ -34812,7 +34820,8 @@
       // The tombstone makes the deletion durable on the receiving device.
       try {
         if (typeof _addTombstone === 'function'
-            && (localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties')) {
+            && (localKey === 'distSalaries' || localKey === 'distShares' || localKey === 'splitParties'
+                || localKey === 'auditExpenses')) {
           _addTombstone(id);
         }
       } catch (_) {}
@@ -35708,6 +35717,10 @@
           .concat((fetched.distSalaries || []).map(r => r && r.id))
           .concat((fetched.distShares   || []).map(r => r && r.id))
           .concat((fetched.splitParties || []).map(r => r && r.id))
+          // v89.57: include auditExpenses — they now use tombstones too, so a
+          // genuinely-live expense the cloud still returns must clear any stale
+          // tombstone, exactly like the distribution rows.
+          .concat((fetched.auditExpenses || []).map(r => r && r.id))
           .filter(Boolean);
         let _clearedAny = false;
         for (const id of _cloudDistIds) {
