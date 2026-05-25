@@ -44,9 +44,9 @@
   Eliminates the supply-chain risk of a compromised CDN serving altered code, and makes
   the app fully offline-capable. To update: replace these files from the upstream package.
 -->
-<script src="vendor/jspdf.umd.min.js" integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/" crossorigin="anonymous"></script>
-<script src="vendor/jspdf.plugin.autotable.min.js" integrity="sha384-Xl/CUCfJbzsngMp0CFxkmF0VW/8C160IsGujqeQlIhaGxKz2+JsIGORFqtCPeldF" crossorigin="anonymous"></script>
-<script src="vendor/supabase.umd.js" integrity="sha384-8A8NbbMug1jd/CYs7b0nSc6FPM4L9GKg/VzKxg6hst+UgTcWTQr0ry7knxGrSOtT" crossorigin="anonymous"></script>
+<script src="vendor/jspdf.umd.min.js"></script>
+<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/supabase.umd.js"></script>
 <style>
   :root {
     /* These are written by applyTheme() at runtime. The values here are
@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.119';
+  const BUILD_TAG = '2026.05.21.120';
 
   // ================================================================
   // STORAGE
