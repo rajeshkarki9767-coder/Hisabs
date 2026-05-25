@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.113';
+  const BUILD_TAG = '2026.05.21.116';
 
   // ================================================================
   // STORAGE
@@ -9809,27 +9809,13 @@
   }
   __wireEntrySoundUnlock();
 
-  // v89.54: best-effort portrait lock. The manifest "orientation":"portrait"
-  // only applies to an installed PWA/TWA and isn't always honoured, so we also
-  // ask the Screen Orientation API to lock portrait where it's supported
-  // (installed/standalone contexts on Android). It's a no-op / silently
-  // rejected in browsers that don't allow it (e.g. desktop, iOS Safari tabs),
-  // which is fine — there it simply falls back to the OS auto-rotate setting.
-  function __lockPortrait() {
-    try {
-      if (screen && screen.orientation && typeof screen.orientation.lock === 'function') {
-        screen.orientation.lock('portrait').catch(() => {});
-      }
-    } catch (_) {}
-  }
-  __lockPortrait();
-  // Re-assert after the app becomes visible again (some platforms drop the lock
-  // on background/foreground).
-  try {
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') __lockPortrait();
-    });
-  } catch (_) {}
+  // v89.60: orientation now follows the DEVICE's rotation setting (auto-rotate
+  // on/off), as the user expects — Hisabs no longer forces portrait. The
+  // earlier best-effort screen.orientation.lock('portrait') (v89.54) fought the
+  // OS setting and produced inconsistent behaviour (stayed portrait when held
+  // upright but still rotated when held sideways), so it has been removed. The
+  // manifest "orientation" was likewise relaxed to "any". If a user wants the
+  // app locked to portrait, they use their phone's own rotation lock.
 
   // v86: App-like gesture defense. The viewport meta tag is honored by
   // most browsers, but iOS Safari (especially as a standalone PWA)
@@ -20205,22 +20191,38 @@
         if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
         return;
       }
-      // v89.56: if the delete reported success but removed ZERO rows, a DELETE
-      // RLS policy is missing/withholding permission — the old "clears then
-      // reappears" symptom. Tell the truth instead of falsely showing cleared,
-      // and reload so the still-present rows are shown accurately.
+      // v89.59: a zero-row delete means there is NOTHING in the cloud for this
+      // business+event-types. Earlier this showed "server did not permit it",
+      // but the real, common case (confirmed by live DB: 0 matching rows) is
+      // that the cloud is already empty and the rows still on screen are STALE
+      // CACHE (__activityFilterRows) — client-side ghosts, not real data. The
+      // correct action is to clear that cache and show the true empty state,
+      // not blame the server. (A genuine permission failure would surface as an
+      // `error` above, which we already handle.) So: treat 0-deleted as "already
+      // clear" and purge the local ghost rows.
       if (Array.isArray(_deleted) && _deleted.length === 0) {
-        toast('Nothing was cleared — the server did not permit it. If this persists, the audit-log delete policy (sql/v89.56) may not be applied yet.');
+        __activityFilterRows = [];
+        try { __activityFilterMember = 'all'; } catch (_) {}
+        try { renderActivityFilterBar(); } catch (_) {}
+        try {
+          const list = document.getElementById('activityLogList');
+          if (list) list.innerHTML = '<p style="color:var(--ink-mute);font-size:0.85rem;">No edits or deletes yet — your team\'s record is clean.</p>';
+        } catch (_) {}
+        toast('Activity log is clear.');
         if (btn) { btn.disabled = false; btn.textContent = 'Clear all'; }
-        try { await loadBizActivityLog(); } catch (_) {}
         return;
       }
       toast('Activity log cleared.');
-      // v89.24: clear UI immediately. Don't call loadBizActivityLog
-      // right after delete — realtime sync may not have caught up,
-      // and the next fetch can include rows that the delete didn't
-      // commit yet, making logs appear to "come back". After this,
-      // the next render will use the empty state.
+      // v89.58: the delete succeeds server-side (confirmed: rows are gone from
+      // the cloud), but clearing only the list innerHTML left the cached array
+      // __activityFilterRows (and the filter bar built from it) populated with
+      // the old rows. Any later re-render — tapping a filter, switching tabs,
+      // or a refresh calling loadBizActivityLog — rebuilt the list from that
+      // stale cache, so the rows "reappeared" even though the cloud was empty.
+      // Reset the cache and the filter bar so the cleared state is real.
+      __activityFilterRows = [];
+      try { __activityFilterMember = 'all'; } catch (_) {}
+      try { renderActivityFilterBar(); } catch (_) {}
       try {
         const list = document.getElementById('activityLogList');
         if (list) list.innerHTML = '<p style="color:var(--ink-mute);font-size:0.85rem;">No edits or deletes yet — your team\'s record is clean.</p>';
