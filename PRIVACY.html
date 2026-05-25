@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Privacy Policy · Hisabs</title>
+  <meta name="description" content="How Hisabs handles your data — plainly and honestly.">
+  <meta name="theme-color" content="#f5f1e8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1b18" media="(prefers-color-scheme: dark)">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --ink-soft: #3a3833;
+      --ink-mute: #6a6a68;
+      --bg: #f5f1e8;
+      --surface: #fdfaf3;
+      --surface-2: #f1ecdf;
+      --line: #e2dccd;
+      --line-soft: #efe9d8;
+      --accent: #b8482a;
+      --focus: #b8482a;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+      --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      --r: 6px;
+      --r-sm: 3px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #ecebe5;
+        --ink-soft: #cfcdc4;
+        --ink-mute: #918d83;
+        --bg: #1c1b18;
+        --surface: #232220;
+        --surface-2: #2a2925;
+        --line: #34322d;
+        --line-soft: #2c2b27;
+        --accent: #d96c4a;
+        --focus: #d96c4a;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--font-sans);
+      color: var(--ink-soft);
+      background: var(--bg);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      padding: 2rem 1rem 5rem;
+      font-size: 16px;
+    }
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+      padding: 2.5rem 2.25rem;
+    }
+    header {
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 1.25rem;
+      margin-bottom: 1.75rem;
+    }
+    h1 {
+      font-family: var(--font-serif);
+      font-size: 1.95rem;
+      font-weight: 600;
+      margin: 0 0 0.45rem;
+      letter-spacing: -0.01em;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .meta {
+      font-size: 0.75rem;
+      color: var(--ink-mute);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin: 0;
+    }
+    .lead {
+      font-size: 1.02rem;
+      color: var(--ink);
+      margin: 0 0 1.25rem;
+    }
+    h2 {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin: 2.4rem 0 0.7rem;
+      letter-spacing: -0.005em;
+      color: var(--ink);
+    }
+    h2:first-of-type { margin-top: 1.5rem; }
+    h3 {
+      font-size: 0.98rem;
+      font-weight: 600;
+      margin: 1.6rem 0 0.45rem;
+      color: var(--ink);
+    }
+    h2 + h3 { margin-top: 0.9rem; }
+    p { margin: 0 0 0.85rem; font-size: 0.94rem; }
+    ul { margin: 0 0 1rem; padding-left: 1.4rem; }
+    li { margin-bottom: 0.45rem; font-size: 0.94rem; }
+    code {
+      font-family: var(--font-mono);
+      font-size: 0.85em;
+      background: var(--surface-2);
+      padding: 0.1em 0.4em;
+      border-radius: var(--r-sm);
+      border: 1px solid var(--line-soft);
+      color: var(--ink);
+      word-break: break-word;
+    }
+    strong { font-weight: 600; color: var(--ink); }
+    em { font-style: italic; color: var(--ink); }
+    a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      transition: color 0.15s;
+    }
+    a:hover { text-decoration: none; }
+    a:focus-visible {
+      outline: 2px solid var(--focus);
+      outline-offset: 3px;
+      border-radius: 2px;
+    }
+    .table-scroll {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      margin: 0 0 1.25rem;
+      border: 1px solid var(--line);
+      border-radius: var(--r);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+      background: var(--surface);
+    }
+    th, td {
+      text-align: left;
+      padding: 0.55rem 0.85rem;
+      border-bottom: 1px solid var(--line-soft);
+      vertical-align: top;
+    }
+    th {
+      font-weight: 600;
+      color: var(--ink);
+      background: var(--surface-2);
+      white-space: nowrap;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    td:first-child {
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .back {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.55rem 1rem;
+      font-size: 0.85rem;
+      color: var(--ink);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      border-radius: var(--r-sm);
+      text-decoration: none;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .back:hover { background: var(--line); border-color: var(--ink-mute); }
+    .back:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+    .footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.78rem;
+      color: var(--ink-mute);
+    }
+    hr {
+      border: none;
+      border-top: 1px solid var(--line-soft);
+      margin: 1.8rem 0;
+    }
+    .pill {
+      display: inline-block;
+      font-size: 0.7rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--ink-mute);
+      background: var(--surface-2);
+      border: 1px solid var(--line);
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      margin-left: 0.4rem;
+      vertical-align: middle;
+      font-weight: 500;
+    }
+    @media (max-width: 720px) {
+      body { padding: 0.5rem 0 3rem; font-size: 15px; }
+      .wrap { border-radius: 0; padding: 1.5rem 1.15rem; border-left: 0; border-right: 0; }
+      h1 { font-size: 1.6rem; }
+      h2 { font-size: 1.12rem; margin-top: 2rem; }
+      h3 { font-size: 0.94rem; }
+      th, td { padding: 0.5rem 0.65rem; }
+      td:first-child { font-size: 0.78rem; }
+    }
+    @media (max-width: 380px) {
+      .wrap { padding: 1.25rem 1rem; }
+      h1 { font-size: 1.45rem; }
+    }
+    /* Print: clean black-on-white, no chrome */
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .wrap { box-shadow: none; border: none; max-width: none; padding: 0; }
+      .back { display: none; }
+      a { color: inherit; text-decoration: none; }
+      code { background: #f3f3f3; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap" id="top">
+    <header>
+      <h1>Privacy Policy</h1>
+      <p class="meta">Effective May 16, 2026 · Last updated May 16, 2026</p>
+    </header>
+
+    <p class="lead">This Privacy Policy explains how <strong>Hisabs</strong> ("the App", "we", "us") collects, stores, uses, and protects information when you use the App. It is written in plain language; please read it carefully. By creating an account or using the App, you agree to the practices described below.</p>
+
+    <p>If you self-host Hisabs, replace the <strong>Contact</strong> section at the bottom with your own details — you become the data controller for your deployment.</p>
+
+    <h2>1. Summary</h2>
+    <ul>
+      <li>Hisabs is a personal and small-business bookkeeping app. Your data is yours.</li>
+      <li>We store your business records in a Supabase database protected by row-level security, and cache a copy locally in your browser for offline use.</li>
+      <li>We do <strong>not</strong> run ads, analytics, or telemetry. We do <strong>not</strong> sell, share, or transfer your data to third parties.</li>
+      <li>You can export your data at any time and permanently delete your account from inside the App.</li>
+    </ul>
+
+    <h2>2. Data we collect</h2>
+    <p>We collect only what is needed to run the App. We never collect data passively, and we never collect data you have not personally entered.</p>
+
+    <h3>2.1 Account data</h3>
+    <p>When you create an account, we store:</p>
+    <ul>
+      <li><strong>Email address</strong> — used as your sign-in identifier and for password recovery.</li>
+      <li><strong>Password</strong> — never stored in plain text. It is hashed and salted by Supabase Auth before being written to the database. We cannot read or recover your password; we can only reset it.</li>
+      <li><strong>Display name</strong> — the name you choose, shown in the app and on records you create.</li>
+      <li><strong>Account creation timestamp</strong> and <strong>last sign-in timestamp</strong>.</li>
+      <li><strong>Authentication session tokens</strong>, stored by the Supabase Auth client in your browser's <code>localStorage</code> under the prefix <code>sb-*</code>.</li>
+    </ul>
+
+    <h3>2.2 Business data</h3>
+    <p>For each business you create, we store:</p>
+    <ul>
+      <li>The business name, currency, tax rate, and owner-defined settings.</li>
+      <li>Books (ledgers) within the business.</li>
+      <li>Entries (transactions): date, amount, type (cash in / cash out), party, category, account, optional note, and timestamps.</li>
+      <li>Parties (customers, suppliers, contacts).</li>
+      <li>Categories (Sales, Rent, etc.).</li>
+      <li>Cash accounts and account groups (Cash, Bank, Wallet, Card, etc.).</li>
+      <li>Internal transfers between your accounts.</li>
+      <li>Audit expenses (rent, utilities, etc.) used to compute operating and net profit.</li>
+    </ul>
+
+    <h3>2.3 Team and collaboration data</h3>
+    <p>If you invite staff to a business, we store:</p>
+    <ul>
+      <li>The invitee's email address (for matching to a Supabase account).</li>
+      <li>The role assigned (Manager, Team, or Viewer).</li>
+      <li>The invitation status (pending, accepted, declined) and timestamps.</li>
+      <li>The inviter's name and the business name, so the invitee sees something meaningful before accepting.</li>
+    </ul>
+
+    <h3>2.4 Activity log</h3>
+    <p>When you edit or delete an entry, we write an audit row containing:</p>
+    <ul>
+      <li>Who made the change (your user ID).</li>
+      <li>When the change occurred (server timestamp).</li>
+      <li>The entry's full content <strong>before</strong> and <strong>after</strong> the change.</li>
+      <li>The business the entry belongs to.</li>
+    </ul>
+    <p>Activity rows are <strong>visible only to the business owner</strong> through row-level security. The most recent 500 rows per business are retained; older rows are automatically pruned.</p>
+
+    <h3>2.5 Announcements and read receipts</h3>
+    <p>If a business owner posts an announcement, we store:</p>
+    <ul>
+      <li>The announcement body, author name, importance flag, and timestamps.</li>
+      <li>When you view or react to an announcement, a row is written linking your user ID to the announcement.</li>
+      <li>The business owner can see who has seen the announcement and who has reacted; you can see only your own receipts.</li>
+    </ul>
+
+    <h3>2.6 Push notification subscriptions <span class="pill">optional</span></h3>
+    <p>If you enable browser push notifications, we store:</p>
+    <ul>
+      <li>Your browser's push endpoint URL and public encryption keys, supplied by the Web Push API.</li>
+      <li>The user-agent string of the device that subscribed (to label sessions).</li>
+    </ul>
+    <p>The subscription is removed when you sign out, disable notifications, or revoke the device. Push messages are sent only when a business owner posts an announcement; we never send promotional or marketing pushes.</p>
+
+    <h3>2.7 Cloud backups <span class="pill">optional</span></h3>
+    <p>If you create a "cloud backup" of your data, we store a single most-recent snapshot of your business data as a JSON blob under your user ID. This is overwritten each time you create a new cloud backup.</p>
+
+    <h3>2.8 Device and session metadata</h3>
+    <p>To support multi-device sign-in, we store:</p>
+    <ul>
+      <li>A friendly device name (e.g. "Chrome on macOS") and a hashed session identifier.</li>
+      <li>The last-seen timestamp, used to show you which devices are signed in to your account.</li>
+    </ul>
+    <p>You can view and revoke individual device sessions from <strong>Settings → Profile → Active sessions</strong>.</p>
+
+    <h3>2.9 Failed sign-in attempts</h3>
+    <p>To slow down brute-force attacks, we record failed sign-in attempts (email + timestamp) and apply a short cooldown after repeated failures. These rows are cleared on a successful sign-in for that email.</p>
+
+    <h3>2.10 Data stored only on your device</h3>
+    <p>The following stays in your browser and is <strong>never uploaded</strong>:</p>
+    <div class="table-scroll">
+      <table>
+        <thead><tr><th>Key</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>ledger_data_v4</td><td>Cached copy of your data for offline access</td></tr>
+          <tr><td>ledger_accounts_v4</td><td>Cached account list</td></tr>
+          <tr><td>ledger_session_v4</td><td>Active session pointer (which business, which view)</td></tr>
+          <tr><td>hisabs_auto_backups_v1</td><td>Last 2 auto-backup snapshots, taken every 30 minutes</td></tr>
+          <tr><td>hisabs_per_biz_backup_v1</td><td>Per-business manual backups you've saved locally</td></tr>
+          <tr><td>hisabs_chime_muted</td><td>Whether the teammate-entry chime is muted on this device</td></tr>
+          <tr><td>hisabs_onboarding_dismissed</td><td>Whether you've dismissed the onboarding card</td></tr>
+          <tr><td>hisabs_install_dismissed_at</td><td>Whether you've dismissed the "install as app" prompt</td></tr>
+          <tr><td>hisabs_last_manual_backup</td><td>Reminder timestamp for the manual-backup nudge</td></tr>
+          <tr><td>hisabs_debug</td><td>Verbose-logging toggle (off by default)</td></tr>
+          <tr><td>Theme / accent</td><td>Your appearance settings</td></tr>
+          <tr><td>Device id</td><td>A random per-browser ID used to filter out your own realtime echoes (not linked to your identity)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>These values are functional storage, not tracking cookies. Clearing site data will sign you out and remove the local cache; your cloud data is unaffected and will reappear when you sign in again.</p>
+
+    <h2>3. How data is stored and protected</h2>
+
+    <h3>3.1 Where data lives</h3>
+    <ul>
+      <li><strong>Cloud (Supabase)</strong>: a managed Postgres database, with authentication, realtime, and edge functions provided by Supabase. Data is stored at the region you (or your administrator) chose when the Supabase project was created.</li>
+      <li><strong>Your browser</strong>: a local cache (see section 2.10) for fast access and offline use.</li>
+    </ul>
+
+    <h3>3.2 Encryption</h3>
+    <ul>
+      <li>Data in transit is protected by TLS (HTTPS) between your browser and Supabase, and by WSS (secure WebSockets) for the realtime sync channel.</li>
+      <li>Data at rest in Supabase is stored on encrypted disk volumes managed by Supabase's infrastructure provider.</li>
+    </ul>
+
+    <h3>3.3 Row-level security</h3>
+    <p>Every business-data table in our database has row-level security enabled. The policies enforce, server-side:</p>
+    <ul>
+      <li><strong>Business records</strong> are visible only to the owner and to staff who have accepted an invitation to that business.</li>
+      <li><strong>Activity log</strong> rows are visible only to the owner of the business.</li>
+      <li><strong>Announcement read receipts</strong> are visible to the announcement's business owner and to the user the row belongs to.</li>
+      <li><strong>User-private rows</strong> (device names, push subscriptions, failed sign-in attempts) are visible only to the user they belong to.</li>
+    </ul>
+    <p>These rules apply to every database query, including ones made through the App. Even if a client tried to query data it shouldn't see, the database would refuse.</p>
+
+    <h3>3.4 Authentication and account handling</h3>
+    <ul>
+      <li>Authentication is handled by Supabase Auth.</li>
+      <li>Passwords are hashed with bcrypt before storage. We never see or store the plain text.</li>
+      <li>Password resets are handled by Supabase Auth via a one-time email link. The link is single-use and expires automatically.</li>
+      <li>Sessions are issued as JSON Web Tokens (JWTs). The App stores them in <code>localStorage</code> and refreshes them automatically while you are signed in.</li>
+      <li>You can sign out of a specific device from <strong>Settings → Profile → Active sessions</strong>, or sign out everywhere by signing out from your current session and resetting your password.</li>
+    </ul>
+
+    <h3>3.5 Edge functions</h3>
+    <p>A small number of privileged operations run inside Supabase Edge Functions, with a service-role key that never leaves the server:</p>
+    <ul>
+      <li><code>check-user-exists</code> — used by the team-invite flow to verify an invitee has signed up.</li>
+      <li><code>delete-self-account</code> — performs the cascading deletion of your user record and all owned businesses.</li>
+      <li><code>list-my-sessions</code> — lists the active sessions on your account.</li>
+      <li><code>revoke-my-session</code> — signs a specific device out.</li>
+      <li><code>save-push-subscription</code> — persists a Web Push endpoint.</li>
+      <li><code>send-announcement-push</code> — delivers a push notification when an owner posts an important announcement.</li>
+    </ul>
+    <p>Each function verifies your authentication token before running, and accepts requests only from the App's deployed origin (CORS allow-list).</p>
+
+    <h2>4. Analytics and third parties</h2>
+    <p>We use <strong>no</strong> analytics or telemetry services. There is no Google Analytics, Mixpanel, Segment, Plausible, Sentry, or similar. We do not embed third-party scripts, pixels, fingerprinters, or advertising SDKs.</p>
+    <p>The only third-party JavaScript loaded by the App is the <strong>Supabase JavaScript SDK</strong>, served from the App's own server. It communicates exclusively with your own Supabase project.</p>
+    <p>We do not sell, rent, share, or transfer your data to advertisers, data brokers, or any other party.</p>
+
+    <h2>5. Cookies, local storage, and session usage</h2>
+    <p>The App does not set tracking cookies. Authentication tokens and the local data cache are stored in your browser's <strong><code>localStorage</code></strong> (see section 2.10 for the full key list). These are required for sign-in and offline functionality and cannot be disabled without losing core features.</p>
+    <p>Some browsers send a small set of strictly necessary cookies as part of the TLS handshake or by Supabase's infrastructure. None of these are used for tracking or marketing.</p>
+
+    <h2>6. Your rights and choices</h2>
+    <p>You can exercise the following rights at any time, directly from inside the App:</p>
+    <ul>
+      <li><strong>Access your data</strong> — Settings → Data → <strong>Backup everything</strong> downloads every business you own as a JSON file.</li>
+      <li><strong>Per-business export</strong> — Sidebar gear next to a business → <strong>Backup &amp; restore</strong> downloads a single business.</li>
+      <li><strong>Correct your data</strong> — edit any entry, party, category, or business setting directly in the App.</li>
+      <li><strong>Delete a specific record</strong> — every record (entry, party, category, account, business, transfer) has a delete action. Deletion is immediate and permanent in the cloud database.</li>
+      <li><strong>Delete your entire account</strong> — Settings → Data → <strong>Danger zone → Delete all my data and sign out</strong>. This cascades through every business you own, then removes your Supabase Auth user via a privileged edge function. Once complete, your data cannot be recovered.</li>
+      <li><strong>Withdraw consent</strong> — sign out from any device, revoke active sessions, or delete your account.</li>
+    </ul>
+    <p>We do not require you to contact support to exercise any of these rights.</p>
+
+    <h2>7. Data retention and deletion</h2>
+    <ul>
+      <li><strong>Active data</strong> is retained for as long as your account exists.</li>
+      <li><strong>Activity log rows</strong> are retained for the most recent 500 entries per business; older rows are pruned automatically.</li>
+      <li><strong>Failed sign-in attempts</strong> are cleared on a successful sign-in for that email.</li>
+      <li><strong>Auto-backups</strong> (local) keep the last 2 snapshots and rotate. They never leave your browser.</li>
+      <li><strong>Deleted records</strong> are permanently removed from the cloud database within seconds. There is no soft-delete or trash bin.</li>
+      <li><strong>After account deletion</strong>, the cascading delete removes all your owned businesses, members, entries, transfers, announcements, read receipts, activity log rows, device records, and push subscriptions. The Supabase Auth user row is then removed by the edge function.</li>
+    </ul>
+    <p>Backups you have downloaded to your own device, and any forwarded data (e.g. PDF or Excel exports you have shared), are outside our control and not affected by deletion.</p>
+
+    <h2>8. Security practices and limitations</h2>
+
+    <h3>What we do</h3>
+    <ul>
+      <li><strong>TLS-only transport.</strong> The deployment serves an HSTS header that asks browsers to refuse HTTP fallbacks.</li>
+      <li><strong>Strict Content Security Policy</strong> — only first-party scripts, no <code>eval</code>, no third-party origins beyond Supabase.</li>
+      <li><strong>Anti-CSRF posture</strong> — all data-mutating requests go through the Supabase SDK and require a valid JWT bound to your session; cross-site form posts cannot impersonate you.</li>
+      <li><strong>Frame-ancestors lockdown</strong> — the App refuses to be embedded in third-party frames.</li>
+      <li><strong>Row-level security on every business-data table</strong> (see section 3.3).</li>
+      <li><strong>Edge functions enforce auth</strong> before running, and accept only the App's own origin via a CORS allow-list.</li>
+      <li><strong>Password rate limiting</strong> — repeated failed sign-ins for the same email are throttled by a short cooldown.</li>
+      <li><strong>No service-role keys</strong> are ever sent to the browser. The client uses only the public anon key, which is RLS-restricted to whatever the signed-in user is allowed to see.</li>
+    </ul>
+
+    <h3>What we cannot guarantee</h3>
+    <ul>
+      <li>We cannot defend you against a compromised device. If someone else has access to a signed-in browser or knows your password, they can see your data.</li>
+      <li>We cannot recover data after permanent deletion. Keep a local backup if you may want to undo.</li>
+      <li>We cannot prevent your hosting providers (Vercel, Supabase) from being legally compelled to disclose metadata or, in extreme cases, infrastructure access. We choose providers with strong security practices, but we do not control them.</li>
+      <li>We do not currently support two-factor authentication. We expect to add it; until then, use a strong, unique password and consider a password manager.</li>
+    </ul>
+    <p>If you discover a security issue, please contact us privately at the address in section 11 before disclosing it publicly.</p>
+
+    <h2>9. Children</h2>
+    <p>Hisabs is intended for adults running businesses. We do not knowingly collect data from anyone under 13. If you believe a minor has created an account, please contact us and we will remove it.</p>
+
+    <h2>10. Changes to this policy</h2>
+    <p>We will update this policy if our data handling changes meaningfully. The "Last updated" date at the top reflects the most recent revision. Significant changes are also noted in the App's release notes.</p>
+    <p>Continued use of the App after a change indicates acceptance of the revised policy.</p>
+
+    <h2>11. Contact</h2>
+    <p>Hisabs is operated by an independent developer.</p>
+    <p>For privacy questions, data-access requests, account-deletion help, or to report a security issue, please use the in-app <strong>Settings → Support → Contact</strong> option, or write to the email address listed there.</p>
+    <p>If you are hosting Hisabs for other people, this section should be replaced with your own contact information; you are the data controller for your deployment.</p>
+
+    <hr>
+
+    <p><strong>In one sentence:</strong> Your data is yours, encrypted in transit, locked down by row-level security, never sold, never tracked, and permanently deleted when you say so.</p>
+
+    <a class="back" href="./">← Back to Hisabs</a>
+
+    <div class="footer">
+      © 2026 Hisabs. This page is part of the Hisabs application.
+    </div>
+  </main>
+</body>
+</html>

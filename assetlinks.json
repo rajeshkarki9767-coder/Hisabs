@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.hisabs.twa",
+        "sha256_cert_fingerprints": ["48:08:09:3C:78:75:0E:C3:23:57:A1:10:27:18:F1:CA:62:1B:E8:7B:DD:9A:18:35:17:F9:B6:5C:38:9D:2D:08"]
+      }
+    }]
