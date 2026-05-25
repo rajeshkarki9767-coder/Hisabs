@@ -7500,7 +7500,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.116';
+  const BUILD_TAG = '2026.05.21.117';
 
   // ================================================================
   // STORAGE
@@ -9809,13 +9809,14 @@
   }
   __wireEntrySoundUnlock();
 
-  // v89.60: orientation now follows the DEVICE's rotation setting (auto-rotate
-  // on/off), as the user expects — Hisabs no longer forces portrait. The
-  // earlier best-effort screen.orientation.lock('portrait') (v89.54) fought the
-  // OS setting and produced inconsistent behaviour (stayed portrait when held
-  // upright but still rotated when held sideways), so it has been removed. The
-  // manifest "orientation" was likewise relaxed to "any". If a user wants the
-  // app locked to portrait, they use their phone's own rotation lock.
+  // v89.61: orientation follows the DEVICE's rotation setting. The manifest no
+  // longer sets "orientation" at all — earlier values were both wrong for this
+  // goal: "portrait" tried to force upright, and "any" actively GRANTS all
+  // orientations (so Android rotated the PWA even with auto-rotate off). With
+  // the key absent, Android applies its default, which respects the system
+  // rotation lock. NOTE: a home-screen PWA freezes the manifest at INSTALL
+  // time, so an existing install must be removed and re-added for this to take
+  // effect. No JS orientation lock is used.
 
   // v86: App-like gesture defense. The viewport meta tag is honored by
   // most browsers, but iOS Safari (especially as a standalone PWA)
