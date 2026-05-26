@@ -7567,7 +7567,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.127';
+  const BUILD_TAG = '2026.05.21.128';
 
   // ================================================================
   // STORAGE
@@ -12744,15 +12744,21 @@
   // ENTRY_PAGE_SIZE and re-renders the entries view. Cheap because
   // we kept the filtered array around.
   function showMoreEntries() {
+    // v89.67: keep the viewport exactly where it is when loading more. The
+    // old code scrolled the "load more" button into view, which yanked the
+    // page down and forced the user to scroll back up to review entries one
+    // by one. Now we capture the scroll position before the re-render and
+    // restore it immediately after, so already-visible rows don't move and
+    // the new batch simply appears below.
+    const scrollEl = document.scrollingElement || document.documentElement;
+    const prevScrollY = window.scrollY || scrollEl.scrollTop || 0;
     __entriesShown += ENTRY_PAGE_SIZE;
     renderEntriesList();
-    // Scroll the newly revealed batch into view smoothly so the user
-    // doesn't have to hunt for where the list continued.
+    // Restore synchronously after the DOM is rebuilt. Use the same element we
+    // read from so it works whether the page or a container is the scroller.
     requestAnimationFrame(() => {
-      const list = document.getElementById('entriesList');
-      const moreBtn = document.getElementById('entryListMoreWrap');
-      if (moreBtn) moreBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      else if (list) list.scrollIntoView({ behavior: 'smooth', block: 'end' });
+      window.scrollTo(0, prevScrollY);
+      if (scrollEl) scrollEl.scrollTop = prevScrollY;
     });
   }
   function clearAllEntryFilters() {
