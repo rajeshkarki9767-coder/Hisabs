@@ -1,12 +1,8 @@
-[
-  {
-    "relation": ["delegate_permission/common.handle_all_urls"],
-    "target": {
-      "namespace": "android_app",
-      "package_name": "np.com.karki.hisabs",
-      "sha256_cert_fingerprints": [
-        "REPLACE_WITH_SHA256_FROM_PWABUILDER"
-      ]
-    }
-  }
-]
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "app.hisabs.twa",
+        "sha256_cert_fingerprints": ["12:FE:E0:1D:4B:E3:D3:25:19:8D:0E:D8:F6:05:0A:2C:86:75:32:8A:5E:1D:5A:C9:71:BE:FB:6E:FA:D8:32:B6"]
+      }
+    }]
