@@ -63,7 +63,7 @@
       ]
     },
     {
-      "source": "/screenshots/(.*)",
+      "source": "/Screenshots/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
@@ -72,7 +72,7 @@
       ]
     },
     {
-      "source": "/(index.html|manifest.webmanifest|sw.js|PRIVACY.html)",
+      "source": "/(index.html|manifest.webmanifest|sw.js|privacy.html|terms.html)",
       "headers": [
         {
           "key": "Cache-Control",
