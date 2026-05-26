@@ -7606,7 +7606,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.130';
+  const BUILD_TAG = '2026.05.21.131';
 
   // ================================================================
   // STORAGE
@@ -12830,10 +12830,21 @@
   }
   function scrollJumpClick() {
     const se = document.scrollingElement || document.documentElement;
-    const max = (se.scrollHeight - window.innerHeight);
-    const target = (__scrollJumpDir === 'down') ? max : 0;
-    try { window.scrollTo({ top: target, behavior: 'smooth' }); }
-    catch (_) { window.scrollTo(0, target); }
+    if (__scrollJumpDir === 'down') {
+      // v89.70: jump to the TRUE bottom. Measuring scrollHeight once can be
+      // stale (lazy layout, images, the load-more control). Scroll to a value
+      // guaranteed past the end; the browser clamps to the real maximum, so
+      // we always land at the actual bottom regardless of exact height.
+      const big = Math.max(
+        se.scrollHeight, document.body.scrollHeight,
+        document.documentElement.scrollHeight, 0
+      ) + 2000;
+      try { window.scrollTo({ top: big, behavior: 'smooth' }); }
+      catch (_) { window.scrollTo(0, big); }
+    } else {
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); }
+      catch (_) { window.scrollTo(0, 0); }
+    }
   }
   function initScrollJump() {
     const onScroll = () => { if (!__scrollJumpRaf) __scrollJumpRaf = requestAnimationFrame(__updateScrollJump); };
@@ -12850,26 +12861,49 @@
     __updateScrollJump();
   }
   function showMoreEntries() {
-    // v89.68: keep the viewport exactly where it is when loading more.
-    // Earlier versions scrolled to the button (yanked the page down). v89.67
-    // tried a single rAF restore but on mobile the layout isn't final by the
-    // first frame, so it still drifted. Now: capture position, temporarily
-    // disable smooth-scroll (so any restore is instant, not animated), and
-    // restore across two animation frames to outlast layout settling.
-    const scrollEl = document.scrollingElement || document.documentElement;
-    const prevY = window.scrollY || scrollEl.scrollTop || 0;
-    const _htmlStyle = document.documentElement.style.scrollBehavior;
+    // v89.70: anchor-based scroll preservation. Pixel-based restore failed
+    // because innerHTML is fully rebuilt and total height changes, so the
+    // browser clamps the old Y. Instead we pin a STABLE anchor: the last entry
+    // row currently rendered. We record its offset from the top of the
+    // viewport, re-render, then scroll so that same row sits at the same
+    // viewport offset again — making the existing rows appear motionless while
+    // the new batch fills in below.
+    const list = document.getElementById('entriesList');
+    let anchorId = null, anchorOffset = 0;
+    if (list) {
+      const rows = list.querySelectorAll('[data-entry-id]');
+      // Use the last currently-rendered row as the anchor.
+      const anchor = rows[rows.length - 1];
+      if (anchor) {
+        anchorId = anchor.getAttribute('data-entry-id');
+        anchorOffset = anchor.getBoundingClientRect().top;
+      }
+    }
+    const se = document.scrollingElement || document.documentElement;
+    const prevY = window.scrollY || se.scrollTop || 0;
+    const _html = document.documentElement.style.scrollBehavior;
     document.documentElement.style.scrollBehavior = 'auto';
     __entriesShown += ENTRY_PAGE_SIZE;
     renderEntriesList();
-    const _restore = () => { window.scrollTo(0, prevY); scrollEl.scrollTop = prevY; };
-    _restore();
+    const restore = () => {
+      const l2 = document.getElementById('entriesList');
+      if (anchorId && l2) {
+        const a2 = l2.querySelector('[data-entry-id="' + anchorId + '"]');
+        if (a2) {
+          // Scroll so the anchor row returns to the same viewport offset.
+          const newTop = a2.getBoundingClientRect().top;
+          const delta = newTop - anchorOffset;
+          window.scrollTo(0, (window.scrollY || se.scrollTop || 0) + delta);
+          return;
+        }
+      }
+      // Fallback: plain pixel restore.
+      window.scrollTo(0, prevY); se.scrollTop = prevY;
+    };
+    restore();
     requestAnimationFrame(() => {
-      _restore();
-      requestAnimationFrame(() => {
-        _restore();
-        document.documentElement.style.scrollBehavior = _htmlStyle;
-      });
+      restore();
+      requestAnimationFrame(() => { restore(); document.documentElement.style.scrollBehavior = _html; });
     });
   }
   function clearAllEntryFilters() {
