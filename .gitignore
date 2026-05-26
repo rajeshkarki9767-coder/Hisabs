@@ -5,3 +5,4 @@ supabase/.temp/
 
 # Node dependencies — never commit these
 node_modules/
+.DS_Store

@@ -1,14 +1,29 @@
 {
+  "id": "/",
   "name": "Hisabs — your cash, in order",
   "short_name": "Hisabs",
   "description": "Simple cash accounting: entries, books, audit P&L, and distribution.",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "business", "productivity"],
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f5f5f5",
   "theme_color": "#f5f5f5",
   "icons": [
-    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [
+    { "src": "Screenshots/01_hisabs_entries.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Daily cash entries" },
+    { "src": "Screenshots/02_hisabs_insights.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Insights and totals" },
+    { "src": "Screenshots/03_hisabs_forecast.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Forecast" },
+    { "src": "Screenshots/04_hisabs_distribution.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Profit distribution" },
+    { "src": "Screenshots/05_hisabs_add_entry.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Add an entry" },
+    { "src": "Screenshots/06_hisabs_audit.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Audit P&L" },
+    { "src": "Screenshots/07_hisabs_parties.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Parties" },
+    { "src": "Screenshots/08_hisabs_multi_business.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Multiple businesses" }
   ]
 }
