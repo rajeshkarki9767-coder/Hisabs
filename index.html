@@ -1300,6 +1300,41 @@
     line-height: 0;
   }
   .btn-icon-only svg { display: block; }
+  /* v89.69: Messenger-style scroll-jump dot. A single circular button fixed
+     bottom-right that appears once the user scrolls. Its arrow reflects scroll
+     DIRECTION: scrolling down shows a down-arrow (tap = jump to bottom);
+     scrolling up shows an up-arrow (tap = jump to top). Hidden at the very
+     top/bottom and when the page isn't scrollable. Bottom-right + lower
+     z-index than the centered +Entry FAB so they never overlap. */
+  .scroll-jump {
+    position: fixed;
+    right: 1rem;
+    bottom: calc(1.1rem + var(--safe-bottom, 0px));
+    z-index: 55;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper, #fff);
+    color: var(--accent-readable, #b8482a);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+    box-shadow: 0 4px 14px -2px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.12);
+    cursor: pointer;
+    opacity: 0; visibility: hidden; transform: translateY(8px) scale(0.9);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+    -webkit-tap-highlight-color: transparent;
+    padding: 0;
+  }
+  .scroll-jump.is-visible { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+  .scroll-jump:active { transform: scale(0.92); }
+  .scroll-jump svg { width: 20px; height: 20px; transition: transform 0.2s ease; }
+  .scroll-jump.dir-up svg { transform: rotate(180deg); }
+  @media (max-width: 768px) {
+    .scroll-jump { right: 0.85rem; }
+  }
+  [data-theme="dark"] .scroll-jump {
+    background: var(--card, #1a1a1a);
+    border-color: color-mix(in srgb, var(--accent) 42%, transparent);
+  }
   /* v89.66: refined "load more" control for the entries list. The old
      control reused the heavy uppercase .btn (dark, shouty) for what is a
      minor pagination action — visually jarring against the list. This is a
@@ -7438,6 +7473,10 @@
     <div class="date-strip" id="dateStrip"></div>
     <div id="mainContent" tabindex="-1"></div>
   </main>
+  <!-- v89.69: Messenger-style scroll-jump dot (arrow flips by scroll direction) -->
+  <button class="scroll-jump" id="scrollJump" type="button" aria-label="Scroll to top or bottom" onclick="scrollJumpClick()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+  </button>
 
   <!-- v89.1: legacy FAB wrapper kept in DOM (CSS hides it on phones
        via .fab { display:none !important }) so existing JS references
@@ -7567,7 +7606,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.128';
+  const BUILD_TAG = '2026.05.21.130';
 
   // ================================================================
   // STORAGE
@@ -10233,6 +10272,14 @@
       // "data shows for a second then hides".
       const cached = _getAccess(u.id, b.id);
       return !!cached?.role;
+    }).sort((a, b) => {
+      // v89.68: order businesses by creation (first created on top). Prefer
+      // createdAt when present; fall back to original array order so the
+      // ordering is stable even for older records without a timestamp.
+      const ai = data.businesses.indexOf(a), bi = data.businesses.indexOf(b);
+      const at = a.createdAt || '', bt = b.createdAt || '';
+      if (at && bt && at !== bt) return at < bt ? -1 : 1;
+      return ai - bi;
     });
   }
   function pendingInvitesForMe() {
@@ -10945,6 +10992,8 @@
     const appEl = document.getElementById('app');
     appEl.style.display = '';  // clear any inline 'none' that setAuthMode set
     appEl.classList.add('active');
+    // v89.69: wire the scroll-jump dot once (idempotent guard).
+    if (!window.__scrollJumpInit) { window.__scrollJumpInit = true; try { initScrollJump(); } catch (_) {} }
     // v89.32: do NOT hide the splash here. We first resolve the active
     // business/book and run the first full render, THEN hide the splash —
     // otherwise the empty "no business selected" state can flash for a
@@ -11717,7 +11766,14 @@
 
   function renderBooks() {
     const list = document.getElementById('bookList');
-    const books = data.books.filter(b => b.businessId === session.activeBizId);
+    const books = data.books.filter(b => b.businessId === session.activeBizId)
+      .sort((a, b) => {
+        // v89.68: books ordered by creation (first created on top).
+        const ai = data.books.indexOf(a), bi = data.books.indexOf(b);
+        const at = a.createdAt || '', bt = b.createdAt || '';
+        if (at && bt && at !== bt) return at < bt ? -1 : 1;
+        return ai - bi;
+      });
     if (!books.length) { list.innerHTML = '<div style="font-size:.8rem;color:rgba(245,241,232,.4);padding:.5rem 1.25rem;">No books yet.</div>'; return; }
     // v89.32.10: the per-book gear was removed — book names are edited only
     // from Business Settings → Books (Rename/Delete there). Keeps the sidebar
@@ -12743,22 +12799,77 @@
   // Reveal the next page of entries. Increments __entriesShown by
   // ENTRY_PAGE_SIZE and re-renders the entries view. Cheap because
   // we kept the filtered array around.
+  // v89.69: Messenger-style scroll-jump dot controller. Shows a bottom-right
+  // dot once the page is scrolled; its arrow points the way the user is
+  // scrolling (down = jump to bottom on tap, up = jump to top on tap). Hidden
+  // at the extreme top/bottom and when the page is too short to scroll.
+  let __scrollJumpLastY = 0;
+  let __scrollJumpDir = 'down';
+  let __scrollJumpRaf = 0;
+  function __updateScrollJump() {
+    __scrollJumpRaf = 0;
+    const el = document.getElementById('scrollJump');
+    if (!el) return;
+    const se = document.scrollingElement || document.documentElement;
+    const y = window.scrollY || se.scrollTop || 0;
+    const max = (se.scrollHeight - window.innerHeight);
+    // Not scrollable enough → hide.
+    if (max < 240) { el.classList.remove('is-visible'); __scrollJumpLastY = y; return; }
+    const delta = y - __scrollJumpLastY;
+    if (Math.abs(delta) > 4) {
+      __scrollJumpDir = delta > 0 ? 'down' : 'up';
+    }
+    // At the very top, only "down" makes sense; at the very bottom, only "up".
+    if (y <= 8) __scrollJumpDir = 'down';
+    else if (y >= max - 8) __scrollJumpDir = 'up';
+    el.classList.toggle('dir-up', __scrollJumpDir === 'up');
+    // Visible whenever there's somewhere to go in the current direction.
+    const canGo = (__scrollJumpDir === 'down') ? (y < max - 8) : (y > 8);
+    el.classList.toggle('is-visible', canGo && y > 40);
+    __scrollJumpLastY = y;
+  }
+  function scrollJumpClick() {
+    const se = document.scrollingElement || document.documentElement;
+    const max = (se.scrollHeight - window.innerHeight);
+    const target = (__scrollJumpDir === 'down') ? max : 0;
+    try { window.scrollTo({ top: target, behavior: 'smooth' }); }
+    catch (_) { window.scrollTo(0, target); }
+  }
+  function initScrollJump() {
+    const onScroll = () => { if (!__scrollJumpRaf) __scrollJumpRaf = requestAnimationFrame(__updateScrollJump); };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onScroll, { passive: true });
+    // Content height changes on every view render; recalc visibility then.
+    try {
+      const mc = document.getElementById('mainContent');
+      if (mc && 'MutationObserver' in window) {
+        const mo = new MutationObserver(() => onScroll());
+        mo.observe(mc, { childList: true, subtree: true });
+      }
+    } catch (_) {}
+    __updateScrollJump();
+  }
   function showMoreEntries() {
-    // v89.67: keep the viewport exactly where it is when loading more. The
-    // old code scrolled the "load more" button into view, which yanked the
-    // page down and forced the user to scroll back up to review entries one
-    // by one. Now we capture the scroll position before the re-render and
-    // restore it immediately after, so already-visible rows don't move and
-    // the new batch simply appears below.
+    // v89.68: keep the viewport exactly where it is when loading more.
+    // Earlier versions scrolled to the button (yanked the page down). v89.67
+    // tried a single rAF restore but on mobile the layout isn't final by the
+    // first frame, so it still drifted. Now: capture position, temporarily
+    // disable smooth-scroll (so any restore is instant, not animated), and
+    // restore across two animation frames to outlast layout settling.
     const scrollEl = document.scrollingElement || document.documentElement;
-    const prevScrollY = window.scrollY || scrollEl.scrollTop || 0;
+    const prevY = window.scrollY || scrollEl.scrollTop || 0;
+    const _htmlStyle = document.documentElement.style.scrollBehavior;
+    document.documentElement.style.scrollBehavior = 'auto';
     __entriesShown += ENTRY_PAGE_SIZE;
     renderEntriesList();
-    // Restore synchronously after the DOM is rebuilt. Use the same element we
-    // read from so it works whether the page or a container is the scroller.
+    const _restore = () => { window.scrollTo(0, prevY); scrollEl.scrollTop = prevY; };
+    _restore();
     requestAnimationFrame(() => {
-      window.scrollTo(0, prevScrollY);
-      if (scrollEl) scrollEl.scrollTop = prevScrollY;
+      _restore();
+      requestAnimationFrame(() => {
+        _restore();
+        document.documentElement.style.scrollBehavior = _htmlStyle;
+      });
     });
   }
   function clearAllEntryFilters() {
@@ -20936,6 +21047,12 @@
     session.selectedPartyId = null;
     session.selectedCategory = null;
     session.selectedAccountId = null;
+    // v89.68: searches are per-view scratch state and must NOT carry across
+    // businesses (a search typed in Business A's Parties tab was showing up
+    // when switching to Business B). Clear them all on every business switch.
+    __partiesSearch = ''; __categoriesSearch = ''; __accountsSearch = '';
+    __entryFilter = { partyId: null, category: null, accountId: null };
+    try { const _s = document.getElementById('searchInput'); if (_s) _s.value = ''; } catch (_) {}
     saveSession(); closeDrawer();
     __renderResetScroll = true;
     renderAll();
