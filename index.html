@@ -1300,6 +1300,73 @@
     line-height: 0;
   }
   .btn-icon-only svg { display: block; }
+  /* v89.66: refined "load more" control for the entries list. The old
+     control reused the heavy uppercase .btn (dark, shouty) for what is a
+     minor pagination action — visually jarring against the list. This is a
+     soft, accent-tinted pill that reads as a quiet secondary action, with a
+     subtle count line and a thin progress bar so the user has a sense of how
+     much remains. */
+  .entries-more-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0.55rem; padding: 1.1rem 0.5rem 0.6rem;
+  }
+  .entries-more-btn {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.55rem 1.2rem;
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    color: var(--accent-readable);
+    border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent);
+    border-radius: 999px;
+    font-size: 0.78rem; font-weight: 600; letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  }
+  .entries-more-btn:hover {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    transform: translateY(-1px);
+  }
+  .entries-more-btn:active { transform: translateY(0); }
+  .entries-more-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+  .entries-more-meta {
+    display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+    width: 100%; max-width: 220px;
+  }
+  .entries-more-count {
+    font-size: 0.7rem; color: var(--ink-mute); letter-spacing: 0.02em;
+  }
+  .entries-more-track {
+    width: 100%; height: 3px; border-radius: 999px;
+    background: color-mix(in srgb, var(--ink-mute) 22%, transparent);
+    overflow: hidden;
+  }
+  .entries-more-fill {
+    height: 100%; border-radius: 999px;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+  .entries-all-shown {
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+    padding: 0.9rem 0.5rem; font-size: 0.72rem; color: var(--ink-mute);
+    letter-spacing: 0.02em;
+  }
+  .entries-all-shown svg { width: 14px; height: 14px; opacity: 0.7; }
+  /* v89.66: on mobile the +Entry button floats at the bottom-center
+     (.entries-sticky-plus, ~48px tall at bottom:1rem). The taller load-more
+     control must clear it so the progress bar / count never tuck underneath
+     the floating button. Extra bottom margin only on mobile (the FAB is
+     hidden on desktop). */
+  @media (max-width: 768px) {
+    .entries-more-wrap { padding-bottom: 4.5rem; }
+    .entries-all-shown { padding-bottom: 4.5rem; }
+  }
+  [data-theme="dark"] .entries-more-btn {
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 38%, transparent);
+  }
+  [data-theme="dark"] .entries-more-btn:hover {
+    background: color-mix(in srgb, var(--accent) 24%, transparent);
+  }
   /* v73: party-sort dropdown styled to match other page-action buttons */
   .party-sort-select {
     cursor: pointer;
@@ -7500,7 +7567,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.125';
+  const BUILD_TAG = '2026.05.21.127';
 
   // ================================================================
   // STORAGE
@@ -12637,13 +12704,24 @@
     }
     const shownEntries = entries.slice(0, __entriesShown);
     const remainingCount = entries.length - shownEntries.length;
+    const _pct = entries.length > 0 ? Math.round((shownEntries.length / entries.length) * 100) : 100;
+    const _nextBatch = Math.min(ENTRY_PAGE_SIZE, remainingCount);
     const moreBtn = remainingCount > 0
-      ? `<div id="entryListMoreWrap" style="padding:1rem 0.5rem;text-align:center;">
-          <button class="btn btn-sm" onclick="showMoreEntries()">Show next ${Math.min(ENTRY_PAGE_SIZE, remainingCount)} of ${remainingCount} remaining</button>
-          <div style="margin-top:0.4rem;font-size:0.72rem;color:var(--ink-mute);">Showing ${shownEntries.length} of ${entries.length}</div>
+      ? `<div id="entryListMoreWrap" class="entries-more-wrap">
+          <button class="entries-more-btn" onclick="showMoreEntries()" aria-label="Load ${_nextBatch} more entries">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            Load ${_nextBatch} more
+          </button>
+          <div class="entries-more-meta">
+            <div class="entries-more-track"><div class="entries-more-fill" style="width:${_pct}%"></div></div>
+            <div class="entries-more-count">${shownEntries.length} of ${entries.length} shown</div>
+          </div>
         </div>`
       : (entries.length > ENTRY_PAGE_SIZE
-        ? `<div style="padding:0.7rem;text-align:center;font-size:0.72rem;color:var(--ink-mute);">All ${entries.length} entries shown.</div>`
+        ? `<div class="entries-all-shown">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            All ${entries.length} entries shown
+          </div>`
         : '');
     // Pre-build the accountId→record map ONCE for this entire render. Previously
     // each entry row did its own .find() over data.cashAccounts, which was
