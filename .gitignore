@@ -1,8 +1,3 @@
-
-# v89: local backups and Supabase CLI temp
 *.backup
 supabase/.temp/
-
-# Node dependencies — never commit these
 node_modules/
-.DS_Store
