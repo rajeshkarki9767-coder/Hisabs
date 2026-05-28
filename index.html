@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.133';
+  const BUILD_TAG = '2026.05.21.134';
 
   // ================================================================
   // STORAGE
@@ -33903,11 +33903,15 @@
       // backoff prevented). Dropping them loses no data: a permission-denied
       // write never persisted anything. Transient failures are NOT purged here.
       try {
+        // v89.73: same hardening as below — distinguish real RLS from a
+        // generic 403 (which can be transient egress/rate-limit). Bare "403"
+        // or "permission" word alone is NOT enough; require real RLS markers.
         const _isPermErr = (msg) => {
           const m = String(msg || '').toLowerCase();
-          return m.includes('row-level security') || m.includes('rls')
-              || m.includes('42501') || m.includes('403')
-              || m.includes('permission') || m.includes('policy');
+          return m.includes('row-level security')
+              || m.includes('42501')
+              || m.includes('policy')
+              || m.includes('permission denied');
         };
         const before = __syncQueue.length;
         __syncQueue = __syncQueue.filter(o => !(o && (o.attempts || 0) >= 3 && _isPermErr(o.lastError)));
@@ -34042,11 +34046,23 @@
       // (the viewer-stuck bug). A permission-denied write never persisted
       // anything, so dropping it loses no real data. Transient failures still
       // retry indefinitely (data safety preserved).
+      // v89.73: distinguish a REAL permission error from a generic 403. The
+      // earlier check treated a bare "403" as permanent — but Supabase returns
+      // 403 for both RLS denials (truly permanent for this user) AND for
+      // egress / rate-limit throttling (TRANSIENT — resolves on cycle reset
+      // or upgrade). Silently purging a queued write because of a throttle
+      // 403 caused real data loss: invite-accept ops were dropped, stranding
+      // users with status=pending in the cloud (atomic, ivar). Now we only
+      // treat it as permanent when there's a REAL RLS signal:
+      // 42501 (Postgres RLS code), "row-level security", "policy", or
+      // explicit "permission denied" text. A bare "403" alone is treated as
+      // transient and kept in the queue for retry.
       const _isPermError = (msg) => {
         const m = String(msg || '').toLowerCase();
-        return m.includes('row-level security') || m.includes('rls')
-            || m.includes('42501') || m.includes('403')
-            || m.includes('permission') || m.includes('policy');
+        return m.includes('row-level security')
+            || m.includes('42501')
+            || m.includes('policy')
+            || m.includes('permission denied');
       };
       let _droppedPerm = 0;
       for (const op of stuckOps) {
