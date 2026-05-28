@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.132';
+  const BUILD_TAG = '2026.05.21.133';
 
   // ================================================================
   // STORAGE
@@ -34944,6 +34944,17 @@
 
   function onRealtimeEvent(localKey, payload) {
     if (!payload) return;
+    // v89.72: debug visibility into incoming realtime events. Gated behind the
+    // debug flag (window.__hisabsDebug) so it's silent in production. Lets us
+    // confirm whether parties/categories events actually arrive on a receiving
+    // device, which is otherwise invisible.
+    if (window.__hisabsDebug) {
+      try {
+        const _et = payload.eventType || payload.event;
+        const _rid = (payload.new && payload.new.id) || (payload.old && payload.old.id) || '?';
+        console.log('[realtime IN]', localKey, _et, _rid);
+      } catch (_) {}
+    }
     // v89.34: centralized distribution access gate. If this member can't see
     // distribution (owner hid it for them), ignore all distribution realtime
     // events — the data must not load on their device. Belt-and-braces with the
