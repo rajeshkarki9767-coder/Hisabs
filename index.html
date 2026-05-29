@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.134';
+  const BUILD_TAG = '2026.05.21.135';
 
   // ================================================================
   // STORAGE
@@ -21359,6 +21359,31 @@
       return !matchesMe;
     });
     saveData();
+    // v89.74: Guarantee the accept (or decline) push reaches the cloud, even
+    // if it happens during the snapshot-baseline race window. The bug we hit
+    // three times (atomic, ivar, razesh): on a fresh sign-in, if the user
+    // accepts BEFORE the first sync diff has established its baseline from
+    // cloud data, the accept mutation gets absorbed INTO that baseline by
+    // runSyncDiff() — which then emits no ops because data and snapshot
+    // match. Cloud stays pending forever. Fix: explicitly synthesize the
+    // membership upsert op and append it to the sync queue right here, so
+    // a normal drain pushes it regardless of snapshot timing.
+    try {
+      if (__syncEnabled && __syncEnabled() && cloudSchemaMap && cloudSchemaMap.members) {
+        const map = cloudSchemaMap.members;
+        const row = recordToOpRow('members', m, { bookById: new Map() });
+        if (row) {
+          const op = { id: uid(), table: map.table, kind: 'upsert', recordId: m.id, row, localKey: 'members', attempts: 0 };
+          // Replace any existing queued op for the same record (idempotent).
+          const i = __syncQueue.findIndex(q => q.table === op.table && q.recordId === op.recordId);
+          if (i !== -1) __syncQueue[i] = { ...op, attempts: __syncQueue[i].attempts || 0 };
+          else __syncQueue.push(op);
+          try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
+          // Trigger drain now so the accept lands quickly, not after the next idle tick.
+          try { drainQueueOnce(); } catch (_) {}
+        }
+      }
+    } catch (_) {}
     if (status === 'accepted') {
       session.activeBizId = m.businessId;
       const books = data.books.filter(b => b.businessId === m.businessId);
