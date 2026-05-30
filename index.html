@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.135';
+  const BUILD_TAG = '2026.05.21.136';
 
   // ================================================================
   // STORAGE
@@ -26952,12 +26952,19 @@
     });
   }
   function restoreSearchFocus(id) {
-    setTimeout(() => {
+    // v89.75: faster focus restore for mobile. setTimeout(0) lets the browser
+    // tear down + lay out the new input before refocusing, which is enough
+    // time for mobile soft-keyboards to dismiss visibly. requestAnimationFrame
+    // runs before the next paint, narrowing the gap so on many devices the
+    // keyboard doesn't fully retract before refocus.
+    const restore = () => {
       const el = document.getElementById(id);
       if (el && document.activeElement !== el) {
         const len = el.value.length; el.focus(); el.setSelectionRange(len, len);
       }
-    }, 0);
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(restore);
+    else setTimeout(restore, 0);
   }
   function pickSettingsTab(t) {
     __settingsTab = t;
