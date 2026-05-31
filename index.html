@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.136';
+  const BUILD_TAG = '2026.05.21.137';
 
   // ================================================================
   // STORAGE
@@ -35853,13 +35853,34 @@
         if (!map) return { key, rows: [] };
         // With hard deletes, there are no deleted_at=now rows to filter out —
         // deleted rows are physically removed from the database.
-        const { data: rows, error } = await sb().from(map.table).select('*');
-        if (error) {
-          const msg = 'Pull failed at ' + key + ': ' + (error.message || error.code);
-          console.error(msg, error);
-          throw new Error(msg);
+        // v89.76: PAGINATE. Supabase caps a plain select('*') at ~1000 rows
+        // (the PostgREST max-rows default). Without paging, any table with
+        // >1000 rows (e.g. a busy book's entries) silently returns only the
+        // first 1000 — and with no ORDER BY, a different arbitrary 1000 each
+        // time. That stranded the owner's view: recent team-member entries
+        // beyond the cap never reached the device, and counts fluctuated
+        // between pulls. Now we fetch in ordered pages until exhausted.
+        const PAGE = 1000;
+        let all = [];
+        let from = 0;
+        for (;;) {
+          const { data: rows, error } = await sb()
+            .from(map.table)
+            .select('*')
+            .order('id', { ascending: true })
+            .range(from, from + PAGE - 1);
+          if (error) {
+            const msg = 'Pull failed at ' + key + ': ' + (error.message || error.code);
+            console.error(msg, error);
+            throw new Error(msg);
+          }
+          const batch = rows || [];
+          all = all.concat(batch);
+          if (batch.length < PAGE) break; // last page reached
+          from += PAGE;
+          if (from > 500000) break; // hard safety cap (500k rows) to avoid infinite loops
         }
-        return { key, rows: (rows || []).map(r => map.fromDb(r)) };
+        return { key, rows: all.map(r => map.fromDb(r)) };
       }));
       const fetched = {};
       for (const { key, rows } of results) fetched[key] = rows;
