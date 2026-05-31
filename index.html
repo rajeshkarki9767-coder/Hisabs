@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.137';
+  const BUILD_TAG = '2026.05.21.138';
 
   // ================================================================
   // STORAGE
@@ -33456,7 +33456,27 @@
   let __syncSnapshot = null;
   try {
     const raw = localStorage.getItem(SYNC_SNAPSHOT_KEY);
-    if (raw) __syncSnapshot = JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // v89.77: snapshot format changed from full records to { id, _fp }
+      // fingerprints. An OLD snapshot (full records, no _fp) would make the new
+      // diff see every record as changed → mass re-upload. Detect the old
+      // format and discard it; the snapshot rebuilds compactly on the next
+      // pull/persist. Detection: find any non-empty list and check its first
+      // entry for the _fp marker.
+      let looksNew = true;
+      if (parsed && typeof parsed === 'object') {
+        for (const k of Object.keys(parsed)) {
+          const list = parsed[k];
+          if (Array.isArray(list) && list.length) {
+            looksNew = ('_fp' in list[0]);
+            break;
+          }
+        }
+      }
+      __syncSnapshot = looksNew ? parsed : null;
+      if (!looksNew) { try { localStorage.removeItem(SYNC_SNAPSHOT_KEY); } catch (_) {} }
+    }
   } catch (_) { __syncSnapshot = null; }
 
   // v89.8: purge stuck distribution ops on boot. Idempotent — runs once.
@@ -33468,22 +33488,22 @@
       // doubles localStorage usage, but it's the same shape so quota impact
       // matches the existing data writes.
       const snap = {
-        businesses: data.businesses.map(cloneShallow),
-        books: data.books.map(cloneShallow),
-        accountGroups: data.accountGroups.map(cloneShallow),
-        cashAccounts: data.cashAccounts.map(cloneShallow),
-        parties: data.parties.map(cloneShallow),
-        categories: data.categories.map(cloneShallow),
-        members: data.members.map(cloneShallow),
-        entries: data.entries.map(cloneShallow),
-        auditExpenses: data.auditExpenses.map(cloneShallow),
-        expenseRates: (data.expenseRates||[]).map(cloneShallow),
-        quickLook: (data.quickLook || []).map(cloneShallow),
-        announcements: (data.announcements || []).map(cloneShallow),
-        transfers: (data.transfers || []).map(cloneShallow),
-        distSalaries: (data.distSalaries || []).map(cloneShallow),
-        distShares: (data.distShares || []).map(cloneShallow),
-        splitParties: (data.splitParties || []).map(cloneShallow),
+        businesses: data.businesses.map(snapEntry),
+        books: data.books.map(snapEntry),
+        accountGroups: data.accountGroups.map(snapEntry),
+        cashAccounts: data.cashAccounts.map(snapEntry),
+        parties: data.parties.map(snapEntry),
+        categories: data.categories.map(snapEntry),
+        members: data.members.map(snapEntry),
+        entries: data.entries.map(snapEntry),
+        auditExpenses: data.auditExpenses.map(snapEntry),
+        expenseRates: (data.expenseRates||[]).map(snapEntry),
+        quickLook: (data.quickLook || []).map(snapEntry),
+        announcements: (data.announcements || []).map(snapEntry),
+        transfers: (data.transfers || []).map(snapEntry),
+        distSalaries: (data.distSalaries || []).map(snapEntry),
+        distShares: (data.distShares || []).map(snapEntry),
+        splitParties: (data.splitParties || []).map(snapEntry),
       };
       // v89.55: set the IN-MEMORY baseline FIRST, then attempt the disk write.
       // Critical ordering: on a full device the setItem below throws, and
@@ -33498,6 +33518,43 @@
   }
 
   function cloneShallow(o) { return { ...o }; }
+
+  // v89.77: compact snapshot fingerprinting. The sync snapshot used to store a
+  // FULL deep copy of every record, which doubled localStorage usage (a busy
+  // book pushed devices past the ~5MB quota). The snapshot only exists to
+  // answer two diff questions: (a) does record X still exist? (needs the id),
+  // and (b) did record X change? (needs to detect any field change). We can
+  // answer both with just { id, _fp } where _fp is a fingerprint of the
+  // record's fields — ~40 bytes instead of ~300+, an ~85% reduction.
+  //
+  // CRITICAL: recordFingerprint() MUST mirror shallowEqual()'s semantics
+  // exactly, or the diff will either miss real changes (data fails to sync) or
+  // see phantom changes (mass re-upload). shallowEqual treats null/undefined as
+  // equal ("no value"), and deep-compares object/array values via JSON. So we
+  // build a canonical, key-sorted representation that drops null/undefined keys
+  // and JSON-encodes the rest, then hash it.
+  function recordFingerprint(rec) {
+    if (!rec || typeof rec !== 'object') return String(rec);
+    const keys = Object.keys(rec).sort();
+    const parts = [];
+    for (const k of keys) {
+      const v = rec[k];
+      if (v === undefined || v === null) continue; // matches shallowEqual "no value"
+      if (typeof v === 'object') parts.push(k + ':o:' + JSON.stringify(v));
+      // Include a type tag so '10' (string) and 10 (number) — which
+      // shallowEqual treats as DIFFERENT — get distinct fingerprints.
+      else parts.push(k + ':' + (typeof v)[0] + ':' + String(v));
+    }
+    const s = parts.join('|');
+    // djb2 string hash → compact hex. Collisions are astronomically unlikely
+    // for record-sized strings and would only cause a missed-change (rare,
+    // self-heals on next genuine edit), never corruption.
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+    return (h >>> 0).toString(36) + ':' + s.length.toString(36);
+  }
+  // Build a compact snapshot entry { id, _fp } for one record.
+  function snapEntry(rec) { return { id: rec.id, _fp: recordFingerprint(rec) }; }
 
   // Reset the snapshot to the current data state — called after a successful
   // pull (so we don't diff against stale state) and after sign-out cleanup.
@@ -33524,8 +33581,9 @@
         const localRec = (data[op.localKey] || []).find(r => r.id === op.recordId);
         if (!localRec) continue;
         const idx = list.findIndex(r => r.id === op.recordId);
-        if (idx === -1) list.push({ ...localRec });
-        else list[idx] = { ...localRec };
+        // v89.77: store compact fingerprint entry, not the full record.
+        if (idx === -1) list.push(snapEntry(localRec));
+        else list[idx] = snapEntry(localRec);
         dirty = true;
       } else if (op.kind === 'delete') {
         const idx = list.findIndex(r => r.id === op.recordId);
@@ -33632,7 +33690,9 @@
     // Upserts
     for (const rec of cur) {
       const prev = snapById.get(rec.id);
-      if (!prev || !shallowEqual(prev, rec)) {
+      // v89.77: snapshot stores { id, _fp } fingerprints, not full records.
+      // A record is "changed" if it's new (no prev) or its fingerprint differs.
+      if (!prev || prev._fp !== recordFingerprint(rec)) {
         // Validate parent references — orphan entries (book deleted but
         // entry not) and orphan members (business deleted) cause inserts
         // to fail with NOT NULL violations. Skip them silently here; a
