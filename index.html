@@ -44,8 +44,8 @@
   Eliminates the supply-chain risk of a compromised CDN serving altered code, and makes
   the app fully offline-capable. To update: replace these files from the upstream package.
 -->
-<script src="vendor/jspdf.umd.min.js"></script>
-<script src="vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="vendor/jspdf.umd.min.js" defer></script>
+<script src="vendor/jspdf.plugin.autotable.min.js" defer></script>
 <script src="vendor/supabase.umd.js"></script>
 <style>
   :root {
@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.138';
+  const BUILD_TAG = '2026.05.21.140';
 
   // ================================================================
   // STORAGE
@@ -25342,24 +25342,62 @@
     const m = document.getElementById('modalContent');
     if (m) m.innerHTML = quickLookModalHTML();
   }
+  // v89.78: compress + downscale Snapshot photos on upload. Previously the
+  // raw file was stored as a base64 data URL with NO compression — a 400KB
+  // photo became ~530KB of base64 in photoData, and anything over 500KB was
+  // rejected outright (annoying). Now we draw the image onto a canvas capped
+  // at QL_PHOTO_MAX_PX on the long edge and re-encode as JPEG, which shrinks a
+  // typical phone photo to ~30-80KB while keeping it perfectly legible. This
+  // saves localStorage (the photoData syncs and counts against the per-device
+  // budget) and removes the frustrating "too big" rejection.
+  const QL_PHOTO_MAX_PX = 1024;   // long-edge cap — plenty for a reference photo
+  const QL_PHOTO_QUALITY = 0.75;  // JPEG quality
   function handleQuickLookPhotoUpload(ev) {
     const f = ev.target.files?.[0];
     if (!f) return;
     if (!/^image\//.test(f.type)) { toast('Please pick an image file.'); return; }
-    if (f.size > 500 * 1024) {
-      toast(`Photo is ${Math.round(f.size / 1024)} KB. Max is 500 KB — please pick a smaller image.`);
+    // Generous input cap (20MB) — we compress aggressively below, so we no
+    // longer reject normal phone photos; this only blocks absurdly large files.
+    if (f.size > 20 * 1024 * 1024) {
+      toast('That image is too large (over 20 MB). Please pick a smaller one.');
       ev.target.value = '';
       return;
     }
-    // Save typed-but-unsaved values BEFORE the re-render that's about to
-    // happen — otherwise picking a photo wipes the name and tag.
     captureQuickLookPending();
     const reader = new FileReader();
     reader.onload = (e) => {
-      __qlPendingPhoto = e.target.result;
-      // Re-render modal to show preview.
-      const m = document.getElementById('modalContent');
-      if (m) m.innerHTML = quickLookModalHTML();
+      const rawDataUrl = e.target.result;
+      const img = new Image();
+      img.onload = () => {
+        try {
+          let w = img.naturalWidth || img.width;
+          let h = img.naturalHeight || img.height;
+          // Scale down so the long edge is at most QL_PHOTO_MAX_PX.
+          const longEdge = Math.max(w, h);
+          if (longEdge > QL_PHOTO_MAX_PX) {
+            const scale = QL_PHOTO_MAX_PX / longEdge;
+            w = Math.round(w * scale); h = Math.round(h * scale);
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          // White backdrop — JPEG has no transparency.
+          ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          let out = canvas.toDataURL('image/jpeg', QL_PHOTO_QUALITY);
+          // Safety: if still large (very detailed image), step quality down.
+          if (out.length > 200 * 1024) out = canvas.toDataURL('image/jpeg', 0.6);
+          if (out.length > 350 * 1024) out = canvas.toDataURL('image/jpeg', 0.45);
+          __qlPendingPhoto = (out && out.length > 32) ? out : rawDataUrl;
+        } catch (_) {
+          // Canvas failed (rare) — fall back to the raw data URL.
+          __qlPendingPhoto = rawDataUrl;
+        }
+        const m = document.getElementById('modalContent');
+        if (m) m.innerHTML = quickLookModalHTML();
+      };
+      img.onerror = () => { toast('Could not read the image.'); };
+      img.src = rawDataUrl;
     };
     reader.onerror = () => toast('Could not read the image.');
     reader.readAsDataURL(f);
