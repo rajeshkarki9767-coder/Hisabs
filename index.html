@@ -7622,7 +7622,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.05.21.140';
+  const BUILD_TAG = '2026.05.21.142';
 
   // ================================================================
   // STORAGE
@@ -8669,6 +8669,102 @@
         if (matched) { e.partyId = matched.id; dirty = true; }
       }
     });
+
+    // v89.79: MERGE duplicate parties (same name, same business, different id).
+    // Duplicates arise when the same party gets created on two devices, or a
+    // create raced with a sync — each gets a distinct id. The party-detail page
+    // filters entries by e.partyId === party.id, so if entries link to one
+    // duplicate but the user opens the other, the page shows NOTHING even though
+    // the entry carries the right name. Fix: for each (business, lowercased
+    // name) group with >1 party, keep the oldest (canonical) record, re-link all
+    // entries from the dupes to it, and drop the duplicate party rows.
+    (function mergeDuplicateParties() {
+      const byKey = new Map(); // bizId|lowername -> [parties]
+      for (const p of data.parties) {
+        if (!p || !p.businessId || !p.name) continue;
+        const k = p.businessId + '|' + p.name.trim().toLowerCase();
+        (byKey.get(k) || byKey.set(k, []).get(k)).push(p);
+      }
+      const idRemap = new Map(); // dupeId -> canonicalId
+      for (const [, group] of byKey) {
+        if (group.length < 2) continue;
+        // Canonical = earliest created (stable). Fall back to id sort.
+        group.sort((a, b) => {
+          const at = a.createdTs || (a.createdAt ? Date.parse(a.createdAt) : 0) || 0;
+          const bt = b.createdTs || (b.createdAt ? Date.parse(b.createdAt) : 0) || 0;
+          if (at !== bt) return at - bt;
+          return String(a.id).localeCompare(String(b.id));
+        });
+        const canonical = group[0];
+        for (let i = 1; i < group.length; i++) idRemap.set(group[i].id, canonical.id);
+      }
+      if (idRemap.size) {
+        // Re-link entries to the canonical party id.
+        for (const e of data.entries) {
+          if (e.partyId && idRemap.has(e.partyId)) { e.partyId = idRemap.get(e.partyId); dirty = true; }
+        }
+        // Remove the duplicate party rows.
+        data.parties = data.parties.filter(p => !idRemap.has(p.id));
+        dirty = true;
+      }
+    })();
+
+    // v89.80: MERGE duplicate cash accounts (same name, same business, diff id).
+    // Accounts have the SAME risk as parties: entries link by e.accountId and the
+    // account-detail page filters by e.accountId === acc.id, so a duplicate
+    // account (from cross-device/offline creation) splits entries from the row
+    // the user opens. Keep the earliest as canonical, re-link entries, drop dupes.
+    (function mergeDuplicateAccounts() {
+      const byKey = new Map();
+      for (const a of data.cashAccounts) {
+        if (!a || !a.businessId || !a.name) continue;
+        const k = a.businessId + '|' + a.name.trim().toLowerCase();
+        (byKey.get(k) || byKey.set(k, []).get(k)).push(a);
+      }
+      const remap = new Map();
+      for (const [, group] of byKey) {
+        if (group.length < 2) continue;
+        group.sort((a, b) => {
+          const at = a.createdTs || (a.createdAt ? Date.parse(a.createdAt) : 0) || 0;
+          const bt = b.createdTs || (b.createdAt ? Date.parse(b.createdAt) : 0) || 0;
+          if (at !== bt) return at - bt;
+          return String(a.id).localeCompare(String(b.id));
+        });
+        for (let i = 1; i < group.length; i++) remap.set(group[i].id, group[0].id);
+      }
+      if (remap.size) {
+        for (const e of data.entries) {
+          if (e.accountId && remap.has(e.accountId)) { e.accountId = remap.get(e.accountId); dirty = true; }
+        }
+        data.cashAccounts = data.cashAccounts.filter(a => !remap.has(a.id));
+        dirty = true;
+      }
+    })();
+
+    // v89.80: MERGE duplicate categories (same name, same business). Categories
+    // link by NAME (e.category) not id, so duplicates don't HIDE entries the way
+    // parties/accounts do — but two identical category rows are still confusing
+    // and inflate the list. Collapse to one row per (business, name). No entry
+    // re-link needed since entries already match by name.
+    (function mergeDuplicateCategories() {
+      const seen = new Map(); // bizId|lowername -> kept category
+      const drop = new Set();
+      for (const c of data.categories) {
+        if (!c || !c.businessId || !c.name) continue;
+        const k = c.businessId + '|' + c.name.trim().toLowerCase();
+        const kept = seen.get(k);
+        if (!kept) { seen.set(k, c); continue; }
+        // Keep the earlier-created one; drop the other.
+        const kt = kept.createdTs || (kept.createdAt ? Date.parse(kept.createdAt) : 0) || 0;
+        const ct = c.createdTs || (c.createdAt ? Date.parse(c.createdAt) : 0) || 0;
+        if (ct < kt) { drop.add(kept.id); seen.set(k, c); }
+        else { drop.add(c.id); }
+      }
+      if (drop.size) {
+        data.categories = data.categories.filter(c => !drop.has(c.id));
+        dirty = true;
+      }
+    })();
 
     // Backfill: sortOrder on parties, categories, cashAccounts. Existing records
     // get assigned by creation order so the initial visual order is stable.
