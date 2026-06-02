@@ -8649,6 +8649,24 @@
     });
 
     // Backfill: derive parties from existing entries
+    // v89.81: this also REPAIRS orphaned partyIds. Previously the re-link was
+    // guarded by `if (!e.partyId)` — so it only ran when partyId was MISSING.
+    // But an entry can carry a partyId that points at a party record which no
+    // longer exists (e.g. the party was created on one device, the entry
+    // linked to it, then that party row was deleted/replaced on another device
+    // and re-created with a NEW id; or a cross-device create race left the
+    // entry pointing at an id that never won). Such an orphan id is truthy, so
+    // the old guard skipped it, and mergeDuplicateParties() can't help either
+    // (it only remaps ids that belong to a duplicate GROUP of EXISTING
+    // parties — an orphan is in no group). Result: the entry shows in the
+    // entries LIST (which renders by e.party name) but is invisible to the
+    // party CARD and party DETAIL page (both filter by e.partyId === party.id),
+    // so the party shows "0 entries" even though entries exist. This is the
+    // Eli/Angela bug. Fix: treat a dangling partyId the same as a missing one
+    // and re-link by (business, name) to the live party record. The changed
+    // entry then diffs against the sync snapshot and pushes to the cloud on the
+    // next drain, so the repair persists and survives the next pull.
+    const _partyIds = new Set(data.parties.map(p => p.id)); // O(1) orphan check
     data.entries.forEach(e => {
       if (!e.party) return;
       const book = data.books.find(b => b.id === e.bookId);
@@ -8656,17 +8674,22 @@
       const bizId = book.businessId;
       const existing = data.parties.find(p => p.businessId === bizId && p.name.toLowerCase() === e.party.toLowerCase());
       if (!existing) {
-        data.parties.push({
+        const np = {
           id: uid(), businessId: bizId, name: e.party, kind: 'both',
           createdAt: e.date || today(),
           createdBy: e.createdBy || null,
           createdByName: e.createdByName || '',
-        });
+        };
+        data.parties.push(np);
+        _partyIds.add(np.id);
         dirty = true;
       }
-      if (!e.partyId) {
+      // Re-link when the partyId is missing OR dangling (points at no existing
+      // party). Matching is scoped to the entry's own business so we never
+      // re-point an entry at a same-named party in a DIFFERENT business.
+      if (!e.partyId || !_partyIds.has(e.partyId)) {
         const matched = data.parties.find(p => p.businessId === bizId && p.name.toLowerCase() === e.party.toLowerCase());
-        if (matched) { e.partyId = matched.id; dirty = true; }
+        if (matched && matched.id !== e.partyId) { e.partyId = matched.id; dirty = true; }
       }
     });
 
