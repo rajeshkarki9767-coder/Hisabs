@@ -24152,15 +24152,25 @@
     // v89.22: read unassigned toggle (owner-only)
     const _catUnassignedToggle = document.getElementById('mEntityUnassigned');
     const _catUnassigned = !!(_catUnassignedToggle && _catUnassignedToggle.checked);
-    data.categories.push({
+    const _cat = {
       id: uid(),
       businessId: biz.id,
       name,
       shortcut: shortcut || undefined,
       sortOrder: nextSortOrder(data.categories, 'businessId', biz.id),
       unassigned: _catUnassigned || undefined,
-    });
-    saveData(); closeModal(); renderAll();
+    };
+    data.categories.push(_cat);
+    // v89.82: honour the save result (see savePartyManual). Roll back + keep
+    // modal open on storage failure; storageWrite() already toasted the cause.
+    let _catSaved = false;
+    try { _catSaved = saveData(); } catch (_) { _catSaved = false; }
+    if (!_catSaved) {
+      const _i = data.categories.indexOf(_cat);
+      if (_i !== -1) data.categories.splice(_i, 1);
+      return;
+    }
+    try { closeModal(); renderAll(); } catch (_) { try { closeModal(); } catch (_) {} }
     toast('Category created.');
   }
   function savePartyManual() {
@@ -24169,7 +24179,12 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canAddParty(biz.id)) { toast('You don\'t have permission to add parties.'); return; }
     if (data.parties.find(p => p.businessId === biz.id && p.name.toLowerCase() === name.toLowerCase())) {
-      toast('A party with that name already exists.'); return;
+      // v89.82: this guard spans ALL parties in the business, including ones
+      // not shown in the current member's list (e.g. unassigned parties, or
+      // parties outside their visible scope). Without naming that, the click
+      // looks like a silent no-op — "I pressed Create and nothing happened".
+      // Name the conflict so the user understands why and can pick another name.
+      toast(`"${name}" already exists in this business — choose a different name.`); return;
     }
     // v89.32.32: read optional meta (DOB, phones, emails, socials, notes)
     // — but ONLY owner/manager may attach contact meta to a party. Staff
@@ -24196,11 +24211,30 @@
       meta: meta || undefined,
     };
     data.parties.push(p);
+    // v89.82: persist FIRST and honour the result. Previously this called
+    // `saveData(); closeModal(); renderAll(); toast('Party created.')`
+    // unconditionally — so when storageWrite() failed (quota exhausted on a
+    // heavy device, private-mode, etc.) saveData() returned false but the code
+    // still closed the modal and announced success. The party lived only in
+    // memory and vanished on the next load: the user's "I created it and it
+    // disappeared" / "I clicked Save and nothing happened" report. Now: if the
+    // write fails we roll the in-memory push back, keep the modal open, and say
+    // so, instead of silently lying.
+    let _saved = false;
+    try { _saved = saveData(); } catch (_) { _saved = false; }
+    if (!_saved) {
+      const _i = data.parties.indexOf(p);
+      if (_i !== -1) data.parties.splice(_i, 1); // roll back so state matches disk
+      toast("Couldn't save — your device storage is full. Free up space and try again.");
+      return; // leave the modal open so the user can retry; no false success
+    }
     // v89.31.6: jump to "Recently added" sort so the party the user just
     // created is visible at the top of the list immediately.
     session.partySortMode = 'recent-added';
     try { saveSession(); } catch (_) {}
-    saveData(); closeModal(); renderAll();
+    // v89.82: render is best-effort — a throw here must not swallow the
+    // success toast or leave the modal stuck. The party is already persisted.
+    try { closeModal(); renderAll(); } catch (_) { try { closeModal(); } catch (_) {} }
     toast('Party created.');
     // v89.31.0: write to activity log so other members see the addition.
     // Non-blocking — fire and forget.
@@ -24270,7 +24304,7 @@
     // v89.22: read unassigned toggle (owner-only)
     const _acctUnassignedToggle = document.getElementById('mEntityUnassigned');
     const _acctUnassigned = !!(_acctUnassignedToggle && _acctUnassignedToggle.checked);
-    data.cashAccounts.push({
+    const _acct = {
       id: uid(),
       businessId: biz.id,
       groupId,
@@ -24278,8 +24312,19 @@
       createdAt: today(),
       sortOrder: nextSortOrder(data.cashAccounts, 'groupId', groupId),
       unassigned: _acctUnassigned || undefined,
-    });
-    saveData(); closeModal(); renderAll();
+    };
+    data.cashAccounts.push(_acct);
+    // v89.82: honour the save result (see savePartyManual). On storage failure,
+    // roll the in-memory account back, keep the modal open, and don't claim
+    // success — storageWrite() has already shown the "storage full" toast.
+    let _acctSaved = false;
+    try { _acctSaved = saveData(); } catch (_) { _acctSaved = false; }
+    if (!_acctSaved) {
+      const _i = data.cashAccounts.indexOf(_acct);
+      if (_i !== -1) data.cashAccounts.splice(_i, 1);
+      return;
+    }
+    try { closeModal(); renderAll(); } catch (_) { try { closeModal(); } catch (_) {} }
     toast(`"${name}" added.`);
   }
 
