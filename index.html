@@ -8693,6 +8693,23 @@
       }
     });
 
+    // v89.84: backfill the account NAME snapshot onto existing entries. Older
+    // entries stored only accountId; this writes the current account's name into
+    // e.account (matching how party/category names are retained) so that if the
+    // account is later deleted, the entry still shows and searches by its name.
+    // Accounts already deleted before this runs can't be recovered (the name was
+    // never stored), but nothing is made worse and all future deletes are safe.
+    (function backfillAccountNames() {
+      if (!Array.isArray(data.entries) || !Array.isArray(data.cashAccounts)) return;
+      const acctName = new Map(data.cashAccounts.map(a => [a.id, a.name]));
+      for (const e of data.entries) {
+        if (e.accountId && !e.account) {
+          const nm = acctName.get(e.accountId);
+          if (nm) { e.account = nm; dirty = true; }
+        }
+      }
+    })();
+
     // v89.79: MERGE duplicate parties (same name, same business, different id).
     // Duplicates arise when the same party gets created on two devices, or a
     // create raced with a sync — each gets a distinct id. The party-detail page
@@ -12815,7 +12832,7 @@
         const editedToken = _editLabel ? `edited ${_editLabel}` : '';
         const _addLabel = entryAddedLabel(e);
         const addedToken = _addLabel ? `added ${_addLabel}` : 'added';
-        const acctName = e.accountId ? (acctById.get(e.accountId) || '') : '';
+        const acctName = e.accountId ? (acctById.get(e.accountId) || e.account || '') : (e.account || '');
         const byName = e.createdByName || '';
         const amountStr = String(e.amount || '');
         const amountFmt = (typeof fmt === 'function' && Number.isFinite(Number(e.amount))) ? fmt(e.amount).replace(/,/g, '') : '';
@@ -13307,7 +13324,15 @@
     // Use the pre-built accountMap if provided (fast path for list renders);
     // fall back to a one-off .find for any caller that didn't pass one.
     const acct = e.accountId ? (accountMap ? accountMap.get(e.accountId) : data.cashAccounts.find(a => a.id === e.accountId)) : null;
-    const acctChip = acct ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>` : '';
+    // v89.84: deleted-account fallback. If the account record is gone but the
+    // entry retained its name (e.account), show a non-clickable chip marked
+    // "(deleted)" so the account stays visible — matching how a deleted party's
+    // name still shows. No onclick: the account no longer exists to filter by.
+    const acctChip = acct
+      ? `<span class="entry-cat entry-cat-click entry-acct-chip" onclick="event.stopPropagation();entryChipMenu(event,'account','${jsAttr(acct.id)}','${jsAttr(acct.name)}')">${escapeHtml(acct.name)}</span>`
+      : (e.account
+          ? `<span class="entry-cat entry-acct-chip" style="opacity:0.7;" title="This account was deleted">${escapeHtml(e.account)} <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-mute);">(deleted)</span></span>`
+          : '');
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
         <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile}</div>
@@ -23267,7 +23292,7 @@
       ['Amount',     `<span style="font-family:var(--font-mono);font-size:1.05rem;font-weight:600;color:${amountColor};">${sign} ${cur} ${fmt(Math.abs(Number(e.amount) || 0))}</span>`],
       ['Type',       escapeHtml(typeLabel)],
       [e.type === 'in' ? 'From' : 'To', escapeHtml(partyName)],
-      ['Account',    escapeHtml(acctName)],
+      ['Account',    escapeHtml(acctName) + ((!acct && e.account) ? ' <span style="color:var(--ink-mute);font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-left:0.4rem;">(deleted)</span>' : '')],
       ['Category',   escapeHtml(e.category || '—')],
       ['Date',       escapeHtml(fmtDate(e.date)) + (backdated ? ' <span style="color:var(--accent-readable);font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;margin-left:0.4rem;">Backdated</span>' : '')],
       ['Note',       e.note ? escapeHtml(e.note) : '<span style="color:var(--ink-mute);">—</span>'],
@@ -23686,6 +23711,7 @@
       e.party = partyText;
       e.partyId = partyId || undefined;
       e.accountId = accountId || undefined;
+      e.account = accountRecord ? accountRecord.name : undefined; // v89.84: keep name snapshot in sync
       e.category = catValue;
       e.note = note;
       e.editedAt = Date.now();
@@ -23730,6 +23756,12 @@
         type: document.getElementById('mType').value, amount: amt, date: newDate,
         party: partyText, partyId: partyId || undefined,
         accountId: accountId || undefined,
+        // v89.84: snapshot the account NAME onto the entry (like party above).
+        // Entries previously stored only accountId, resolved live — so deleting
+        // an account made its name vanish from the entry's display AND search,
+        // unlike party/category/member names which are retained as text. Storing
+        // the name here keeps a deleted account visible and searchable.
+        account: accountRecord ? accountRecord.name : undefined,
         category: catValue,
         note,
         // v80: invoice-style number assigned per (book, month). Resets
@@ -24592,6 +24624,7 @@
       type: 'out', amount: amt, date,
       party: '', partyId: undefined,
       accountId: fromId,
+      account: fromAcc ? fromAcc.name : undefined, // v89.84: name snapshot
       category: '',
       note: `${baseDesc} (transfer out)`,
       transferId,
@@ -24602,6 +24635,7 @@
       type: 'in', amount: amt, date,
       party: '', partyId: undefined,
       accountId: toId,
+      account: toAcc ? toAcc.name : undefined, // v89.84: name snapshot
       category: '',
       note: `${baseDesc} (transfer in)`,
       transferId,
@@ -24615,6 +24649,7 @@
         type: 'out', amount: fee, date,
         party: '', partyId: undefined,
         accountId: fromId,
+        account: fromAcc ? fromAcc.name : undefined, // v89.84: name snapshot
         category: '',
         note: `${baseDesc} — transfer fee`,
         transferId,
@@ -26671,7 +26706,7 @@
       ? `<div class="empty"><div class="empty-headline">No entries by ${escapeHtml(memberName)} in ${escapeHtml(periodLabel)}.</div></div>`
       : entries.map(e => {
           const a = accountMap.get(e.accountId);
-          const acctName = a ? a.name : '—';
+          const acctName = a ? a.name : (e.account ? `${e.account} (deleted)` : '—');
           const noteLine = e.note ? `<div style="font-size:0.8rem;color:var(--ink-soft);margin-top:0.15rem;">${escapeHtml(e.note)}</div>` : '';
           const partyLine = e.party ? `<div style="font-size:0.72rem;color:var(--ink-mute);">${e.type === 'in' ? 'From' : 'To'} ${escapeHtml(e.party)}</div>` : '';
           const dateLine = entryDateLine(e, 'inline');
@@ -26784,7 +26819,7 @@
       e.createdAt ? formatEntryTime(e.createdAt) : '',
       e.type === 'in' ? 'In' : 'Out',
       e.category || '',
-      (accountMap.get(e.accountId)?.name) || '',
+      (accountMap.get(e.accountId)?.name) || e.account || '',
       e.party || '',
       e.note || '',
       Number(e.amount || 0).toFixed(2),
@@ -29798,13 +29833,15 @@
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     for (const e of entriesSorted) {
       const noteHit = (e.note || '').toLowerCase().includes(q);
-      const partyName = e.partyId ? (partyById.get(e.partyId)?.name || '') : '';
+      const partyName = e.partyId ? (partyById.get(e.partyId)?.name || e.party || '') : (e.party || '');
       const partyHit = partyName.toLowerCase().includes(q);
+      const acctNameResolved = (accountById.get(e.accountId)?.name) || e.account || '';
+      const acctHit = acctNameResolved.toLowerCase().includes(q);
       const catHit = (e.category || '').toLowerCase().includes(q);
       const amtHit = String(e.amount || '').includes(q) || fmt(e.amount).toLowerCase().includes(q);
       const dateHit = (e.date || '').toLowerCase().includes(q);
-      if (noteHit || partyHit || catHit || amtHit || dateHit) {
-        out.entries.push({ entry: e, partyName, accountName: accountById.get(e.accountId)?.name || '' });
+      if (noteHit || partyHit || acctHit || catHit || amtHit || dateHit) {
+        out.entries.push({ entry: e, partyName, accountName: acctNameResolved });
       }
       if (out.entries.length >= MAX_PER_GROUP) break;
     }
@@ -32232,7 +32269,7 @@
           e.date || '',
           (e.party || '').slice(0, 32),
           (e.category || '').slice(0, 22),
-          (acct ? acct.name : '').slice(0, 22),
+          (acct ? acct.name : (e.account || '')).slice(0, 22),
           e.type === 'in' ? fmt(Number(e.amount) || 0) : '',
           e.type === 'out' ? fmt(Number(e.amount) || 0) : '',
         ];
@@ -32282,7 +32319,7 @@
           const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
           return [
             e.entryNo ? formatEntryNo(e.entryNo) : '',
-            e.date || '', e.party || '', e.category || '', acct ? acct.name : '',
+            e.date || '', e.party || '', e.category || '', acct ? acct.name : (e.account || ''),
             e.type === 'in' ? (Number(e.amount) || 0).toFixed(2) : '',
             e.type === 'out' ? (Number(e.amount) || 0).toFixed(2) : '',
           ];
@@ -35737,6 +35774,13 @@
           party: r.party || null,
           party_id: r.partyId || null,
           account_id: r.accountId || null,
+          // v89.84: persist the account NAME snapshot alongside account_id, the
+          // same way `party` (name) is stored next to party_id. This keeps a
+          // deleted account's name visible/searchable on the entry across all
+          // devices. REQUIRES the app_entries.account text column (migration
+          // v89.84_app_entries_account.sql). If that column is missing this
+          // write will be rejected — run the migration BEFORE deploying.
+          account: r.account || null,
           category: r.category || null,
           note: r.note || null,
           created_by: r.createdBy || null,
@@ -35774,6 +35818,14 @@
         date: r.entry_date,
         party: r.party || '', partyId: r.party_id || undefined,
         accountId: r.account_id || undefined,
+        // v89.84: account name snapshot. Round-trips through the app_entries
+        // `account` column (migration v89.84_app_entries_account.sql). A pull
+        // treats the cloud row as authoritative for entries the cloud already
+        // has, so this value comes straight from r.account. The migration MUST
+        // be applied before deploy: without the column, r.account is undefined
+        // and the locally-backfilled name is dropped on the next pull. With the
+        // migration in place the round-trip is intact across all devices.
+        account: r.account || undefined,
         category: r.category || '',
         note: r.note || '',
         transferId: r.transfer_id || undefined,
