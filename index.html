@@ -33868,7 +33868,20 @@
               'transfers', 'books'].includes(localKey);
     }
     if (role === 'staff') {
-      return ['entries', 'auditExpenses'].includes(localKey);
+      // v89.83: 'parties' added. The app lets staff create parties (the New
+      // Party UI is available to them and the party saves locally), and the
+      // DB RLS policy on app_parties INSERT is can_write_business(business_id)
+      // — identical to app_entries, which staff can already write. But this
+      // client-side gate was omitting 'parties', so every staff-created party
+      // was silently dropped from the sync queue: it showed in the staff
+      // member's own list, never reached the cloud, and never appeared for the
+      // owner or other devices — while the "added a party" activity-log row
+      // (a direct insert that bypasses this queue) still synced, which is why
+      // the owner saw the action but not the party. Bringing the client gate
+      // in line with the DB policy fixes it. Other tables (categories,
+      // cashAccounts, …) are intentionally NOT added here without confirming
+      // their RLS policies also permit staff writes.
+      return ['entries', 'auditExpenses', 'parties'].includes(localKey);
     }
     return false; // viewer / unknown — read-only
   }
