@@ -13296,7 +13296,7 @@
     // (helper applies a 5s threshold to ignore same-session re-saves).
     const editedAtLabel = entryEditedLabel(e);
     const editedBadge = editedAtLabel
-      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}">edited ${escapeHtml(editedAtLabel)}</span>`
+      ? `<span class="entry-edited-badge" title="Last edited ${escapeHtml(new Date(e.editedAt).toLocaleString())}${e.editedByName ? ' by ' + escapeHtml(e.editedByName) : ''}">edited ${escapeHtml(editedAtLabel)}${e.editedByName ? ' by ' + escapeHtml(e.editedByName) : ''}</span>`
       : '';
     // v56: color-coded backgrounds for at-a-glance scanning.
     //   .entry-row-edited   — entry was edited after creation (yellow tint)
@@ -20502,6 +20502,24 @@
                   aria-label="Delete this activity entry"
                   onclick="deleteActivityLogRow('${safeRowId}')">×</button>`
         : '';
+      // v89.85: Restore button. Shown when this audit row carries a structured
+      // snapshot — metadata.prev (edit) or metadata.deleted (delete) — and the
+      // viewer can manage the business. Edits made before v89.85 have no
+      // snapshot, so no button appears for them (honest: we can't restore what
+      // wasn't captured).
+      // v89.85: metadata may arrive as a parsed object OR a JSON string
+      // depending on the supabase-js / PostgREST config. Normalise before use,
+      // otherwise property access silently fails and the button never shows.
+      let _meta = r.metadata || {};
+      if (typeof _meta === 'string') { try { _meta = JSON.parse(_meta); } catch (_) { _meta = {}; } }
+      const _canRestore = _isOwner && (
+        (r.event_type === 'entry_edited' && _meta.prev) ||
+        (r.event_type === 'entry_deleted' && _meta.deleted)
+      );
+      const _restoreBtn = _canRestore
+        ? `<button class="btn btn-sm btn-ghost" style="margin-left:0.5rem;"
+                  onclick="restoreFromActivity('${safeRowId}')">Restore</button>`
+        : '';
       return `
         <div class="activity-row" data-activity-row-id="${safeRowId}">
           <div class="activity-row-avatar">${escapeHtml(initials)}</div>
@@ -20511,12 +20529,97 @@
               ${verb}
               <span class="activity-row-when" title="${escapeHtml(whenAbsolute)}">${escapeHtml(when)}</span>
             </div>
-            <div class="activity-row-desc">${escapeHtml(r.description || '(no details)')}</div>
+            <div class="activity-row-desc">${escapeHtml(r.description || '(no details)')}${_restoreBtn}</div>
           </div>
           ${_delBtn}
         </div>`;
     }).join('');
     el.innerHTML = html;
+  }
+
+  // v89.85: Restore an entry from the activity log. Two cases:
+  //  - entry_edited: apply metadata.prev field values back onto the existing
+  //    entry (an undo of that edit). If the entry was since deleted, fall back
+  //    to recreating it from prev.
+  //  - entry_deleted: recreate the entry from metadata.deleted (full snapshot).
+  // Owner-gated (the activity view and its restore button already are). The
+  // restore itself is logged as a normal edit/create so the trail stays honest.
+  async function restoreFromActivity(rowId) {
+    if (!rowId) return;
+    const biz = data.businesses.find(b => b.id === session.activeBizId);
+    if (!biz || roleFor(biz.id) !== 'owner') { toast('Only the owner can restore.'); return; }
+    const row = (__activityFilterRows || []).find(r => r.id === rowId);
+    if (!row) { toast('Activity row not found.'); return; }
+    let meta = row.metadata || {};
+    if (typeof meta === 'string') { try { meta = JSON.parse(meta); } catch (_) { meta = {}; } }
+
+    if (row.event_type === 'entry_edited' && meta.prev) {
+      const e = data.entries.find(x => x.id === meta.entry_id);
+      if (!e) {
+        // Entry was deleted after this edit — recreate from prev snapshot.
+        if (!(await uiConfirm('That entry no longer exists. Recreate it from this snapshot?', { confirmLabel: 'Recreate' }))) return;
+        const p = meta.prev;
+        const book = data.books.find(b => b.id === (meta.book_id || session.activeBookId));
+        if (!book) { toast('Original book not found.'); return; }
+        const u = me();
+        const re = {
+          id: meta.entry_id || uid(), bookId: book.id,
+          type: p.type, amount: p.amount, date: p.date,
+          party: p.party || '', partyId: p.partyId || undefined,
+          accountId: p.accountId || undefined, account: p.account || undefined,
+          category: p.category || '', note: p.note || '',
+          entryNo: nextEntryNoFor(book.id, p.date),
+          createdAt: Date.now(), createdBy: u.id, createdByName: u.name,
+        };
+        data.entries.push(re);
+        saveData(); renderAll();
+        toast('Entry recreated.');
+        return;
+      }
+      if (!(await uiConfirm('Restore this entry to its state before that edit?', { confirmLabel: 'Restore' }))) return;
+      const p = meta.prev;
+      e.type = p.type; e.amount = p.amount; e.date = p.date;
+      e.party = p.party || ''; e.partyId = p.partyId || undefined;
+      e.accountId = p.accountId || undefined; e.account = p.account || undefined;
+      e.category = p.category || ''; e.note = p.note || '';
+      const u = me();
+      e.editedAt = Date.now(); e.editedBy = u.id; e.editedByName = u.name;
+      const book = data.books.find(b => b.id === e.bookId);
+      const bizId = book ? book.businessId : null;
+      if (bizId) {
+        logAuditEvent('entry_edited', `Restored to a previous version`,
+          { entry_id: e.id, book_id: e.bookId }, bizId).catch(() => {});
+      }
+      saveData(); renderAll();
+      toast('Entry restored.');
+      return;
+    }
+
+    if (row.event_type === 'entry_deleted' && meta.deleted) {
+      const d = meta.deleted;
+      if (data.entries.some(x => x.id === d.id)) { toast('That entry already exists.'); return; }
+      const book = data.books.find(b => b.id === d.bookId);
+      if (!book) { toast('Original book not found — cannot restore.'); return; }
+      if (!(await uiConfirm('Restore this deleted entry?', { confirmLabel: 'Restore' }))) return;
+      data.entries.push({
+        id: d.id, bookId: d.bookId, type: d.type, amount: d.amount, date: d.date,
+        party: d.party || '', partyId: d.partyId || undefined,
+        accountId: d.accountId || undefined, account: d.account || undefined,
+        category: d.category || '', note: d.note || '',
+        entryNo: d.entryNo || nextEntryNoFor(d.bookId, d.date),
+        createdAt: d.createdAt || Date.now(), createdBy: d.createdBy, createdByName: d.createdByName,
+      });
+      const bizId = book.businessId;
+      if (bizId) {
+        logAuditEvent('entry_edited', `Restored a deleted entry`,
+          { entry_id: d.id, book_id: d.bookId }, bizId).catch(() => {});
+      }
+      saveData(); renderAll();
+      toast('Entry restored.');
+      return;
+    }
+
+    toast('Nothing to restore from this row.');
   }
 
   // Delete a single activity row. Owner-only (the activity view itself
@@ -21394,7 +21497,17 @@
     const bizId = book ? book.businessId : null;
     if (bizId) {
       const desc = formatEntryAudit(entry);
-      logAuditEvent('entry_deleted', desc, { entry_id: entry.id, book_id: entry.bookId }, bizId);
+      // v89.85: snapshot the FULL entry so it can be restored from the activity
+      // log. Unlike edit (which restores prior field values onto the existing
+      // row), a deleted entry must be recreated wholesale, so we keep id too.
+      const _deletedSnapshot = {
+        id: entry.id, bookId: entry.bookId, type: entry.type, amount: entry.amount,
+        date: entry.date, party: entry.party, partyId: entry.partyId,
+        accountId: entry.accountId, account: entry.account, category: entry.category,
+        note: entry.note, entryNo: entry.entryNo,
+        createdAt: entry.createdAt, createdBy: entry.createdBy, createdByName: entry.createdByName,
+      };
+      logAuditEvent('entry_deleted', desc, { entry_id: entry.id, book_id: entry.bookId, deleted: _deletedSnapshot }, bizId);
     }
     data.entries = data.entries.filter(e => e.id !== id);
     saveData(); renderAll();
@@ -23669,6 +23782,17 @@
       // v60: snapshot the entry as it stood pre-edit so we can describe
       // what changed for the business activity log.
       const before = formatEntryAudit(e);
+      // v89.85: structured snapshot of the entry's restorable fields BEFORE the
+      // edit overwrites them. Stored in the audit metadata so a later "Restore"
+      // can rebuild the exact prior state. Only fields that define the entry are
+      // captured; ids/timestamps are intentionally excluded (the entry id is
+      // carried separately as entry_id).
+      const _prevSnapshot = {
+        type: e.type, amount: e.amount, date: e.date,
+        party: e.party, partyId: e.partyId,
+        accountId: e.accountId, account: e.account,
+        category: e.category, note: e.note,
+      };
       const prevMonth = (e.date || '').slice(0, 7);
       // v81: capture ALL form values BEFORE we potentially show a
       // confirm modal that will replace the form DOM. Without this,
@@ -23716,6 +23840,7 @@
       e.note = note;
       e.editedAt = Date.now();
       e.editedBy = u.id;
+      e.editedByName = u.name; // v89.85: was missing — row/detail showed stale or no editor name
       if (prevMonth !== newMonth) {
         // User already confirmed above. Renumber and log it.
         const oldNo = e.entryNo;
@@ -23743,7 +23868,7 @@
           logAuditEvent(
             'entry_edited',
             `Before: ${before}  →  After: ${after}`,
-            { entry_id: e.id, book_id: e.bookId },
+            { entry_id: e.id, book_id: e.bookId, prev: _prevSnapshot }, // v89.85: prev enables Restore
             bizId
           );
         }
