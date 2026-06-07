@@ -617,6 +617,33 @@
     }
   }
 
+  /* v89.87: mobile tap-target minimums. Touch-only (inside hover:none) so
+     desktop density is unchanged. Apple HIG wants >=44px, Android >=48px;
+     several icon buttons were ~30-34px or smaller. We grow the tappable box
+     (min-height/min-width + grid centering) while the icon/SVG inside keeps
+     its existing visual size — bigger hit area, same look. */
+  @media (hover: none) {
+    .icon-btn,
+    .icon-btn-light,
+    .chip-x,
+    .btn-sm,
+    .staff-row-actions .btn,
+    .btn-icon-print-chart {
+      min-height: 44px;
+      min-width: 44px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    /* Steppers / small square icon buttons: keep them square at 44. */
+    .rate-edit-row .icon-btn-light,
+    .btn-icon-add-more,
+    .btn-icon-save {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
   /* v89.21: print-chart styles. When the user clicks a chart's
      print icon, we clone the chart card into a #print-chart-overlay
      div in <body>. The @media print rules below hide everything else
@@ -1998,14 +2025,14 @@
     color: var(--sidebar-text-faint); margin-bottom: 0.5rem; padding-left: 0.4rem;
     display: flex; justify-content: space-between; align-items: center; font-weight: 600;
   }
-  .invite-pill { background: var(--accent); color: #ffffff; font-size: 0.55rem; padding: 0.12rem 0.4rem; font-weight: 700; letter-spacing: 0.05em; border-radius: var(--r-sm); }
+  .invite-pill { background: var(--accent); color: #ffffff; font-size: 0.625rem; padding: 0.12rem 0.4rem; font-weight: 700; letter-spacing: 0.05em; border-radius: var(--r-sm); }
   .business-switcher, .book-list { display: flex; flex-direction: column; gap: 0.1rem; }
   .biz-item, .book-item { display: flex; align-items: center; justify-content: space-between; cursor: pointer; transition: all 0.12s; gap: 0.4rem; color: var(--sidebar-text-mute); border-radius: var(--r-sm); }
   .biz-item { padding: 0.5rem 0.65rem; font-size: 0.82rem; border-left: 2px solid transparent; }
   .biz-item:hover { color: var(--sidebar-text); background: var(--sidebar-hover); }
   .biz-item.active { color: var(--sidebar-text); background: var(--sidebar-active); border-left-color: var(--accent-soft); font-weight: 500; }
   .biz-item > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
-  .biz-item .biz-role { font-size: 0.56rem; color: var(--sidebar-text-faint); text-transform: uppercase; letter-spacing: 0.09em; flex-shrink: 0; }
+  .biz-item .biz-role { font-size: 0.625rem; color: var(--sidebar-text-faint); text-transform: uppercase; letter-spacing: 0.09em; flex-shrink: 0; }
   .biz-item-right { display: inline-flex; align-items: center; gap: 0.35rem; flex-shrink: 0; }
   .biz-gear { background: transparent; border: none; color: var(--sidebar-text-faint); cursor: pointer; padding: 0.18rem; display: inline-grid; place-items: center; opacity: 0; transition: all 0.12s; border-radius: var(--r-sm); }
   .biz-item:hover .biz-gear, .biz-item.active .biz-gear { opacity: 0.6; }
@@ -2821,7 +2848,7 @@
   .entry-note { font-size: 0.85rem; color: var(--ink); margin-bottom: 0.15rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .entry-party { font-size: 0.74rem; color: var(--ink-soft); display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; cursor: pointer; min-width: 0; }
   .entry-party:hover .entry-party-name { text-decoration: underline; }
-  .entry-party-tag { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-mute); font-weight: 600; flex-shrink: 0; }
+  .entry-party-tag { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-mute); font-weight: 600; flex-shrink: 0; }
   /* Long party names (e.g. "Hari Wholesale Trading Pvt. Ltd.") used
      to overflow the From/To column and spill into the Amount column
      on tablet/small-laptop widths. Constrain the name to the
@@ -3013,7 +3040,7 @@
   .announcement.announcement-important .announcement-author { color: var(--loss); }
   .announcement-important-tag {
     display: inline-block; background: var(--loss); color: var(--paper);
-    font-size: 0.58rem; font-weight: 700; letter-spacing: 0.08em;
+    font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em;
     padding: 0.1rem 0.45rem; border-radius: 999px;
     text-transform: uppercase;
   }
@@ -3052,7 +3079,7 @@
   }
   .announcement-new-tag {
     display: inline-block; background: var(--accent); color: var(--paper);
-    font-size: 0.55rem; font-weight: 700; letter-spacing: 0.1em;
+    font-size: 0.625rem; font-weight: 700; letter-spacing: 0.1em;
     padding: 0.1rem 0.45rem; border-radius: 999px;
     text-transform: uppercase;
   }
@@ -3435,7 +3462,7 @@
   .split-calc-title { font-family: var(--font-serif); font-size: 1rem; font-weight: 600; color: var(--ink); }
   .split-calc-sub { font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.1rem; }
   .split-calc-pct-row { display: grid; grid-template-columns: 90px 1fr; gap: 0.85rem; align-items: start; }
-  .split-calc-pct-input label { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; display: block; margin-bottom: 0.25rem; text-align: center; }
+  .split-calc-pct-input label { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 600; display: block; margin-bottom: 0.25rem; text-align: center; }
   .split-calc-pct-input input { width: 100%; padding: 0.55rem 0.65rem; font-size: 1.05rem; font-family: var(--font-mono); text-align: right; font-variant-numeric: tabular-nums; }
   .split-calc-pct-results { display: flex; flex-direction: column; gap: 0.35rem; }
   .split-calc-result { display: flex; align-items: baseline; justify-content: space-between; gap: 0.6rem; padding: 0.35rem 0.55rem; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); }
@@ -4308,7 +4335,7 @@
     border-radius: var(--r); padding: 0.75rem 0.85rem;
   }
   .forecast-insight-label {
-    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.13em;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.13em;
     color: var(--ink-mute); font-weight: 600;
   }
   .forecast-insight-value {
@@ -4394,7 +4421,7 @@
     display: flex; flex-direction: column; gap: 0.2rem; min-width: 0;
   }
   .forecast-day-stat-label {
-    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.1em;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.1em;
     color: var(--ink-mute); font-weight: 600;
   }
   .forecast-day-stat-val {
@@ -4678,7 +4705,7 @@
   }
   .forecast-row-pace { align-items: flex-end; text-align: right; }
   .forecast-row-tag {
-    font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.12em;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.12em;
     color: var(--ink-mute); font-weight: 600;
   }
   .forecast-row-val {
@@ -4835,7 +4862,7 @@
     border-radius: var(--r); padding: 0.7rem 0.85rem;
   }
   .insights-biggest-label {
-    font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.12em;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.12em;
     color: var(--ink-mute); font-weight: 600; margin-bottom: 0.3rem;
   }
   .insights-biggest-value {
@@ -5106,7 +5133,7 @@
   .insights-monthly-now {
     display: inline-block; padding: 0.05rem 0.4rem;
     background: var(--accent); color: var(--paper);
-    font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.08em;
+    font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.08em;
     font-weight: 600; border-radius: 999px; vertical-align: 2px; margin-left: 0.4rem;
   }
   .insights-monthly-row {
@@ -5150,7 +5177,7 @@
     border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   }
   .insights-dow-today {
-    font-size: 0.5rem; font-weight: 700; color: var(--accent-readable);
+    font-size: 0.625rem; font-weight: 700; color: var(--accent-readable);
     background: color-mix(in srgb, var(--accent) 16%, transparent);
     padding: 0.02rem 0.25rem; border-radius: 999px; letter-spacing: 0.04em;
     vertical-align: middle;
@@ -5186,7 +5213,7 @@
   }
   .insights-dow-stat-val.neg { color: var(--loss); }
   .insights-dow-sub {
-    font-size: 0.58rem; color: var(--ink-mute); margin-top: 0.25rem;
+    font-size: 0.625rem; color: var(--ink-mute); margin-top: 0.25rem;
   }
   /* Legend bar above the grid, showing what each color means. */
   .insights-dow-legend {
@@ -5302,7 +5329,7 @@
     .insights-mini-kpi { padding: 0.45rem 0.55rem; }
     .insights-mini-kpi-label { font-size: 0.6rem; }
     .insights-mini-kpi-value { font-size: 0.95rem; }
-    .insights-mini-kpi-sub { font-size: 0.58rem; }
+    .insights-mini-kpi-sub { font-size: 0.625rem; }
     .insights-biggest-card { padding: 0.55rem 0.65rem; }
     .insights-biggest-label { font-size: 0.62rem; }
     .insights-biggest-value { font-size: 0.88rem; }
@@ -5314,9 +5341,9 @@
     .insights-dow-grid { gap: 0.25rem; }
     .insights-dow-cell { padding: 0.4rem 0.2rem 0.35rem; }
     .insights-dow-bar-wrap { width: 14px; height: 55px; }
-    .insights-dow-label { font-size: 0.55rem; }
-    .insights-dow-val { font-size: 0.55rem; }
-    .insights-dow-sub { font-size: 0.5rem; }
+    .insights-dow-label { font-size: 0.625rem; }
+    .insights-dow-val { font-size: 0.625rem; }
+    .insights-dow-sub { font-size: 0.625rem; }
     .insights-top10-row {
       grid-template-columns: 24px minmax(0, 1fr) 90px;
       gap: 0.3rem;
@@ -5378,7 +5405,7 @@
     .party-cat-stats { grid-column: 1 / span 2; grid-row: 2; justify-content: flex-start; gap: 0.65rem; }
     .party-cat-in, .party-cat-out, .party-cat-net { min-width: 0; }
   }
-  .acct-hidden-badge { display: inline-block; font-size: 0.55rem; padding: 0.05rem 0.4rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; vertical-align: middle; margin-left: 0.35rem; }
+  .acct-hidden-badge { display: inline-block; font-size: 0.625rem; padding: 0.05rem 0.4rem; background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r-sm); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; vertical-align: middle; margin-left: 0.35rem; }
   .account-group.account-group-hidden { margin-top: 1.5rem; padding-top: 0.5rem; border-top: 1px dashed var(--line); opacity: 0.85; }
   .account-group.account-group-hidden .account-group-head { color: var(--ink-mute); border-bottom-color: var(--line-soft); }
   .account-group.account-group-hidden .account-group-icon { opacity: 0.6; }
@@ -5541,7 +5568,7 @@
   .audit-month-acct-name { color: var(--ink); font-size: 0.88rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 100px; }
   .audit-month-acct-stats { display: inline-flex; gap: 0.85rem; flex-shrink: 0; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 0.82rem; flex-wrap: wrap; }
   .audit-month-acct-stat { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 0.05rem; min-width: 78px; text-align: right; }
-  .audit-month-acct-stat-label { font-family: var(--font-sans); font-size: 0.55rem; font-weight: 600; letter-spacing: 0.13em; color: var(--ink-mute); text-transform: uppercase; }
+  .audit-month-acct-stat-label { font-family: var(--font-sans); font-size: 0.625rem; font-weight: 600; letter-spacing: 0.13em; color: var(--ink-mute); text-transform: uppercase; }
   .audit-month-acct-stat.in { color: var(--gain); }
   .audit-month-acct-stat.out { color: var(--loss); }
   .audit-month-acct-stat.net { font-weight: 600; }
@@ -5761,7 +5788,7 @@
     align-items: center;
     padding: 0.04rem 0.34rem;
     font-family: var(--font-sans);
-    font-size: 0.56rem;
+    font-size: 0.625rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -5830,7 +5857,7 @@
      by default. Big Rs values would push the second column off-row.
      Force min-width:0 + truncation so values stay in their lane. */
   .party-card-stats > div { min-width: 0; }
-  .party-card-stat-label { font-size: 0.55rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); margin-bottom: 0.1rem; font-weight: 600; }
+  .party-card-stat-label { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.11em; color: var(--ink-mute); margin-bottom: 0.1rem; font-weight: 600; }
   .party-card-stat-val { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .party-card-stat-val.in { color: var(--gain); }
   .party-card-stat-val.out { color: var(--loss); }
@@ -6331,7 +6358,7 @@
   .chip-x { background: transparent; border: none; cursor: pointer; color: var(--ink-mute); padding: 0; display: inline-flex; }
   .chip-x:hover { color: var(--loss); }
   .chip-empty { font-size: 0.8rem; color: var(--ink-mute);  }
-  .cat-orphan-tag { font-size: 0.55rem; padding: 0.1rem 0.4rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; vertical-align: middle; font-style: normal; font-family: var(--font-sans); }
+  .cat-orphan-tag { font-size: 0.625rem; padding: 0.1rem 0.4rem; background: var(--paper-deep); border: 1px solid var(--line); color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; vertical-align: middle; font-style: normal; font-family: var(--font-sans); }
 
   .totals-hidden-note {
     display: flex; align-items: center; gap: 0.55rem;
@@ -6642,7 +6669,7 @@
     .audit-month-current { font-size: 0.92rem; }
     .audit-month-acct-stats { gap: 0.6rem; font-size: 0.72rem; }
     .audit-month-acct-stat { min-width: 62px; }
-    .audit-month-acct-stat-label { font-size: 0.5rem; letter-spacing: 0.1em; }
+    .audit-month-acct-stat-label { font-size: 0.625rem; letter-spacing: 0.1em; }
     /* Account group head on narrow screens: drop the balance + actions
        onto a second row so they don't fight for space with the group
        title. The flex-wrap on the parent already handles wrapping; this
@@ -6651,7 +6678,7 @@
     .account-group-balance { flex: 0 1 auto; font-size: 0.82rem; padding: 0.18rem 0.45rem; }
     .audit-month-totals { gap: 0.4rem; }
     .audit-month-totals-card { padding: 0.55rem 0.6rem; }
-    .audit-month-totals-label { font-size: 0.55rem; letter-spacing: 0.1em; }
+    .audit-month-totals-label { font-size: 0.625rem; letter-spacing: 0.1em; }
     .audit-month-totals-value { font-size: 0.85rem; margin-top: 0.2rem; word-break: break-word; }
     .audit-section-head-row { flex-direction: column; align-items: stretch; gap: 0.4rem; }
     .audit-section-head-row button { align-self: flex-start; }
@@ -6685,7 +6712,7 @@
     .stat-balance-mobile .stat-meta { color: var(--sidebar-text-mute); }
     .stat-balance-mobile::before { background: var(--accent); height: 3px; }
     .stat-value { font-size: 1rem; }
-    .stat-label { font-size: 0.58rem; }
+    .stat-label { font-size: 0.625rem; }
 
     .toolbar { gap: 0.35rem; }
     .toolbar select { width: auto; min-width: 80px; }
@@ -6814,7 +6841,7 @@
     .form-grid { gap: 0.5rem; }
     .form-row { grid-template-columns: 1fr; gap: 0.5rem; }
     .input-wrap label {
-      font-size: 0.55rem;
+      font-size: 0.625rem;
       top: -0.35rem;
       padding: 0 0.28rem;
     }
@@ -6864,7 +6891,7 @@
     .stat { padding: 0.55rem 0.7rem; }
     .stat-value { font-size: 0.95rem; }
     .stat-balance-mobile .stat-value { font-size: 1.35rem; }
-    .stat-label { font-size: 0.55rem; }
+    .stat-label { font-size: 0.625rem; }
     .stat-meta { font-size: 0.6rem; }
     .toolbar { padding: 0.35rem; margin-bottom: 0.45rem; gap: 0.3rem; }
     .toolbar input, .toolbar select { font-size: 0.78rem; padding: 0.42rem 0.55rem; }
@@ -6876,7 +6903,7 @@
     .toolbar .search-wrap input { padding-left: 1.95rem; }
     .entries-period-label { padding: 0.35rem 0.75rem 0.25rem; font-size: 0.62rem; letter-spacing: 0.1em; }
     .entry-row { padding: 0.55rem 0.7rem; margin-bottom: 0.3rem; }
-    .entry-row .entry-date { font-size: 0.58rem; margin-bottom: 0.22rem; }
+    .entry-row .entry-date { font-size: 0.625rem; margin-bottom: 0.22rem; }
     .entry-row .entry-note { font-size: 0.82rem; }
     .entry-row .entry-party { font-size: 0.68rem; margin-top: 0.12rem; }
     .entry-row .entry-amount { font-size: 0.86rem; top: 0.5rem; right: 0.6rem; }
@@ -6896,7 +6923,7 @@
     .party-card { padding: 0.7rem 0.85rem; }
     .party-card-name { font-size: 0.92rem; }
     .party-card-meta { font-size: 0.7rem; }
-    .party-card-stat-label { font-size: 0.55rem; }
+    .party-card-stat-label { font-size: 0.625rem; }
     .party-card-stat-val { font-size: 0.85rem; }
     .party-card-net { font-size: 0.78rem; }
   }
@@ -19456,6 +19483,25 @@
       if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
     }
     const _dailyMonthName = new Date(_yy, _mm - 1, 1).toLocaleString('default', { month: 'long' });
+    // v89.88: last month's per-day data, for the dashed cumulative overlay on
+    // the net profit chart. Uniquely-named (_lm*) to avoid clashing with other
+    // last-month vars elsewhere in this large function.
+    const _lmDate = new Date(_yy, _mm - 1, 1); _lmDate.setMonth(_lmDate.getMonth() - 1);
+    const _lmYY = _lmDate.getFullYear(), _lmMM = _lmDate.getMonth() + 1;
+    const _lmKeyStr = `${_lmYY}-${String(_lmMM).padStart(2, '0')}`;
+    const _lmDaysInMonth = new Date(_lmYY, _lmMM, 0).getDate();
+    const _lmMonthName = new Date(_lmYY, _lmMM - 1, 1).toLocaleString('default', { month: 'long' });
+    const _lmByDay = new Map();
+    let _lmHasData = false;
+    for (const e of allEntries) {
+      if (!e.date || e.date.slice(0, 7) !== _lmKeyStr) continue;
+      const d = Number(e.date.slice(8, 10));
+      let bucket = _lmByDay.get(d);
+      if (!bucket) { bucket = { in: 0, out: 0 }; _lmByDay.set(d, bucket); }
+      const amt = entryAmount(e);
+      if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
+      _lmHasData = true;
+    }
     const _chartW = 800, _chartH = 280;
     const _padL = 50, _padR = 15, _padT = 20, _padB = 38;
     const _innerW = _chartW - _padL - _padR;
@@ -19520,74 +19566,66 @@
       _dailyYLabels.push(`<line class="fc-grid" x1="${_padL}" y1="${y.toFixed(1)}" x2="${_chartW - _padR}" y2="${y.toFixed(1)}" />`);
       _dailyYLabels.push(`<text class="fc-ylabel" x="${_padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end">${fmt(val)}</text>`);
     }
-    // v68: Daily Net Profit bar chart — single bar per day showing net
-    // cash flow (in − out). Profit days render green above the zero
-    // line, loss days render red below. Same month and clickable
-    // bars as the cash flow chart, just collapsed to a net view so
-    // the user can spot trend at a glance.
+    // v89.88: CUMULATIVE net profit. Each point is the running total of net
+    // (in − out) from day 1 through day d, so the line climbs toward the
+    // month's total. Last month's cumulative curve is overlaid as a dashed line
+    // (full month) so you can see whether this month is tracking ahead of or
+    // behind it. This month's line stops at today; last month runs full length.
     const _netH = 220, _netInnerH = _netH - _padT - _padB;
-    let _netMax = 0;
-    for (let d = 1; d <= _daysInMonth; d++) {
-      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
-      const net = b.in - b.out;
-      if (Math.abs(net) > _netMax) _netMax = Math.abs(net);
+    // Build cumulative point arrays for both months.
+    function _buildCum(byDay, daysInMonth, stopDay) {
+      const pts = []; let run = 0;
+      for (let d = 1; d <= daysInMonth; d++) {
+        if (stopDay && d > stopDay) break;
+        const b = byDay.get(d) || { in: 0, out: 0 };
+        run += (b.in - b.out);
+        pts.push({ d, cum: run, hasDay: (b.in > 0 || b.out > 0) });
+      }
+      return pts;
     }
+    const _curCumPts = _buildCum(_mtdByDay, _daysInMonth, _todayDay);
+    const _lmCumPts = _lmHasData ? _buildCum(_lmByDay, _lmDaysInMonth, null) : [];
+    // Shared symmetric y-scale spanning both series and zero.
+    let _netMax = 0;
+    for (const p of _curCumPts) if (Math.abs(p.cum) > _netMax) _netMax = Math.abs(p.cum);
+    for (const p of _lmCumPts) if (Math.abs(p.cum) > _netMax) _netMax = Math.abs(p.cum);
     if (_netMax === 0) _netMax = 1;
     const _netYMax = _niceCeil(_netMax);
     const _netZeroY = _padT + _netInnerH / 2;
     const _netHalfH = _netInnerH / 2;
-    // v72: Daily Net Profit — line chart instead of bars. Each day is
-    // a point; the line connects points so the user can see the trend
-    // shape. Points are clickable for day drill-down. Line goes above
-    // the zero axis for profit days, below for loss days.
-    const _netLinePts = [];
-    for (let d = 1; d <= _daysInMonth; d++) {
-      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
-      const net = b.in - b.out;
-      const xStart = _padL + (d - 1) * _dayWidth + _dayWidth / 2;
-      // Clamp the y so a single huge spike doesn't blow up the chart.
-      const clampedY = _netZeroY - Math.sign(net) * Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
-      _netLinePts.push({
-        d, x: xStart, y: clampedY, net,
-        date: `${_monthKeyStr}-${String(d).padStart(2, '0')}`,
-        hasData: (b.in > 0 || b.out > 0),
-      });
-    }
-    // Build the line path, breaking at days with no data (so we don't
-    // bridge a zero across empty days — keep the line honest).
-    const _netSegments = [];
-    let _curSeg = [];
-    for (const p of _netLinePts) {
-      if (!p.hasData) {
-        if (_curSeg.length) { _netSegments.push(_curSeg); _curSeg = []; }
-        continue;
-      }
-      _curSeg.push(p);
-    }
-    if (_curSeg.length) _netSegments.push(_curSeg);
-    const _netPathSegments = _netSegments
-      .filter(s => s.length >= 2)
-      .map(s => s.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' '))
-      .join(' ');
-    // The line itself — colored green by default; per-segment color
-    // would be overkill; users get the sign cue from the dot color.
-    const _netLine = _netPathSegments
-      ? `<path d="${_netPathSegments}" fill="none" stroke="var(--chart-profit)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
+    const _cumX = (d) => _padL + (d - 1) * _dayWidth + _dayWidth / 2;
+    const _cumY = (v) => _netZeroY - Math.sign(v) * Math.min(_netHalfH, (Math.abs(v) / _netYMax) * _netHalfH);
+    // Last month dashed overlay (drawn first, sits under this month's line).
+    // Plotted on the same day-of-month x-axis; clip to this month's day count.
+    const _lmPathPts = _lmCumPts.filter(p => p.d <= _daysInMonth).map(p => ({ x: _cumX(p.d), y: _cumY(p.cum) }));
+    const _lmPath = _lmPathPts.length >= 2
+      ? _lmPathPts.map((c, i) => (i === 0 ? `M ${c.x.toFixed(1)} ${c.y.toFixed(1)}` : `L ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)).join(' ')
       : '';
-    // Per-day dots — green if profit, red if loss. Each is a clickable
-    // hit area for the day drill-down.
-    const _netDots = _netLinePts.filter(p => p.hasData).map(p => {
-      const _kindType = p.net >= 0 ? 'profit' : 'loss';
-      const _payload = JSON.stringify({ kind: 'day', date: p.date, type: _kindType, value: p.net });
-      const sign = p.net >= 0 ? '+' : '−';
-      const fill = p.net >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
+    const _lmLine = _lmPath
+      ? `<path d="${_lmPath}" fill="none" stroke="var(--ink-mute)" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>`
+      : '';
+    // This month cumulative line (solid), colored by final sign.
+    const _curCoords = _curCumPts.map(p => ({ x: _cumX(p.d), y: _cumY(p.cum), cum: p.cum, d: p.d }));
+    const _curFinal = _curCumPts.length ? _curCumPts[_curCumPts.length - 1].cum : 0;
+    const _curColor = _curFinal >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
+    const _curPath = _curCoords.length >= 2
+      ? _curCoords.map((c, i) => (i === 0 ? `M ${c.x.toFixed(1)} ${c.y.toFixed(1)}` : `L ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)).join(' ')
+      : (_curCoords.length === 1 ? `M ${_curCoords[0].x.toFixed(1)} ${_curCoords[0].y.toFixed(1)} L ${_curCoords[0].x.toFixed(1)} ${_curCoords[0].y.toFixed(1)}` : '');
+    const _netLine = _curPath
+      ? `<path d="${_curPath}" fill="none" stroke="${_curColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`
+      : '';
+    // Clickable dots on this month's line (day drill-down preserved).
+    const _netDots = _curCoords.map(c => {
+      const _payload = JSON.stringify({ kind: 'day', date: `${_monthKeyStr}-${String(c.d).padStart(2, '0')}`, type: 'all', value: c.cum });
+      const sign = c.cum >= 0 ? '+' : '−';
+      const fill = c.cum >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
       return `<g class="line-point" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;">
-        <title>${p.date}: ${sign}${cur} ${fmt(Math.abs(p.net))}</title>
-        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="transparent"/>
-        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${fill}" stroke="var(--paper)" stroke-width="1.2"/>
+        <title>Through ${_monthKeyStr}-${String(c.d).padStart(2, '0')}: ${sign}${cur} ${fmt(Math.abs(c.cum))} cumulative</title>
+        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="9" fill="transparent"/>
+        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.2" fill="${fill}" stroke="var(--paper)" stroke-width="1.1"/>
       </g>`;
     });
-    const _netBars = [_netLine, ..._netDots];
+    const _netBars = [_lmLine, _netLine, ..._netDots];
     const _netXLabels = [];
     for (let d = 1; d <= _daysInMonth; d++) {
       if (d === 1 || d % 5 === 0 || d === _daysInMonth) {
@@ -19629,14 +19667,25 @@
     const dailyNetProfitHTML = `
       <div class="insights-chart-wrap" id="chart-daily-net-profit">
         <div class="insights-chart-head">
-          <h3 class="insights-chart-title">Daily Net Profit Graph <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span> ${chartPrintBtnHTML('chart-daily-net-profit')}</h3>
+          <h3 class="insights-chart-title">Cumulative Net Profit <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span> ${chartPrintBtnHTML('chart-daily-net-profit')}</h3>
           <div class="insights-chart-legend">
-            <span><span class="fc-swatch fc-swatch-current"></span> Profit day</span>
-            <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
+            <span><span class="fc-swatch fc-swatch-current"></span> This month</span>
+            ${_lmHasData ? `<span><span class="fc-swatch" style="background:var(--ink-mute);opacity:0.7;"></span> ${escapeHtml(_lmMonthName)} (last month)</span>` : ''}
           </div>
         </div>
-        <p class="insights-chart-help">Each point is one day's net profit (cash in − cash out for that day). Green dots are profit days, red dots are loss days. Tap any point to see every entry from that day.</p>
-        <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
+        <p class="insights-chart-help">The solid line is this month's running net profit (cash in − cash out, added up day by day). ${_lmHasData ? `The dashed line is ${escapeHtml(_lmMonthName)}'s full run — when your line is above it, you're ahead of last month. ` : ''}Tap any point to see that day's entries.</p>
+        ${(() => {
+          if (!_lmHasData || !_curCumPts.length) return '';
+          // Fair race: this month's cumulative-to-today vs last month at the same day-of-month.
+          const lmAtDay = _lmCumPts.filter(p => p.d <= _todayDay).slice(-1)[0];
+          if (!lmAtDay) return '';
+          const diff = _curFinal - lmAtDay.cum;
+          const cls = diff >= 0 ? 'pos' : 'neg';
+          const sign = diff >= 0 ? '+' : '−';
+          const word = diff >= 0 ? 'ahead of' : 'behind';
+          return `<p class="insights-chart-help" style="margin-top:-0.3rem;"><span class="forecast-pace ${cls}">${sign}${cur} ${fmt(Math.abs(diff))} ${word} last month</span> <span style="color:var(--ink-mute);">at day ${_todayDay}</span></p>`;
+        })()}
+        <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative net profit for ${escapeHtml(_dailyMonthName)}, with ${escapeHtml(_lmMonthName)} overlaid">
           ${_netZeroAxis}
           ${_netBars.join('')}
           ${_netTodayMarker}
