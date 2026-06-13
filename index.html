@@ -591,12 +591,12 @@
     }
   }
 
-  /* v89.24: chart bars/trend dots are visual-only (no tap).
-     The inline style="cursor:pointer;" in some bar elements is
-     overridden here. */
+  /* v89.89: chart bars/trend dots are tappable again (small-box tooltip on
+     click). The v89.24 cursor:default override is removed; pointer cursor
+     signals they're interactive. */
   rect.fc-bar-in, rect.fc-bar-out, rect.bar, rect.bar-in, rect.bar-out,
   [data-chart-detail] {
-    cursor: default !important;
+    cursor: pointer;
   }
 
   /* v89.22: unassigned visual treatment. Parties / categories /
@@ -4660,6 +4660,8 @@
     text-transform: uppercase; letter-spacing: 0.08em;
   }
   .fc-xlabel { fill: var(--ink-mute); font-size: 10px; }
+  .fc-xlabel-dense { font-size: 8px; }
+  .fc-xlabel-today { fill: var(--accent); font-weight: 700; }
   .fc-ylabel { fill: var(--ink-mute); font-size: 9px; }
   /* Breakdown table */
   .forecast-section {
@@ -19483,25 +19485,6 @@
       if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
     }
     const _dailyMonthName = new Date(_yy, _mm - 1, 1).toLocaleString('default', { month: 'long' });
-    // v89.88: last month's per-day data, for the dashed cumulative overlay on
-    // the net profit chart. Uniquely-named (_lm*) to avoid clashing with other
-    // last-month vars elsewhere in this large function.
-    const _lmDate = new Date(_yy, _mm - 1, 1); _lmDate.setMonth(_lmDate.getMonth() - 1);
-    const _lmYY = _lmDate.getFullYear(), _lmMM = _lmDate.getMonth() + 1;
-    const _lmKeyStr = `${_lmYY}-${String(_lmMM).padStart(2, '0')}`;
-    const _lmDaysInMonth = new Date(_lmYY, _lmMM, 0).getDate();
-    const _lmMonthName = new Date(_lmYY, _lmMM - 1, 1).toLocaleString('default', { month: 'long' });
-    const _lmByDay = new Map();
-    let _lmHasData = false;
-    for (const e of allEntries) {
-      if (!e.date || e.date.slice(0, 7) !== _lmKeyStr) continue;
-      const d = Number(e.date.slice(8, 10));
-      let bucket = _lmByDay.get(d);
-      if (!bucket) { bucket = { in: 0, out: 0 }; _lmByDay.set(d, bucket); }
-      const amt = entryAmount(e);
-      if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
-      _lmHasData = true;
-    }
     const _chartW = 800, _chartH = 280;
     const _padL = 50, _padR = 15, _padT = 20, _padB = 38;
     const _innerW = _chartW - _padL - _padR;
@@ -19566,72 +19549,83 @@
       _dailyYLabels.push(`<line class="fc-grid" x1="${_padL}" y1="${y.toFixed(1)}" x2="${_chartW - _padR}" y2="${y.toFixed(1)}" />`);
       _dailyYLabels.push(`<text class="fc-ylabel" x="${_padL - 6}" y="${(y + 4).toFixed(1)}" text-anchor="end">${fmt(val)}</text>`);
     }
-    // v89.88: CUMULATIVE net profit. Each point is the running total of net
-    // (in − out) from day 1 through day d, so the line climbs toward the
-    // month's total. Last month's cumulative curve is overlaid as a dashed line
-    // (full month) so you can see whether this month is tracking ahead of or
-    // behind it. This month's line stops at today; last month runs full length.
+    // v68: Daily Net Profit bar chart — single bar per day showing net
+    // cash flow (in − out). Profit days render green above the zero
+    // line, loss days render red below. Same month and clickable
+    // bars as the cash flow chart, just collapsed to a net view so
+    // the user can spot trend at a glance.
     const _netH = 220, _netInnerH = _netH - _padT - _padB;
-    // Build cumulative point arrays for both months.
-    function _buildCum(byDay, daysInMonth, stopDay) {
-      const pts = []; let run = 0;
-      for (let d = 1; d <= daysInMonth; d++) {
-        if (stopDay && d > stopDay) break;
-        const b = byDay.get(d) || { in: 0, out: 0 };
-        run += (b.in - b.out);
-        pts.push({ d, cum: run, hasDay: (b.in > 0 || b.out > 0) });
-      }
-      return pts;
-    }
-    const _curCumPts = _buildCum(_mtdByDay, _daysInMonth, _todayDay);
-    const _lmCumPts = _lmHasData ? _buildCum(_lmByDay, _lmDaysInMonth, null) : [];
-    // Shared symmetric y-scale spanning both series and zero.
     let _netMax = 0;
-    for (const p of _curCumPts) if (Math.abs(p.cum) > _netMax) _netMax = Math.abs(p.cum);
-    for (const p of _lmCumPts) if (Math.abs(p.cum) > _netMax) _netMax = Math.abs(p.cum);
+    for (let d = 1; d <= _daysInMonth; d++) {
+      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
+      const net = b.in - b.out;
+      if (Math.abs(net) > _netMax) _netMax = Math.abs(net);
+    }
     if (_netMax === 0) _netMax = 1;
     const _netYMax = _niceCeil(_netMax);
     const _netZeroY = _padT + _netInnerH / 2;
     const _netHalfH = _netInnerH / 2;
-    const _cumX = (d) => _padL + (d - 1) * _dayWidth + _dayWidth / 2;
-    const _cumY = (v) => _netZeroY - Math.sign(v) * Math.min(_netHalfH, (Math.abs(v) / _netYMax) * _netHalfH);
-    // Last month dashed overlay (drawn first, sits under this month's line).
-    // Plotted on the same day-of-month x-axis; clip to this month's day count.
-    const _lmPathPts = _lmCumPts.filter(p => p.d <= _daysInMonth).map(p => ({ x: _cumX(p.d), y: _cumY(p.cum) }));
-    const _lmPath = _lmPathPts.length >= 2
-      ? _lmPathPts.map((c, i) => (i === 0 ? `M ${c.x.toFixed(1)} ${c.y.toFixed(1)}` : `L ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)).join(' ')
+    // v72: Daily Net Profit — line chart instead of bars. Each day is
+    // a point; the line connects points so the user can see the trend
+    // shape. Points are clickable for day drill-down. Line goes above
+    // the zero axis for profit days, below for loss days.
+    const _netLinePts = [];
+    for (let d = 1; d <= _daysInMonth; d++) {
+      const b = _mtdByDay.get(d) || { in: 0, out: 0 };
+      const net = b.in - b.out;
+      const xStart = _padL + (d - 1) * _dayWidth + _dayWidth / 2;
+      // Clamp the y so a single huge spike doesn't blow up the chart.
+      const clampedY = _netZeroY - Math.sign(net) * Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
+      _netLinePts.push({
+        d, x: xStart, y: clampedY, net,
+        date: `${_monthKeyStr}-${String(d).padStart(2, '0')}`,
+        hasData: (b.in > 0 || b.out > 0),
+      });
+    }
+    // Build the line path, breaking at days with no data (so we don't
+    // bridge a zero across empty days — keep the line honest).
+    const _netSegments = [];
+    let _curSeg = [];
+    for (const p of _netLinePts) {
+      if (!p.hasData) {
+        if (_curSeg.length) { _netSegments.push(_curSeg); _curSeg = []; }
+        continue;
+      }
+      _curSeg.push(p);
+    }
+    if (_curSeg.length) _netSegments.push(_curSeg);
+    const _netPathSegments = _netSegments
+      .filter(s => s.length >= 2)
+      .map(s => s.map((p, i) => (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)).join(' '))
+      .join(' ');
+    // The line itself — colored green by default; per-segment color
+    // would be overkill; users get the sign cue from the dot color.
+    const _netLine = _netPathSegments
+      ? `<path d="${_netPathSegments}" fill="none" stroke="var(--chart-profit)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>`
       : '';
-    const _lmLine = _lmPath
-      ? `<path d="${_lmPath}" fill="none" stroke="var(--ink-mute)" stroke-width="1.6" stroke-dasharray="4 4" stroke-linecap="round" stroke-linejoin="round" opacity="0.7"/>`
-      : '';
-    // This month cumulative line (solid), colored by final sign.
-    const _curCoords = _curCumPts.map(p => ({ x: _cumX(p.d), y: _cumY(p.cum), cum: p.cum, d: p.d }));
-    const _curFinal = _curCumPts.length ? _curCumPts[_curCumPts.length - 1].cum : 0;
-    const _curColor = _curFinal >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
-    const _curPath = _curCoords.length >= 2
-      ? _curCoords.map((c, i) => (i === 0 ? `M ${c.x.toFixed(1)} ${c.y.toFixed(1)}` : `L ${c.x.toFixed(1)} ${c.y.toFixed(1)}`)).join(' ')
-      : (_curCoords.length === 1 ? `M ${_curCoords[0].x.toFixed(1)} ${_curCoords[0].y.toFixed(1)} L ${_curCoords[0].x.toFixed(1)} ${_curCoords[0].y.toFixed(1)}` : '');
-    const _netLine = _curPath
-      ? `<path d="${_curPath}" fill="none" stroke="${_curColor}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>`
-      : '';
-    // Clickable dots on this month's line (day drill-down preserved).
-    const _netDots = _curCoords.map(c => {
-      const _payload = JSON.stringify({ kind: 'day', date: `${_monthKeyStr}-${String(c.d).padStart(2, '0')}`, type: 'all', value: c.cum });
-      const sign = c.cum >= 0 ? '+' : '−';
-      const fill = c.cum >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
+    // Per-day dots — green if profit, red if loss. Each is a clickable
+    // hit area for the day drill-down.
+    const _netDots = _netLinePts.filter(p => p.hasData).map(p => {
+      const _kindType = p.net >= 0 ? 'profit' : 'loss';
+      const _payload = JSON.stringify({ kind: 'day', date: p.date, type: _kindType, value: p.net });
+      const sign = p.net >= 0 ? '+' : '−';
+      const fill = p.net >= 0 ? 'var(--chart-profit)' : 'var(--chart-cash-out)';
       return `<g class="line-point" data-chart-detail='${escapeHtml(_payload)}' style="cursor:pointer;">
-        <title>Through ${_monthKeyStr}-${String(c.d).padStart(2, '0')}: ${sign}${cur} ${fmt(Math.abs(c.cum))} cumulative</title>
-        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="9" fill="transparent"/>
-        <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="3.2" fill="${fill}" stroke="var(--paper)" stroke-width="1.1"/>
+        <title>${p.date}: ${sign}${cur} ${fmt(Math.abs(p.net))}</title>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="10" fill="transparent"/>
+        <circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.5" fill="${fill}" stroke="var(--paper)" stroke-width="1.2"/>
       </g>`;
     });
-    const _netBars = [_lmLine, _netLine, ..._netDots];
+    const _netBars = [_netLine, ..._netDots];
     const _netXLabels = [];
     for (let d = 1; d <= _daysInMonth; d++) {
-      if (d === 1 || d % 5 === 0 || d === _daysInMonth) {
-        const x = _padL + (d - 0.5) * _dayWidth;
-        _netXLabels.push(`<text class="fc-xlabel" x="${x.toFixed(1)}" y="${_netH - 18}" text-anchor="middle">${d}</text>`);
-      }
+      // v89.89: show EVERY date (was only 1, multiples of 5, and last). The
+      // chart's internal width gives ~26px per day, enough for 1–2 digit day
+      // numbers at a smaller font. fc-xlabel-dense shrinks them so 28–31 labels
+      // sit without overlap; today's number is emphasised.
+      const x = _padL + (d - 0.5) * _dayWidth;
+      const isToday = (d === _todayDay);
+      _netXLabels.push(`<text class="fc-xlabel fc-xlabel-dense${isToday ? ' fc-xlabel-today' : ''}" x="${x.toFixed(1)}" y="${_netH - 16}" text-anchor="middle">${d}</text>`);
     }
     const _netTodayMarker = `
       <line class="fc-today" x1="${_todayX.toFixed(1)}" y1="${_padT}" x2="${_todayX.toFixed(1)}" y2="${_padT + _netInnerH}" />
@@ -19667,25 +19661,14 @@
     const dailyNetProfitHTML = `
       <div class="insights-chart-wrap" id="chart-daily-net-profit">
         <div class="insights-chart-head">
-          <h3 class="insights-chart-title">Cumulative Net Profit <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span> ${chartPrintBtnHTML('chart-daily-net-profit')}</h3>
+          <h3 class="insights-chart-title">Daily Net Profit Graph <span class="insights-chart-sub">— ${escapeHtml(_dailyMonthName)} ${_yy}</span> ${chartPrintBtnHTML('chart-daily-net-profit')}</h3>
           <div class="insights-chart-legend">
-            <span><span class="fc-swatch fc-swatch-current"></span> This month</span>
-            ${_lmHasData ? `<span><span class="fc-swatch" style="background:var(--ink-mute);opacity:0.7;"></span> ${escapeHtml(_lmMonthName)} (last month)</span>` : ''}
+            <span><span class="fc-swatch fc-swatch-current"></span> Profit day</span>
+            <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
           </div>
         </div>
-        <p class="insights-chart-help">The solid line is this month's running net profit (cash in − cash out, added up day by day). ${_lmHasData ? `The dashed line is ${escapeHtml(_lmMonthName)}'s full run — when your line is above it, you're ahead of last month. ` : ''}Tap any point to see that day's entries.</p>
-        ${(() => {
-          if (!_lmHasData || !_curCumPts.length) return '';
-          // Fair race: this month's cumulative-to-today vs last month at the same day-of-month.
-          const lmAtDay = _lmCumPts.filter(p => p.d <= _todayDay).slice(-1)[0];
-          if (!lmAtDay) return '';
-          const diff = _curFinal - lmAtDay.cum;
-          const cls = diff >= 0 ? 'pos' : 'neg';
-          const sign = diff >= 0 ? '+' : '−';
-          const word = diff >= 0 ? 'ahead of' : 'behind';
-          return `<p class="insights-chart-help" style="margin-top:-0.3rem;"><span class="forecast-pace ${cls}">${sign}${cur} ${fmt(Math.abs(diff))} ${word} last month</span> <span style="color:var(--ink-mute);">at day ${_todayDay}</span></p>`;
-        })()}
-        <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Cumulative net profit for ${escapeHtml(_dailyMonthName)}, with ${escapeHtml(_lmMonthName)} overlaid">
+        <p class="insights-chart-help">Each point is one day's net profit (cash in − cash out for that day). Green dots are profit days, red dots are loss days. Tap any point to see that day's figure.</p>
+        <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
           ${_netZeroAxis}
           ${_netBars.join('')}
           ${_netTodayMarker}
@@ -23494,12 +23477,13 @@
   // The data-chart-detail JSON is still present on every element
   // (used to extract the label/date/value cheaply).
   //
-  // v89.24: DISABLED. Per user request, chart bars and trend lines
-  // are visual-only — no tap interaction, no tooltip. The click
-  // delegate below is now a no-op. Bars also have cursor:pointer
-  // removed via CSS override added below.
+  // v89.89: RE-ENABLED chart tap tooltips. v89.24 had disabled these (a
+  // prior "visual-only" request); the user now wants a small box showing the
+  // value when a trend point or bar is tapped. Clicking any [data-chart-detail]
+  // element shows a compact, auto-hiding tooltip near the tap with the day +
+  // value (read from the element's <title>, which already has the formatted
+  // figure). Lightweight; does not open the full modal.
   document.addEventListener('click', (ev) => {
-    return; // v89.24: chart taps are disabled
     const el = ev.target.closest('[data-chart-detail]');
     if (!el) return;
     const raw = el.getAttribute('data-chart-detail');
