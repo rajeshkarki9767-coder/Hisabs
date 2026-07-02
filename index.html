@@ -10454,9 +10454,14 @@
       const cached = _getAccess(u.id, b.id);
       return !!cached?.role;
     }).sort((a, b) => {
-      // v89.68: order businesses by creation (first created on top). Prefer
-      // createdAt when present; fall back to original array order so the
-      // ordering is stable even for older records without a timestamp.
+      // v89.95: user-defined sort order (bizSortOrder) takes priority.
+      // Falls back to createdAt (first created on top) for businesses
+      // without a manual order set.
+      const aHasOrder = a.bizSortOrder != null;
+      const bHasOrder = b.bizSortOrder != null;
+      if (aHasOrder && bHasOrder) return (a.bizSortOrder || 0) - (b.bizSortOrder || 0);
+      if (aHasOrder) return -1;
+      if (bHasOrder) return 1;
       const ai = data.businesses.indexOf(a), bi = data.businesses.indexOf(b);
       const at = a.createdAt || '', bt = b.createdAt || '';
       if (at && bt && at !== bt) return at < bt ? -1 : 1;
@@ -14241,11 +14246,22 @@
     const count = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === name).length;
     if (!(await uiConfirm(`Remove "${name}" from the category list? ${count} entries keep the label as text.`, { destructive: true, confirmLabel: 'Remove' }))) return;
     playDeleteSound();
+    // v89.96: snapshot before mutation so Restore works from Activity log.
+    const _cat = data.categories.find(c => c.businessId === biz.id && c.name === name);
+    const _snap = _cat ? { id: _cat.id, businessId: _cat.businessId, name: _cat.name, sortOrder: _cat.sortOrder, createdAt: _cat.createdAt } : null;
     data.categories = data.categories.filter(c => !(c.businessId === biz.id && c.name === name));
     saveData();
     // Stay on detail view since the orphan category is still browsable
     renderAll();
     toast('Category removed.');
+    if (_snap) {
+      try {
+        logAuditEvent('category_deleted', `Deleted category "${name}"`,
+          { category_id: _snap.id, category_name: name, deleted: _snap },
+          biz.id
+        ).catch(() => {});
+      } catch (_) {}
+    }
   }
 
   // ================================================================
@@ -17531,6 +17547,22 @@
     toast(`Tax rate set to ${val}%.`);
   }
 
+  // v89.94: save the VAT order preference (before or after expenses).
+  function saveBizVatOrder(bizId, order) {
+    const biz = data.businesses.find(b => b.id === bizId);
+    if (!biz) return;
+    if (roleFor(bizId) !== 'owner') { toast('Only the owner can change this setting.'); return; }
+    if (order !== 'before_expenses' && order !== 'after_expenses') return;
+    biz.vatOrder = order;
+    biz.updatedAt = Date.now();
+    saveData();
+    // Refresh the biz settings card UI so radio borders update.
+    const slot = document.getElementById('bizSettingsBody');
+    if (slot) slot.innerHTML = bizSettingsBody(bizId);
+    toast(order === 'before_expenses' ? 'VAT applied before expenses.' : 'VAT applied after expenses.');
+    renderAll();
+  }
+
   // v89.4: refresh the audit-page numbers that depend on the tax rate
   // without re-rendering inputs. Safe to call from any context. If the
   // audit view isn't rendered, all the document.querySelector calls
@@ -17634,18 +17666,22 @@
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expensesForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
-    // P&L math chain (v89.92 order):
-    //   cashProfit      = totalIn − totalOut
-    //   vatAmount       = cashProfit × (vatRate / 100)   [if cashProfit > 0]
-    //   profitAfterVAT  = cashProfit − vatAmount
-    //   netProfit       = profitAfterVAT − expenses
-    //
-    // Rationale: VAT is charged on gross cash profit before operating
-    // expenses; expenses are then deducted from the post-VAT figure.
+    // P&L math chain — order depends on biz.vatOrder (v89.94).
+    // 'before_expenses' (default): Cash profit → VAT → Profit after VAT → Expenses → Net profit
+    // 'after_expenses':            Cash profit → Expenses → Operating profit → VAT → Net profit
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const vatAmount = (rangeProfit > 0) ? rangeProfit * (taxRate / 100) : 0;
-    const profitAfterVAT = rangeProfit - vatAmount;
-    const netProfit = profitAfterVAT - expenseTotal;
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    let vatAmount, profitAfterVAT, netProfit;
+    if (vatOrder === 'after_expenses') {
+      const operatingProfit = rangeProfit - expenseTotal;
+      vatAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
+      profitAfterVAT = operatingProfit; // shown as "Operating profit" in this mode
+      netProfit = operatingProfit - vatAmount;
+    } else {
+      vatAmount = (rangeProfit > 0) ? rangeProfit * (taxRate / 100) : 0;
+      profitAfterVAT = rangeProfit - vatAmount;
+      netProfit = profitAfterVAT - expenseTotal;
+    }
 
     // Render: expenses section
     // Read-only on Audit — the "Manage →" jump button is intentionally removed
@@ -17799,17 +17835,38 @@
         </div>
       </div>
     `;
-    // Net profit display chain (v89.92):
-    //   Cash profit  →  − Addition VAT  →  Profit after VAT  →  − Expenses  →  Net profit
-    const profitAfterVATSection = `
+    // Net profit display chain — adapts to vatOrder (v89.94).
+    const profitAfterVATSection = vatOrder === 'after_expenses' ? `
+      <div class="audit-operating-profit ${profitAfterVAT >= 0 ? 'pos' : 'neg'}">
+        <div class="audit-operating-profit-label">Operating profit</div>
+        <div class="audit-operating-profit-value">${cur} ${profitAfterVAT >= 0 ? '+' : '−'}${fmt(Math.abs(profitAfterVAT))}</div>
+        <div class="audit-operating-profit-meta">Cash profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))} − Expenses ${cur} ${fmt(expenseTotal)}</div>
+      </div>
+    ` : `
       <div class="audit-operating-profit ${profitAfterVAT >= 0 ? 'pos' : 'neg'}">
         <div class="audit-operating-profit-label">Profit after VAT</div>
         <div class="audit-operating-profit-value">${cur} ${profitAfterVAT >= 0 ? '+' : '−'}${fmt(Math.abs(profitAfterVAT))}</div>
         <div class="audit-operating-profit-meta">Cash profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))}${taxRate > 0 ? ` − Addition VAT ${taxRate}% (${cur} ${fmt(vatAmount)})` : ' (no VAT applied)'}</div>
       </div>
     `;
-    const netProfitMeta = `Profit after VAT ${cur} ${profitAfterVAT >= 0 ? '' : '−'}${fmt(Math.abs(profitAfterVAT))} − Expenses ${cur} ${fmt(expenseTotal)}`;
-    const netSection = `
+    const netProfitMeta = vatOrder === 'after_expenses'
+      ? `Operating profit ${cur} ${profitAfterVAT >= 0 ? '' : '−'}${fmt(Math.abs(profitAfterVAT))} − Addition VAT ${taxRate}% (${cur} ${fmt(vatAmount)})`
+      : `Profit after VAT ${cur} ${profitAfterVAT >= 0 ? '' : '−'}${fmt(Math.abs(profitAfterVAT))} − Expenses ${cur} ${fmt(expenseTotal)}`;
+    const netSection = vatOrder === 'after_expenses' ? `
+      <div class="audit-expenses-total-row">
+        <div class="audit-month-totals-card audit-month-totals-card-wide">
+          <div class="audit-month-totals-label">Total expenses</div>
+          <div class="audit-month-totals-value out">${cur} ${fmt(expenseTotal)}</div>
+        </div>
+      </div>
+      ${profitAfterVATSection}
+      ${taxControlSection}
+      <div class="audit-net ${netProfit >= 0 ? 'pos' : 'neg'}">
+        <div class="audit-net-label">Net profit</div>
+        <div class="audit-net-value ${netProfit >= 0 ? 'pos' : 'neg'}">${cur} ${netProfit >= 0 ? '+' : '−'}${fmt(Math.abs(netProfit))}</div>
+        <div class="audit-net-meta">${netProfitMeta}</div>
+      </div>
+    ` : `
       ${taxControlSection}
       ${profitAfterVATSection}
       <div class="audit-expenses-total-row">
@@ -17997,8 +18054,16 @@
     }
     const operatingProfit = cashIn - cashOut;
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const vatAmt = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
-    __splitNetProfit = operatingProfit - vatAmt - expenses;
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    let vatAmt;
+    if (vatOrder === 'after_expenses') {
+      const opAfterExp = operatingProfit - expenses;
+      vatAmt = opAfterExp > 0 ? opAfterExp * (taxRate / 100) : 0;
+      __splitNetProfit = opAfterExp - vatAmt;
+    } else {
+      vatAmt = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
+      __splitNetProfit = operatingProfit - vatAmt - expenses;
+    }
     __splitBusinessCurrency = currencyDisplay(biz.currency);
     // Hydrate distribution rows.
     // v89.32.46 FIX: load via loadDistributionFromCloudOrLocal (prefers the
@@ -18039,7 +18104,7 @@
       <div class="distribution-net-card ${__splitNetProfit >= 0 ? 'pos' : 'neg'}">
         <div class="distribution-net-label">Net profit (after tax)</div>
         <div class="distribution-net-value">${__splitBusinessCurrency} ${__splitNetProfit >= 0 ? '+' : '−'}${fmt(Math.abs(__splitNetProfit))}</div>
-        <div class="distribution-net-meta">${taxRate > 0 ? `After ${taxRate}% tax of ${__splitBusinessCurrency} ${fmt(tax)}` : 'No tax applied (Tax % = 0 in Audit)'} · ${currentPeriodLabel ? escapeHtml(currentPeriodLabel()) : 'Current period'}</div>
+        <div class="distribution-net-meta">${taxRate > 0 ? `After Addition VAT ${taxRate}% of ${__splitBusinessCurrency} ${fmt(vatAmt)}` : 'No VAT applied (Addition VAT % = 0 in Audit)'} · ${currentPeriodLabel ? escapeHtml(currentPeriodLabel()) : 'Current period'} · VAT ${vatOrder === 'after_expenses' ? 'after' : 'before'} expenses</div>
       </div>
 
       <!-- v88: Split & convert — redesigned for multi-party named
@@ -18280,13 +18345,35 @@
     const projIn = avgInPerDay * daysInMonth;
     const projOut = avgOutPerDay * daysInMonth;
     const projExpenses = avgExpPerDay * daysInMonth;
-    // Operating profit = (cash profit) − expenses
     const projCashProfit = projIn - projOut;
-    const projOperatingProfit = projCashProfit - projExpenses;
-    // After-tax. taxRate is 0..100.
+    // Respect biz.vatOrder so Forecast matches Audit numbers (v89.96 fix).
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const projTax = projOperatingProfit > 0 ? projOperatingProfit * (taxRate / 100) : 0;
-    const projNetProfit = projOperatingProfit - projTax;
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    // projOperatingProfit and projTax are always defined for the breakdown table.
+    const projOperatingProfit = projCashProfit - projExpenses;
+    let projNetProfit;
+    let projTax;
+    if (vatOrder === 'after_expenses') {
+      projTax = projOperatingProfit > 0 ? projOperatingProfit * (taxRate / 100) : 0;
+      projNetProfit = projOperatingProfit - projTax;
+    } else {
+      const projVAT = projCashProfit > 0 ? projCashProfit * (taxRate / 100) : 0;
+      const projAfterVAT = projCashProfit - projVAT;
+      projNetProfit = projAfterVAT - projExpenses;
+      // For display consistency in the breakdown table, show VAT as projTax.
+      projTax = projVAT;
+    }
+    // Last month actual net — also respects vatOrder for a fair comparison.
+    const lastCashProfit = lastIn - lastOut;
+    let lastNetProfit;
+    if (vatOrder === 'after_expenses') {
+      const lastOperating = lastCashProfit - lastExpenses;
+      const lastTax = lastOperating > 0 ? lastOperating * (taxRate / 100) : 0;
+      lastNetProfit = lastOperating - lastTax;
+    } else {
+      const lastVAT = lastCashProfit > 0 ? lastCashProfit * (taxRate / 100) : 0;
+      lastNetProfit = lastCashProfit - lastVAT - lastExpenses;
+    }
 
     // Confidence signal — based on completeness. <25% of the month
     // elapsed → "Low confidence" (a single big day distorts the
@@ -18307,8 +18394,7 @@
       return ((projection - lastActual) / lastActual) * 100;
     }
     const inPaceVsLast = pctChange(projIn, lastIn);
-    const profitPaceVsLast = pctChange(projNetProfit, lastIn - lastOut - lastExpenses);
-    const lastNetProfit = lastIn - lastOut - lastExpenses;
+    const profitPaceVsLast = pctChange(projNetProfit, lastNetProfit);
 
     // Best AND worst day so far this month (v58 item 13). Each
     // tracks the full {in, out, net} so the cards can show all three
@@ -18521,13 +18607,23 @@
           (mtdIn - mtdOut - mtdExpenses),
           (mtdIn - mtdOut - mtdExpenses) / safeDays,
           projOperatingProfit,
-          (lastIn - lastOut - lastExpenses),
+          lastNetProfit,
           { valClass: projOperatingProfit >= 0 ? 'pos' : 'neg', isDivider: true })}
         ${taxRate > 0
           ? metricRow(`Tax (${taxRate}%)`, 0, 0, projTax, 0, { valClass: 'neg', isTax: true, skipAvg: true })
           : ''}
         ${metricRow(`Net profit${taxRate > 0 ? ' (after tax)' : ''}`,
-          (mtdIn - mtdOut - mtdExpenses) - (((mtdIn - mtdOut - mtdExpenses) > 0 ? (mtdIn - mtdOut - mtdExpenses) * (taxRate / 100) : 0)),
+          (() => {
+            const _cp = mtdIn - mtdOut;
+            if (vatOrder === 'after_expenses') {
+              const _op = _cp - mtdExpenses;
+              const _t = _op > 0 ? _op * (taxRate / 100) : 0;
+              return _op - _t;
+            } else {
+              const _v = _cp > 0 ? _cp * (taxRate / 100) : 0;
+              return _cp - _v - mtdExpenses;
+            }
+          })(),
           0,
           projNetProfit,
           lastNetProfit,
@@ -18843,53 +18939,14 @@
   // independently from the main Insights period filter. Defaults to
   // 'current' (this month). Buttons in the Top 10 header re-render
   // just the parent view when the filter changes.
-  let __top10Period = { mode: 'current' };
-  // v62: per-list expand state for the three party-ranking sections.
-  // Defaults to collapsed (first 5 rows shown). User taps "View N more"
-  // → flips to true → re-render shows the rest. Resets on view leave
-  // (not persisted across sessions — these are at-a-glance lists, not
-  // a saved preference).
+  // v89.94: __top10Period removed — Party Rankings now follow the main
+  // __insightsPeriod filter so there's one filter for all of Insights.
+  // __rankingExpanded remains for the view-more collapse state.
   let __rankingExpanded = { profit: false, loss: false, cashIn: false, cashOut: false };
   function toggleRankingExpanded(key) {
     if (!(key in __rankingExpanded)) return;
     __rankingExpanded[key] = !__rankingExpanded[key];
     renderAll();
-  }
-  function setTop10Period(modeOrObj) {
-    if (typeof modeOrObj === 'string') {
-      __top10Period = { mode: modeOrObj };
-    } else {
-      __top10Period = modeOrObj;
-    }
-    // Re-render the whole insights view so the section updates with
-    // the new bucketing.
-    renderAll();
-  }
-  function top10Predicate() {
-    const p = __top10Period || { mode: 'all' };
-    if (p.mode === 'all') return () => true;
-    if (p.mode === 'current') { const mk = today().slice(0, 7); return e => monthKey(e.date) === mk; }
-    if (p.mode === 'month') return e => monthKey(e.date) === p.monthKey;
-    if (p.mode === 'range') return e => e.date >= p.from && e.date <= p.to;
-    return () => true;
-  }
-  function top10PeriodLabel() {
-    const p = __top10Period || { mode: 'all' };
-    if (p.mode === 'all') return 'all time';
-    if (p.mode === 'current') return 'this month';
-    if (p.mode === 'month') {
-      const [y, m] = p.monthKey.split('-').map(Number);
-      return new Date(y, m - 1, 1).toLocaleString('default', { month: 'long', year: 'numeric' });
-    }
-    if (p.mode === 'range') return `${p.from} → ${p.to}`;
-    return 'all time';
-  }
-  function openTop10PeriodPicker() {
-    // Reuse the insights period picker modal — same shape, same
-    // submit. We swap the in-progress state so the modal's confirm
-    // routes to setTop10Period instead of setInsightsPeriod.
-    __periodPickerTarget = 'top10';
-    openModal('insightsPeriod');
   }
 
   function insightsPredicate() {
@@ -19475,6 +19532,23 @@
       if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
     }
     const _dailyMonthName = new Date(_yy, _mm - 1, 1).toLocaleString('default', { month: 'long' });
+    // Last month relative to the chart month (for the overlay dashed line).
+    const _prevMM = _mm === 1 ? 12 : _mm - 1;
+    const _prevYY = _mm === 1 ? _yy - 1 : _yy;
+    const _prevMonthKey = `${_prevYY}-${String(_prevMM).padStart(2, '0')}`;
+    const _prevMonthName = new Date(_prevYY, _prevMM - 1, 1).toLocaleString('default', { month: 'long' });
+    const _daysInPrevMonth = new Date(_prevYY, _prevMM, 0).getDate();
+    const _prevByDay = new Map();
+    for (const e of allEntries) {
+      if (!e.date) continue;
+      if (e.date.slice(0, 7) !== _prevMonthKey) continue;
+      const d = Number(e.date.slice(8, 10));
+      let bucket = _prevByDay.get(d);
+      if (!bucket) { bucket = { in: 0, out: 0 }; _prevByDay.set(d, bucket); }
+      const amt = entryAmount(e);
+      if (e.type === 'in') bucket.in += amt; else bucket.out += amt;
+    }
+    const _havePrevNetData = _prevByDay.size > 0;
     const _chartW = 800, _chartH = 280;
     const _padL = 50, _padR = 15, _padT = 20, _padB = 38;
     const _innerW = _chartW - _padL - _padR;
@@ -19552,6 +19626,12 @@
       const net = b.in - b.out;
       if (Math.abs(net) > _netMax) _netMax = Math.abs(net);
     }
+    // Include previous month's values in the Y-axis scale so the overlay
+    // line is not artificially clipped or compressed (v89.96 fix).
+    for (const [, b] of _prevByDay) {
+      const net = b.in - b.out;
+      if (Math.abs(net) > _netMax) _netMax = Math.abs(net);
+    }
     if (_netMax === 0) _netMax = 1;
     const _netYMax = _niceCeil(_netMax);
     const _netZeroY = _padT + _netInnerH / 2;
@@ -19608,6 +19688,27 @@
       </g>`;
     });
     const _netBars = [_netLine, ..._netDots];
+    // v89.95: last-month overlay — dashed grey line showing the previous
+    // month's per-day net on the same axis so the user can compare.
+    let _prevNetLine = '';
+    if (_havePrevNetData) {
+      const _prevLinePts = [];
+      for (let d = 1; d <= _daysInMonth; d++) {
+        if (d > _daysInPrevMonth) continue; // prev month was shorter
+        const b = _prevByDay.get(d) || { in: 0, out: 0 };
+        const net = b.in - b.out;
+        if (b.in === 0 && b.out === 0) continue; // no data this day
+        const x = _padL + (d - 1) * _dayWidth + _dayWidth / 2;
+        const cy = _netZeroY - Math.sign(net) * Math.min(_netHalfH, (Math.abs(net) / _netYMax) * _netHalfH);
+        _prevLinePts.push({ x, y: cy, net, d });
+      }
+      if (_prevLinePts.length >= 2) {
+        const _prevPath = _prevLinePts.map((p, i) =>
+          (i === 0 ? `M ${p.x.toFixed(1)} ${p.y.toFixed(1)}` : `L ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+        ).join(' ');
+        _prevNetLine = `<path d="${_prevPath}" fill="none" stroke="var(--ink-mute)" stroke-width="1.5" stroke-dasharray="4 3" opacity="0.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+      }
+    }
     const _netXLabels = [];
     for (let d = 1; d <= _daysInMonth; d++) {
       // v89.89: show EVERY date (was only 1, multiples of 5, and last). The
@@ -19656,11 +19757,13 @@
           <div class="insights-chart-legend">
             <span><span class="fc-swatch fc-swatch-current"></span> Profit day</span>
             <span><span class="fc-swatch fc-swatch-currentneg"></span> Loss day</span>
+            ${_havePrevNetData ? `<span><span class="trend-swatch trend-swatch-last"></span> ${escapeHtml(_prevMonthName)}</span>` : ''}
           </div>
         </div>
-        <p class="insights-chart-help">Each point is one day's net profit (cash in − cash out for that day). Green dots are profit days, red dots are loss days. Tap any point to see that day's figure.</p>
+        <p class="insights-chart-help">Each point is one day's net profit (cash in − cash out for that day). Dashed line shows the previous month for comparison.</p>
         <svg class="forecast-chart" viewBox="0 0 ${_chartW} ${_netH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Daily net profit for ${escapeHtml(_dailyMonthName)}">
           ${_netZeroAxis}
+          ${_prevNetLine}
           ${_netBars.join('')}
           ${_netTodayMarker}
           ${_netXLabels.join('')}
@@ -19874,11 +19977,9 @@
     // actually need: who's most profitable, who pays them most, who
     // they pay most.
     //
-    // Shared period filter (__top10Period) covers all three lists.
-    // Each list has its own "view more" expand state in
-    // __rankingExpanded — first 5 rows show by default, the rest
-    // unfold on tap.
-    const t10Pred = top10Predicate();
+    // v89.94: Party rankings follow the main Insights period filter.
+    // No separate filter bar — one period selector for all of Insights.
+    const t10Pred = insightsPredicate();
     const t10Entries = allEntries.filter(e => t10Pred(e));
     const periodPartyTotals = new Map();
     for (const e of t10Entries) {
@@ -19916,11 +20017,10 @@
       .filter(p => p.outSum > 0)
       .sort((a, b) => b.outSum - a.outSum)
       .slice(0, 10);
-    const top10PeriodBar = `
-      <div class="insights-period-buttons" style="margin-bottom:0.45rem;">
-        <button class="${__top10Period.mode === 'current' ? 'active' : ''}" onclick="setTop10Period('current')">This month</button>
-        <button class="${__top10Period.mode === 'all' ? 'active' : ''}" onclick="setTop10Period('all')">All time</button>
-        <button class="${(__top10Period.mode === 'month' || __top10Period.mode === 'range') ? 'active' : ''}" onclick="openTop10PeriodPicker()">Custom…</button>
+    const top10HTML = `
+      <div class="insights-section">
+        <h3 class="insights-section-title">Party rankings <span class="insights-chart-sub">— ${escapeHtml(insightsPeriodLabel())}</span></h3>
+        <p class="insights-section-sub" style="font-size:0.78rem;color:var(--ink-mute);">Follows the period filter above.</p>
       </div>`;
     // Render helper: one ranked list with 5-default + view-more.
     // `key` identifies the list for the expand-state map.
@@ -19970,11 +20070,7 @@
           ${toggle}
         </div>`;
     }
-    const top10HTML = `
-      <div class="insights-section">
-        <h3 class="insights-section-title">Party rankings <span class="insights-chart-sub">— ${escapeHtml(top10PeriodLabel())}</span></h3>
-        ${top10PeriodBar}
-      </div>
+    const rankingHTML = `
       ${rankingSection({
         title: 'Top 15 parties by profit',
         subtitle: 'Sorted by net (cash in minus cash out). Most profitable parties first.',
@@ -20003,6 +20099,7 @@
         rows: top10CashOut,
         metric: 'out',
       })}`;
+    const allRankingHTML = top10HTML + rankingHTML;
     // ===== Daily heatmap (last 12 weeks ≈ 84 days) =====
     const heatmapDays = [];
     const heatStart = new Date(); heatStart.setDate(heatStart.getDate() - 83);
@@ -20067,7 +20164,8 @@
     }
     const wowHTML = `
       <div class="insights-section">
-        <h3 class="insights-section-title">Week over week <span class="insights-chart-sub">— this week vs last</span></h3>
+        <h3 class="insights-section-title">Week over week <span class="insights-chart-sub">— ${escapeHtml(wowThis.fromDate)} → ${escapeHtml(wowThis.toDate)}</span></h3>
+        <p class="insights-section-sub" style="font-size:0.75rem;color:var(--ink-mute);margin-bottom:0.5rem;">vs last week ${escapeHtml(wowPrev.fromDate)} → ${escapeHtml(wowPrev.toDate)}</p>
         <div class="insights-wow-headline">
           <div class="insights-wow-headline-cell">
             <div class="insights-wow-headline-label">Cash in</div>
@@ -20094,6 +20192,7 @@
           ${weekBuckets.map((b) => `
             <div class="insights-wow-trend-cell">
               <div class="insights-wow-trend-label">${escapeHtml(b.label)}</div>
+              <div style="font-size:0.62rem;color:var(--ink-mute);margin-bottom:0.2rem;">${escapeHtml(b.fromDate.slice(5))} → ${escapeHtml(b.toDate.slice(5))}</div>
               <div class="insights-wow-trend-net ${b.net >= 0 ? 'pos' : 'neg'}">${cur} ${b.net >= 0 ? '+' : '−'}${fmt(Math.abs(b.net))}</div>
               <div class="insights-wow-trend-flow">${b.count} ${b.count === 1 ? 'entry' : 'entries'}</div>
             </div>
@@ -20355,7 +20454,7 @@
       ${dailyTrendChartHTML}
       ${heatmapHTML}
       ${wowHTML}
-      ${top10HTML}
+      ${allRankingHTML}
     `;
   }
 
@@ -20512,6 +20611,10 @@
         verb = '<span class="activity-row-verb activity-verb-edit">edited a party</span>';
       } else if (r.event_type === 'party_deleted') {
         verb = '<span class="activity-row-verb activity-verb-delete">deleted a party</span>';
+      } else if (r.event_type === 'category_deleted') {
+        verb = '<span class="activity-row-verb activity-verb-delete">deleted a category</span>';
+      } else if (r.event_type === 'account_deleted') {
+        verb = '<span class="activity-row-verb activity-verb-delete">deleted an account</span>';
       } else {
         verb = '<span class="activity-row-verb activity-verb-edit">edited an entry</span>';
       }
@@ -20539,7 +20642,10 @@
       if (typeof _meta === 'string') { try { _meta = JSON.parse(_meta); } catch (_) { _meta = {}; } }
       const _canRestore = _isOwner && (
         (r.event_type === 'entry_edited' && _meta.prev) ||
-        (r.event_type === 'entry_deleted' && _meta.deleted)
+        (r.event_type === 'entry_deleted' && _meta.deleted) ||
+        (r.event_type === 'party_deleted' && _meta.deleted) ||
+        (r.event_type === 'category_deleted' && _meta.deleted) ||
+        (r.event_type === 'account_deleted' && _meta.deleted)
       );
       const _restoreBtn = _canRestore
         ? `<button class="btn btn-sm btn-ghost" style="margin-left:0.5rem;"
@@ -20644,6 +20750,56 @@
       return;
     }
 
+    if (row.event_type === 'party_deleted' && meta.deleted) {
+      const d = meta.deleted;
+      if (data.parties.some(x => x.id === d.id)) { toast('That party already exists.'); return; }
+      if (!(await uiConfirm(`Restore deleted party "${d.name}"?`, { confirmLabel: 'Restore' }))) return;
+      data.parties.push({
+        id: d.id, businessId: d.businessId, name: d.name,
+        phone: d.phone || '', email: d.email || '', address: d.address || '', note: d.note || '',
+        sortOrder: d.sortOrder, createdAt: d.createdAt || Date.now(),
+      });
+      saveData(); renderAll();
+      toast(`Party "${d.name}" restored.`);
+      logAuditEvent('party_edited', `Restored deleted party "${d.name}"`, { party_id: d.id }, d.businessId).catch(() => {});
+      return;
+    }
+
+    if (row.event_type === 'category_deleted' && meta.deleted) {
+      const d = meta.deleted;
+      if (data.categories.some(x => x.id === d.id)) { toast('That category already exists.'); return; }
+      if (!(await uiConfirm(`Restore deleted category "${d.name}"?`, { confirmLabel: 'Restore' }))) return;
+      data.categories.push({
+        id: d.id, businessId: d.businessId, name: d.name,
+        sortOrder: d.sortOrder, createdAt: d.createdAt || Date.now(),
+      });
+      saveData(); renderAll();
+      toast(`Category "${d.name}" restored.`);
+      logAuditEvent('category_deleted', `Restored deleted category "${d.name}"`, { category_id: d.id }, d.businessId).catch(() => {});
+      return;
+    }
+
+    if (row.event_type === 'account_deleted' && meta.deleted) {
+      const d = meta.deleted;
+      if (data.cashAccounts.some(x => x.id === d.id)) { toast('That account already exists.'); return; }
+      // Warn: entries were moved to fallback on delete — restoring the account
+      // does NOT move them back (they're already saved under the fallback).
+      const entriesMoved = meta.entries_moved || 0;
+      const fallbackName = meta.fallback_name || 'another account';
+      const confirmMsg = entriesMoved > 0
+        ? `Restore account "${d.name}"? Note: ${entriesMoved} entries were moved to "${fallbackName}" when this was deleted — they won't be moved back automatically.`
+        : `Restore account "${d.name}"?`;
+      if (!(await uiConfirm(confirmMsg, { confirmLabel: 'Restore' }))) return;
+      data.cashAccounts.push({
+        id: d.id, businessId: d.businessId, name: d.name,
+        groupId: d.groupId || undefined, sortOrder: d.sortOrder, createdAt: d.createdAt || Date.now(),
+      });
+      saveData(); renderAll();
+      toast(`Account "${d.name}" restored.`);
+      logAuditEvent('account_deleted', `Restored deleted account "${d.name}"`, { account_id: d.id }, d.businessId).catch(() => {});
+      return;
+    }
+
     toast('Nothing to restore from this row.');
   }
 
@@ -20733,6 +20889,8 @@
           'entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated',
           // v89.31.0: include party events in Clear-all scope
           'party_created', 'party_edited', 'party_deleted',
+          // v89.96: category and account deletion
+          'category_deleted', 'account_deleted',
         ])
         .select('id');
       if (error) {
@@ -20864,8 +21022,10 @@
         .eq('business_id', biz.id)
         .in('event_type', [
           'entry_edited', 'entry_deleted', 'entry_backdated', 'entry_forwarddated',
-          // v89.31.0: party lifecycle events surface in the same business activity log
+          // v89.31.0: party lifecycle events
           'party_created', 'party_edited', 'party_deleted',
+          // v89.96: category and account deletion (with restore support)
+          'category_deleted', 'account_deleted',
         ])
         .order('occurred_at', { ascending: false })
         .limit(200);
@@ -21317,11 +21477,20 @@
     const fallback = others[0];
     if (!(await uiConfirm(`Delete account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`, { destructive: true, confirmLabel: 'Delete account' }))) return;
     playDeleteSound();
+    // v89.96: snapshot before mutation.
+    const _snap = { id: acc.id, businessId: acc.businessId, name: acc.name, groupId: acc.groupId, sortOrder: acc.sortOrder, createdAt: acc.createdAt };
+    const bizId = acc.businessId;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.accountId === acc.id) e.accountId = fallback.id; });
     data.cashAccounts = data.cashAccounts.filter(a => a.id !== accId);
     saveData();
     switchView('accounts');
     toast('Account deleted.');
+    try {
+      logAuditEvent('account_deleted', `Deleted account "${_snap.name}"` + (linkedCount ? ` (${linkedCount} entries moved to "${fallback.name}")` : ''),
+        { account_id: _snap.id, account_name: _snap.name, entries_moved: linkedCount, fallback_id: fallback.id, fallback_name: fallback.name, deleted: _snap },
+        bizId
+      ).catch(() => {});
+    } catch (_) {}
   }
 
   // Hide / unhide an account. Hidden accounts keep all their historical
@@ -21448,12 +21617,9 @@
     if (view !== 'distribution' && document.body) {
       document.body.classList.remove('dist-view-only');
     }
-    // When leaving insights, reset both period filters back to default
-    // (This month). Previously this reset to 'all' which is why the
-    // view appeared to default to All time on every return visit.
+    // When leaving insights, reset the period filter back to default (This month).
     if (view !== 'insights') {
       __insightsPeriod = { mode: 'current' };
-      __top10Period = { mode: 'current' };
     }
     saveSession(); closeDrawer();
     __renderResetScroll = true; // new tab → land at the top
@@ -22063,6 +22229,7 @@
           party_id: _deletedId,
           party_name: _deletedName,
           entries_unlinked: linkedCount,
+          deleted: { id: p.id, businessId: p.businessId, name: p.name, phone: p.phone, email: p.email, address: p.address, note: p.note, sortOrder: p.sortOrder, createdAt: p.createdAt },
         },
         _deletedBizId
       ).catch(() => {});
@@ -27165,11 +27332,11 @@
     // v61: target may be 'insights' (default) or 'top10' — chosen by
     // the caller via openInsightsPeriodPicker / openTop10PeriodPicker.
     const target = __periodPickerTarget || 'insights';
-    const state = target === 'top10' ? __top10Period : __insightsPeriod;
+    const state = __insightsPeriod;
     const p = state || { mode: 'all' };
     __insightsPickerMode = p.mode === 'range' ? 'range' : 'month';
     __insightsPickerYear = p.mode === 'month' ? parseInt(p.monthKey.split('-')[0]) : new Date().getFullYear();
-    const title = target === 'top10' ? 'Custom period · Top 10 parties' : 'Custom period · Insights';
+    const title = 'Custom period · Insights';
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">${title}</h2>
@@ -27192,8 +27359,7 @@
   }
   function insightsRenderMonthPicker() {
     const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const target = __periodPickerTarget || 'insights';
-    const state = target === 'top10' ? __top10Period : __insightsPeriod;
+    const state = __insightsPeriod;
     const activeKey = state.mode === 'month' ? state.monthKey : '';
     const cells = months.map((m, i) => {
       const key = `${__insightsPickerYear}-${String(i+1).padStart(2, '0')}`;
@@ -27214,15 +27380,12 @@
     document.getElementById('insightsPickerBody').innerHTML = insightsRenderPickerBody();
   }
   function insightsPickMonth(key) {
-    const target = __periodPickerTarget || 'insights';
-    if (target === 'top10') setTop10Period({ mode: 'month', monthKey: key });
-    else setInsightsPeriod({ mode: 'month', monthKey: key });
+    setInsightsPeriod({ mode: 'month', monthKey: key });
     __periodPickerTarget = null;
     closeModal();
   }
   function insightsRenderRangePicker() {
-    const target = __periodPickerTarget || 'insights';
-    const p = target === 'top10' ? __top10Period : __insightsPeriod;
+    const p = __insightsPeriod;
     const from = p.mode === 'range' ? p.from : today();
     const to = p.mode === 'range' ? p.to : today();
     return `
@@ -27243,8 +27406,7 @@
     if (!from || !to) { toast('Pick both dates.'); return; }
     if (from > to) { toast('"From" must be on or before "To".'); return; }
     const target = __periodPickerTarget || 'insights';
-    if (target === 'top10') setTop10Period({ mode: 'range', from, to });
-    else setInsightsPeriod({ mode: 'range', from, to });
+    setInsightsPeriod({ mode: 'range', from, to });
     __periodPickerTarget = null;
     closeModal();
   }
@@ -28023,14 +28185,19 @@
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Your businesses</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Each business has its own settings — tap the gear next to it in the sidebar, or pick one here.</p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Each business has its own settings — tap the gear next to it in the sidebar, or pick one here. Use ↑↓ to reorder.</p>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:0.4rem;">
-          ${accessible.map(b => {
+          ${accessible.map((b, idx) => {
             const r = roleFor(b.id);
             const roleLabel = r === 'staff' ? 'team' : r;
-            return `<li style="display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.75rem;background:var(--paper-deep);border:1px solid var(--line);">
-              <span>${escapeHtml(b.name)} <span style="font-size:0.65rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;margin-left:0.4rem;">${roleLabel}</span></span>
-              ${r === 'owner' || r === 'manager'
+            const isOwner = r === 'owner';
+            return `<li style="display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.75rem;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-sm);gap:0.4rem;">
+              ${isOwner ? `<div style="display:flex;flex-direction:column;gap:0.1rem;flex-shrink:0;">
+                <button class="btn btn-sm btn-ghost" onclick="moveBiz('${b.id}',-1)" ${idx === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Move up" style="padding:0.1rem 0.35rem;font-size:0.7rem;line-height:1;">↑</button>
+                <button class="btn btn-sm btn-ghost" onclick="moveBiz('${b.id}',1)" ${idx === accessible.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Move down" style="padding:0.1rem 0.35rem;font-size:0.7rem;line-height:1;">↓</button>
+              </div>` : '<div style="width:1.6rem;flex-shrink:0;"></div>'}
+              <span style="flex:1;min-width:0;">${escapeHtml(b.name)} <span style="font-size:0.65rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;margin-left:0.4rem;">${roleLabel}</span></span>
+              ${isOwner
                 ? `<button class="btn btn-sm btn-ghost" onclick="closeModal();openBizSettings('${b.id}')">Settings →</button>`
                 : `<button class="btn btn-sm btn-danger-outline" onclick="openLeaveBusinessModal('${b.id}')">Leave →</button>`}
             </li>`;
@@ -28223,7 +28390,29 @@
   function bizSettingsAdvancedTab(biz, isOwner) {
     // Always owner-only — body's switch routes non-owners to identity.
     if (!isOwner) return '';
+    const vatOrder = biz.vatOrder || 'before_expenses';
     return `
+      <div class="settings-section">
+        <h3 class="settings-heading">Addition VAT order</h3>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Choose when Addition VAT is applied in the P&amp;L chain. Affects Audit, Distribution, and all exports.</p>
+        <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
+          <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;padding:0.55rem 0.7rem;border-radius:var(--r-sm);border:1.5px solid ${vatOrder === 'before_expenses' ? 'var(--accent-readable)' : 'var(--line)'};background:${vatOrder === 'before_expenses' ? 'var(--accent-bg,var(--paper-deep))' : 'transparent'};">
+            <input type="radio" name="vatOrder" value="before_expenses" ${vatOrder === 'before_expenses' ? 'checked' : ''} onchange="saveBizVatOrder('${jsAttr(biz.id)}','before_expenses')" style="margin-top:0.15rem;accent-color:var(--accent-readable);">
+            <div>
+              <div style="font-weight:600;font-size:0.85rem;">VAT before expenses <span style="font-size:0.72rem;font-weight:400;color:var(--ink-mute);">(default)</span></div>
+              <div style="font-size:0.75rem;color:var(--ink-mute);margin-top:0.15rem;">Cash profit → − VAT → Profit after VAT → − Expenses → Net profit</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;padding:0.55rem 0.7rem;border-radius:var(--r-sm);border:1.5px solid ${vatOrder === 'after_expenses' ? 'var(--accent-readable)' : 'var(--line)'};background:${vatOrder === 'after_expenses' ? 'var(--accent-bg,var(--paper-deep))' : 'transparent'};">
+            <input type="radio" name="vatOrder" value="after_expenses" ${vatOrder === 'after_expenses' ? 'checked' : ''} onchange="saveBizVatOrder('${jsAttr(biz.id)}','after_expenses')" style="margin-top:0.15rem;accent-color:var(--accent-readable);">
+            <div>
+              <div style="font-weight:600;font-size:0.85rem;">VAT after expenses</div>
+              <div style="font-size:0.75rem;color:var(--ink-mute);margin-top:0.15rem;">Cash profit → − Expenses → Operating profit → − VAT → Net profit</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <div class="settings-section">
         <h3 class="settings-heading">Backup &amp; restore (this business)</h3>
         <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Download a JSON file of this business's data, or restore from a previous backup file.</p>
@@ -28637,6 +28826,31 @@
       setTimeout(() => openLeaveBusinessModal(bizId), 200);
     }
     __transferOwnerPendingId = null;
+  }
+
+  // v89.95: move a business up or down in the user-defined sort order.
+  // Only the owner can reorder their own businesses. Saves bizSortOrder
+  // on each affected business and re-renders settings + sidebar.
+  function moveBiz(bizId, direction) {
+    const u = me(); if (!u) return;
+    const visible = visibleBusinesses();
+    const idx = visible.findIndex(b => b.id === bizId);
+    if (idx < 0) return;
+    const swapIdx = idx + direction;
+    if (swapIdx < 0 || swapIdx >= visible.length) return;
+    // Assign contiguous sort orders to all visible businesses, then swap.
+    visible.forEach((b, i) => { b.bizSortOrder = i; });
+    const tmp = visible[idx].bizSortOrder;
+    visible[idx].bizSortOrder = visible[swapIdx].bizSortOrder;
+    visible[swapIdx].bizSortOrder = tmp;
+    visible[idx].updatedAt = Date.now();
+    visible[swapIdx].updatedAt = Date.now();
+    saveData();
+    // Re-render the full app (updates sidebar order) then re-open settings
+    // modal so the button states refresh. renderAll() handles the sidebar;
+    // the modal re-open puts the user back where they were.
+    renderAll();
+    openModal('settings');
   }
 
   function openBizSettings(bizId) {
@@ -29687,6 +29901,8 @@
     // Existing entries keep the category text; this only removes it from the dropdown.
     if (!(await uiConfirm(`Remove "${c.name}" from the category list? Existing entries keep the label.`, { destructive: true, confirmLabel: 'Remove' }))) return;
     playDeleteSound();
+    // v89.96: snapshot before mutation for restore support.
+    const _snap = { id: c.id, businessId: c.businessId, name: c.name, sortOrder: c.sortOrder, createdAt: c.createdAt };
     const bizId = c.businessId;
     data.categories = data.categories.filter(x => x.id !== id);
     saveData();
@@ -29694,6 +29910,12 @@
     if (document.getElementById('modalBackdrop')?.classList.contains('active')) openBizSettings(bizId);
     else renderAll();
     toast('Removed.');
+    try {
+      logAuditEvent('category_deleted', `Deleted category "${_snap.name}"`,
+        { category_id: _snap.id, category_name: _snap.name, deleted: _snap },
+        bizId
+      ).catch(() => {});
+    } catch (_) {}
   }
   async function deleteAccountFromSettings(id) {
     const acc = data.cashAccounts.find(a => a.id === id);
@@ -29705,6 +29927,8 @@
     const linkedCount = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === acc.id).length;
     const fallback = others[0];
     if (!(await uiConfirm(`Remove account "${acc.name}"? ${linkedCount} entries will be moved to "${fallback.name}".`, { destructive: true, confirmLabel: 'Remove' }))) return;
+    // v89.96: snapshot before mutation.
+    const _snap = { id: acc.id, businessId: acc.businessId, name: acc.name, groupId: acc.groupId, sortOrder: acc.sortOrder, createdAt: acc.createdAt };
     const bizId = acc.businessId;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.accountId === acc.id) e.accountId = fallback.id; });
     data.cashAccounts = data.cashAccounts.filter(a => a.id !== id);
@@ -29712,6 +29936,12 @@
     if (document.getElementById('modalBackdrop')?.classList.contains('active')) openBizSettings(bizId);
     else renderAll();
     toast('Account removed.');
+    try {
+      logAuditEvent('account_deleted', `Deleted account "${_snap.name}"` + (linkedCount ? ` (${linkedCount} entries moved to "${fallback.name}")` : ''),
+        { account_id: _snap.id, account_name: _snap.name, entries_moved: linkedCount, fallback_id: fallback.id, fallback_name: fallback.name, deleted: _snap },
+        bizId
+      ).catch(() => {});
+    } catch (_) {}
   }
   // v89.32.1: export a single entity list (categories / parties /
   // cashAccounts) for ONE business to a file. Uses the same data shape the
@@ -31421,23 +31651,8 @@
     // load (tab open or Refresh button) retries the edge function rather
     // than silently skipping it forever once a single 404 was seen.
     clearEdgeFunctionUnavailable();
-    // v89.32: show THIS device immediately (from local info + exact model)
-    // so the section never looks empty while the Edge Function responds.
-    // The full server list replaces this as soon as it arrives.
-    try {
-      const localName = getLocalDeviceName();
-      const exact = await getExactDeviceModel();
-      const label = localName || exact || describeUserAgent(navigator.userAgent || '');
-      el.innerHTML = `
-        <div class="device-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:0.6rem;padding:0.55rem 0;border-bottom:1px solid var(--line);">
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:500;font-size:0.85rem;">${escapeHtml(label)} <span style="font-size:0.65rem;color:var(--gain);font-weight:600;letter-spacing:0.05em;">· THIS DEVICE</span></div>
-            <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.1rem;">Loading other devices…</div>
-          </div>
-        </div>`;
-    } catch (_) {
-      el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
-    }
+    // Show loading state while fetching from edge function.
+    el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Loading…</p>`;
     let session;
     try { session = (await sb().auth.getSession()).data?.session; }
     catch (_) { /* fall through to error path */ }
@@ -32305,21 +32520,41 @@
     const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
     const cashProfit = inSum - outSum;
-    const vatAmount = (cashProfit > 0) ? cashProfit * (taxRate / 100) : 0;
-    const profitAfterVAT = cashProfit - vatAmount;
-    const netProfit = profitAfterVAT - expSum;
-    const rows = [
-      ['Cash in (book entries)', inSum.toFixed(2)],
-      ['Cash out (book entries)', outSum.toFixed(2)],
-      ['Cash profit', cashProfit.toFixed(2)],
-      [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
-      ['Profit after VAT', profitAfterVAT.toFixed(2)],
-      ['Audit-only expenses', expSum.toFixed(2)],
-      ['Net profit', netProfit.toFixed(2)],
-      ['', ''], // blank separator
-      ['— Audit expense line items —', ''],
-      ...auditExp,
-    ];
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    let vatAmount, profitAfterVAT, netProfit, rows;
+    if (vatOrder === 'after_expenses') {
+      const operatingProfit = cashProfit - expSum;
+      vatAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
+      netProfit = operatingProfit - vatAmount;
+      rows = [
+        ['Cash in (book entries)', inSum.toFixed(2)],
+        ['Cash out (book entries)', outSum.toFixed(2)],
+        ['Cash profit', cashProfit.toFixed(2)],
+        ['Audit-only expenses', expSum.toFixed(2)],
+        ['Operating profit', operatingProfit.toFixed(2)],
+        [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
+        ['Net profit', netProfit.toFixed(2)],
+        ['', ''],
+        ['— Audit expense line items —', ''],
+        ...auditExp,
+      ];
+    } else {
+      vatAmount = (cashProfit > 0) ? cashProfit * (taxRate / 100) : 0;
+      profitAfterVAT = cashProfit - vatAmount;
+      netProfit = profitAfterVAT - expSum;
+      rows = [
+        ['Cash in (book entries)', inSum.toFixed(2)],
+        ['Cash out (book entries)', outSum.toFixed(2)],
+        ['Cash profit', cashProfit.toFixed(2)],
+        [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
+        ['Profit after VAT', profitAfterVAT.toFixed(2)],
+        ['Audit-only expenses', expSum.toFixed(2)],
+        ['Net profit', netProfit.toFixed(2)],
+        ['', ''],
+        ['— Audit expense line items —', ''],
+        ...auditExp,
+      ];
+    }
     const opts = {
       title: `Audit summary — ${biz.name}`,
       subtitle: `All time · ${biz.currency} · Addition VAT ${taxRate}% · VAT applied ${biz.currency} ${fmt(vatAmount)} · Generated ${today()}`,
@@ -32327,11 +32562,11 @@
       rows,
       filename: `audit_${biz.name}_all`,
       columnAlign: { 1: 'right' },
-      // Row order: Cash in(0), Cash out(1), Cash profit(2), Addition VAT(3),
-      // Profit after VAT(4), Expenses(5), Net profit(6).
-      rowColors: {
-        3: [168, 53, 31],   // Addition VAT → red
-        6: [46, 93, 58],    // Net profit → green
+      // Color rows by label so it works regardless of vatOrder row order.
+      rowColors: {},
+      rowColorsByLabel: {
+        'Addition VAT': [168, 53, 31],
+        'Net profit': [46, 93, 58],
       },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -32366,11 +32601,20 @@
     const expsForPeriod = data.auditExpenses
       .filter(x => x.businessId === biz.id && pred({ date: expenseDate(x) }));
     const expSum = expsForPeriod.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-    // Same P&L math as renderAuditView (v89.92 order).
+    // Same P&L math as renderAuditView — respects biz.vatOrder (v89.94).
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const vatAmount = (netCash > 0) ? netCash * (taxRate / 100) : 0;
-    const profitAfterVAT = netCash - vatAmount;
-    const netProfit = profitAfterVAT - expSum;
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    let vatAmount, profitAfterVAT, netProfit;
+    if (vatOrder === 'after_expenses') {
+      const operatingProfit = netCash - expSum;
+      vatAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
+      profitAfterVAT = operatingProfit;
+      netProfit = operatingProfit - vatAmount;
+    } else {
+      vatAmount = (netCash > 0) ? netCash * (taxRate / 100) : 0;
+      profitAfterVAT = netCash - vatAmount;
+      netProfit = profitAfterVAT - expSum;
+    }
 
     if (kind === 'pdf') {
       if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
@@ -32383,16 +32627,29 @@
       doc.text(`Statement — ${periodLabel}`, 14, 28);
       doc.setFontSize(9); doc.setTextColor(120);
       doc.text(`${cur} · Generated ${businessTodayYmd()}`, 14, 34);
-      // Summary / P&L table
-      const summaryRows = [
-        ['Cash in', `${fmt(inSum)}`],
-        ['Cash out', `${fmt(outSum)}`],
-        ['Cash profit', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
-      ];
-      if (taxRate > 0) summaryRows.push([`Addition VAT (${taxRate}%)`, `${fmt(vatAmount)}`]);
-      summaryRows.push(['Profit after VAT', `${profitAfterVAT >= 0 ? '' : '-'}${fmt(Math.abs(profitAfterVAT))}`]);
-      summaryRows.push(['Expenses', `${fmt(expSum)}`]);
-      summaryRows.push(['Net profit', `${netProfit >= 0 ? '' : '-'}${fmt(Math.abs(netProfit))}`]);
+      // Summary / P&L table — order follows vatOrder setting.
+      let summaryRows;
+      if (vatOrder === 'after_expenses') {
+        summaryRows = [
+          ['Cash in', `${fmt(inSum)}`],
+          ['Cash out', `${fmt(outSum)}`],
+          ['Cash profit', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
+          ['Expenses', `${fmt(expSum)}`],
+          ['Operating profit', `${profitAfterVAT >= 0 ? '' : '-'}${fmt(Math.abs(profitAfterVAT))}`],
+        ];
+        if (taxRate > 0) summaryRows.push([`Addition VAT (${taxRate}%)`, `${fmt(vatAmount)}`]);
+        summaryRows.push(['Net profit', `${netProfit >= 0 ? '' : '-'}${fmt(Math.abs(netProfit))}`]);
+      } else {
+        summaryRows = [
+          ['Cash in', `${fmt(inSum)}`],
+          ['Cash out', `${fmt(outSum)}`],
+          ['Cash profit', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
+        ];
+        if (taxRate > 0) summaryRows.push([`Addition VAT (${taxRate}%)`, `${fmt(vatAmount)}`]);
+        summaryRows.push(['Profit after VAT', `${profitAfterVAT >= 0 ? '' : '-'}${fmt(Math.abs(profitAfterVAT))}`]);
+        summaryRows.push(['Expenses', `${fmt(expSum)}`]);
+        summaryRows.push(['Net profit', `${netProfit >= 0 ? '' : '-'}${fmt(Math.abs(netProfit))}`]);
+      }
       doc.autoTable({
         rowPageBreak: 'avoid',
         head: [['Summary', cur]],
@@ -32445,14 +32702,24 @@
       doc.save(`statement_${String(biz.name).replace(/[^a-zA-Z0-9_-]+/g, '_')}_${fnameLabel}.pdf`);
       toast('Statement downloaded.');
     } else {
-      // CSV: summary block then entries.
-      const rows = [
+      // CSV: summary block then entries — order follows vatOrder.
+      const rows = vatOrder === 'after_expenses' ? [
         ['Cash in', inSum.toFixed(2)],
         ['Cash out', outSum.toFixed(2)],
-        ['Net cash', netCash.toFixed(2)],
+        ['Cash profit', netCash.toFixed(2)],
         ['Expenses', expSum.toFixed(2)],
-        ['Operating profit', operatingProfit.toFixed(2)],
-        [`Tax (${taxRate}%)`, taxAmount.toFixed(2)],
+        ['Operating profit', profitAfterVAT.toFixed(2)],
+        [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
+        ['Net profit', netProfit.toFixed(2)],
+        ['', ''],
+        ['Date', 'Party', 'Category', 'In', 'Out'].join('  '),
+      ] : [
+        ['Cash in', inSum.toFixed(2)],
+        ['Cash out', outSum.toFixed(2)],
+        ['Cash profit', netCash.toFixed(2)],
+        [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
+        ['Profit after VAT', profitAfterVAT.toFixed(2)],
+        ['Expenses', expSum.toFixed(2)],
         ['Net profit', netProfit.toFixed(2)],
         ['', ''],
         ['Date', 'Party', 'Category', 'In', 'Out'].join('  '),
@@ -32527,12 +32794,26 @@
     const projIn = avgInPerDay * daysInMonth;
     const projOut = avgOutPerDay * daysInMonth;
     const projExpenses = avgExpPerDay * daysInMonth;
+    const projCashProfit = projIn - projOut;
+    const projOperatingProfit = projCashProfit - projExpenses;
     const mtdOperatingProfit = mtdIn - mtdOut - mtdExpenses;
-    const projOperatingProfit = projIn - projOut - projExpenses;
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const projTax = projOperatingProfit > 0 ? projOperatingProfit * (taxRate / 100) : 0;
-    const projNetProfit = projOperatingProfit - projTax;
-    const lastNetProfit = lastIn - lastOut - lastExpenses;
+    const vatOrder = biz.vatOrder || 'before_expenses';
+    let projTax, projNetProfit, lastNetProfit;
+    if (vatOrder === 'after_expenses') {
+      projTax = projOperatingProfit > 0 ? projOperatingProfit * (taxRate / 100) : 0;
+      projNetProfit = projOperatingProfit - projTax;
+      const lastOp = lastIn - lastOut - lastExpenses;
+      const lastT = lastOp > 0 ? lastOp * (taxRate / 100) : 0;
+      lastNetProfit = lastOp - lastT;
+    } else {
+      const projVAT = projCashProfit > 0 ? projCashProfit * (taxRate / 100) : 0;
+      projTax = projVAT;
+      projNetProfit = projCashProfit - projVAT - projExpenses;
+      const lastCP = lastIn - lastOut;
+      const lastVAT = lastCP > 0 ? lastCP * (taxRate / 100) : 0;
+      lastNetProfit = lastCP - lastVAT - lastExpenses;
+    }
     const completeness = daysElapsed / daysInMonth;
     const confidence = completeness < 0.25 ? 'Low' : completeness < 0.6 ? 'Moderate' : 'High';
     const monthName = new Date(yyyy, mm - 1, 1).toLocaleString('default', { month: 'long' });
@@ -32543,7 +32824,7 @@
       ['Cash in', fmtNum(mtdIn), fmtNum(avgInPerDay), fmtNum(projIn), fmtNum(lastIn)],
       ['Cash out', fmtNum(mtdOut), fmtNum(avgOutPerDay), fmtNum(projOut), fmtNum(lastOut)],
       ['Expenses', fmtNum(mtdExpenses), fmtNum(avgExpPerDay), fmtNum(projExpenses), fmtNum(lastExpenses)],
-      ['Operating profit', fmtNum(mtdOperatingProfit), fmtNum(mtdOperatingProfit / safeDays), fmtNum(projOperatingProfit), fmtNum(lastIn - lastOut - lastExpenses)],
+      ['Operating profit', fmtNum(mtdOperatingProfit), fmtNum(mtdOperatingProfit / safeDays), fmtNum(projOperatingProfit), fmtNum(lastNetProfit)],
     ];
     if (taxRate > 0) {
       rows.push([`Tax (${taxRate}%)`, '—', '—', fmtNum(projTax), '—']);
@@ -35810,6 +36091,10 @@
         // 'YYYY-MM'). Lets History show the rate/currency saved THAT month on
         // any device. Requires the month_rate_snaps jsonb column (v89.32.69).
         month_rate_snaps: (r.monthRateSnaps && typeof r.monthRateSnaps === 'object') ? r.monthRateSnaps : {},
+        // v89.94: VAT order preference. Default 'before_expenses'.
+        vat_order: typeof r.vatOrder === 'string' ? r.vatOrder : 'before_expenses',
+        // v89.95: user-defined business sort order.
+        biz_sort_order: r.bizSortOrder != null ? Number(r.bizSortOrder) : null,
         created_at_local: r.createdAt || null,
       }),
       fromDb: (r) => ({
@@ -35825,6 +36110,10 @@
         splitRate: Number(r.split_rate) || 0,
         // v89.32.69: tolerate the column being absent on older rows (→ {}).
         monthRateSnaps: (r.month_rate_snaps && typeof r.month_rate_snaps === 'object') ? r.month_rate_snaps : {},
+        // v89.94: VAT order — tolerate absent column (older rows) → default.
+        vatOrder: (typeof r.vat_order === 'string' && r.vat_order) ? r.vat_order : 'before_expenses',
+        // v89.95: user sort order — tolerate absent column.
+        bizSortOrder: r.biz_sort_order != null ? Number(r.biz_sort_order) : null,
         createdAt: r.created_at_local || '',
       }),
     },
