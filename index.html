@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.149';
+  const BUILD_TAG = '2026.07.02.150';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -7757,6 +7757,28 @@
       },
     });
     return __sb;
+  }
+  // v89.99 BOOT FIX: vendor/supabase.umd.js is a DEFERRED script, and
+  // deferred scripts execute only after HTML parsing completes — which is
+  // AFTER this (parser-blocking, inline) script has already run. So any
+  // sb() call made synchronously at boot ALWAYS ran before the SDK
+  // existed: the session restore silently failed on every cold start and
+  // fell through to the sign-in screen. It went unnoticed for months
+  // because Android keeps the TWA process alive (no cold boots), until
+  // forced restarts surfaced it as "auto logout on refresh". This waits
+  // for the deferred script (poll, bounded) so boot can use the SDK.
+  function waitForSupabase(timeoutMs = 8000) {
+    return new Promise((resolve) => {
+      if (window.supabase && typeof window.supabase.createClient === 'function') return resolve(true);
+      const t0 = Date.now();
+      const iv = setInterval(() => {
+        if (window.supabase && typeof window.supabase.createClient === 'function') {
+          clearInterval(iv); resolve(true);
+        } else if (Date.now() - t0 > timeoutMs) {
+          clearInterval(iv); resolve(false);
+        }
+      }, 50);
+    });
   }
 
   // Decode a JWT payload without verifying its signature (verification is
@@ -37469,15 +37491,50 @@
   //   3. Fresh device, no accounts → show cloud sign-in/signup.
   loadAll();
   bindAuthForm();
-  // Install the Supabase auth listener immediately, BEFORE checking session.
-  // The SDK processes the URL hash (e.g. #access_token=… from password-reset
-  // links) during init, and emits the PASSWORD_RECOVERY event then. If we
-  // install after, we miss the event.
-  try { installSupabaseAuthListener(); } catch (e) { console.warn('Auth listener init failed:', e.message); }
+  // Password-reset links can land on ANY device (including fresh ones that
+  // take the non-migrated paths below), so install the auth listener on
+  // every path as soon as the SDK arrives. Idempotent — the migrated path
+  // installs it explicitly before its session check and this becomes a no-op.
+  waitForSupabase(15000).then((ok) => {
+    if (ok) { try { installSupabaseAuthListener(); } catch (_) {} }
+  });
   (async () => {
     const migrated = localStorage.getItem(CLOUD_MIGRATED_KEY) === '1';
     const hasLocalAccounts = Array.isArray(accounts) && accounts.length > 0;
     if (migrated) {
+      // v89.99: WAIT for the deferred supabase.umd.js before touching the
+      // SDK (see waitForSupabase for why boot always lost this race).
+      const sdkReady = await waitForSupabase(8000);
+      if (!sdkReady) {
+        // SDK didn't arrive (offline cold start, or vendor file failed to
+        // load). If a previously-signed-in local session exists, boot the
+        // app from the local cache instead of dumping the user at the
+        // sign-in screen — this is the offline-first promise. Cloud
+        // features light up when the SDK eventually loads (retry below)
+        // or on the next online boot.
+        console.warn('Supabase SDK not available at boot.');
+        if (me()) {
+          showApp();
+          toast('Offline — showing your local data. Cloud sync will resume when the connection is back.');
+          // Keep waiting in the background; if the SDK turns up late,
+          // finish the cloud restore silently so sync starts working.
+          waitForSupabase(60000).then(async (late) => {
+            if (!late) return;
+            try {
+              installSupabaseAuthListener();
+              const { data: { session: sbSession } } = await sb().auth.getSession();
+              if (sbSession) await onSupabaseSignedIn(sbSession);
+            } catch (e) { console.warn('Late cloud restore failed:', e?.message || e); }
+          });
+          return;
+        }
+        setAuthMode('signin');
+        return;
+      }
+      // Install the auth listener BEFORE checking the session — the SDK
+      // processes password-reset URL hashes at client creation and emits
+      // PASSWORD_RECOVERY then; installing after would miss the event.
+      try { installSupabaseAuthListener(); } catch (e) { console.warn('Auth listener init failed:', e.message); }
       // Cloud-native path. Check whether the user is signed in to Supabase.
       try {
         const { data: { session: sbSession } } = await sb().auth.getSession();
