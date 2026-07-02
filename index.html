@@ -44,8 +44,6 @@
   Eliminates the supply-chain risk of a compromised CDN serving altered code, and makes
   the app fully offline-capable. To update: replace these files from the upstream package.
 -->
-<script src="vendor/jspdf.umd.min.js" defer></script>
-<script src="vendor/jspdf.plugin.autotable.min.js" defer></script>
 <script src="vendor/supabase.umd.js" defer></script>
 <style>
   :root {
@@ -7208,6 +7206,23 @@
     .lb-row { page-break-inside: avoid; }
     .entry-row { page-break-inside: avoid; }
   }
+
+  /* ── VAT order segmented control ────────────────────────────── */
+  .vat-order-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--line); border-radius: var(--r-sm); overflow: hidden; margin-bottom: 0.75rem; }
+  .vat-order-btn { padding: 0.65rem 0.5rem; background: transparent; border: none; cursor: pointer; text-align: center; transition: background 0.15s, color 0.15s; line-height: 1.35; color: var(--ink-mute); }
+  .vat-order-btn + .vat-order-btn { border-left: 1.5px solid var(--line); }
+  .vat-order-btn.active { background: var(--accent); color: #fff; }
+  .vat-order-btn:not(.active):hover { background: var(--paper-deep); color: var(--ink); }
+  .vat-order-label { font-size: 0.82rem; font-weight: 600; display: block; }
+  .vat-order-chain { font-size: 0.68rem; color: inherit; opacity: 0.75; margin-top: 0.2rem; display: block; font-family: var(--font-mono); letter-spacing: -0.01em; }
+  .vat-order-btn.active .vat-order-chain { opacity: 0.88; }
+
+  /* ── Business drag-reorder list ─────────────────────────────── */
+  .biz-sort-list { list-style: none; display: flex; flex-direction: column; gap: 0.35rem; }
+  .biz-sort-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.65rem 0.5rem 0.4rem; background: var(--paper-deep); border: 1px solid var(--line); border-radius: var(--r-sm); transition: box-shadow 0.12s; }
+  .biz-sort-name { flex: 1; min-width: 0; font-size: 0.85rem; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .biz-sort-role { font-size: 0.625rem; color: var(--ink-mute); text-transform: uppercase; letter-spacing: 0.1em; margin-left: 0.35rem; flex-shrink: 0; }
+  .biz-sort-action { flex-shrink: 0; }
 </style>
 </head>
 <body>
@@ -7652,6 +7667,36 @@
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
   const BUILD_TAG = '2026.06.05.143';
+
+  // ================================================================
+  // LAZY PDF LIBRARY LOADER
+  // ================================================================
+  // jsPDF (358KB) + autoTable (39KB) are only needed when the user
+  // triggers an export. They are NOT loaded at startup — this saves
+  // ~400KB of network transfer and parse time on every page open.
+  // The first PDF export triggers the load; subsequent calls resolve
+  // instantly from the already-loaded window.jspdf.
+  let __pdfLibsPromise = null;
+  function loadPdfLibs() {
+    if (window.jspdf && window.jspdf.jsPDF) return Promise.resolve(true);
+    if (__pdfLibsPromise) return __pdfLibsPromise;
+    __pdfLibsPromise = new Promise((resolve) => {
+      function loadScript(src, onload) {
+        const s = document.createElement('script');
+        s.src = src;
+        s.onload = onload;
+        s.onerror = () => resolve(false);
+        document.head.appendChild(s);
+      }
+      // Load jsPDF first, then autoTable (depends on jsPDF).
+      loadScript('vendor/jspdf.umd.min.js', () => {
+        loadScript('vendor/jspdf.plugin.autotable.min.js', () => {
+          resolve(!!(window.jspdf && window.jspdf.jsPDF));
+        });
+      });
+    });
+    return __pdfLibsPromise;
+  }
 
   // ================================================================
   // STORAGE
@@ -22291,7 +22336,11 @@
     else if (kind === 'expenseRateView') { modal.innerHTML = expenseRateViewModal(); }
     else if (kind === 'distHistory') { modal.innerHTML = distHistoryModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
-    else if (kind === 'settings') { modal.innerHTML = settingsModal(); }
+    else if (kind === 'settings') {
+      modal.innerHTML = settingsModal();
+      // Wire biz drag reorder for the profile tab (default tab).
+      setTimeout(() => { try { _wireBizDragReorder(); } catch (_) {} }, 0);
+    }
     else if (kind === 'party') {
       if (!canAddParty(session.activeBizId)) { toast('You don\'t have permission to add parties.'); return; }
       modal.innerHTML = partyModal();
@@ -27529,6 +27578,8 @@
         try { loadAuditLog(); } catch (_) {}
       }, 0);
     }
+    // Wire biz drag reorder when profile tab is shown.
+    if (t === 'profile') setTimeout(() => { try { _wireBizDragReorder(); } catch (_) {} }, 0);
   }
   function settingsModal() {
     const u = me();
@@ -28185,21 +28236,24 @@
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Your businesses</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Each business has its own settings — tap the gear next to it in the sidebar, or pick one here. Use ↑↓ to reorder.</p>
-        <ul style="list-style:none;display:flex;flex-direction:column;gap:0.4rem;">
-          ${accessible.map((b, idx) => {
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Drag to reorder — order applies to the sidebar too. Tap Settings → to configure each business.</p>
+        <ul class="biz-sort-list" id="bizSortList">
+          ${accessible.map(b => {
             const r = roleFor(b.id);
             const roleLabel = r === 'staff' ? 'team' : r;
             const isOwner = r === 'owner';
-            return `<li style="display:flex;justify-content:space-between;align-items:center;padding:0.55rem 0.75rem;background:var(--paper-deep);border:1px solid var(--line);border-radius:var(--r-sm);gap:0.4rem;">
-              ${isOwner ? `<div style="display:flex;flex-direction:column;gap:0.1rem;flex-shrink:0;">
-                <button class="btn btn-sm btn-ghost" onclick="moveBiz('${b.id}',-1)" ${idx === 0 ? 'disabled style="opacity:0.3;"' : ''} title="Move up" style="padding:0.1rem 0.35rem;font-size:0.7rem;line-height:1;">↑</button>
-                <button class="btn btn-sm btn-ghost" onclick="moveBiz('${b.id}',1)" ${idx === accessible.length - 1 ? 'disabled style="opacity:0.3;"' : ''} title="Move down" style="padding:0.1rem 0.35rem;font-size:0.7rem;line-height:1;">↓</button>
-              </div>` : '<div style="width:1.6rem;flex-shrink:0;"></div>'}
-              <span style="flex:1;min-width:0;">${escapeHtml(b.name)} <span style="font-size:0.65rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.1em;margin-left:0.4rem;">${roleLabel}</span></span>
-              ${isOwner
-                ? `<button class="btn btn-sm btn-ghost" onclick="closeModal();openBizSettings('${b.id}')">Settings →</button>`
-                : `<button class="btn btn-sm btn-danger-outline" onclick="openLeaveBusinessModal('${b.id}')">Leave →</button>`}
+            return `<li class="biz-sort-row" data-id="${escapeHtml(b.id)}">
+              ${isOwner ? `<span class="drag-handle" title="Drag to reorder" aria-label="Drag to reorder">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" opacity="0.5">
+                  <line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/>
+                </svg>
+              </span>` : `<span style="width:1.4rem;flex-shrink:0;"></span>`}
+              <span class="biz-sort-name">${escapeHtml(b.name)}<span class="biz-sort-role">${roleLabel}</span></span>
+              <span class="biz-sort-action">
+                ${isOwner
+                  ? `<button class="btn btn-sm btn-ghost" onclick="closeModal();openBizSettings('${b.id}')">Settings →</button>`
+                  : `<button class="btn btn-sm btn-danger-outline" onclick="openLeaveBusinessModal('${b.id}')">Leave →</button>`}
+              </span>
             </li>`;
           }).join('')}
         </ul>
@@ -28212,6 +28266,27 @@
           <button class="btn btn-sm btn-ghost" onclick="openModal('about')">About</button>
         </div>
       </div>`;
+  }
+  // Wire biz drag-reorder after the settings modal renders.
+  // Called by pickSettingsTab and openModal('settings').
+  function _wireBizDragReorder() {
+    const list = document.getElementById('bizSortList');
+    if (!list) return;
+    enableDragReorder(list, reorderBizByIds);
+  }
+  // Reorder callback — receives the new id array from enableDragReorder.
+  function reorderBizByIds(ids) {
+    const u = me(); if (!u) return;
+    ids.forEach((id, i) => {
+      const biz = data.businesses.find(b => b.id === id);
+      if (biz && roleFor(biz.id) === 'owner') {
+        biz.bizSortOrder = i;
+        biz.updatedAt = Date.now();
+      }
+    });
+    saveData();
+    // Update sidebar to reflect new order without closing the modal.
+    try { renderSidebarNav(); } catch (_) { try { renderAll(); } catch (__) {} }
   }
   // v66: profile toggle for the entry sound. Persists to localStorage
   // and previews a sample sound so the user can hear what they're
@@ -28394,23 +28469,24 @@
     return `
       <div class="settings-section">
         <h3 class="settings-heading">Addition VAT order</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.75rem;">Choose when Addition VAT is applied in the P&amp;L chain. Affects Audit, Distribution, and all exports.</p>
-        <div style="display:flex;flex-direction:column;gap:0.5rem;margin-bottom:0.75rem;">
-          <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;padding:0.55rem 0.7rem;border-radius:var(--r-sm);border:1.5px solid ${vatOrder === 'before_expenses' ? 'var(--accent-readable)' : 'var(--line)'};background:${vatOrder === 'before_expenses' ? 'var(--accent-bg,var(--paper-deep))' : 'transparent'};">
-            <input type="radio" name="vatOrder" value="before_expenses" ${vatOrder === 'before_expenses' ? 'checked' : ''} onchange="saveBizVatOrder('${jsAttr(biz.id)}','before_expenses')" style="margin-top:0.15rem;accent-color:var(--accent-readable);">
-            <div>
-              <div style="font-weight:600;font-size:0.85rem;">VAT before expenses <span style="font-size:0.72rem;font-weight:400;color:var(--ink-mute);">(default)</span></div>
-              <div style="font-size:0.75rem;color:var(--ink-mute);margin-top:0.15rem;">Cash profit → − VAT → Profit after VAT → − Expenses → Net profit</div>
-            </div>
-          </label>
-          <label style="display:flex;align-items:flex-start;gap:0.6rem;cursor:pointer;padding:0.55rem 0.7rem;border-radius:var(--r-sm);border:1.5px solid ${vatOrder === 'after_expenses' ? 'var(--accent-readable)' : 'var(--line)'};background:${vatOrder === 'after_expenses' ? 'var(--accent-bg,var(--paper-deep))' : 'transparent'};">
-            <input type="radio" name="vatOrder" value="after_expenses" ${vatOrder === 'after_expenses' ? 'checked' : ''} onchange="saveBizVatOrder('${jsAttr(biz.id)}','after_expenses')" style="margin-top:0.15rem;accent-color:var(--accent-readable);">
-            <div>
-              <div style="font-weight:600;font-size:0.85rem;">VAT after expenses</div>
-              <div style="font-size:0.75rem;color:var(--ink-mute);margin-top:0.15rem;">Cash profit → − Expenses → Operating profit → − VAT → Net profit</div>
-            </div>
-          </label>
+        <p style="font-size:0.82rem;color:var(--ink-mute);margin-bottom:0.7rem;">Controls when VAT is applied in the P&amp;L. Affects Audit, Distribution, and all exports.</p>
+        <div class="vat-order-toggle">
+          <button class="vat-order-btn${vatOrder === 'before_expenses' ? ' active' : ''}"
+                  onclick="saveBizVatOrder('${jsAttr(biz.id)}','before_expenses')">
+            <span class="vat-order-label">VAT → then Expenses</span>
+            <span class="vat-order-chain">Profit → −VAT → −Expenses</span>
+          </button>
+          <button class="vat-order-btn${vatOrder === 'after_expenses' ? ' active' : ''}"
+                  onclick="saveBizVatOrder('${jsAttr(biz.id)}','after_expenses')">
+            <span class="vat-order-label">Expenses → then VAT</span>
+            <span class="vat-order-chain">Profit → −Expenses → −VAT</span>
+          </button>
         </div>
+        <p style="font-size:0.75rem;color:var(--ink-mute);line-height:1.5;">
+          ${vatOrder === 'before_expenses'
+            ? 'Cash profit → <strong>− VAT</strong> → Profit after VAT → − Expenses → Net profit'
+            : 'Cash profit → − Expenses → Operating profit → <strong>− VAT</strong> → Net profit'}
+        </p>
       </div>
 
       <div class="settings-section">
@@ -28826,31 +28902,6 @@
       setTimeout(() => openLeaveBusinessModal(bizId), 200);
     }
     __transferOwnerPendingId = null;
-  }
-
-  // v89.95: move a business up or down in the user-defined sort order.
-  // Only the owner can reorder their own businesses. Saves bizSortOrder
-  // on each affected business and re-renders settings + sidebar.
-  function moveBiz(bizId, direction) {
-    const u = me(); if (!u) return;
-    const visible = visibleBusinesses();
-    const idx = visible.findIndex(b => b.id === bizId);
-    if (idx < 0) return;
-    const swapIdx = idx + direction;
-    if (swapIdx < 0 || swapIdx >= visible.length) return;
-    // Assign contiguous sort orders to all visible businesses, then swap.
-    visible.forEach((b, i) => { b.bizSortOrder = i; });
-    const tmp = visible[idx].bizSortOrder;
-    visible[idx].bizSortOrder = visible[swapIdx].bizSortOrder;
-    visible[swapIdx].bizSortOrder = tmp;
-    visible[idx].updatedAt = Date.now();
-    visible[swapIdx].updatedAt = Date.now();
-    saveData();
-    // Re-render the full app (updates sidebar order) then re-open settings
-    // modal so the button states refresh. renderAll() handles the sidebar;
-    // the modal re-open puts the user back where they were.
-    renderAll();
-    openModal('settings');
   }
 
   function openBizSettings(bizId) {
@@ -32108,11 +32159,13 @@
 
   // v89.29: prevent double-fire on slow exports; show progress feedback.
   let __exportInFlight = false;
-  function exportPDF() {
+  async function exportPDF() {
     if (__exportInFlight) return;
     if (!session.activeBookId) { toast('No book selected.'); return; }
     if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
-    if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+    toast('Loading PDF library…');
+    const pdfReady = await loadPdfLibs();
+    if (!pdfReady) { toast('PDF library failed to load. Check your connection.'); return; }
     __exportInFlight = true;
     toast('Generating PDF…');
     // Safety: auto-clear flag after 30s in case generation throws unexpectedly
@@ -32295,8 +32348,9 @@
   //   filename: download filename without extension
   //   columnAlign: optional { N: 'right' | 'left' | 'center' } for PDF columns
 
-  function exportTablePDF(opts) {
-    if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load.'); return; }
+  async function exportTablePDF(opts) {
+    const pdfReady = await loadPdfLibs();
+    if (!pdfReady) { toast('PDF library failed to load.'); return; }
     if (!opts.rows || !opts.rows.length) { toast('Nothing to export.'); return; }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -32578,7 +32632,7 @@
   // the P&L summary with the period's entry list. Reuses the SAME P&L formula
   // as the Audit view so the numbers can never disagree, and the SAME PDF
   // styling as every other export.
-  function exportPeriodStatement(kind) {
+  async function exportPeriodStatement(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canSeeAudit(biz.id)) { toast('Only the owner, manager, or viewer can export the statement.'); return; }
@@ -32617,7 +32671,8 @@
     }
 
     if (kind === 'pdf') {
-      if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+      const pdfReady = await loadPdfLibs();
+      if (!pdfReady) { toast('PDF library failed to load. Check your connection.'); return; }
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
       // Header
@@ -32966,7 +33021,7 @@
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
 
-  function exportQuickLookDashboard(kind) {
+  async function exportQuickLookDashboard(kind) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
@@ -32991,7 +33046,10 @@
     // laid out in a grid. Photos are constrained to a reasonable size — big
     // enough for a QR code to be scannable, small enough that 2-3 entries
     // fit on a page.
-    if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load.'); return; }
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      const pdfReady = await loadPdfLibs();
+      if (!pdfReady) { toast('PDF library failed to load.'); return; }
+    }
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
@@ -33157,7 +33215,7 @@
   // PDFs and CSVs carry the SAME columns as the entries-tab export:
   //   Inv #, Date, Description, From / To, Category, Account, In, Out, Bal., By
   // with a running balance and a totals footer. PDF reuses the brand styling.
-  function exportDetailLedger(o) {
+  async function exportDetailLedger(o) {
     const { kind, biz, entries, title, filename } = o;
     const cur = biz.currency || 'NPR';
     const acctById = new Map(data.cashAccounts.map(a => [a.id, a.name]));
@@ -33185,7 +33243,8 @@
     const columns = ['Inv #', 'Date', 'Time', 'Description', 'From / To', 'Category', 'Account', 'In', 'Out', 'Bal.', 'By'];
     const totals = ['', '', '', '', '', '', 'Totals', fmtCur(inSum, biz.currency), fmtCur(outSum, biz.currency), fmtCur(inSum - outSum, biz.currency), ''];
     if (kind === 'pdf') {
-      if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
+      const pdfReady = await loadPdfLibs();
+      if (!pdfReady) { toast('PDF library failed to load. Check your connection.'); return; }
       if (!entries.length) { toast('Nothing to export.'); return; }
       const { jsPDF } = window.jspdf;
       // Landscape gives the columns room to breathe — same as a wide ledger.
