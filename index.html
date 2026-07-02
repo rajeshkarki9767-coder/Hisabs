@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.148';
+  const BUILD_TAG = '2026.07.02.149';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -10025,18 +10025,32 @@
       draggingRow = row;
       pointerIdActive = ev.pointerId != null ? ev.pointerId : null;
       startPointerY = ev.clientY;
-      startRowTop = row.getBoundingClientRect().top;
+      const rowRect = row.getBoundingClientRect();
+      startRowTop = rowRect.top;
       curTranslate = 0;
       // Placeholder holds the slot open at the row's original position.
       placeholder = document.createElement('div');
       placeholder.className = 'drag-placeholder';
       placeholder.style.height = row.offsetHeight + 'px';
       row.parentNode.insertBefore(placeholder, row);
-      // Lift the row in-place: transform keeps it in normal document flow, so
-      // it stays visually inside the scrolling modal instead of jumping to
-      // viewport coordinates. The placeholder fills the slot it left behind.
+      // v89.99 FIX: lift the row OUT of layout flow. Previously the row
+      // stayed position:relative — still occupying a slot — while the
+      // placeholder added a second slot for the same row. Every sibling
+      // below was pushed down an extra row-height, so all midline math
+      // was offset: moving one position required dragging ~two row
+      // heights, small drags snapped back (order unchanged → no Save
+      // bar), and the double hole shifted the layout around during the
+      // drag. Absolute positioning leaves the placeholder as the ONLY
+      // slot; the container anchors it.
+      const contRect = container.getBoundingClientRect();
+      if (!container.style.position) container.style.position = 'relative';
       row.classList.add('dragging');
-      row.style.position = 'relative';
+      row.style.position = 'absolute';
+      row.style.top = (rowRect.top - contRect.top) + 'px';
+      row.style.left = '0';
+      row.style.right = '0';
+      row.style.width = 'auto';
+      row.style.boxSizing = 'border-box';
       row.style.zIndex = '500';
       row.style.pointerEvents = 'none';
       row.style.transition = 'none';
@@ -10122,6 +10136,11 @@
       }
       draggingRow.classList.remove('dragging');
       draggingRow.style.position = '';
+      draggingRow.style.top = '';
+      draggingRow.style.left = '';
+      draggingRow.style.right = '';
+      draggingRow.style.width = '';
+      draggingRow.style.boxSizing = '';
       draggingRow.style.transform = '';
       draggingRow.style.zIndex = '';
       draggingRow.style.pointerEvents = '';
@@ -28341,7 +28360,21 @@
 
   function profileTabHTML(u) {
     const owned = data.businesses.filter(b => b.ownerId === u.id);
-    const accessible = data.businesses.filter(b => !!roleFor(b.id));
+    // v89.99 FIX: sort with the SAME comparator as the sidebar. Previously
+    // this rendered raw data.businesses order, so the settings list didn't
+    // match the sidebar — and the captured "initial order" for the staged
+    // reorder was wrong from the start.
+    const accessible = data.businesses.filter(b => !!roleFor(b.id)).slice().sort((a, b) => {
+      const aHasOrder = a.bizSortOrder != null;
+      const bHasOrder = b.bizSortOrder != null;
+      if (aHasOrder && bHasOrder) return (a.bizSortOrder || 0) - (b.bizSortOrder || 0);
+      if (aHasOrder) return -1;
+      if (bHasOrder) return 1;
+      const ai = data.businesses.indexOf(a), bi = data.businesses.indexOf(b);
+      const at = a.createdAt || '', bt = b.createdAt || '';
+      if (at && bt && at !== bt) return at < bt ? -1 : 1;
+      return ai - bi;
+    });
     return `
       <div class="settings-section">
         <h3 class="settings-heading">Your account</h3>
