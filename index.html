@@ -46,7 +46,7 @@
 -->
 <script src="vendor/jspdf.umd.min.js" defer></script>
 <script src="vendor/jspdf.plugin.autotable.min.js" defer></script>
-<script src="vendor/supabase.umd.js"></script>
+<script src="vendor/supabase.umd.js" defer></script>
 <style>
   :root {
     /* These are written by applyTheme() at runtime. The values here are
@@ -17465,9 +17465,9 @@
     if (!biz) return;
     if (roleFor(biz.id) !== 'owner') { toast('Only the owner can change the tax rate.'); return; }
     const current = Number(biz.taxRate) || 0;
-    const raw = await uiPrompt('Tax % (applied to Operating profit). Enter 0 to disable.',
+    const raw = await uiPrompt('Addition VAT % (applied to Cash profit before expenses). Enter 0 to disable.',
       String(current),
-      { title: 'Tax rate', submitLabel: 'Save', inputType: 'text', placeholder: 'e.g. 13' });
+      { title: 'Addition VAT rate', submitLabel: 'Save', inputType: 'text', placeholder: 'e.g. 13' });
     if (raw == null) return;
     const trimmed = String(raw).trim();
     if (trimmed === '') return;
@@ -17480,7 +17480,7 @@
     biz.updatedAt = Date.now();
     saveData();
     renderMain();
-    toast(`Tax rate set to ${val}%.`);
+    toast(`Addition VAT rate set to ${val}%.`);
   }
 
   // v89: handlers for the inline Audit Tax % editor. The Save button
@@ -17634,19 +17634,18 @@
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const expenseTotal = expensesForRange.reduce((s, x) => s + (Number(x.amount) || 0), 0);
 
-    // Tax math:
-    //   operatingProfit = cashProfit − expenses
-    //   if operatingProfit > 0:  tax = operatingProfit × (taxRate / 100)
-    //   else:                    tax = 0  (no tax on losses)
-    //   netProfit = operatingProfit − tax
-    // Rationale: applying tax to a negative figure would generate a
-    // "credit" the user can't actually claim. Real tax systems
-    // calculate liability against positive income only — this matches
-    // that and matches what every shopkeeper expects.
+    // P&L math chain (v89.92 order):
+    //   cashProfit      = totalIn − totalOut
+    //   vatAmount       = cashProfit × (vatRate / 100)   [if cashProfit > 0]
+    //   profitAfterVAT  = cashProfit − vatAmount
+    //   netProfit       = profitAfterVAT − expenses
+    //
+    // Rationale: VAT is charged on gross cash profit before operating
+    // expenses; expenses are then deducted from the post-VAT figure.
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const profitBeforeTax = rangeProfit - expenseTotal;
-    const taxAmount = (profitBeforeTax > 0) ? profitBeforeTax * (taxRate / 100) : 0;
-    const netProfit = profitBeforeTax - taxAmount;
+    const vatAmount = (rangeProfit > 0) ? rangeProfit * (taxRate / 100) : 0;
+    const profitAfterVAT = rangeProfit - vatAmount;
+    const netProfit = profitAfterVAT - expenseTotal;
 
     // Render: expenses section
     // Read-only on Audit — the "Manage →" jump button is intentionally removed
@@ -17746,9 +17745,7 @@
       </div>
     `;
 
-    // Render: totals row. Cash in / Cash out (book entries only, the
-    // verifiable till number) / Cash profit. Below that, a single
-    // Total expenses row that feeds Operating profit.
+    // Render: totals row. Cash in / Cash out / Cash profit.
     const totalsSection = `
       <div class="audit-month-totals">
         <div class="audit-month-totals-card">
@@ -17766,25 +17763,18 @@
           <div class="audit-month-totals-sub">In − Out</div>
         </div>
       </div>
-      <div class="audit-expenses-total-row">
-        <div class="audit-month-totals-card audit-month-totals-card-wide">
-          <div class="audit-month-totals-label">Total expenses</div>
-          <div class="audit-month-totals-value out">${cur} ${fmt(expenseTotal)}</div>
-        </div>
-      </div>
     `;
 
     // Tax control. Owner sees an editable button; manager/viewer see
     // the rate read-only. Always shows alongside the net profit so
     // the user can see both at a glance.
     const isOwnerForTax = roleFor(biz.id) === 'owner';
-    // v89: inline tax-rate editor with explicit Save button. Owner
-    // sees an editable input + Save; everyone else sees the read-only %.
+    // v89.92: renamed "Tax %" → "Addition VAT %" and applied to cash profit.
     const taxControlSection = `
       <div class="audit-tax-row">
         <div class="audit-tax-label-wrap">
-          <div class="audit-tax-label">Tax %</div>
-          <div class="audit-tax-meta">Applied to Operating profit</div>
+          <div class="audit-tax-label">Addition VAT %</div>
+          <div class="audit-tax-meta">Applied to Cash profit</div>
         </div>
         <div class="audit-tax-value-wrap">
           ${isOwnerForTax
@@ -17794,48 +17784,42 @@
                        min="0" max="100" step="0.01"
                        inputmode="decimal"
                        class="audit-tax-input"
-                       aria-label="Tax percent"
+                       aria-label="Addition VAT percent"
                        oninput="onAuditTaxInput()"
                        onkeydown="if(event.key==='Enter'){event.preventDefault();saveAuditTaxInput();}">
                 <span class="audit-tax-input-suffix">%</span>
-                <button class="btn btn-sm btn-accent audit-tax-save-btn" id="auditTaxSaveBtn" onclick="saveAuditTaxInput()" disabled title="Save tax rate">Save</button>
+                <button class="btn btn-sm btn-accent audit-tax-save-btn" id="auditTaxSaveBtn" onclick="saveAuditTaxInput()" disabled title="Save VAT rate">Save</button>
               </div>`
             : `<span class="audit-tax-readonly">${escapeHtml(String(taxRate))}%</span>`
           }
           <div class="audit-tax-applied">
-            <span class="audit-tax-applied-label">Tax applied</span>
-            <span class="audit-tax-applied-value">${taxRate > 0 ? `${cur} ${fmt(taxAmount)}` : '—'}</span>
+            <span class="audit-tax-applied-label">VAT applied</span>
+            <span class="audit-tax-applied-value">${taxRate > 0 ? `${cur} ${fmt(vatAmount)}` : '—'}</span>
           </div>
         </div>
       </div>
     `;
-    // Net profit math chain:
-    //   Operating profit = Cash profit − Expenses
-    //   Tax              = Operating profit × tax rate (if > 0)
-    //   Net profit       = Operating profit − Tax
-    //
-    // profitBeforeTax was computed above using the same formula —
-    // alias it here so the variable name on screen matches the label.
-    const operatingProfit = profitBeforeTax;
-    const operatingProfitSection = `
-      <div class="audit-operating-profit ${operatingProfit >= 0 ? 'pos' : 'neg'}">
-        <div class="audit-operating-profit-label">Operating profit</div>
-        <div class="audit-operating-profit-value">${cur} ${operatingProfit >= 0 ? '+' : '−'}${fmt(Math.abs(operatingProfit))}</div>
-        <div class="audit-operating-profit-meta">Cash profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))} − Expenses ${cur} ${fmt(expenseTotal)}</div>
+    // Net profit display chain (v89.92):
+    //   Cash profit  →  − Addition VAT  →  Profit after VAT  →  − Expenses  →  Net profit
+    const profitAfterVATSection = `
+      <div class="audit-operating-profit ${profitAfterVAT >= 0 ? 'pos' : 'neg'}">
+        <div class="audit-operating-profit-label">Profit after VAT</div>
+        <div class="audit-operating-profit-value">${cur} ${profitAfterVAT >= 0 ? '+' : '−'}${fmt(Math.abs(profitAfterVAT))}</div>
+        <div class="audit-operating-profit-meta">Cash profit ${cur} ${rangeProfit >= 0 ? '' : '−'}${fmt(Math.abs(rangeProfit))}${taxRate > 0 ? ` − Addition VAT ${taxRate}% (${cur} ${fmt(vatAmount)})` : ' (no VAT applied)'}</div>
       </div>
     `;
-    // Net profit hero card — final number after tax. Shows the tax
-    // deduction inline when applicable, otherwise just mirrors the
-    // operating profit. The label distinguishes from operating
-    // profit so the user can read either number at a glance.
-    const netProfitMeta = taxRate > 0
-      ? `Operating profit ${cur} ${operatingProfit >= 0 ? '' : '−'}${fmt(Math.abs(operatingProfit))} − Tax ${taxRate}% (${cur} ${fmt(taxAmount)})`
-      : `Same as Operating profit (no tax applied)`;
+    const netProfitMeta = `Profit after VAT ${cur} ${profitAfterVAT >= 0 ? '' : '−'}${fmt(Math.abs(profitAfterVAT))} − Expenses ${cur} ${fmt(expenseTotal)}`;
     const netSection = `
-      ${operatingProfitSection}
       ${taxControlSection}
+      ${profitAfterVATSection}
+      <div class="audit-expenses-total-row">
+        <div class="audit-month-totals-card audit-month-totals-card-wide">
+          <div class="audit-month-totals-label">Total expenses</div>
+          <div class="audit-month-totals-value out">${cur} ${fmt(expenseTotal)}</div>
+        </div>
+      </div>
       <div class="audit-net ${netProfit >= 0 ? 'pos' : 'neg'}">
-        <div class="audit-net-label">Net profit${taxRate > 0 ? ' (after tax)' : ''}</div>
+        <div class="audit-net-label">Net profit</div>
         <div class="audit-net-value ${netProfit >= 0 ? 'pos' : 'neg'}">${cur} ${netProfit >= 0 ? '+' : '−'}${fmt(Math.abs(netProfit))}</div>
         <div class="audit-net-meta">${netProfitMeta}</div>
       </div>
@@ -18011,10 +17995,10 @@
       }
       expenses += Number(x.amount) || 0;
     }
-    const operatingProfit = cashIn - cashOut - expenses;
+    const operatingProfit = cashIn - cashOut;
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const tax = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
-    __splitNetProfit = operatingProfit - tax;
+    const vatAmt = operatingProfit > 0 ? operatingProfit * (taxRate / 100) : 0;
+    __splitNetProfit = operatingProfit - vatAmt - expenses;
     __splitBusinessCurrency = currencyDisplay(biz.currency);
     // Hydrate distribution rows.
     // v89.32.46 FIX: load via loadDistributionFromCloudOrLocal (prefers the
@@ -19461,23 +19445,29 @@
     }
     const haveLastYearProfit = lastYearProfitArr.some(v => v !== null);
 
-    // ===== Daily cash flow this month (moved from Forecast in v60) =====
-    // Same data shape and chart layout as the Forecast page used to
-    // show — paired green/red bars per day of the current calendar
-    // month with a dashed "Today" marker. Stays month-fixed (not
-    // affected by the Insights period selector) because the chart's
-    // purpose is "how is the active month going so far".
+    // ===== Daily cash flow — respects the Insights period selector =====
+    // v89.90: previously these charts were month-fixed (always current month).
+    // Now when a specific past month is selected via the period filter the
+    // charts show that month's data. "This month" and "All time" still default
+    // to the current month so the "how is this month going" view is unchanged.
     const _todayStr = today();
-    const [_yy, _mm] = _todayStr.split('-').map(Number);
-    const _monthKeyStr = `${_yy}-${String(_mm).padStart(2, '0')}`;
+    const _chartMonthKey = (__insightsPeriod?.mode === 'month' && __insightsPeriod.monthKey)
+      ? __insightsPeriod.monthKey
+      : _todayStr.slice(0, 7); // current month for 'current' and 'all' modes
+    const [_yy, _mm] = _chartMonthKey.split('-').map(Number);
+    const _monthKeyStr = _chartMonthKey;
     const _daysInMonth = new Date(_yy, _mm, 0).getDate();
-    const _todayDay = Number(_todayStr.slice(8, 10));
+    // For past months every day has passed; for the current month use today.
+    const _isCurrentMonth = (_chartMonthKey === _todayStr.slice(0, 7));
+    const _todayDay = _isCurrentMonth ? Number(_todayStr.slice(8, 10)) : _daysInMonth;
+    // Entries cutoff: for current month stop at today; for past months show all.
+    const _entryCutoff = _isCurrentMonth ? _todayStr : `${_chartMonthKey}-31`;
     const _mtdByDay = new Map();
     for (const e of allEntries) {
       if (!e.date) continue;
       const monthOfEntry = e.date.slice(0, 7);
       if (monthOfEntry !== _monthKeyStr) continue;
-      if (e.date > _todayStr) continue;
+      if (e.date > _entryCutoff) continue;
       const d = Number(e.date.slice(8, 10));
       let bucket = _mtdByDay.get(d);
       if (!bucket) { bucket = { in: 0, out: 0 }; _mtdByDay.set(d, bucket); }
@@ -19538,10 +19528,11 @@
       }
     }
     const _todayX = _padL + (_todayDay - 0.5) * _dayWidth;
-    const _todayMarker = `
+    // Only show the "Today" marker when viewing the current month.
+    const _todayMarker = _isCurrentMonth ? `
       <line class="fc-today" x1="${_todayX.toFixed(1)}" y1="${_padT}" x2="${_todayX.toFixed(1)}" y2="${_padT + _innerH}" />
       <text class="fc-today-label" x="${_todayX.toFixed(1)}" y="${_padT - 6}" text-anchor="middle">Today</text>
-    `;
+    ` : '';
     const _dailyYLabels = [];
     for (let i = 0; i <= 4; i++) {
       const val = _yMaxDaily * (1 - i / 4);
@@ -19624,13 +19615,13 @@
       // numbers at a smaller font. fc-xlabel-dense shrinks them so 28–31 labels
       // sit without overlap; today's number is emphasised.
       const x = _padL + (d - 0.5) * _dayWidth;
-      const isToday = (d === _todayDay);
+      const isToday = _isCurrentMonth && (d === _todayDay);
       _netXLabels.push(`<text class="fc-xlabel fc-xlabel-dense${isToday ? ' fc-xlabel-today' : ''}" x="${x.toFixed(1)}" y="${_netH - 16}" text-anchor="middle">${d}</text>`);
     }
-    const _netTodayMarker = `
+    const _netTodayMarker = _isCurrentMonth ? `
       <line class="fc-today" x1="${_todayX.toFixed(1)}" y1="${_padT}" x2="${_todayX.toFixed(1)}" y2="${_padT + _netInnerH}" />
       <text class="fc-today-label" x="${_todayX.toFixed(1)}" y="${_padT - 6}" text-anchor="middle">Today</text>
-    `;
+    ` : '';
     // v89.71: clean, evenly-spaced y-axis gridlines on the daily net profit
     // chart. Instead of just +max / 0 / −max, draw rounded ticks at a "nice"
     // step (e.g. 500, 1000, 1500, 2000…) both above and below zero, each with
@@ -20151,16 +20142,18 @@
 
     // v63: Growth trend — MoM, QoQ, YoY net profit growth %. Computed
     // off the monthsArr (Jan→Dec current year) + lastYearProfitArr.
-    // Each card shows: current period total, prior period total, and
-    // the % change. "n/a" when prior period has no data.
-    const thisMonthKey = today().slice(0, 7);
+    // v89.91: when a specific month is selected via the period filter, anchor
+    // growth calculations to that month (not always today's month).
+    const _growthAnchorKey = (__insightsPeriod?.mode === 'month' && __insightsPeriod.monthKey)
+      ? __insightsPeriod.monthKey
+      : today().slice(0, 7);
     function monthNetByKey(key) {
-      const m = monthBuckets.get(key);
+      const m = monthBuckets.get(key) || lastYearBuckets.get(key);
       return m ? (m.in - m.out) : null;
     }
     function yearMonthKey(off) {
-      const d = new Date();
-      d.setMonth(d.getMonth() + off);
+      const [ay, am] = _growthAnchorKey.split('-').map(Number);
+      const d = new Date(ay, am - 1 + off, 1);
       return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
     }
     const momThis = monthNetByKey(yearMonthKey(0));
@@ -20178,8 +20171,8 @@
     const qThis = netSumMonths(0, -2);
     const qPrev = netSumMonths(-3, -5);
     const qoqPct = pctChange(qThis, qPrev);
-    // Year-over-year — this month vs same month last year.
-    const thisMonthIdx = new Date().getMonth();
+    // Year-over-year — selected month vs same month last year.
+    const thisMonthIdx = Number(_growthAnchorKey.slice(5, 7)) - 1;
     const lastYearSameMonth = lastYearProfitArr[thisMonthIdx];
     const yoyPct = (momThis != null && lastYearSameMonth != null) ? pctChange(momThis, lastYearSameMonth) : null;
     function growthCard(label, sub, pct) {
@@ -31332,6 +31325,12 @@
     __edgeFunctionUnavailable = true;
     try { localStorage.setItem('hisabs_edge_fn_missing', '1'); } catch (_) {}
   }
+  function clearEdgeFunctionUnavailable() {
+    // v89.93: called when the user explicitly hits "Refresh list" so a
+    // previously-cached 404 / network-error doesn't block the retry.
+    __edgeFunctionUnavailable = false;
+    try { localStorage.removeItem('hisabs_edge_fn_missing'); } catch (_) {}
+  }
 
   // Render a "soft" placeholder when the Edge Function isn't deployed
   // (404) or we can't reach it. Returns an HTML string.
@@ -31375,7 +31374,7 @@
         .select('id, event_type, description, occurred_at, user_agent')
         .in('event_type', ['sign_in', 'sign_out'])
         .order('occurred_at', { ascending: false })
-        .limit(10);
+        .limit(3);
       if (error) {
         if (error.code === '42P01' || /does not exist/i.test(error.message || '')) {
           el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Activity log isn't set up yet on this project. Run the latest SUPABASE.sql to enable it.</p>`;
@@ -31395,10 +31394,7 @@
         business_deleted: 'Business deleted',
         account_wiped: 'Account wiped',
       };
-      // Default to showing 3 most recent entries. The rest is rendered
-      // but hidden behind a "View more" toggle to keep the Activity panel
-      // compact — most of the time, only the latest sign-in is what the
-      // user actually wants to see at a glance.
+      // Show the 3 most recent sign-in/sign-out events.
       const renderRow = (r) => {
         const label = labels[r.event_type] || r.event_type;
         const dev = r.user_agent ? describeUserAgent(r.user_agent) : '';
@@ -31412,17 +31408,7 @@
           </div>
         `;
       };
-      const visibleRows = rows.slice(0, 3).map(renderRow).join('');
-      const hiddenRows = rows.slice(3).map(renderRow).join('');
-      el.innerHTML = `
-        <div>${visibleRows}</div>
-        ${rows.length > 3 ? `
-          <div id="auditLogHidden" hidden>${hiddenRows}</div>
-          <button id="auditLogToggle" class="btn btn-sm btn-ghost" style="margin-top:0.55rem;" onclick="toggleAuditLogMore(this)">
-            View ${rows.length - 3} more
-          </button>
-        ` : ''}
-      `;
+      el.innerHTML = `<div>${rows.map(renderRow).join('')}</div>`;
     } catch (e) {
       el.innerHTML = `<p style="font-size:0.78rem;color:var(--ink-mute);">Could not load activity log: ${escapeHtml(e?.message || e)}</p>`;
     }
@@ -31431,6 +31417,10 @@
   async function loadDevicesList() {
     const el = document.getElementById('devicesList');
     if (!el) return;
+    // v89.93: always clear the cached "unavailable" flag so each explicit
+    // load (tab open or Refresh button) retries the edge function rather
+    // than silently skipping it forever once a single 404 was seen.
+    clearEdgeFunctionUnavailable();
     // v89.32: show THIS device immediately (from local info + exact model)
     // so the section never looks empty while the Edge Function responds.
     // The full server list replaces this as soon as it arrives.
@@ -32314,34 +32304,34 @@
       .map(x => [x.description || '', Number(x.amount || 0).toFixed(2)]);
     const expSum = auditExp.reduce((s, r) => s + Number(r[1]), 0);
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const operatingProfit = inSum - outSum - expSum;
-    const taxAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
-    const netProfit = operatingProfit - taxAmount;
+    const cashProfit = inSum - outSum;
+    const vatAmount = (cashProfit > 0) ? cashProfit * (taxRate / 100) : 0;
+    const profitAfterVAT = cashProfit - vatAmount;
+    const netProfit = profitAfterVAT - expSum;
     const rows = [
       ['Cash in (book entries)', inSum.toFixed(2)],
       ['Cash out (book entries)', outSum.toFixed(2)],
+      ['Cash profit', cashProfit.toFixed(2)],
+      [`Addition VAT (${taxRate}%)`, vatAmount.toFixed(2)],
+      ['Profit after VAT', profitAfterVAT.toFixed(2)],
       ['Audit-only expenses', expSum.toFixed(2)],
-      ['Operating profit', operatingProfit.toFixed(2)],
-      [`Tax (${taxRate}%)`, taxAmount.toFixed(2)],
-      ['Net profit (after tax)', netProfit.toFixed(2)],
+      ['Net profit', netProfit.toFixed(2)],
       ['', ''], // blank separator
       ['— Audit expense line items —', ''],
       ...auditExp,
     ];
     const opts = {
       title: `Audit summary — ${biz.name}`,
-      subtitle: `All time · ${biz.currency} · Tax rate ${taxRate}% · Tax applied ${biz.currency} ${fmt(taxAmount)} · Generated ${today()}`,
+      subtitle: `All time · ${biz.currency} · Addition VAT ${taxRate}% · VAT applied ${biz.currency} ${fmt(vatAmount)} · Generated ${today()}`,
       columns: ['Item', 'Amount'],
       rows,
       filename: `audit_${biz.name}_all`,
       columnAlign: { 1: 'right' },
-      // v73: color the tax row so the user spots their liability fast.
-      // Operating profit row is green/red by sign, net profit row is
-      // bold so the bottom line stands out.
+      // Row order: Cash in(0), Cash out(1), Cash profit(2), Addition VAT(3),
+      // Profit after VAT(4), Expenses(5), Net profit(6).
       rowColors: {
-        // Index in the rows array of the Tax row (5th row, 0-indexed 4)
-        4: [168, 53, 31],   // Tax → red
-        5: [46, 93, 58],    // Net profit (after tax) → green
+        3: [168, 53, 31],   // Addition VAT → red
+        6: [46, 93, 58],    // Net profit → green
       },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
@@ -32376,11 +32366,11 @@
     const expsForPeriod = data.auditExpenses
       .filter(x => x.businessId === biz.id && pred({ date: expenseDate(x) }));
     const expSum = expsForPeriod.reduce((s, x) => s + (Number(x.amount) || 0), 0);
-    // Same P&L math as renderAuditView.
+    // Same P&L math as renderAuditView (v89.92 order).
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
-    const operatingProfit = netCash - expSum;
-    const taxAmount = (operatingProfit > 0) ? operatingProfit * (taxRate / 100) : 0;
-    const netProfit = operatingProfit - taxAmount;
+    const vatAmount = (netCash > 0) ? netCash * (taxRate / 100) : 0;
+    const profitAfterVAT = netCash - vatAmount;
+    const netProfit = profitAfterVAT - expSum;
 
     if (kind === 'pdf') {
       if (!window.jspdf || !window.jspdf.jsPDF) { toast('PDF library failed to load. Check your connection.'); return; }
@@ -32397,11 +32387,11 @@
       const summaryRows = [
         ['Cash in', `${fmt(inSum)}`],
         ['Cash out', `${fmt(outSum)}`],
-        ['Net cash', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
-        ['Expenses', `${fmt(expSum)}`],
-        ['Operating profit', `${operatingProfit >= 0 ? '' : '-'}${fmt(Math.abs(operatingProfit))}`],
+        ['Cash profit', `${netCash >= 0 ? '' : '-'}${fmt(Math.abs(netCash))}`],
       ];
-      if (taxRate > 0) summaryRows.push([`Tax (${taxRate}%)`, `${fmt(taxAmount)}`]);
+      if (taxRate > 0) summaryRows.push([`Addition VAT (${taxRate}%)`, `${fmt(vatAmount)}`]);
+      summaryRows.push(['Profit after VAT', `${profitAfterVAT >= 0 ? '' : '-'}${fmt(Math.abs(profitAfterVAT))}`]);
+      summaryRows.push(['Expenses', `${fmt(expSum)}`]);
       summaryRows.push(['Net profit', `${netProfit >= 0 ? '' : '-'}${fmt(Math.abs(netProfit))}`]);
       doc.autoTable({
         rowPageBreak: 'avoid',
@@ -32415,7 +32405,7 @@
           if (d.section !== 'body') return;
           const label = (d.row.raw && d.row.raw[0]) || '';
           if (label === 'Net profit') { d.cell.styles.fontStyle = 'bold'; d.cell.styles.textColor = netProfit >= 0 ? [46, 93, 58] : [168, 53, 31]; }
-          else if (label.startsWith('Tax')) { d.cell.styles.textColor = [168, 53, 31]; }
+          else if (label.startsWith('Addition VAT')) { d.cell.styles.textColor = [168, 53, 31]; }
         },
       });
       // Entries table — v89.32.21: include Invoice # (entry number) and the
