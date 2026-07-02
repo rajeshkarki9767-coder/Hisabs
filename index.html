@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.150';
+  const BUILD_TAG = '2026.07.02.152';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8617,7 +8617,7 @@
   // once compression engages. Below the threshold the blob is written as
   // plain JSON: compression CPU cost is only paid when it's actually
   // needed (approaching quota), so typical users pay nothing.
-  const LZ_COMPRESS_THRESHOLD = 600000; // chars ≈ 1.2MB UTF-16
+  const LZ_COMPRESS_THRESHOLD = 150000; // chars ≈ 300KB UTF-16 (v89.99c: lowered from 600k so compression engages earlier and keeps the storage meter low; below this, plain writes cost zero CPU)
   function _serializeDataBlob() {
     const json = JSON.stringify(data);
     return json.length < LZ_COMPRESS_THRESHOLD ? json : compressForStorage(json);
@@ -28465,7 +28465,7 @@
       ${accessible.length ? `
       <div class="settings-section">
         <h3 class="settings-heading">Your businesses</h3>
-        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Drag to reorder, then tap Save to apply — order applies to the sidebar too. Tap Settings → to configure each business.</p>
+        <p style="font-size:0.85rem;color:var(--ink-mute);margin-bottom:0.6rem;">Use the ▲▼ arrows (or drag) to reorder, then tap Save order — the order applies to the sidebar too. Tap Settings → to configure each business.</p>
         <ul class="biz-sort-list" id="bizSortList">
           ${accessible.map(b => {
             const r = roleFor(b.id);
@@ -28477,6 +28477,10 @@
                   <line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/>
                 </svg>
               </span>` : `<span style="width:1.4rem;flex-shrink:0;"></span>`}
+              <span class="biz-sort-arrows" style="display:inline-flex;flex-direction:column;gap:2px;flex-shrink:0;margin-right:0.35rem;">
+                <button class="btn btn-sm btn-ghost" style="padding:0 0.35rem;line-height:1.1;font-size:0.7rem;" onclick="moveBizRow('${escapeHtml(b.id)}', -1)" title="Move up" aria-label="Move ${escapeHtml(b.name)} up">▲</button>
+                <button class="btn btn-sm btn-ghost" style="padding:0 0.35rem;line-height:1.1;font-size:0.7rem;" onclick="moveBizRow('${escapeHtml(b.id)}', 1)" title="Move down" aria-label="Move ${escapeHtml(b.name)} down">▼</button>
+              </span>
               <span class="biz-sort-name">${escapeHtml(b.name)}<span class="biz-sort-role">${roleLabel}</span></span>
               <span class="biz-sort-action">
                 ${isOwner
@@ -28486,10 +28490,10 @@
             </li>`;
           }).join('')}
         </ul>
-        <div id="bizOrderSaveBar" style="display:none;margin-top:0.6rem;gap:0.5rem;align-items:center;">
-          <button class="btn btn-sm btn-primary" onclick="saveBizOrder()">Save order</button>
-          <button class="btn btn-sm btn-ghost" onclick="cancelBizOrder()">Cancel</button>
-          <span style="font-size:0.78rem;color:var(--ink-mute);">Unsaved changes</span>
+        <div id="bizOrderSaveBar" style="display:flex;margin-top:0.6rem;gap:0.5rem;align-items:center;">
+          <button class="btn btn-sm btn-primary" id="bizOrderSaveBtn" disabled onclick="saveBizOrder()">Save order</button>
+          <button class="btn btn-sm btn-ghost" id="bizOrderCancelBtn" disabled onclick="cancelBizOrder()">Cancel</button>
+          <span id="bizOrderStatus" style="font-size:0.78rem;color:var(--ink-mute);">No changes yet — drag rows or use ▲▼</span>
         </div>
       </div>` : ''}
       <div class="settings-section">
@@ -28518,16 +28522,44 @@
       .filter(c => c.dataset && c.dataset.id)
       .map(c => c.dataset.id);
     __bizOrderPending = null;
+    try { _refreshBizOrderBar(false); } catch (_) {}
     enableDragReorder(list, reorderBizByIds);
   }
-  // Drop callback — stage the new order and toggle the Save bar.
+  // Drop/arrow callback — stage the new order and reflect it in the
+  // always-visible save bar (buttons enable only when order changed).
   function reorderBizByIds(ids) {
     const changed = !__bizOrderInitial
       || ids.length !== __bizOrderInitial.length
       || ids.some((id, i) => id !== __bizOrderInitial[i]);
     __bizOrderPending = changed ? ids : null;
+    _refreshBizOrderBar(changed);
+  }
+  function _refreshBizOrderBar(changed) {
+    const saveBtn = document.getElementById('bizOrderSaveBtn');
+    const cancelBtn = document.getElementById('bizOrderCancelBtn');
+    const status = document.getElementById('bizOrderStatus');
+    if (saveBtn) saveBtn.disabled = !changed;
+    if (cancelBtn) cancelBtn.disabled = !changed;
+    if (status) status.textContent = changed ? 'Unsaved changes' : 'No changes yet — drag rows or use ▲▼';
+    // Legacy fallback: if an old hidden-style bar is present, show it.
     const bar = document.getElementById('bizOrderSaveBar');
-    if (bar) bar.style.display = changed ? 'flex' : 'none';
+    if (bar && bar.style.display === 'none') bar.style.display = 'flex';
+  }
+  // v89.99b: arrow-button reorder — drag-independent, works on every
+  // device and input method. Swaps the row with its neighbor in the DOM
+  // and stages through the exact same path as drag-and-drop.
+  function moveBizRow(id, dir) {
+    const list = document.getElementById('bizSortList');
+    if (!list) return;
+    const rows = Array.from(list.children).filter(c => c.dataset && c.dataset.id);
+    const idx = rows.findIndex(r => r.dataset.id === id);
+    if (idx === -1) return;
+    const target = idx + (dir > 0 ? 1 : -1);
+    if (target < 0 || target >= rows.length) return; // already at edge
+    const row = rows[idx], other = rows[target];
+    if (dir > 0) list.insertBefore(other, row);      // move row down = neighbor up
+    else list.insertBefore(row, other);              // move row up
+    reorderBizByIds(Array.from(list.children).filter(c => c.dataset && c.dataset.id).map(c => c.dataset.id));
   }
   // Persist the pending order. Only owner businesses get a bizSortOrder
   // (same rule as before) — non-owned rows keep their relative slot but
@@ -28545,8 +28577,7 @@
     __bizOrderInitial = __bizOrderPending.slice();
     __bizOrderPending = null;
     saveData();
-    const bar = document.getElementById('bizOrderSaveBar');
-    if (bar) bar.style.display = 'none';
+    _refreshBizOrderBar(false);
     // Update sidebar to reflect new order without closing the modal.
     try { renderSidebarNav(); } catch (_) { try { renderAll(); } catch (__) {} }
     toast('Business order saved.');
