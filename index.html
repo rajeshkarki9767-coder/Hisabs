@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.144';
+  const BUILD_TAG = '2026.07.02.148';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8560,6 +8560,110 @@
     data.cashAccounts.push({ id: uid(), businessId: bizId, groupId: groupIds.cash, name: 'Cash', createdAt: today() });
   }
 
+  // ================================================================
+  // v89.99: DATA BLOB COMPRESSION (lz-string v1.5.0, MIT license,
+  // (c) 2013 Pieroxy — embedded to keep the single-file architecture).
+  // Accounting JSON is highly repetitive (keys, ids, dates), so LZ
+  // compression typically shrinks the main blob 60-80%%, multiplying
+  // the practical entry ceiling several times over on the same ~5MB
+  // localStorage quota. compressToUTF16 is used because localStorage
+  // stores UTF-16 code units — its output packs ~15 bits per unit.
+  var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compressToUint8Array:function(r){for(var o=i.compress(r),n=new Uint8Array(2*o.length),e=0,t=o.length;e<t;e++){var s=o.charCodeAt(e);n[2*e]=s>>>8,n[2*e+1]=s%256}return n},decompressFromUint8Array:function(o){if(null==o)return i.decompress(o);for(var n=new Array(o.length/2),e=0,t=n.length;e<t;e++)n[e]=256*o[2*e]+o[2*e+1];var s=[];return n.forEach(function(o){s.push(r(o))}),i.decompress(s.join(""))},compressToEncodedURIComponent:function(r){return null==r?"":i._compress(r,6,function(r){return n.charAt(r)})},decompressFromEncodedURIComponent:function(r){return null==r?"":""==r?null:(r=r.replace(/ /g,"+"),i._decompress(r.length,32,function(o){return t(n,r.charAt(o))}))},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();"function"==typeof define&&define.amd?define(function(){return LZString}):"undefined"!=typeof module&&null!=module?module.exports=LZString:"undefined"!=typeof angular&&null!=angular&&angular.module("LZString",[]).factory("LZString",function(){return LZString});
+  // Compressed blobs are prefixed with a marker so the read path can
+  // distinguish them from legacy plain-JSON blobs FOREVER (backward
+  // compatibility is permanent — old devices upgrade in place).
+  const LZ_MARK = '\u0001LZ1';
+  function compressForStorage(json) {
+    try {
+      const c = LZ_MARK + LZString.compressToUTF16(json);
+      // Only use the compressed form if it actually won (tiny inputs
+      // can inflate); either form is readable by decompressFromStorage.
+      return c.length < json.length ? c : json;
+    } catch (_) { return json; }
+  }
+  function decompressFromStorage(raw) {
+    if (raw == null || typeof raw !== 'string') return raw;
+    if (raw.charCodeAt(0) === 1 && raw.slice(0, 4) === LZ_MARK) {
+      const out = LZString.decompressFromUTF16(raw.slice(4));
+      if (out == null || out === '') throw new Error('lz decompress failed');
+      return out;
+    }
+    return raw;
+  }
+  // Single serialization point for the main data blob — every write of
+  // DATA_KEY must go through this so no site ever writes uncompressed
+  // once compression engages. Below the threshold the blob is written as
+  // plain JSON: compression CPU cost is only paid when it's actually
+  // needed (approaching quota), so typical users pay nothing.
+  const LZ_COMPRESS_THRESHOLD = 600000; // chars ≈ 1.2MB UTF-16
+  function _serializeDataBlob() {
+    const json = JSON.stringify(data);
+    return json.length < LZ_COMPRESS_THRESHOLD ? json : compressForStorage(json);
+  }
+
+  // v89.98: STEP-3 STORAGE-FULL UX. A transient toast is the wrong
+  // severity for "your data will not survive a refresh" — offline-only
+  // users could keep adding entries that silently live only in RAM.
+  // When the reclaim ladder in storageWrite() is exhausted we now show
+  // a blocking modal (once per session) + a persistent red banner that
+  // stays until a previously-failed write succeeds again.
+  const __storageFullKeys = new Set();  // keys whose last write failed
+  let __storageFullModalShown = false;
+  function _noteWriteOk(key) {
+    if (!__storageFullKeys.has(key)) return;
+    __storageFullKeys.delete(key);
+    if (__storageFullKeys.size === 0) {
+      _hideStorageFullBanner();
+      try { toast('Storage recovered — saving offline again.'); } catch (_) {}
+    }
+  }
+  function _showStorageFullBanner(isCloud) {
+    if (document.getElementById('storageFullBanner')) return;
+    const div = document.createElement('div');
+    div.id = 'storageFullBanner';
+    div.setAttribute('role', 'alert');
+    div.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:12000;'
+      + 'padding:calc(var(--safe-top) + 0.45rem) 0.75rem 0.45rem;'
+      + 'background:var(--loss);color:#fff;font-size:0.8rem;text-align:center;'
+      + 'display:flex;justify-content:center;align-items:center;gap:0.6rem;flex-wrap:wrap;';
+    div.innerHTML = (isCloud
+      ? '<span>Device storage full — new data syncs to cloud but is not saved offline on this device.</span>'
+      : '<span><strong>Device storage full — new entries are NOT being saved.</strong></span>')
+      + '<button onclick="exportAllData()" style="background:#fff;color:var(--loss);border:none;'
+      + 'border-radius:4px;padding:0.2rem 0.6rem;font-size:0.75rem;font-weight:600;cursor:pointer;">'
+      + 'Download backup</button>';
+    document.body.appendChild(div);
+  }
+  function _hideStorageFullBanner() {
+    try { document.getElementById('storageFullBanner')?.remove(); } catch (_) {}
+  }
+  function showStorageFullAlert() {
+    const u = (typeof me === 'function') ? me() : null;
+    const isCloud = !!(u && u.cloud);
+    _showStorageFullBanner(isCloud);
+    if (__storageFullModalShown) return;  // modal once per session; banner persists
+    __storageFullModalShown = true;
+    const body = isCloud
+      ? `<p style="font-size:0.9rem;line-height:1.5;">This device's storage is completely full, even after clearing caches.
+           Your data <strong>is still syncing to the cloud</strong>, so nothing is lost — but this device cannot
+           keep an offline copy. If you go offline, new entries made here will not survive closing the app.</p>`
+      : `<p style="font-size:0.9rem;line-height:1.5;"><strong style="color:var(--loss);">New entries are not being saved.</strong>
+           This device's storage is completely full, even after clearing caches — and this account has no cloud copy.
+           Anything you add now exists only until the app is closed or refreshed.</p>
+         <p style="font-size:0.9rem;line-height:1.5;">Download a backup file right now, then free up space
+           (or sign in to enable cloud sync) before adding more entries.</p>`;
+    try {
+      openModalRaw(`
+        <div style="padding:0.25rem 0.25rem 0.5rem;">
+          <h3 style="margin:0 0 0.6rem;color:var(--loss);">Device storage is full</h3>
+          ${body}
+          <div style="display:flex;gap:0.5rem;margin-top:1rem;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="exportAllData()">Download backup file</button>
+            <button class="btn btn-ghost" onclick="closeModal()">I understand</button>
+          </div>
+        </div>`);
+    } catch (_) {}
+  }
   // Storage writes are wrapped because localStorage.setItem can throw when
   // quota is exceeded (real risk: auto-backups + many entries). We surface a
   // toast instead of failing silently and lying about success. Returns true
@@ -8567,6 +8671,7 @@
   function storageWrite(key, value) {
     try {
       localStorage.setItem(key, value);
+      _noteWriteOk(key);
       return true;
     } catch (e) {
       // v89.47: quota exceeded. Reclaim space in increasing order of impact,
@@ -8578,7 +8683,7 @@
       //      roughly half the footprint without touching any real data.
       // A cloud-signed-in user's data is safe on the server throughout; the
       // snapshot is purely a local optimisation.
-      const _retry = () => { try { localStorage.setItem(key, value); return true; } catch (_) { return false; } };
+      const _retry = () => { try { localStorage.setItem(key, value); _noteWriteOk(key); return true; } catch (_) { return false; } };
       try {
         // Step 1: legacy auto-backups.
         let freed = false;
@@ -8603,13 +8708,49 @@
         }
       } catch (_) {}
       console.warn('localStorage write failed for', key, e);
-      try { toast('Storage is full even after clearing caches. Back up to file — your cloud data is safe, but this device cannot hold more offline.'); } catch (_) {}
+      // v89.98: escalate honestly — persistent banner + one-per-session
+      // blocking modal instead of a toast that vanishes in seconds.
+      __storageFullKeys.add(key);
+      try { showStorageFullAlert(); } catch (_) {}
       return false;
     }
   }
   function saveAccounts() { return storageWrite(ACCOUNTS_KEY, JSON.stringify(accounts)); }
+  // v89.99: above the compression threshold, the disk write is DEBOUNCED
+  // (700ms) so a burst of saves costs one compression instead of many —
+  // compression of a multi-MB blob takes 100ms-1.5s of main-thread time,
+  // which would jank every entry-add if run synchronously. In-memory
+  // `data` stays authoritative throughout; the sync engine diffs memory,
+  // not disk, so cloud sync is unaffected by the delay. Durability: a
+  // pending write is flushed on pagehide/hidden (fires on TWA/tab kill in
+  // practice), so the loss window on a hard OOM-kill is ≤700ms of changes
+  // — and only for heavy (>1.2MB) users, whose cloud copy resyncs anyway.
+  let __blobWriteTimer = null;
+  function _writeDataBlobNow() {
+    __blobWriteTimer = null;
+    try { storageWrite(DATA_KEY, compressForStorage(JSON.stringify(data))); } catch (_) {}
+  }
+  function _flushDataBlob() {
+    if (!__blobWriteTimer) return;
+    clearTimeout(__blobWriteTimer);
+    _writeDataBlobNow();
+  }
+  try {
+    window.addEventListener('pagehide', _flushDataBlob);
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'hidden') _flushDataBlob();
+    });
+  } catch (_) {}
   function saveData() {
-    const ok = storageWrite(DATA_KEY, JSON.stringify(data));
+    let ok = true;
+    const json = JSON.stringify(data);
+    if (json.length < LZ_COMPRESS_THRESHOLD) {
+      if (__blobWriteTimer) { clearTimeout(__blobWriteTimer); __blobWriteTimer = null; }
+      ok = storageWrite(DATA_KEY, json);
+    } else {
+      if (__blobWriteTimer) clearTimeout(__blobWriteTimer);
+      __blobWriteTimer = setTimeout(_writeDataBlobNow, 700);
+    }
     // After every save, schedule a debounced diff to push deltas to cloud.
     // Only fires when cloud-signed-in; otherwise no-op.
     try { scheduleSyncDiff(); } catch (_) {}
@@ -8623,7 +8764,23 @@
       accounts = Array.isArray(a) ? a : [];
     } catch(e) { accounts = []; }
     try {
-      const d = JSON.parse(localStorage.getItem(DATA_KEY));
+      // v89.99: the blob may be LZ-compressed (marker-prefixed) or legacy
+      // plain JSON — decompressFromStorage handles both. If the blob exists
+      // but can't be decoded (corruption), preserve it under a rescue key
+      // BEFORE the app can save an empty state over it, so the data remains
+      // recoverable. (Plain-JSON corruption previously lost the blob the
+      // same way but with no rescue — this is strictly safer than before.)
+      const _rawD = localStorage.getItem(DATA_KEY);
+      let d = null;
+      try {
+        d = JSON.parse(decompressFromStorage(_rawD));
+      } catch (decodeErr) {
+        if (_rawD && !localStorage.getItem(DATA_KEY + '_rescue')) {
+          try { localStorage.setItem(DATA_KEY + '_rescue', _rawD); } catch (_) {}
+        }
+        console.warn('Data blob decode failed — raw copy preserved under rescue key.', decodeErr);
+        throw decodeErr;
+      }
       if (d && typeof d === 'object' && !Array.isArray(d)) {
         data = {
           businesses: Array.isArray(d.businesses) ? d.businesses : [],
@@ -12561,7 +12718,7 @@
     // user sees it before the period bar/stats. It's dismissible per
     // day and silently absent on days with no birthdays.
     const birthdayBannerHTML = renderBirthdayBanner();
-    root.innerHTML = entriesPageHeader() + renderOnboardingCard() + renderBackupReminderCard() + renderInstallCard() + renderAnnouncementsBanner() + birthdayBannerHTML + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
+    root.innerHTML = entriesPageHeader() + renderOnboardingCard() + renderStorageWarningCard() + renderBackupReminderCard() + renderInstallCard() + renderAnnouncementsBanner() + birthdayBannerHTML + periodBarHTML + statsHTML + toolbarHTML + entriesHTML;
     renderEntriesList();
   }
 
@@ -18155,6 +18312,17 @@
       <div class="distribution-net-card ${__splitNetProfit >= 0 ? 'pos' : 'neg'}">
         <div class="distribution-net-label">Net profit (after tax)</div>
         <div class="distribution-net-value">${__splitBusinessCurrency} ${__splitNetProfit >= 0 ? '+' : '−'}${fmt(Math.abs(__splitNetProfit))}</div>
+        <div class="distribution-net-meta">${(() => {
+          // v89.99: show the calculation behind the number, same wording as
+          // the Audit page's Net profit card, adapted to the VAT order.
+          const _c = __splitBusinessCurrency;
+          if (vatOrder === 'after_expenses') {
+            const _op = operatingProfit - expenses;
+            return `Operating profit ${_c} ${_op >= 0 ? '' : '−'}${fmt(Math.abs(_op))} − Addition VAT ${taxRate}% (${_c} ${fmt(vatAmt)})`;
+          }
+          const _pav = operatingProfit - vatAmt;
+          return `Profit after VAT ${_c} ${_pav >= 0 ? '' : '−'}${fmt(Math.abs(_pav))} − Expenses ${_c} ${fmt(expenses)}`;
+        })()}</div>
         <div class="distribution-net-meta">${taxRate > 0 ? `After Addition VAT ${taxRate}% of ${__splitBusinessCurrency} ${fmt(vatAmt)}` : 'No VAT applied (Addition VAT % = 0 in Audit)'} · ${currentPeriodLabel ? escapeHtml(currentPeriodLabel()) : 'Current period'} · VAT ${vatOrder === 'after_expenses' ? 'after' : 'before'} expenses</div>
       </div>
 
@@ -30667,6 +30835,64 @@
     return accountBalance(session.activeBizId, accountId);
   }
 
+  // v89.99: STORAGE THRESHOLD WARNING. The Data-tab meter exists but
+  // nobody checks Settings daily — surface a card on the entries view
+  // once usage crosses 80% so users meet the ceiling with warning
+  // instead of at the step-3 wall. Measurement iterates every
+  // localStorage value (~MBs of string reads), so it's cached for 60s
+  // rather than recomputed on every render.
+  let __storagePctCache = { pct: 0, at: 0 };
+  function _storagePct() {
+    const now = Date.now();
+    if (now - __storagePctCache.at < 60000) return __storagePctCache.pct;
+    let total = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        total += (k.length + (localStorage.getItem(k) || '').length) * 2;
+      }
+    } catch (_) { return __storagePctCache.pct; }
+    const pct = Math.min(100, Math.round((total / (5 * 1024 * 1024)) * 100));
+    __storagePctCache = { pct, at: now };
+    return pct;
+  }
+  const STORAGE_WARN_DISMISS_KEY = 'hisabs_storage_warn_dismissed_v1';
+  function renderStorageWarningCard() {
+    const pct = _storagePct();
+    if (pct < 80) return '';
+    // Dismissal lasts 24h — but is ignored if usage has since climbed
+    // 10+ points past where it was dismissed (the situation worsened).
+    try {
+      const d = JSON.parse(localStorage.getItem(STORAGE_WARN_DISMISS_KEY) || 'null');
+      if (d && Date.now() - d.at < 24 * 60 * 60 * 1000 && pct < (Number(d.pct) || 0) + 10) return '';
+    } catch (_) {}
+    const u = me();
+    const isCloud = !!(u && u.cloud);
+    const severe = pct >= 90;
+    const text = isCloud
+      ? `Your data is safe in the cloud, but this device is running out of offline space. Download a backup and clear leftover files before it fills — at 100%, this device stops keeping an offline copy.`
+      : `Download a backup file now. This account has no cloud copy — if storage fills completely, new entries will stop saving on this device.`;
+    return `
+      <div class="install-card" id="storageWarnCard" style="border-left-color:${severe ? 'var(--loss)' : '#c9882a'};">
+        <svg class="install-card-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div class="install-card-body">
+          <div class="install-card-title">Device storage ${pct}% full</div>
+          <div class="install-card-text">${escapeHtml(text)}</div>
+        </div>
+        <div class="install-card-actions">
+          <button class="btn btn-sm btn-accent" onclick="exportAllData()">Download backup</button>
+          <button class="btn btn-sm btn-ghost" onclick="reclaimLocalStorage()">Clear leftover files</button>
+          <button class="btn btn-sm btn-ghost" onclick="dismissStorageWarning()">Later</button>
+        </div>
+      </div>`;
+  }
+  function dismissStorageWarning() {
+    try {
+      localStorage.setItem(STORAGE_WARN_DISMISS_KEY,
+        JSON.stringify({ at: Date.now(), pct: __storagePctCache.pct }));
+    } catch (_) {}
+    try { document.getElementById('storageWarnCard')?.remove(); } catch (_) {}
+  }
   function renderBackupReminderCard() {
     const stale = getStaleBackupBusinesses();
     if (!stale.length) return '';
@@ -35185,7 +35411,7 @@
           try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(__syncSnapshot)); } catch (_) {}
         }
       }
-      storageWrite(DATA_KEY, JSON.stringify(data));
+      storageWrite(DATA_KEY, _serializeDataBlob());
       // renderAll() now preserves scroll position automatically for
       // all callers (sync, realtime, user actions). No need to wrap
       // here. See the renderAll definition + __renderResetScroll
@@ -36042,7 +36268,7 @@
       data.distSalaries = (data.distSalaries || []).filter(r => r.businessId !== bizId);
       data.distShares   = (data.distShares   || []).filter(r => r.businessId !== bizId);
       data.splitParties = (data.splitParties || []).filter(r => r.businessId !== bizId);
-      try { storageWrite(DATA_KEY, JSON.stringify(data)); } catch (_) {}
+      try { storageWrite(DATA_KEY, _serializeDataBlob()); } catch (_) {}
     } catch (_) {}
   }
   function _invalidateRoleCacheIfMine(member) {
