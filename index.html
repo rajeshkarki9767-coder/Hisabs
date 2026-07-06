@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.153';
+  const BUILD_TAG = '2026.07.02.154';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -17393,6 +17393,17 @@
       note: note || undefined,
       createdAt: Date.now(),
     });
+    // v89.99e: clear the form explicitly BEFORE re-rendering. The re-render
+    // now preserves in-progress drafts (see renderExpensesView), so it can
+    // no longer double as the "clear the form" step after a submit.
+    for (const fid of ['mAuditDesc', 'mAuditQty', 'mAuditRate', 'mAuditAmt', 'mAuditNote']) {
+      const el = document.getElementById(fid);
+      if (el) el.value = '';
+    }
+    const _rateEl = document.getElementById('mAuditRate');
+    if (_rateEl) delete _rateEl.dataset.useredited;
+    const _dateEl = document.getElementById('mAuditDate');
+    if (_dateEl) _dateEl.value = today();
     saveData();
     renderAll();
     const norm = desc.trim().toLowerCase();
@@ -21461,13 +21472,29 @@
     // submission creates a new row but the list view groups them.
     // v56: added optional "Note" field for free-form context on each
     // individual addition (e.g. "Rent — paid in advance").
+    // v89.99e FIX: preserve ALL in-progress form values across re-renders.
+    // renderAll's focus-preservation only saves the single FOCUSED field,
+    // so when a background re-render fired mid-entry (realtime sync push,
+    // mobile keyboard resize, etc.), every other field was rebuilt empty —
+    // users typing a name then tapping Amount watched the name vanish.
+    // Capture the live DOM values (if the form exists) and re-inject them.
+    const _f = (id) => { const el = document.getElementById(id); return el ? el.value : null; };
+    const _draft = {
+      desc: _f('mAuditDesc') || '',
+      qty: _f('mAuditQty') || '',
+      rate: _f('mAuditRate') || '',
+      rateUserEdited: document.getElementById('mAuditRate')?.dataset.useredited === '1',
+      amt: _f('mAuditAmt') || '',
+      date: _f('mAuditDate') || today(),
+      note: _f('mAuditNote') || '',
+    };
     const addRow = canEditExpenses ? `<div class="audit-exp-add audit-exp-add-qty audit-exp-add-rate">
-        <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" oninput="onAuditDescInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
-        <input type="number" id="mAuditQty" placeholder="Qty" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditRate').focus();}">
-        <input type="number" id="mAuditRate" placeholder="Rate %" step="0.01" inputmode="decimal" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
-        <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" inputmode="decimal" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
-        <input type="date" id="mAuditDate" value="${today()}" title="Date of the expense">
-        <input type="text" id="mAuditNote" maxlength="500" placeholder="Note (optional)" class="audit-exp-add-note" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
+        <input type="text" id="mAuditDesc" maxlength="500" placeholder="What was the expense?" value="${escapeHtml(_draft.desc)}" oninput="onAuditDescInput(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditQty').focus();}">
+        <input type="number" id="mAuditQty" placeholder="Qty" step="0.01" inputmode="decimal" value="${escapeHtml(_draft.qty)}" oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditRate').focus();}">
+        <input type="number" id="mAuditRate" placeholder="Rate %" step="0.01" inputmode="decimal" value="${escapeHtml(_draft.rate)}" ${_draft.rateUserEdited ? 'data-useredited="1"' : ''} oninput="recalcAuditAmount()" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditAmt').focus();}">
+        <input type="number" id="mAuditAmt" placeholder="Amount" step="0.01" inputmode="decimal" value="${escapeHtml(_draft.amt)}" onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('mAuditDate').focus();}">
+        <input type="date" id="mAuditDate" value="${escapeHtml(_draft.date)}" title="Date of the expense">
+        <input type="text" id="mAuditNote" maxlength="500" placeholder="Note (optional)" value="${escapeHtml(_draft.note)}" class="audit-exp-add-note" onkeydown="if(event.key==='Enter'){event.preventDefault();addAuditExpense();}">
         <button class="btn btn-sm btn-accent" onclick="addAuditExpense()">+ Add</button>
       </div>` : '';
 
