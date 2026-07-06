@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.154';
+  const BUILD_TAG = '2026.07.02.155';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -17336,7 +17336,12 @@
     return today();
   }
 
+  // v89.99f: reentrancy guard — a double-tap on "+ Add" (easy on mobile,
+  // where the re-render lags the first tap) previously ran the whole add
+  // twice and created two rows with different ids ("double saves").
+  let __lastExpenseAddAt = 0;
   function addAuditExpense() {
+    if (Date.now() - __lastExpenseAddAt < 800) return;
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz || !canManageExpenses(biz.id)) { toast('Only the owner can manage audit data.'); return; }
     const desc = validateDescription(document.getElementById('mAuditDesc')?.value);
@@ -17381,6 +17386,7 @@
     if (Math.abs(amt) > LIMITS.amount) { toast(`Amount too large.`); return; }
     const noteRaw = document.getElementById('mAuditNote')?.value || '';
     const note = noteRaw.trim().slice(0, 500);
+    __lastExpenseAddAt = Date.now(); // guard stamps only on a real add — a failed validation doesn't block a quick retry
     data.auditExpenses.push({
       id: uid(),
       businessId: biz.id,
@@ -37276,8 +37282,21 @@
           .concat((fetched.auditExpenses || []).map(r => r && r.id))
           .filter(Boolean);
         let _clearedAny = false;
+        // v89.99f FIX: a tombstoned id that the cloud still returns is NOT
+        // automatically stale — if a delete op for it is still sitting in
+        // the sync queue (queued, then the app was refreshed/killed before
+        // the drain), the cloud simply hasn't heard about the delete yet.
+        // Clearing the tombstone in that window strips the row's protection:
+        // the next realtime echo or pull re-adds it locally, and the user
+        // sees their deleted expense resurrect. Only clear when NO pending
+        // delete exists (that's the genuine stale-tombstone case, e.g. an
+        // RLS-blocked delete whose op was purged — hiding a live row there
+        // would cause cross-device divergence).
+        const _hasPendingDelete = (id) =>
+          Array.isArray(__syncQueue) && __syncQueue.some(o => o && o.kind === 'delete' && o.recordId === id);
         for (const id of _cloudDistIds) {
           if (typeof _isTombstoned === 'function' && _isTombstoned(id)) {
+            if (_hasPendingDelete(id)) continue; // delete in flight — keep protection
             try { _removeTombstone(id); _clearedAny = true; } catch (_) {}
           }
         }
