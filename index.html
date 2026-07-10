@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.10.158';
+  const BUILD_TAG = '2026.07.10.159';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -13083,7 +13083,15 @@
     // sort was by entry date which caused that confusion.
     // We still need an ASC pass first to compute the running balance
     // in chronological order, then reverse for display.
-    let allBookEntries = data.entries.filter(e => e.bookId === session.activeBookId).sort((a, b) => {
+    // v89.99j: the running balance is scoped to the ACTIVE PERIOD FILTER
+    // (Today / Yesterday / This Month / All Time / Custom). It starts at 0
+    // at the beginning of the period and accumulates only the period's
+    // entries — so the latest entry's balance always equals the "Net for
+    // period" card exactly, in every filter mode. Previously it was the
+    // all-time ledger regardless of filter, which never matched the
+    // period-scoped card.
+    const _balPeriodPred = periodPredicate();
+    let allBookEntries = data.entries.filter(e => e.bookId === session.activeBookId && _balPeriodPred(e)).sort((a, b) => {
       const ad = a.date || '', bd = b.date || '';
       if (ad !== bd) return ad < bd ? -1 : 1;
       return (a.createdAt || 0) - (b.createdAt || 0);
