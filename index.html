@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.02.155';
+  const BUILD_TAG = '2026.07.10.157';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -13003,23 +13003,35 @@
     ) : new Set();
     const entries = getPeriodEntries().filter(e => !hiddenAcctIds.has(e.accountId));
     const { inSum, outSum, inCount, outCount } = sumEntries(entries);
-    const isAll = session.period.mode === 'all';
-    const balLabel = isAll ? 'Balance' : 'Net for period';
+    // v89.99g: when hidden accounts actually excluded entries in this
+    // period, SAY SO on the cards. The running-balance column in the list
+    // includes every entry (it's the whole ledger), so without a label the
+    // Balance card and the column's top row show different numbers with no
+    // explanation — users reasonably report it as "balance doesn't match".
+    const _allPeriod = getPeriodEntries();
+    const _excludedCount = _allPeriod.length - entries.length;
+    const _hiddenNote = _excludedCount > 0 ? ' · excludes hidden accounts' : '';
+    // v89.99h: per user request, this card is ALWAYS "Net for period" for
+    // whatever filter is active (This Month / Today / All Time / Custom) —
+    // never presented as a "Balance". The running-balance column in the
+    // list is the ledger balance; keeping the card strictly period-scoped
+    // removes the apparent mismatch between the two.
+    const balLabel = 'Net for period';
     const net = inSum - outSum;
-    const balDisplay = `${cur} ${!isAll && net >= 0 ? '+' : ''}${fmt(net)}`;
+    const balDisplay = `${cur} ${net >= 0 ? '+' : ''}${fmt(net)}`;
     const isMobile = window.innerWidth <= 880;
     const periodLabel = currentPeriodLabel();
     if (isMobile) {
       return `<div class="stats">
-        <div class="stat stat-balance-mobile"><div class="stat-label">${balLabel}</div><div class="stat-value">${balDisplay}</div><div class="stat-meta">${escapeHtml(periodLabel)}</div></div>
+        <div class="stat stat-balance-mobile"><div class="stat-label">${balLabel}</div><div class="stat-value">${balDisplay}</div><div class="stat-meta">${escapeHtml(periodLabel)}${_hiddenNote}</div></div>
         <div class="stat in"><div class="stat-label">Cash In</div><div class="stat-value">${cur} ${fmt(inSum)}</div><div class="stat-meta">${inCount} entries</div></div>
         <div class="stat out"><div class="stat-label">Cash Out</div><div class="stat-value">${cur} ${fmt(outSum)}</div><div class="stat-meta">${outCount} entries</div></div>
       </div>`;
     }
     return `<div class="stats">
-      <div class="stat in"><div class="stat-label">Cash In</div><div class="stat-value">${cur} ${fmt(inSum)}</div><div class="stat-meta">${inCount} entries · ${escapeHtml(periodLabel)}</div></div>
-      <div class="stat out"><div class="stat-label">Cash Out</div><div class="stat-value">${cur} ${fmt(outSum)}</div><div class="stat-meta">${outCount} entries · ${escapeHtml(periodLabel)}</div></div>
-      <div class="stat"><div class="stat-label">${balLabel}</div><div class="stat-value">${balDisplay}</div><div class="stat-meta">${escapeHtml(periodLabel)}</div></div>
+      <div class="stat in"><div class="stat-label">Cash In</div><div class="stat-value">${cur} ${fmt(inSum)}</div><div class="stat-meta">${inCount} entries · ${escapeHtml(periodLabel)}${_hiddenNote}</div></div>
+      <div class="stat out"><div class="stat-label">Cash Out</div><div class="stat-value">${cur} ${fmt(outSum)}</div><div class="stat-meta">${outCount} entries · ${escapeHtml(periodLabel)}${_hiddenNote}</div></div>
+      <div class="stat"><div class="stat-label">${balLabel}</div><div class="stat-value">${balDisplay}</div><div class="stat-meta">${escapeHtml(periodLabel)}${_hiddenNote}</div></div>
     </div>`;
   }
 
