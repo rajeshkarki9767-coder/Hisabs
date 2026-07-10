@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.10.159';
+  const BUILD_TAG = '2026.07.10.160';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14730,15 +14730,21 @@
       </div>
       ${renderPeriodBar()}
       ${showTotals && allAccs.length ? (() => {
-        // Lifetime total: sum of every visible account's current balance.
-        // Hidden accounts are excluded — they shouldn't inflate the "money I have"
-        // figure since they're closed.
+        // v89.99k: the grand total follows the ACTIVE PERIOD FILTER, summing
+        // the same period-scoped totals map the account cards and group
+        // chips use — so header = Σ group chips = Σ visible cards, always.
+        // Previously this summed accountBalance() (lifetime), so with
+        // "This Month" selected every number on the page was period-scoped
+        // EXCEPT this one. Hidden accounts stay excluded.
         const visibleAccs = allAccs.filter(a => !a.hidden);
-        const grand = visibleAccs.reduce((s, a) => s + accountBalance(biz.id, a.id), 0);
+        const grand = visibleAccs.reduce((s, a) => {
+          const t = totals[a.id] || { in: 0, out: 0 };
+          return s + (t.in - t.out);
+        }, 0);
         return `<div class="acct-grand-total ${grand >= 0 ? 'pos' : 'neg'}">
           <div>
             <div class="acct-grand-label">Total across all accounts</div>
-            <div class="acct-grand-meta">${visibleAccs.length} account${visibleAccs.length === 1 ? '' : 's'} · current balance</div>
+            <div class="acct-grand-meta">${visibleAccs.length} account${visibleAccs.length === 1 ? '' : 's'} · ${escapeHtml(currentPeriodLabel())}</div>
           </div>
           <div class="acct-grand-value">${cur} ${grand >= 0 ? '' : '−'}${fmt(Math.abs(grand))}</div>
         </div>`;
