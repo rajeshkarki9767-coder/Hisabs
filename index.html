@@ -7666,7 +7666,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.10.157';
+  const BUILD_TAG = '2026.07.10.158';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -13089,7 +13089,17 @@
       return (a.createdAt || 0) - (b.createdAt || 0);
     });
     let bal = 0;
+    // v89.99i: the running balance follows the SAME rule as the stat cards
+    // and Audit — entries on HIDDEN accounts don't move the ledger. Before
+    // this, the column included them while the cards excluded them, so the
+    // column's latest value and the "Net for period" card showed different
+    // numbers for All Time with no way to reconcile. Hidden-account rows
+    // stay visible in the list but show "—" in the Balance column.
+    const _hiddenBalAcctIds = new Set(
+      data.cashAccounts.filter(a => a.businessId === session.activeBizId && a.hidden).map(a => a.id)
+    );
     allBookEntries = allBookEntries.map(e => {
+      if (_hiddenBalAcctIds.has(e.accountId)) return { ...e, _runBal: null };
       const amt = Number(e.amount);
       bal += (e.type === 'in' ? (Number.isFinite(amt) ? amt : 0) : -(Number.isFinite(amt) ? amt : 0));
       return { ...e, _runBal: bal };
@@ -13667,7 +13677,7 @@
         <div class="entry-by entry-by-col" style="margin-top:0.2rem;"><span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span></div>
       </div>
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
-      <div class="entry-balance">${canSeeTotals(session.activeBizId) ? fmt(e._runBal) : '—'}</div>
+      <div class="entry-balance">${canSeeTotals(session.activeBizId) ? (e._runBal == null ? '—' : fmt(e._runBal)) : '—'}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t} aria-label="Edit entry">
           <svg width="15" height="15"><use href="#ico-edit"/></svg>
