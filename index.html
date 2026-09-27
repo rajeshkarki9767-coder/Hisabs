@@ -5827,6 +5827,14 @@
     display: inline-block;
   }
   .party-detail-tags { margin-top: 0.22rem; }
+  /* v89.105: detail SET rows — three inputs side by side + remove, with a
+     small column-header row (Acc. Name / Username / Tag) above them. */
+  .meta-detail-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.3rem; }
+  .meta-detail-heads {
+    display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.3rem;
+    font-size: 0.68rem; font-weight: 600; color: var(--ink-mute);
+    margin: 0.2rem 0 0.15rem; padding-right: 1.4rem;
+  }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
   .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
@@ -7709,7 +7717,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.166';
+  const BUILD_TAG = '2026.07.11.167';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9554,19 +9562,20 @@
           .filter(s => s.platform)
       : [];
     if (socials.length) meta.socials = socials.slice(0, 12);
-    // v89.101: custom DETAILS — labeled key/value pairs (Account, Username,
-    // Tag are the preset labels; "+ Add more" adds free-label rows). A row
-    // needs BOTH a label and a value to be stored; presets with empty
-    // values simply don't persist.
+    // v89.105: DETAILS are now SETS — one row holds Acc. Name + Username +
+    // Tag together as ONE record (per the sketch), and "+ Add more" adds
+    // another full row. A row is stored when ANY of its three fields is
+    // filled. Each field ≤200 chars; max 10 rows.
     const details = Array.isArray(input?.details)
       ? input.details
           .map(d => ({
-            label: String(d?.label || '').trim().slice(0, 30),
-            value: String(d?.value || '').trim().slice(0, 200),
+            account: String(d?.account || '').trim().slice(0, 200),
+            username: String(d?.username || '').trim().slice(0, 200),
+            tag: String(d?.tag || '').trim().slice(0, 200),
           }))
-          .filter(d => d.label && d.value)
+          .filter(d => d.account || d.username || d.tag)
       : [];
-    if (details.length) meta.details = details.slice(0, 15);
+    if (details.length) meta.details = details.slice(0, 10);
     // v89.101: NOT-SHARED flags for phone/email — the party declined to
     // provide them. A real value always wins: the flag only sticks when
     // the corresponding list is empty, so entering a phone/email later
@@ -9835,7 +9844,7 @@
       return boxes ? `<div class="party-contact-card party-contact-card-badges">${boxes}</div>` : '';
     }
     const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description
-      || (meta.details?.length) || meta.phoneNotShared || meta.emailNotShared;
+      || partyDetailSets(meta).length || meta.phoneNotShared || meta.emailNotShared;
     if (!hasAny) return '';
     const rows = [];
     if (meta.dob) {
@@ -9918,22 +9927,24 @@
         </div>`);
       }
     }
-    // v89.101/v89.102: DETAILS — one labeled row per stored pair, like
-    // the other contact rows:  Account …value…  /  Username …value…  /
-    // Tag …value…  (custom labels follow the same layout). The value is
-    // a GREEN chip, copyable with one tap.
-    if (Array.isArray(meta.details) && meta.details.length) {
-      for (const d of meta.details) {
-        if (!d || !String(d.label || '').trim() || !String(d.value || '').trim()) continue;
-        const lab = escapeHtml(String(d.label).trim());
-        const valRaw = String(d.value).trim();
+    // v89.105: DETAIL SETS — one row per stored set ("Account" / "Account 2"
+    // when several), its filled fields as labeled GREEN tap-to-copy chips.
+    const _sets = partyDetailSets(meta);
+    _sets.forEach((s, i) => {
+      const chips = [];
+      const mk = (lab, valRaw) => {
         const val = escapeHtml(valRaw);
-        rows.push(`<div class="contact-row">
-          <div class="contact-row-label">${lab}</div>
-          <div class="contact-row-value"><span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}">${val}</span></div>
-        </div>`);
-      }
-    }
+        chips.push(`<span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}"><strong>${lab}:</strong> ${val}</span>`);
+      };
+      if (s.account) mk('Account', s.account);
+      if (s.username) mk('Username', s.username);
+      if (s.tag) mk('Tag', s.tag);
+      if (!chips.length) return;
+      rows.push(`<div class="contact-row contact-row-multi">
+        <div class="contact-row-label">${_sets.length > 1 ? 'Account ' + (i + 1) : 'Account'}</div>
+        <div class="contact-row-value">${chips.join(' ')}</div>
+      </div>`);
+    });
     if (meta.description) {
       rows.push(`<div class="contact-row contact-row-desc">
         <div class="contact-row-label">Notes</div>
@@ -11097,6 +11108,42 @@
     const role = roleFor(party.businessId);
     return role === 'owner' || role === 'manager';
   }
+  // v89.105: normalize meta.details into SET rows {account, username, tag}.
+  // Handles BOTH shapes: the current set-per-row shape, and the legacy
+  // v89.101 label/value pairs (Account/Username/Tag labels fold into set
+  // slots in order; a custom label folds into a row's tag as "Label: value"
+  // so nothing entered on earlier builds is ever lost).
+  function partyDetailSets(meta) {
+    const raw = Array.isArray(meta?.details) ? meta.details : [];
+    const sets = [];
+    const place = (field, value) => {
+      let row = sets.find(r => !r[field]);
+      if (!row) { row = { account: '', username: '', tag: '' }; sets.push(row); }
+      row[field] = value;
+    };
+    for (const d of raw) {
+      if (!d) continue;
+      if ('account' in d || 'username' in d || 'tag' in d) {
+        const row = {
+          account: String(d.account || '').trim(),
+          username: String(d.username || '').trim(),
+          tag: String(d.tag || '').trim(),
+        };
+        if (row.account || row.username || row.tag) sets.push(row);
+        continue;
+      }
+      // legacy {label, value}
+      const label = String(d.label || '').trim();
+      const value = String(d.value || '').trim();
+      if (!label || !value) continue;
+      const l = label.toLowerCase();
+      if (l === 'account') place('account', value);
+      else if (l === 'username') place('username', value);
+      else if (l === 'tag') place('tag', value);
+      else place('tag', label + ': ' + value);
+    }
+    return sets;
+  }
   // Same gate for a brand-new party being created (no party object yet):
   // only owner/manager get the contact-detail fields in the add form.
   function canAddPartyMeta(businessId) {
@@ -11126,7 +11173,7 @@
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
     }
-    if (!tags.length && !(Array.isArray(meta.details) && meta.details.some(d => d && String(d.label || '').trim() && String(d.value || '').trim()))) return '';
+    if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
     // doesn't blow out the row. Show the first MAX_SHOWN, then "+N more".
     const MAX_SHOWN = 6;
@@ -11141,25 +11188,28 @@
     const out = shown
       .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
       .join('') + moreHTML;
-    // v89.102: GREEN detail-value boxes (Account / Username / Tag / custom)
-    // in their OWN row just below the contact badges. The box shows the
-    // stored VALUE (e.g. the account name); the tooltip carries the label.
-    // Same +N-more cap so a party with many details never blows out a card.
-    const details = Array.isArray(meta.details)
-      ? meta.details.filter(d => d && String(d.label || '').trim() && String(d.value || '').trim())
-      : [];
+    // v89.105: GREEN detail boxes built from SET rows — each row's filled
+    // fields flatten to labeled boxes (Account: NIC · Username: Ram · Tag: X)
+    // in their own row below the contact badges, capped with "+N more".
+    const _sets = partyDetailSets(meta);
+    const _flat = [];
+    for (const s of _sets) {
+      if (s.account) _flat.push({ label: 'Account', value: s.account });
+      if (s.username) _flat.push({ label: 'Username', value: s.username });
+      if (s.tag) _flat.push({ label: 'Tag', value: s.tag });
+    }
     let detailRowHTML = '';
-    if (details.length) {
-      let dShown = details;
+    if (_flat.length) {
+      let dShown = _flat;
       let dMore = '';
-      if (details.length > MAX_SHOWN) {
-        dShown = details.slice(0, MAX_SHOWN);
-        const n = details.length - MAX_SHOWN;
-        const t = details.slice(MAX_SHOWN).map(d => String(d.label).trim()).join(', ');
+      if (_flat.length > MAX_SHOWN) {
+        dShown = _flat.slice(0, MAX_SHOWN);
+        const n = _flat.length - MAX_SHOWN;
+        const t = _flat.slice(MAX_SHOWN).map(d => d.label + ': ' + d.value).join(', ');
         dMore = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(t)}">+${n} more</span>`;
       }
       detailRowHTML = '<div class="party-contact-tags party-detail-tags">' + dShown
-        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(String(d.label).trim() + ': ' + String(d.value).trim())}">${escapeHtml(String(d.label).trim())}: ${escapeHtml(String(d.value).trim())}</span>`)
+        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(d.label + ': ' + d.value)}">${escapeHtml(d.label)}: ${escapeHtml(d.value)}</span>`)
         .join('') + dMore + '</div>';
     }
     // v89.31.7: render the badges on their own row directly BELOW the name
@@ -13843,9 +13893,10 @@
     // is "NIC Asia", matching what the green boxes display on the card.
     if (q) parties = parties.filter(p =>
       p.name.toLowerCase().includes(q)
-      || (Array.isArray(p.meta?.details) && p.meta.details.some(d =>
-           d && (String(d.label || '').toLowerCase().includes(q)
-              || String(d.value || '').toLowerCase().includes(q))))
+      || partyDetailSets(p.meta).some(s =>
+           s.account.toLowerCase().includes(q)
+        || s.username.toLowerCase().includes(q)
+        || s.tag.toLowerCase().includes(q))
     );
 
     // compute totals per party, filtered by the active period.
@@ -24792,17 +24843,12 @@
     // At least one empty starter row in the create flow; existing rows on edit.
     const socials = Array.isArray(m.socials) && m.socials.length ? m.socials : [{ platform: '', handle: '' }];
     const socialsHTML = socials.map((s, i) => partySocialRowHTML(s && s.platform, s && s.handle, i)).join('');
-    // v89.101: DETAILS rows — show every stored detail, then append empty
-    // rows for whichever of the three preset labels (Account, Username,
-    // Tag) aren't stored yet, so they're always offered. Preset rows have
-    // a fixed label; "+ Add more" rows have a free-text label.
-    const PARTY_DETAIL_PRESETS = ['Account', 'Username', 'Tag'];
-    const storedDetails = Array.isArray(m.details) ? m.details : [];
-    const detailRows = storedDetails.map(d => ({ label: d && d.label || '', value: d && d.value || '', preset: PARTY_DETAIL_PRESETS.includes(d && d.label) }));
-    for (const preset of PARTY_DETAIL_PRESETS) {
-      if (!detailRows.some(r => r.label === preset)) detailRows.push({ label: preset, value: '', preset: true });
-    }
-    const detailsHTML = detailRows.map(r => partyDetailRowHTML(r.label, r.value, r.preset)).join('');
+    // v89.105: DETAIL SET rows — each row = Acc. Name + Username + Tag
+    // (one record). Existing sets prefill (legacy pairs normalized); a
+    // fresh form starts with one empty row. "+ Add more" appends a row.
+    const detailSets = partyDetailSets(m);
+    const detailRows = detailSets.length ? detailSets : [{ account: '', username: '', tag: '' }];
+    const detailsHTML = detailRows.map(r => partyDetailRowHTML(r.account, r.username, r.tag)).join('');
     return `
       <datalist id="socialPlatformList">
         <option value="Facebook"></option>
@@ -24853,8 +24899,8 @@
         <button type="button" class="meta-add-btn" onclick="addPartySocialRow()">+ Add another social</button>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Account details <span class="meta-optional">— optional</span></div>
-        <div class="meta-optional" style="margin:0.15rem 0 0.3rem;">e.g. Account: NIC · Username: Ram Bahadur · Tag: Rameshwor</div>
+        <div class="meta-section-label">Account details <span class="meta-optional">— optional · one row = one account</span></div>
+        <div class="meta-detail-heads"><span>Acc. Name</span><span>Username</span><span>Tag</span><span></span></div>
         <div id="mPartyDetails" class="meta-multi-list">${detailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
@@ -24917,21 +24963,22 @@
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
-  // v89.101: a DETAIL row — label (left, fixed for the Account/Username/Tag
-  // presets, free-text for "+ Add more" rows) + value (right) + remove.
-  function partyDetailRowHTML(label, value, isPreset) {
+  // v89.105: a DETAIL SET row — Acc. Name + Username + Tag as ONE record,
+  // three inputs side by side (per the sketch) + remove.
+  function partyDetailRowHTML(account, username, tag) {
     return `<div class="meta-multi-row meta-detail-row">
-      <input type="text" class="meta-multi-input meta-detail-label" maxlength="30" placeholder="Label" value="${escapeHtml(label || '')}" autocomplete="off"${isPreset ? ' readonly' : ''}>
-      <input type="text" class="meta-multi-input meta-detail-value" maxlength="200" placeholder="${escapeHtml(label ? label + '…' : 'Value')}" value="${escapeHtml(value || '')}" autocomplete="off">
+      <input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC" value="${escapeHtml(account || '')}" autocomplete="off">
+      <input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off">
+      <input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off">
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
   function addPartyDetailRow() {
     const list = document.getElementById('mPartyDetails');
     if (!list) return;
-    if (list.children.length >= 15) { toast('Up to 15 details.'); return; }
+    if (list.children.length >= 10) { toast('Up to 10 account rows.'); return; }
     const wrap = document.createElement('div');
-    wrap.innerHTML = partyDetailRowHTML('', '', false);
+    wrap.innerHTML = partyDetailRowHTML('', '', '');
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
@@ -24993,11 +25040,12 @@
         platform: row.querySelector('.meta-social-platform')?.value || '',
         handle: row.querySelector('.meta-social-handle')?.value || '',
       }));
-    // v89.101: details rows + not-shared flags.
+    // v89.105: detail SET rows + not-shared flags.
     const details = Array.from(document.querySelectorAll('#mPartyDetails .meta-detail-row'))
       .map(row => ({
-        label: row.querySelector('.meta-detail-label')?.value || '',
-        value: row.querySelector('.meta-detail-value')?.value || '',
+        account: row.querySelector('.meta-detail-acc')?.value || '',
+        username: row.querySelector('.meta-detail-user')?.value || '',
+        tag: row.querySelector('.meta-detail-tag')?.value || '',
       }));
     const phoneNotShared = !!document.getElementById('mPhoneNotShared')?.classList.contains('active');
     const emailNotShared = !!document.getElementById('mEmailNotShared')?.classList.contains('active');
