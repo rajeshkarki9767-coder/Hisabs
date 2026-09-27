@@ -5806,6 +5806,27 @@
     color: var(--ink-mute);
     border-color: var(--line);
   }
+  /* v89.102: red variant — the party declined to share this contact
+     channel (SMS = no phone given, Email = no email given). */
+  .party-contact-tag-red {
+    color: var(--loss);
+    border-color: var(--loss);
+    background: rgba(168, 53, 31, 0.07);
+  }
+  /* v89.102: green variant — a stored detail VALUE (account name,
+     username, tag, …) shown as its own box. Long values truncate. */
+  .party-contact-tag-green {
+    color: var(--gain);
+    border-color: var(--gain);
+    background: rgba(46, 93, 58, 0.07);
+    text-transform: none;
+    letter-spacing: 0;
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+  }
+  .party-detail-tags { margin-top: 0.22rem; }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
   .account-card-icon { display: grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; background: var(--paper-deep); border: 1px solid var(--line); color: var(--accent-readable); border-radius: var(--r-sm); }
@@ -7688,7 +7709,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.161';
+  const BUILD_TAG = '2026.07.11.163';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9890,21 +9911,19 @@
         </div>`);
       }
     }
-    // v89.101: DETAILS — every stored label/value pair renders as a GREEN
-    // chip ("Account: NIC Asia 00711…"), each copyable with one tap.
+    // v89.101/v89.102: DETAILS — one labeled row per stored pair, like
+    // the other contact rows:  Account …value…  /  Username …value…  /
+    // Tag …value…  (custom labels follow the same layout). The value is
+    // a GREEN chip, copyable with one tap.
     if (Array.isArray(meta.details) && meta.details.length) {
-      const items = meta.details
-        .filter(d => d && String(d.label || '').trim() && String(d.value || '').trim())
-        .map(d => {
-          const lab = escapeHtml(String(d.label).trim());
-          const valRaw = String(d.value).trim();
-          const val = escapeHtml(valRaw);
-          return `<span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}"><strong>${lab}:</strong> ${val}</span>`;
-        }).join(' ');
-      if (items) {
-        rows.push(`<div class="contact-row contact-row-multi">
-          <div class="contact-row-label">Details</div>
-          <div class="contact-row-value">${items}</div>
+      for (const d of meta.details) {
+        if (!d || !String(d.label || '').trim() || !String(d.value || '').trim()) continue;
+        const lab = escapeHtml(String(d.label).trim());
+        const valRaw = String(d.value).trim();
+        const val = escapeHtml(valRaw);
+        rows.push(`<div class="contact-row">
+          <div class="contact-row-label">${lab}</div>
+          <div class="contact-row-value"><span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}">${val}</span></div>
         </div>`);
       }
     }
@@ -11093,12 +11112,14 @@
       : [];
     const tags = [];
     if (hasPhone) tags.push({ label: 'SMS', title: 'Phone number saved' });
+    else if (meta.phoneNotShared) tags.push({ label: 'SMS', title: 'Phone not shared', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
+    else if (meta.emailNotShared) tags.push({ label: 'Email', title: 'Email not shared', red: true });
     for (const s of socials) {
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
     }
-    if (!tags.length) return '';
+    if (!tags.length && !(Array.isArray(meta.details) && meta.details.some(d => d && String(d.label || '').trim() && String(d.value || '').trim()))) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
     // doesn't blow out the row. Show the first MAX_SHOWN, then "+N more".
     const MAX_SHOWN = 6;
@@ -11111,11 +11132,32 @@
       moreHTML = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(moreTitle)}">+${moreCount} more</span>`;
     }
     const out = shown
-      .map(t => `<span class="party-contact-tag" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
+      .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
       .join('') + moreHTML;
+    // v89.102: GREEN detail-value boxes (Account / Username / Tag / custom)
+    // in their OWN row just below the contact badges. The box shows the
+    // stored VALUE (e.g. the account name); the tooltip carries the label.
+    // Same +N-more cap so a party with many details never blows out a card.
+    const details = Array.isArray(meta.details)
+      ? meta.details.filter(d => d && String(d.label || '').trim() && String(d.value || '').trim())
+      : [];
+    let detailRowHTML = '';
+    if (details.length) {
+      let dShown = details;
+      let dMore = '';
+      if (details.length > MAX_SHOWN) {
+        dShown = details.slice(0, MAX_SHOWN);
+        const n = details.length - MAX_SHOWN;
+        const t = details.slice(MAX_SHOWN).map(d => String(d.label).trim()).join(', ');
+        dMore = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(t)}">+${n} more</span>`;
+      }
+      detailRowHTML = '<div class="party-contact-tags party-detail-tags">' + dShown
+        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(String(d.label).trim() + ': ' + String(d.value).trim())}">${escapeHtml(String(d.value).trim())}</span>`)
+        .join('') + dMore + '</div>';
+    }
     // v89.31.7: render the badges on their own row directly BELOW the name
     // (previously appended inline to the right of the name).
-    return '<div class="party-contact-tags">' + out + '</div>';
+    return (tags.length ? '<div class="party-contact-tags">' + out + '</div>' : '') + detailRowHTML;
   }
   // v89.31.4: a small count chip shown at the top-right of party /
   // category / account cards, reflecting how many entries fall in the
@@ -13900,7 +13942,7 @@
         ${actions}
         ${cardCountChip(t.count)}
         <div class="party-card-name">${escapeHtml(p.name)}</div>
-        ${canSeePartyContact(p.businessId) ? partyContactBadges(p) : ''}
+        ${partyContactBadges(p) /* v89.102: badges (SMS/Email/Not shared/green details) visible to ALL members; the full contact card on the detail page remains gated by canSeePartyContact */}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
         ${createdByLine}
