@@ -5917,6 +5917,28 @@
   .meta-optional {
     font-size: 0.72rem; font-weight: 400; color: var(--ink-mute);
   }
+  /* v89.101: party detail chips (green = stored detail, red = not shared)
+     and the "Not shared" toggle on the phone/email sections. */
+  .pmeta-chip {
+    display: inline-block; padding: 0.22rem 0.6rem; border-radius: 6px;
+    font-size: 0.8rem; font-weight: 600; border: 1px solid;
+    margin: 0.12rem 0.3rem 0.12rem 0; word-break: break-all; cursor: default;
+  }
+  .pmeta-chip-green {
+    color: var(--gain); border-color: rgba(46,93,58,0.4); background: rgba(46,93,58,0.1); cursor: pointer;
+  }
+  .pmeta-chip-green:hover { background: rgba(46,93,58,0.18); }
+  .pmeta-chip-red {
+    color: var(--loss); border-color: rgba(168,53,31,0.4); background: rgba(168,53,31,0.1);
+  }
+  .meta-notshared-btn {
+    float: right; font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.5rem;
+    border-radius: 5px; border: 1px solid var(--line); background: transparent;
+    color: var(--ink-mute); cursor: pointer;
+  }
+  .meta-notshared-btn.active {
+    color: #ffffff; background: var(--loss); border-color: var(--loss);
+  }
   .meta-dob-row {
     display: grid;
     grid-template-columns: 1.4fr 0.7fr 0.9fr;
@@ -7666,7 +7688,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.10.160';
+  const BUILD_TAG = '2026.07.11.161';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9511,6 +9533,25 @@
           .filter(s => s.platform)
       : [];
     if (socials.length) meta.socials = socials.slice(0, 12);
+    // v89.101: custom DETAILS — labeled key/value pairs (Account, Username,
+    // Tag are the preset labels; "+ Add more" adds free-label rows). A row
+    // needs BOTH a label and a value to be stored; presets with empty
+    // values simply don't persist.
+    const details = Array.isArray(input?.details)
+      ? input.details
+          .map(d => ({
+            label: String(d?.label || '').trim().slice(0, 30),
+            value: String(d?.value || '').trim().slice(0, 200),
+          }))
+          .filter(d => d.label && d.value)
+      : [];
+    if (details.length) meta.details = details.slice(0, 15);
+    // v89.101: NOT-SHARED flags for phone/email — the party declined to
+    // provide them. A real value always wins: the flag only sticks when
+    // the corresponding list is empty, so entering a phone/email later
+    // clears the flag automatically on save.
+    if (input?.phoneNotShared && !(meta.phones && meta.phones.length)) meta.phoneNotShared = true;
+    if (input?.emailNotShared && !(meta.emails && meta.emails.length)) meta.emailNotShared = true;
     const desc = String(input?.description || '').trim().slice(0, LIMITS.description);
     if (desc) meta.description = desc;
     return Object.keys(meta).length ? meta : null;
@@ -9535,6 +9576,14 @@
     const oS = JSON.stringify(o.socials || []);
     const nS = JSON.stringify(n.socials || []);
     if (oS !== nS) changed.push('social');
+    // v89.101: details + not-shared flags — same class of miss as the
+    // v89.32.1 socials fix: anything not compared here makes an
+    // otherwise-valid edit bail as "no change" without saving.
+    const oD = JSON.stringify(o.details || []);
+    const nD = JSON.stringify(n.details || []);
+    if (oD !== nD) changed.push('details');
+    if (!!o.phoneNotShared !== !!n.phoneNotShared) changed.push('phone not-shared');
+    if (!!o.emailNotShared !== !!n.emailNotShared) changed.push('email not-shared');
     if ((o.description || '') !== (n.description || '')) changed.push('description');
     return changed;
   }
@@ -9757,7 +9806,8 @@
     if (!meta) return '';
     // v89.32.21: hide contact details from the team role.
     if (!canSeePartyContact(party?.businessId)) return '';
-    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description;
+    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description
+      || (meta.details?.length) || meta.phoneNotShared || meta.emailNotShared;
     if (!hasAny) return '';
     const rows = [];
     if (meta.dob) {
@@ -9783,6 +9833,13 @@
         <div class="contact-row-label">Phone</div>
         <div class="contact-row-value">${items}</div>
       </div>`);
+    } else if (meta.phoneNotShared) {
+      // v89.101: party declined to share a phone — show it explicitly in red
+      // so nobody wastes time asking or hunting for a number that isn't coming.
+      rows.push(`<div class="contact-row">
+        <div class="contact-row-label">Phone</div>
+        <div class="contact-row-value"><span class="pmeta-chip pmeta-chip-red">Not shared</span></div>
+      </div>`);
     }
     if (Array.isArray(meta.emails) && meta.emails.length) {
       const items = meta.emails.map(em => {
@@ -9797,6 +9854,11 @@
       rows.push(`<div class="contact-row contact-row-multi">
         <div class="contact-row-label">Email</div>
         <div class="contact-row-value">${items}</div>
+      </div>`);
+    } else if (meta.emailNotShared) {
+      rows.push(`<div class="contact-row">
+        <div class="contact-row-label">Email</div>
+        <div class="contact-row-value"><span class="pmeta-chip pmeta-chip-red">Not shared</span></div>
       </div>`);
     }
     if (Array.isArray(meta.socials) && meta.socials.length) {
@@ -9824,6 +9886,24 @@
       if (items) {
         rows.push(`<div class="contact-row contact-row-multi">
           <div class="contact-row-label">Social</div>
+          <div class="contact-row-value">${items}</div>
+        </div>`);
+      }
+    }
+    // v89.101: DETAILS — every stored label/value pair renders as a GREEN
+    // chip ("Account: NIC Asia 00711…"), each copyable with one tap.
+    if (Array.isArray(meta.details) && meta.details.length) {
+      const items = meta.details
+        .filter(d => d && String(d.label || '').trim() && String(d.value || '').trim())
+        .map(d => {
+          const lab = escapeHtml(String(d.label).trim());
+          const valRaw = String(d.value).trim();
+          const val = escapeHtml(valRaw);
+          return `<span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}"><strong>${lab}:</strong> ${val}</span>`;
+        }).join(' ');
+      if (items) {
+        rows.push(`<div class="contact-row contact-row-multi">
+          <div class="contact-row-label">Details</div>
           <div class="contact-row-value">${items}</div>
         </div>`);
       }
@@ -24647,6 +24727,17 @@
     // At least one empty starter row in the create flow; existing rows on edit.
     const socials = Array.isArray(m.socials) && m.socials.length ? m.socials : [{ platform: '', handle: '' }];
     const socialsHTML = socials.map((s, i) => partySocialRowHTML(s && s.platform, s && s.handle, i)).join('');
+    // v89.101: DETAILS rows — show every stored detail, then append empty
+    // rows for whichever of the three preset labels (Account, Username,
+    // Tag) aren't stored yet, so they're always offered. Preset rows have
+    // a fixed label; "+ Add more" rows have a free-text label.
+    const PARTY_DETAIL_PRESETS = ['Account', 'Username', 'Tag'];
+    const storedDetails = Array.isArray(m.details) ? m.details : [];
+    const detailRows = storedDetails.map(d => ({ label: d && d.label || '', value: d && d.value || '', preset: PARTY_DETAIL_PRESETS.includes(d && d.label) }));
+    for (const preset of PARTY_DETAIL_PRESETS) {
+      if (!detailRows.some(r => r.label === preset)) detailRows.push({ label: preset, value: '', preset: true });
+    }
+    const detailsHTML = detailRows.map(r => partyDetailRowHTML(r.label, r.value, r.preset)).join('');
     return `
       <datalist id="socialPlatformList">
         <option value="Facebook"></option>
@@ -24678,12 +24769,16 @@
         </div>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Phone numbers <span class="meta-optional">— optional, include country code like ${escapeHtml(codeForExample)}</span></div>
+        <div class="meta-section-label">Phone numbers <span class="meta-optional">— optional, include country code like ${escapeHtml(codeForExample)}</span>
+          <button type="button" id="mPhoneNotShared" class="meta-notshared-btn${m.phoneNotShared ? ' active' : ''}" onclick="toggleNotShared(this)" title="Party refused to share a phone number. Entering a real number clears this.">Not shared</button>
+        </div>
         <div id="mPartyPhones" class="meta-multi-list">${phonesHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyPhoneRow()">+ Add another phone</button>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Email addresses <span class="meta-optional">— optional</span></div>
+        <div class="meta-section-label">Email addresses <span class="meta-optional">— optional</span>
+          <button type="button" id="mEmailNotShared" class="meta-notshared-btn${m.emailNotShared ? ' active' : ''}" onclick="toggleNotShared(this)" title="Party refused to share an email. Entering a real email clears this.">Not shared</button>
+        </div>
         <div id="mPartyEmails" class="meta-multi-list">${emailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyEmailRow()">+ Add another email</button>
       </div>
@@ -24691,6 +24786,11 @@
         <div class="meta-section-label">Social <span class="meta-optional">— optional, e.g. Facebook · username or link</span></div>
         <div id="mPartySocials" class="meta-multi-list">${socialsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartySocialRow()">+ Add another social</button>
+      </div>
+      <div class="meta-section">
+        <div class="meta-section-label">Details <span class="meta-optional">— optional, e.g. Account · Username · Tag</span></div>
+        <div id="mPartyDetails" class="meta-multi-list">${detailsHTML}</div>
+        <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
       <div class="meta-section">
         <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
@@ -24751,6 +24851,30 @@
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
+  // v89.101: a DETAIL row — label (left, fixed for the Account/Username/Tag
+  // presets, free-text for "+ Add more" rows) + value (right) + remove.
+  function partyDetailRowHTML(label, value, isPreset) {
+    return `<div class="meta-multi-row meta-detail-row">
+      <input type="text" class="meta-multi-input meta-detail-label" maxlength="30" placeholder="Label" value="${escapeHtml(label || '')}" autocomplete="off"${isPreset ? ' readonly' : ''}>
+      <input type="text" class="meta-multi-input meta-detail-value" maxlength="200" placeholder="${escapeHtml(label ? label + '…' : 'Value')}" value="${escapeHtml(value || '')}" autocomplete="off">
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+    </div>`;
+  }
+  function addPartyDetailRow() {
+    const list = document.getElementById('mPartyDetails');
+    if (!list) return;
+    if (list.children.length >= 15) { toast('Up to 15 details.'); return; }
+    const wrap = document.createElement('div');
+    wrap.innerHTML = partyDetailRowHTML('', '', false);
+    list.appendChild(wrap.firstElementChild);
+    list.lastElementChild.querySelector('input')?.focus();
+  }
+  // v89.101: toggle for "Not shared" on phone/email sections. Purely a
+  // visual state here — buildPartyMeta enforces that a real value wins
+  // over the flag at save time.
+  function toggleNotShared(btn) {
+    if (btn) btn.classList.toggle('active');
+  }
   function removeMetaRow(btn) {
     const row = btn?.closest('.meta-multi-row');
     const list = row?.parentElement;
@@ -24787,8 +24911,16 @@
         platform: row.querySelector('.meta-social-platform')?.value || '',
         handle: row.querySelector('.meta-social-handle')?.value || '',
       }));
+    // v89.101: details rows + not-shared flags.
+    const details = Array.from(document.querySelectorAll('#mPartyDetails .meta-detail-row'))
+      .map(row => ({
+        label: row.querySelector('.meta-detail-label')?.value || '',
+        value: row.querySelector('.meta-detail-value')?.value || '',
+      }));
+    const phoneNotShared = !!document.getElementById('mPhoneNotShared')?.classList.contains('active');
+    const emailNotShared = !!document.getElementById('mEmailNotShared')?.classList.contains('active');
     const description = document.getElementById('mPartyDescription')?.value || '';
-    return buildPartyMeta({ dob, phones, emails, socials, description });
+    return buildPartyMeta({ dob, phones, emails, socials, description, details, phoneNotShared, emailNotShared });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
