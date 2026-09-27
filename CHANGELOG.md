@@ -12,6 +12,40 @@ The version is embedded in code comments throughout `index.html` (`// v89.31.2: 
 
 ---
 
+## [1.12] — 2026-07-11 · builds 2026.07.11.161 – .165
+
+Party ACCOUNT DETAILS + "Not shared" contact flags. No SQL migration —
+everything rides in the existing `app_parties.meta` JSONB (v89.31.0).
+
+### Added
+- **Account details** section (v89.101) in the party edit/create modal:
+  preset rows **Account, Username, Tag** (fixed labels) plus **"+ Add
+  more"** free-label rows. Max 15 details; label ≤30 chars, value ≤200.
+  A row stores only when both label and value are filled.
+- Party detail page renders each stored detail as its own labeled row
+  (`Account …value…`), value as a **green tap-to-copy chip** (v89.102).
+- Parties LIST shows each detail as a **green box `Label: value`**
+  (e.g. `Account: NIC`) in a row below the SMS/Email badges, capped at
+  6 with "+N more" (v89.102/.103).
+- **"Not shared"** toggle on the Phone and Email sections (v89.101):
+  red when active; detail page shows a red **Not shared** chip on that
+  row; parties list shows red **"Not shared SMS" / "Not shared Email"**
+  boxes (v89.103). Real values always win — entering a phone/email
+  clears the flag (enforced at save AND at render), and activating the
+  toggle while values are typed is refused with an explanatory toast.
+- Party search now also matches account-detail labels and values
+  (typing "NIC" finds the party whose Account is "NIC Asia") (v89.103).
+- Contact/detail badge rows on the parties list are visible to **all**
+  members including the Team role; the full contact card on the party
+  detail page remains restricted (owner/manager/viewer) as before.
+
+### Changed
+- Activity-log diff now detects details and not-shared changes, so such
+  edits save and log correctly (same fix class as the v89.32.1 socials
+  miss).
+
+---
+
 ## [1.11] — 2026-05-21 · build 2026.05.21.90
 
 UPGRADE: "Hide Distribution" is now a TRUE per-member ACCESS CONTROL, not just a hidden tab. **Requires running the new SQL migration.**

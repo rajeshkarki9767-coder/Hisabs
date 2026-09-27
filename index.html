@@ -7709,7 +7709,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.163';
+  const BUILD_TAG = '2026.07.11.166';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9826,7 +9826,14 @@
     const meta = party?.meta || null;
     if (!meta) return '';
     // v89.32.21: hide contact details from the team role.
-    if (!canSeePartyContact(party?.businessId)) return '';
+    // v89.104: but per the badge-visibility rule ("boxes can be seen by all
+    // team members"), staff still get the same BOXES here that the parties
+    // list shows — SMS/Email, red Not-shared, green details — just never the
+    // full contact card (phones, emails, DOB, socials, per-detail rows).
+    if (!canSeePartyContact(party?.businessId)) {
+      const boxes = partyContactBadges(party);
+      return boxes ? `<div class="party-contact-card party-contact-card-badges">${boxes}</div>` : '';
+    }
     const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description
       || (meta.details?.length) || meta.phoneNotShared || meta.emailNotShared;
     if (!hasAny) return '';
@@ -11112,9 +11119,9 @@
       : [];
     const tags = [];
     if (hasPhone) tags.push({ label: 'SMS', title: 'Phone number saved' });
-    else if (meta.phoneNotShared) tags.push({ label: 'SMS', title: 'Phone not shared', red: true });
+    else if (meta.phoneNotShared) tags.push({ label: 'Not shared SMS', title: 'Party declined to share a phone number', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
-    else if (meta.emailNotShared) tags.push({ label: 'Email', title: 'Email not shared', red: true });
+    else if (meta.emailNotShared) tags.push({ label: 'Not shared Email', title: 'Party declined to share an email', red: true });
     for (const s of socials) {
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
@@ -11152,7 +11159,7 @@
         dMore = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(t)}">+${n} more</span>`;
       }
       detailRowHTML = '<div class="party-contact-tags party-detail-tags">' + dShown
-        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(String(d.label).trim() + ': ' + String(d.value).trim())}">${escapeHtml(String(d.value).trim())}</span>`)
+        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(String(d.label).trim() + ': ' + String(d.value).trim())}">${escapeHtml(String(d.label).trim())}: ${escapeHtml(String(d.value).trim())}</span>`)
         .join('') + dMore + '</div>';
     }
     // v89.31.7: render the badges on their own row directly BELOW the name
@@ -13831,7 +13838,15 @@
 
     // search filter on the party list itself
     const q = __partiesSearch.trim().toLowerCase();
-    if (q) parties = parties.filter(p => p.name.toLowerCase().includes(q));
+    // v89.103: search matches the party NAME and its ACCOUNT DETAILS
+    // (labels + values) — so typing "NIC" finds the party whose Account
+    // is "NIC Asia", matching what the green boxes display on the card.
+    if (q) parties = parties.filter(p =>
+      p.name.toLowerCase().includes(q)
+      || (Array.isArray(p.meta?.details) && p.meta.details.some(d =>
+           d && (String(d.label || '').toLowerCase().includes(q)
+              || String(d.value || '').toLowerCase().includes(q))))
+    );
 
     // compute totals per party, filtered by the active period.
     // Exclude entries pointing at hidden accounts so party stats match
@@ -22425,7 +22440,15 @@
     // v89.31.0: anyone in the business can open the edit modal to update
     // contact meta. The name field gets a readonly state in the modal
     // when the user can't rename (handled below).
-    if (!canEditPartyMeta(p)) { toast('Only members of this business can edit parties.'); return; }
+    // v89.104 FIX: canRenameParty grants STAFF the right to rename parties
+    // they created, but this guard blocked staff before that right was ever
+    // reached — making it dead code. Staff may now open the modal for their
+    // own parties (name only; the meta form below stays gated by
+    // canEditPartyMeta, and savePartyEdit force-keeps existing meta for
+    // non-meta-editors regardless of DOM state).
+    if (!canEditPartyMeta(p) && !canRenameParty(p)) {
+      toast('Only the owner or manager can edit this party.'); return;
+    }
     const isOwnerHere = roleFor(p.businessId) === 'owner';
     const canRename = canRenameParty(p);
     const toggleHTML = isOwnerHere ? unassignedToggleHTML(!!p.unassigned, 'party') : '';
@@ -24830,7 +24853,8 @@
         <button type="button" class="meta-add-btn" onclick="addPartySocialRow()">+ Add another social</button>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Details <span class="meta-optional">— optional, e.g. Account · Username · Tag</span></div>
+        <div class="meta-section-label">Account details <span class="meta-optional">— optional</span></div>
+        <div class="meta-optional" style="margin:0.15rem 0 0.3rem;">e.g. Account: NIC · Username: Ram Bahadur · Tag: Rameshwor</div>
         <div id="mPartyDetails" class="meta-multi-list">${detailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
@@ -24911,11 +24935,27 @@
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
-  // v89.101: toggle for "Not shared" on phone/email sections. Purely a
-  // visual state here — buildPartyMeta enforces that a real value wins
-  // over the flag at save time.
+  // v89.101: toggle for "Not shared" on phone/email sections. buildPartyMeta
+  // enforces that a real value wins over the flag at save time; v89.103 makes
+  // that rule VISIBLE — activating the toggle while numbers/addresses are
+  // typed is refused with an explanation instead of silently losing the flag
+  // on save.
   function toggleNotShared(btn) {
-    if (btn) btn.classList.toggle('active');
+    if (!btn) return;
+    if (!btn.classList.contains('active')) {
+      const listId = btn.id === 'mPhoneNotShared' ? 'mPartyPhones' : 'mPartyEmails';
+      const hasValue = Array.from(document.querySelectorAll(`#${listId} input`))
+        .some(el => el.value && el.value.trim() &&
+          // ignore an untouched country-code prefill like "+977 "
+          !(listId === 'mPartyPhones' && /^\+\d{1,4}\s*$/.test(el.value.trim())));
+      if (hasValue) {
+        toast(btn.id === 'mPhoneNotShared'
+          ? 'Remove the phone number first — a saved number can\'t be "not shared".'
+          : 'Remove the email first — a saved email can\'t be "not shared".');
+        return;
+      }
+    }
+    btn.classList.toggle('active');
   }
   function removeMetaRow(btn) {
     const row = btn?.closest('.meta-multi-row');
