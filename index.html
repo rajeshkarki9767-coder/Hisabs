@@ -5827,13 +5827,31 @@
     display: inline-block;
   }
   .party-detail-tags { margin-top: 0.22rem; }
-  /* v89.105: detail SET rows — three inputs side by side + remove, with a
-     small column-header row (Acc. Name / Username / Tag) above them. */
-  .meta-detail-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.3rem; }
-  .meta-detail-heads {
-    display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 0.3rem;
-    font-size: 0.68rem; font-weight: 600; color: var(--ink-mute);
-    margin: 0.2rem 0 0.15rem; padding-right: 1.4rem;
+  /* v89.107: detail SET rows — each field carries its own label; the row
+     is a bordered group ("one row = one account"). The selector includes
+     .meta-multi-list so it OUTRANKS the generic .meta-multi-row grid
+     (1fr auto) that previously collapsed the three columns and wrapped
+     the Username field away from its header. */
+  .meta-multi-list .meta-detail-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+    gap: 0.35rem;
+    align-items: end;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.4rem 0.45rem;
+  }
+  .meta-detail-cell { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+  .meta-detail-cell-label {
+    font-size: 0.66rem; font-weight: 600; color: var(--ink-mute);
+    letter-spacing: 0.02em;
+  }
+  .meta-detail-row .meta-multi-input { min-width: 0; width: 100%; }
+  .meta-detail-row .meta-multi-remove { align-self: end; }
+  @media (max-width: 640px) {
+    .meta-multi-list .meta-detail-row { grid-template-columns: 1fr 1fr; }
+    .meta-detail-row .meta-detail-cell:first-child { grid-column: 1 / -1; }
+    .meta-detail-row .meta-multi-remove { grid-column: 2; justify-self: end; }
   }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
@@ -7717,7 +7735,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.169';
+  const BUILD_TAG = '2026.07.11.170';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -24907,7 +24925,6 @@
       </div>
       <div class="meta-section">
         <div class="meta-section-label">Account details <span class="meta-optional">— optional · one row = one account</span></div>
-        <div class="meta-detail-heads"><span>Acc. Name</span><span>Username</span><span>Tag</span><span></span></div>
         <div id="mPartyDetails" class="meta-multi-list">${detailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
@@ -24970,13 +24987,16 @@
     list.appendChild(wrap.firstElementChild);
     list.lastElementChild.querySelector('input')?.focus();
   }
-  // v89.105: a DETAIL SET row — Acc. Name + Username + Tag as ONE record,
-  // three inputs side by side (per the sketch) + remove.
+  // v89.107: a DETAIL SET row — Acc. Name + Username + Tag as ONE record.
+  // Each input carries its OWN label directly above it (labels can never
+  // detach from their field when the layout wraps on narrow screens), and
+  // the whole row is a bordered group so "one row = one account" is
+  // visually obvious.
   function partyDetailRowHTML(account, username, tag) {
     return `<div class="meta-multi-row meta-detail-row">
-      <input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC" value="${escapeHtml(account || '')}" autocomplete="off">
-      <input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off">
-      <input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off">
+      <label class="meta-detail-cell"><span class="meta-detail-cell-label">Acc. Name</span><input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC Asia Bank" value="${escapeHtml(account || '')}" autocomplete="off"></label>
+      <label class="meta-detail-cell"><span class="meta-detail-cell-label">Username</span><input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off"></label>
+      <label class="meta-detail-cell"><span class="meta-detail-cell-label">Tag</span><input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off"></label>
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
@@ -25017,7 +25037,9 @@
     if (!row || !list) return;
     // Keep at least one row visible (so the user has an input to type in).
     if (list.children.length === 1) {
-      row.querySelector('input').value = '';
+      // v89.107: clear ALL inputs in the row — detail rows have three,
+      // social rows two; clearing only the first left stale values behind.
+      row.querySelectorAll('input').forEach(el => { el.value = ''; });
       return;
     }
     row.remove();
