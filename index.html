@@ -7717,7 +7717,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.167';
+  const BUILD_TAG = '2026.07.11.169';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11188,15 +11188,22 @@
     const out = shown
       .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
       .join('') + moreHTML;
-    // v89.105: GREEN detail boxes built from SET rows — each row's filled
-    // fields flatten to labeled boxes (Account: NIC · Username: Ram · Tag: X)
-    // in their own row below the contact badges, capped with "+N more".
+    // v89.106: on the parties LIST, each set shows ONLY its ACCOUNT NAME as
+    // a green box ("NIC Asia Bank") — username and tag are attributes of
+    // that account and stay on the party detail page. The tooltip carries
+    // the full set ONLY for roles allowed to see contact details (owner /
+    // manager / viewer); for the team role the tooltip is just the account
+    // name, so hover/long-press can't leak username or tag. Sets without
+    // an account name don't badge the list.
+    const _fullTip = typeof canSeePartyContact === 'function' ? !!canSeePartyContact(party?.businessId) : false;
     const _sets = partyDetailSets(meta);
     const _flat = [];
     for (const s of _sets) {
-      if (s.account) _flat.push({ label: 'Account', value: s.account });
-      if (s.username) _flat.push({ label: 'Username', value: s.username });
-      if (s.tag) _flat.push({ label: 'Tag', value: s.tag });
+      if (!s.account) continue;
+      const tipParts = ['Account: ' + s.account];
+      if (_fullTip && s.username) tipParts.push('Username: ' + s.username);
+      if (_fullTip && s.tag) tipParts.push('Tag: ' + s.tag);
+      _flat.push({ text: s.account, tip: tipParts.join(' · ') });
     }
     let detailRowHTML = '';
     if (_flat.length) {
@@ -11205,11 +11212,11 @@
       if (_flat.length > MAX_SHOWN) {
         dShown = _flat.slice(0, MAX_SHOWN);
         const n = _flat.length - MAX_SHOWN;
-        const t = _flat.slice(MAX_SHOWN).map(d => d.label + ': ' + d.value).join(', ');
+        const t = _flat.slice(MAX_SHOWN).map(d => d.text).join(', ');
         dMore = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(t)}">+${n} more</span>`;
       }
       detailRowHTML = '<div class="party-contact-tags party-detail-tags">' + dShown
-        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(d.label + ': ' + d.value)}">${escapeHtml(d.label)}: ${escapeHtml(d.value)}</span>`)
+        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(d.tip)}">${escapeHtml(d.text)}</span>`)
         .join('') + dMore + '</div>';
     }
     // v89.31.7: render the badges on their own row directly BELOW the name
