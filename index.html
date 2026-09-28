@@ -2323,6 +2323,13 @@
     body.printing-fullpage .parties-grid {
       width: 100% !important;
       max-width: 100% !important;
+      /* v89.111: the app shows parties as a MULTI-COLUMN grid; without an
+         explicit template the print viewport collapsed it to one stretched
+         card per row. Three columns fills an A4/Letter sheet at the app's
+         card proportions. */
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 0.5rem !important;
     }
     /* Lay the app + main + content full width for paper. */
     body.printing-fullpage .app,
@@ -7743,7 +7750,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.173';
+  const BUILD_TAG = '2026.07.11.174';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -33093,6 +33100,15 @@
         columnStyles[Number(k)] = { halign: v };
       }
     }
+    // v89.111: optional fixed widths (mm) for columns that would otherwise
+    // starve their neighbours in wide detail tables.
+    if (opts.columnWidths) {
+      for (const [k, w] of Object.entries(opts.columnWidths)) {
+        const idx = Number(k);
+        columnStyles[idx] = columnStyles[idx] || {};
+        columnStyles[idx].cellWidth = w;
+      }
+    }
     // v72: optional per-column color (e.g. green for cash-in, red for
     // cash-out). columnColors is { columnIndex: [r,g,b] }.
     if (opts.columnColors) {
@@ -33177,33 +33193,46 @@
     // description — alongside the financials. Every role that can export
     // (owner/manager/viewer) may also see contact details, so no
     // restricted variant is needed.
+    // v89.111: PDF cells stack multi-values on their own LINES (autoTable
+    // renders \n) so an Accounts cell reads as a tidy list, not a text
+    // wall; CSV keeps single-line ' | ' joins (spreadsheet-friendly).
+    // Amounts get thousands separators in the PDF; CSV keeps raw numbers
+    // so Excel can sort/sum them.
+    const J = kind === 'pdf' ? '\n' : ' | ';
+    const num = (n) => kind === 'pdf'
+      ? n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : n.toFixed(2);
+    const raw = [];
     const rows = partiesList.map(p => {
       const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      raw.push([inSum, outSum]);
       const meta = p.meta || {};
-      const phones = (Array.isArray(meta.phones) ? meta.phones : []).join(' | ') || (meta.phoneNotShared ? 'Not shared' : '');
-      const emails = (Array.isArray(meta.emails) ? meta.emails : []).join(' | ') || (meta.emailNotShared ? 'Not shared' : '');
+      const phones = (Array.isArray(meta.phones) ? meta.phones : []).join(J) || (meta.phoneNotShared ? 'Not shared' : '');
+      const emails = (Array.isArray(meta.emails) ? meta.emails : []).join(J) || (meta.emailNotShared ? 'Not shared' : '');
       const dob = meta.dob ? formatDobDisplay(meta.dob) : '';
       const socials = (Array.isArray(meta.socials) ? meta.socials : [])
         .filter(s => s && (s.platform || s.handle))
-        .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
+        .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(J);
       const accounts = partyDetailSets(meta)
-        .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · ')).join(' | ');
+        .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · ')).join(J);
       const desc = String(meta.description || '');
       return [p.name, phones, emails, dob, socials, accounts, desc,
-              ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+              ents.length, num(inSum), num(outSum), num(inSum - outSum)];
     });
-    const totalIn = rows.reduce((s, r) => s + Number(r[8]), 0);
-    const totalOut = rows.reduce((s, r) => s + Number(r[9]), 0);
+    const totalIn = raw.reduce((s, r) => s + r[0], 0);
+    const totalOut = raw.reduce((s, r) => s + r[1], 0);
     const opts = {
       title: `Parties — ${biz.name}`,
       subtitle: `${biz.currency} · All time · All details · Generated ${today()}`,
-      columns: ['Name', 'Phone', 'Email', 'DOB', 'Social', 'Accounts (Acc · Username · Tag)', 'Description', 'Entries', 'Cash in', 'Cash out', 'Net'],
+      columns: ['Name', 'Phone', 'Email', 'DOB', 'Social', 'Accounts', 'Description', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
-      totals: ['', '', '', '', '', '', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      totals: ['', '', '', '', '', '', '', '', num(totalIn), num(totalOut), num(totalIn - totalOut)],
       filename: `parties_${biz.name}_all_details`,
       columnAlign: { 7: 'right', 8: 'right', 9: 'right', 10: 'right' },
+      // v89.111: keep the wide text columns from starving Name/amounts.
+      columnWidths: { 0: 30, 5: 48, 6: 32 },
       landscape: true,
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
