@@ -2286,6 +2286,44 @@
     body.printing-fullpage .page-actions {
       display: none !important;
     }
+    /* v89.109: interactive-only controls that the (now-scoped) legacy print
+       block used to hide for every print. The app-look print keeps every
+       INFORMATIONAL element (stats, period label, cards, badges, chips) but
+       paper has no use for inputs, add-forms, sort/search controls, or
+       icon buttons. */
+    body.printing-fullpage .modal-backdrop,
+    body.printing-fullpage .breadcrumb,
+    body.printing-fullpage .sync-badge,
+    body.printing-fullpage .install-prompt,
+    body.printing-fullpage .sidebar-drawer-backdrop,
+    body.printing-fullpage .sidebar-toggle,
+    body.printing-fullpage .audit-exp-add,
+    body.printing-fullpage .audit-exp-actions,
+    body.printing-fullpage .dist-section-actions,
+    body.printing-fullpage .dist-section-add-bottom,
+    body.printing-fullpage .activity-row-delete,
+    body.printing-fullpage .entity-search-wrap,
+    body.printing-fullpage .parties-sort-row,
+    body.printing-fullpage .help-card,
+    body.printing-fullpage .nav-badge,
+    body.printing-fullpage .invite-pill,
+    body.printing-fullpage button.icon-btn-light,
+    body.printing-fullpage button.icon-btn,
+    body.printing-fullpage .btn-icon-ghost,
+    body.printing-fullpage .meta-add-btn {
+      display: none !important;
+    }
+    /* v89.109: party cards print whole (no card split across pages) and
+       the grid fills the sheet. */
+    body.printing-fullpage .party-card,
+    body.printing-fullpage .account-card {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    body.printing-fullpage .parties-grid {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
     /* Lay the app + main + content full width for paper. */
     body.printing-fullpage .app,
     body.printing-fullpage main,
@@ -7117,44 +7155,35 @@
           chopped mid-row.
      ================================================================ */
   @media print {
+    /* v89.109: LEGACY white-report print styles, scoped to
+       body:not(.printing-fullpage). printPage() always sets
+       printing-fullpage before window.print(), so PAGE prints keep
+       the APP LOOK (the printing-fullpage block above handles colour
+       fidelity and chrome hiding). These rules remain only for print
+       paths that do not opt into fullpage mode. */
     /* Reset page geometry */
     @page { margin: 0.5in; size: landscape; }
-    html, body { background: #fff !important; color: #000 !important; }
-    body { font-size: 11pt; line-height: 1.4; }
+    body:not(.printing-fullpage) { background: #fff !important; color: #000 !important; }
+    body:not(.printing-fullpage) { font-size: 11pt; line-height: 1.4; }
 
     /* v89.31.6: the Invoice # column was re-added to PDF/CSV exports in
        v89.31.4, so the on-screen entry-no badge should ALSO appear on the
        printed page / screenshot (the prior v89.30 rule that hid it is
        removed). Keep it readable in print colors. */
-    .entry-no-badge { display: inline-block !important; color: #000 !important; background: transparent !important; border-color: #000 !important; }
+    body:not(.printing-fullpage) .entry-no-badge { display: inline-block !important; color: #000 !important; background: transparent !important; border-color: #000 !important; }
 
     /* v89.30.4 (print): hide + Add buttons on Distribution when printing.
        Top button is in .dist-section-actions, bottom is in .dist-section-add-bottom. */
-    .dist-section-actions,
-    .dist-section-add-bottom { display: none !important; }
+    body:not(.printing-fullpage) .dist-section-actions, body:not(.printing-fullpage) .dist-section-add-bottom { display: none !important; }
 
     /* Hide app chrome */
-    .sidebar, .sidebar-drawer-backdrop,
-    .topbar-search-btn, .topbar-search, .search-overlay,
-    .topbar, .breadcrumb,
-    .date-strip, .date-strip-search, .date-strip-sync,
-    .modal-backdrop, .modal-content, .modal-handle,
-    .floating-btn, .floating-action,
-    .fab, .fab-container,
-    .page-actions, .audit-range-bar, .audit-range-mobile,
-    .period-bar, .toolbar,
-    .audit-exp-add, .audit-exp-actions,
-    .sync-badge, .install-prompt, .toast,
-    .sidebar-toggle, button.icon-btn-light, button.icon-btn,
-    .lb-row-clickable .lb-stat-label,
-    .help-card,
-    .nav-badge, .invite-pill { display: none !important; }
+    body:not(.printing-fullpage) .sidebar, body:not(.printing-fullpage) .sidebar-drawer-backdrop, body:not(.printing-fullpage) .topbar-search-btn, body:not(.printing-fullpage) .topbar-search, body:not(.printing-fullpage) .search-overlay, body:not(.printing-fullpage) .topbar, body:not(.printing-fullpage) .breadcrumb, body:not(.printing-fullpage) .date-strip, body:not(.printing-fullpage) .date-strip-search, body:not(.printing-fullpage) .date-strip-sync, body:not(.printing-fullpage) .modal-backdrop, body:not(.printing-fullpage) .modal-content, body:not(.printing-fullpage) .modal-handle, body:not(.printing-fullpage) .floating-btn, body:not(.printing-fullpage) .floating-action, body:not(.printing-fullpage) .fab, body:not(.printing-fullpage) .fab-container, body:not(.printing-fullpage) .page-actions, body:not(.printing-fullpage) .audit-range-bar, body:not(.printing-fullpage) .audit-range-mobile, body:not(.printing-fullpage) .period-bar, body:not(.printing-fullpage) .toolbar, body:not(.printing-fullpage) .audit-exp-add, body:not(.printing-fullpage) .audit-exp-actions, body:not(.printing-fullpage) .sync-badge, body:not(.printing-fullpage) .install-prompt, body:not(.printing-fullpage) .toast, body:not(.printing-fullpage) .sidebar-toggle, body:not(.printing-fullpage) button.icon-btn-light, body:not(.printing-fullpage) button.icon-btn, body:not(.printing-fullpage) .lb-row-clickable .lb-stat-label, body:not(.printing-fullpage) .help-card, body:not(.printing-fullpage) .nav-badge, body:not(.printing-fullpage) .invite-pill { display: none !important; }
 
     /* v88: keep tax % visible in print. The .audit-tax-btn is an
        interactive edit button (pencil icon + value); strip the button
        chrome but keep the percent text visible in the printed PDF
        so auditors and accountants reading the report know the rate. */
-    .audit-tax-btn {
+    body:not(.printing-fullpage) .audit-tax-btn {
       background: transparent !important;
       border: none !important;
       padding: 0 !important;
@@ -7162,8 +7191,8 @@
       font: inherit !important;
       cursor: default !important;
     }
-    .audit-tax-btn svg { display: none !important; }
-    .audit-tax-readonly {
+    body:not(.printing-fullpage) .audit-tax-btn svg { display: none !important; }
+    body:not(.printing-fullpage) .audit-tax-readonly {
       background: transparent !important;
       color: #000 !important;
     }
@@ -7172,41 +7201,37 @@
        because it looked interactive; on paper the values are part
        of the report. Hide only the input controls, keep the result
        text so the math is preserved. */
-    .split-calc input { border-color: #ccc !important; background: white !important; color: #000 !important; }
-    .split-calc-result {
+    body:not(.printing-fullpage) .split-calc input { border-color: #ccc !important; background: white !important; color: #000 !important; }
+    body:not(.printing-fullpage) .split-calc-result {
       background: white !important; color: #000 !important;
       border: 1px solid #ccc !important;
       page-break-inside: avoid;
     }
-    .split-calc, .split-calc-title, .split-calc-sub,
-    .split-calc-result-label, .split-calc-result-val {
+    body:not(.printing-fullpage) .split-calc, body:not(.printing-fullpage) .split-calc-title, body:not(.printing-fullpage) .split-calc-sub, body:not(.printing-fullpage) .split-calc-result-label, body:not(.printing-fullpage) .split-calc-result-val {
       color: #000 !important;
       background: white !important;
     }
 
     /* Expense group cards are content (not interactive in print).
        Strip the hover/click affordances but keep the data visible. */
-    .audit-exp-group {
+    body:not(.printing-fullpage) .audit-exp-group {
       cursor: default !important;
       background: #fff !important;
       border: 1px solid #ddd !important;
       padding: 0.35rem 0.5rem !important;
     }
-    .audit-exp-group:hover { background: #fff !important; border-color: #ddd !important; }
+    body:not(.printing-fullpage) .audit-exp-group:hover { background: #fff !important; border-color: #ddd !important; }
 
     /* Lay out for full-page printing */
-    main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
-    .page-header { margin-bottom: 0.4rem; }
-    .page-title { font-size: 18pt; }
-    .page-eyebrow { font-size: 9pt; color: #666 !important; }
+    body:not(.printing-fullpage) main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
+    body:not(.printing-fullpage) .page-header { margin-bottom: 0.4rem; }
+    body:not(.printing-fullpage) .page-title { font-size: 18pt; }
+    body:not(.printing-fullpage) .page-eyebrow { font-size: 9pt; color: #666 !important; }
 
     /* Print-friendly colors. Cards keep their identity but render in
        grayscale-friendly hues that look right on both color and B&W
        printers. */
-    .audit-summary-card, .audit-section, .audit-month-totals-card,
-    .audit-month-totals-card-wide, .audit-operating-profit,
-    .audit-net, .audit-tax-row, .acct-grand-total,
-    .audit-balances-total {
+    body:not(.printing-fullpage) .audit-summary-card, body:not(.printing-fullpage) .audit-section, body:not(.printing-fullpage) .audit-month-totals-card, body:not(.printing-fullpage) .audit-month-totals-card-wide, body:not(.printing-fullpage) .audit-operating-profit, body:not(.printing-fullpage) .audit-net, body:not(.printing-fullpage) .audit-tax-row, body:not(.printing-fullpage) .acct-grand-total, body:not(.printing-fullpage) .audit-balances-total {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
       page-break-inside: avoid;
@@ -7217,46 +7242,29 @@
        backgrounds + tinted colors for ink-saving, and the printed page
        loses crucial cues (cash-in vs cash-out, profit vs loss, status
        dots). This block makes the printout match the screen palette. */
-    .entry-row, .entry-amount, .entry-amount.in, .entry-amount.out,
-    .entry-status-dot,
-    .entry-row-edited, .entry-row-pastdate,
-    .entry-row-futuredate, .entry-row-pastdate-edited, .entry-row-futuredate-edited,
-    .insights-chart-wrap, .insights-dow-cell, .insights-dow-legend-swatch,
-    .insights-dow-stat-dot, .insights-dow-stat-val,
-    .fc-bar, .fc-bar-in, .fc-bar-out, .fc-bar-pos, .fc-bar-neg,
-    .fc-swatch, .fc-swatch-in, .fc-swatch-out,
-    .fc-swatch-current, .fc-swatch-currentneg,
-    .chart-bar, .chart-bar.in, .chart-bar.out,
-    .chart-legend-swatch, .chart-legend-swatch.in, .chart-legend-swatch.out,
-    .kpi-tile, .kpi-tile-value,
-    .insights-kpi, .insights-kpi-card, .insights-kpi-value,
-    .split-calc-result, .split-calc-result-val,
-    .line-point, .line-point-dot,
-    .stat, .stat.in, .stat.out,
-    rect.bar, rect.bar-in, rect.bar-out, rect.fc-bar,
-    circle, path[stroke] {
+    body:not(.printing-fullpage) .entry-row, body:not(.printing-fullpage) .entry-amount, body:not(.printing-fullpage) .entry-amount.in, body:not(.printing-fullpage) .entry-amount.out, body:not(.printing-fullpage) .entry-status-dot, body:not(.printing-fullpage) .entry-row-edited, body:not(.printing-fullpage) .entry-row-pastdate, body:not(.printing-fullpage) .entry-row-futuredate, body:not(.printing-fullpage) .entry-row-pastdate-edited, body:not(.printing-fullpage) .entry-row-futuredate-edited, body:not(.printing-fullpage) .insights-chart-wrap, body:not(.printing-fullpage) .insights-dow-cell, body:not(.printing-fullpage) .insights-dow-legend-swatch, body:not(.printing-fullpage) .insights-dow-stat-dot, body:not(.printing-fullpage) .insights-dow-stat-val, body:not(.printing-fullpage) .fc-bar, body:not(.printing-fullpage) .fc-bar-in, body:not(.printing-fullpage) .fc-bar-out, body:not(.printing-fullpage) .fc-bar-pos, body:not(.printing-fullpage) .fc-bar-neg, body:not(.printing-fullpage) .fc-swatch, body:not(.printing-fullpage) .fc-swatch-in, body:not(.printing-fullpage) .fc-swatch-out, body:not(.printing-fullpage) .fc-swatch-current, body:not(.printing-fullpage) .fc-swatch-currentneg, body:not(.printing-fullpage) .chart-bar, body:not(.printing-fullpage) .chart-bar.in, body:not(.printing-fullpage) .chart-bar.out, body:not(.printing-fullpage) .chart-legend-swatch, body:not(.printing-fullpage) .chart-legend-swatch.in, body:not(.printing-fullpage) .chart-legend-swatch.out, body:not(.printing-fullpage) .kpi-tile, body:not(.printing-fullpage) .kpi-tile-value, body:not(.printing-fullpage) .insights-kpi, body:not(.printing-fullpage) .insights-kpi-card, body:not(.printing-fullpage) .insights-kpi-value, body:not(.printing-fullpage) .split-calc-result, body:not(.printing-fullpage) .split-calc-result-val, body:not(.printing-fullpage) .line-point, body:not(.printing-fullpage) .line-point-dot, body:not(.printing-fullpage) .stat, body:not(.printing-fullpage) .stat.in, body:not(.printing-fullpage) .stat.out, body:not(.printing-fullpage) rect.bar, body:not(.printing-fullpage) rect.bar-in, body:not(.printing-fullpage) rect.bar-out, body:not(.printing-fullpage) rect.fc-bar, body:not(.printing-fullpage) circle, body:not(.printing-fullpage) path[stroke] {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
     }
     /* Ensure entry amount color survives. The class-driven gain/loss
        text colors get reset by some browsers' print stylesheets;
        force them via explicit color. */
-    .entry-amount.in { color: #2e5d3a !important; }
-    .entry-amount.out { color: #a8351f !important; }
+    body:not(.printing-fullpage) .entry-amount.in { color: #2e5d3a !important; }
+    body:not(.printing-fullpage) .entry-amount.out { color: #a8351f !important; }
 
     /* Force the dark totals bars to actually print dark, not as
        empty outlined boxes. */
-    .audit-balances-total, .acct-grand-total {
+    body:not(.printing-fullpage) .audit-balances-total, body:not(.printing-fullpage) .acct-grand-total {
       background: #1a1612 !important;
       color: #ffffff !important;
     }
-    .audit-balances-total .pos, .acct-grand-total.pos .acct-grand-value {
+    body:not(.printing-fullpage) .audit-balances-total .pos, body:not(.printing-fullpage) .acct-grand-total.pos .acct-grand-value {
       color: #8cbf95 !important;
     }
-    .audit-balances-total .neg, .acct-grand-total.neg .acct-grand-value {
+    body:not(.printing-fullpage) .audit-balances-total .neg, body:not(.printing-fullpage) .acct-grand-total.neg .acct-grand-value {
       color: #ff9580 !important;
     }
-    .audit-net-card-after-tax {
+    body:not(.printing-fullpage) .audit-net-card-after-tax {
       background: rgba(46, 93, 58, 0.08) !important;
       border-color: #2e5d3a !important;
     }
@@ -7264,16 +7272,16 @@
     /* Replace the interactive group cards with a printable table-like
        expansion: instead of the tappable "Tea — Rs 1,500 (3 entries)"
        card, print expanded rows showing every individual addition. */
-    .audit-exp-print-list { display: block !important; }
-    .audit-exp-print-row {
+    body:not(.printing-fullpage) .audit-exp-print-list { display: block !important; }
+    body:not(.printing-fullpage) .audit-exp-print-row {
       display: flex; justify-content: space-between;
       padding: 0.3rem 0; border-bottom: 1px dotted #ccc;
     }
 
     /* Don't break tables/key sections across pages */
-    .audit-summary, .audit-section { page-break-inside: avoid; }
-    .lb-row { page-break-inside: avoid; }
-    .entry-row { page-break-inside: avoid; }
+    body:not(.printing-fullpage) .audit-summary, body:not(.printing-fullpage) .audit-section { page-break-inside: avoid; }
+    body:not(.printing-fullpage) .lb-row { page-break-inside: avoid; }
+    body:not(.printing-fullpage) .entry-row { page-break-inside: avoid; }
   }
 
   /* ── VAT order segmented control ────────────────────────────── */
@@ -7735,7 +7743,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.170';
+  const BUILD_TAG = '2026.07.11.173';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14104,7 +14112,9 @@
   function renderPartyDetailView(root) {
     const party = data.parties.find(p => p.id === session.selectedPartyId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
-    if (!party || !biz) { switchView('parties'); return; }
+    // v89.110: a stale/crafted selectedPartyId pointing at a party of a
+    // DIFFERENT business must not render under this business's context.
+    if (!party || !biz || party.businessId !== biz.id) { switchView('parties'); return; }
     const cur = currencyDisplay(biz.currency);
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     const pred = periodPredicate();
@@ -22560,7 +22570,10 @@
   async function savePartyEdit(partyId) {
     const p = data.parties.find(x => x.id === partyId);
     if (!p) return;
-    if (!canEditPartyMeta(p)) { toast('No permission.'); return; }
+    // v89.110 FIX: staff renaming their OWN party (canRenameParty) must be
+    // able to SAVE, not just open the modal — v89.104 fixed the open guard
+    // but this save guard still rejected them with "No permission."
+    if (!canEditPartyMeta(p) && !canRenameParty(p)) { toast('No permission.'); return; }
     const canRename = canRenameParty(p);
     const nameInput = document.getElementById('mPartyName');
     const rawName = (nameInput?.value || '').trim();
@@ -25490,7 +25503,14 @@
     `;
   }
 
+  // v89.110: double-fire guard for transfers — a double-tap on a slow Save
+  // previously ran the whole create twice, writing duplicate transfer rows
+  // AND their child ledger entries (same defect class as v89.27.1 fixed for
+  // entries and v89.99f for expenses). Stamp only at the actual mutation so
+  // a failed validation never locks out a quick retry.
+  let __savingTransferAt = 0;
   function saveTransfer() {
+    if (Date.now() - __savingTransferAt < 900) return;
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (roleFor(biz.id) !== 'owner') { toast('Only the owner can transfer.'); return; }
@@ -25601,6 +25621,7 @@
       childEntryIds.push(feeEntry.id);
     }
     data.transfers = data.transfers || [];
+    __savingTransferAt = Date.now();
     data.transfers.push({
       id: transferId,
       businessId: biz.id,
@@ -33055,7 +33076,10 @@
     if (!pdfReady) { toast('PDF library failed to load.'); return; }
     if (!opts.rows || !opts.rows.length) { toast('Nothing to export.'); return; }
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    // v89.108: wide tables (e.g. parties with full contact details) render
+    // in landscape when the caller asks; every existing caller is
+    // unchanged (portrait default).
+    const doc = new jsPDF(opts.landscape ? { orientation: 'landscape' } : undefined);
     doc.setFontSize(18); doc.setFont('helvetica', 'normal');
     doc.text(String(opts.title || 'Hisabs export'), 14, 20);
     if (opts.subtitle) {
@@ -33148,22 +33172,39 @@
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring the on-screen period filter — see exportPDF.
     const partiesList = data.parties.filter(p => p.businessId === biz.id);
+    // v89.108: the export carries EVERY party detail — phones/emails (or
+    // "Not shared"), DOB, socials, account sets (Acc · Username · Tag),
+    // description — alongside the financials. Every role that can export
+    // (owner/manager/viewer) may also see contact details, so no
+    // restricted variant is needed.
     const rows = partiesList.map(p => {
       const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-      return [p.name, ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+      const meta = p.meta || {};
+      const phones = (Array.isArray(meta.phones) ? meta.phones : []).join(' | ') || (meta.phoneNotShared ? 'Not shared' : '');
+      const emails = (Array.isArray(meta.emails) ? meta.emails : []).join(' | ') || (meta.emailNotShared ? 'Not shared' : '');
+      const dob = meta.dob ? formatDobDisplay(meta.dob) : '';
+      const socials = (Array.isArray(meta.socials) ? meta.socials : [])
+        .filter(s => s && (s.platform || s.handle))
+        .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
+      const accounts = partyDetailSets(meta)
+        .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · ')).join(' | ');
+      const desc = String(meta.description || '');
+      return [p.name, phones, emails, dob, socials, accounts, desc,
+              ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
     });
-    const totalIn = rows.reduce((s, r) => s + Number(r[2]), 0);
-    const totalOut = rows.reduce((s, r) => s + Number(r[3]), 0);
+    const totalIn = rows.reduce((s, r) => s + Number(r[8]), 0);
+    const totalOut = rows.reduce((s, r) => s + Number(r[9]), 0);
     const opts = {
       title: `Parties — ${biz.name}`,
-      subtitle: `${biz.currency} · All time · Generated ${today()}`,
-      columns: ['Name', 'Entries', 'Cash in', 'Cash out', 'Net'],
+      subtitle: `${biz.currency} · All time · All details · Generated ${today()}`,
+      columns: ['Name', 'Phone', 'Email', 'DOB', 'Social', 'Accounts (Acc · Username · Tag)', 'Description', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
-      totals: ['', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
-      filename: `parties_${biz.name}_all`,
-      columnAlign: { 1: 'right', 2: 'right', 3: 'right', 4: 'right' },
+      totals: ['', '', '', '', '', '', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      filename: `parties_${biz.name}_all_details`,
+      columnAlign: { 7: 'right', 8: 'right', 9: 'right', 10: 'right' },
+      landscape: true,
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
