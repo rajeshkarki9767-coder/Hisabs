@@ -2563,7 +2563,10 @@
     }
     body.printing-member-activity-page .member-activity-amount.in  { color: #2e5d3a !important; }
     body.printing-member-activity-page .member-activity-amount.out { color: #a8351f !important; }
-    @page { margin: 1.2cm; size: landscape; }
+    /* v89.112: no forced size — @page cannot be scoped by body class,
+       so a size here forces EVERY print landscape. Orientation is the
+       user's choice in the print dialog. */
+    @page { margin: 1.2cm; }
     /* v69: team-activity leaderboard print — display:none everything
        except the page-header + the leaderboard section. Uses the same
        pattern as member-activity above: display:none cleanly drops
@@ -7169,7 +7172,7 @@
        fidelity and chrome hiding). These rules remain only for print
        paths that do not opt into fullpage mode. */
     /* Reset page geometry */
-    @page { margin: 0.5in; size: landscape; }
+    @page { margin: 0.5in; }
     body:not(.printing-fullpage) { background: #fff !important; color: #000 !important; }
     body:not(.printing-fullpage) { font-size: 11pt; line-height: 1.4; }
 
@@ -7750,7 +7753,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.174';
+  const BUILD_TAG = '2026.07.11.175';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
