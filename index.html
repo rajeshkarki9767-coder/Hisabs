@@ -5875,6 +5875,26 @@
     display: inline-block;
   }
   .party-detail-tags { margin-top: 0.22rem; }
+  /* v89.113: Limited/Unlimited box beside the party name, and the edit
+     modal's option buttons. Limited = purple. */
+  .party-limit-box {
+    display: inline-block; vertical-align: middle; margin-left: 0.4rem;
+    padding: 0.14rem 0.55rem; border-radius: 6px; border: 1px solid;
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
+  }
+  .party-limit-box.limited { color: #7c3aed; border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
+  .party-limit-box.unlimited { color: var(--ink-mute); border-color: var(--line); background: transparent; }
+  .party-limit-opts { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+  .party-limit-opt {
+    padding: 0.3rem 0.8rem; border-radius: 6px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink-mute); font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .party-limit-opt.limited.active { color: #ffffff; background: #7c3aed; border-color: #7c3aed; }
+  .party-limit-opt.unlimited.active { color: var(--ink); background: var(--paper-deep, rgba(0,0,0,0.06)); border-color: var(--ink-mute); }
+  .party-acct-hidden-tag {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-mute); border: 1px solid var(--line); border-radius: 4px; padding: 0.02rem 0.3rem; margin-left: 0.3rem;
+  }
   /* v89.107: detail SET rows — each field carries its own label; the row
      is a bordered group ("one row = one account"). The selector includes
      .meta-multi-list so it OUTRANKS the generic .meta-multi-row grid
@@ -7753,7 +7773,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.175';
+  const BUILD_TAG = '2026.07.11.176';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9618,6 +9638,8 @@
     // clears the flag automatically on save.
     if (input?.phoneNotShared && !(meta.phones && meta.phones.length)) meta.phoneNotShared = true;
     if (input?.emailNotShared && !(meta.emails && meta.emails.length)) meta.emailNotShared = true;
+    // v89.113: optional LIMITED / UNLIMITED classification for the party.
+    if (input?.limit === 'limited' || input?.limit === 'unlimited') meta.limit = input.limit;
     const desc = String(input?.description || '').trim().slice(0, LIMITS.description);
     if (desc) meta.description = desc;
     return Object.keys(meta).length ? meta : null;
@@ -9648,6 +9670,7 @@
     const oD = JSON.stringify(o.details || []);
     const nD = JSON.stringify(n.details || []);
     if (oD !== nD) changed.push('details');
+    if ((o.limit || '') !== (n.limit || '')) changed.push('limit');
     if (!!o.phoneNotShared !== !!n.phoneNotShared) changed.push('phone not-shared');
     if (!!o.emailNotShared !== !!n.emailNotShared) changed.push('email not-shared');
     if ((o.description || '') !== (n.description || '')) changed.push('description');
@@ -14111,6 +14134,15 @@
   // again (or "Clear") unsets it. Not persisted to session — when
   // the user navigates away and back, the view starts unfiltered.
   let __partyDetailCatFilter = null;
+  // v89.113: show/hide HIDDEN accounts inside the party detail's
+  // "By account" breakdown. Off by default; sticky while navigating,
+  // same as the category filter.
+  let __partyDetailShowHiddenAccts = false;
+  function togglePartyDetailHiddenAccts() {
+    __partyDetailShowHiddenAccts = !__partyDetailShowHiddenAccts;
+    const root = document.getElementById('mainContent');
+    if (root) renderPartyDetailView(root);
+  }
 
   function setPartyDetailCatFilter(cat) {
     // Toggle: clicking the active filter again clears it.
@@ -14205,6 +14237,52 @@
         </div>
       </div>`;
 
+    // v89.113: Per-ACCOUNT breakdown — which accounts this party's money
+    // was deposited into (in) and taken out of (out), same shape as the
+    // category rollup. Hidden accounts are excluded by default and appear
+    // behind a "Show hidden accounts" toggle.
+    const _acctById = new Map(data.cashAccounts.filter(a => a.businessId === biz.id).map(a => [a.id, a]));
+    const acctRollup = new Map();
+    for (const e of allEntries) {
+      const key = e.accountId && _acctById.has(e.accountId) ? e.accountId : '__none';
+      const r = acctRollup.get(key) || { inSum: 0, outSum: 0, count: 0 };
+      const amt = Number(e.amount) || 0;
+      if (e.type === 'in') r.inSum += amt; else r.outSum += amt;
+      r.count += 1;
+      acctRollup.set(key, r);
+    }
+    const acctRowsAll = Array.from(acctRollup.entries())
+      .map(([id, r]) => {
+        const a = id === '__none' ? null : _acctById.get(id);
+        return { name: a ? a.name : '— No account', hidden: !!(a && a.hidden), ...r, net: r.inSum - r.outSum };
+      })
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+    const _hiddenAcctRows = acctRowsAll.filter(r => r.hidden);
+    const acctRowsShown = __partyDetailShowHiddenAccts ? acctRowsAll : acctRowsAll.filter(r => !r.hidden);
+    const _acctRowHTML = (r) => {
+      const netStr = (r.net >= 0 ? '+' : '') + fmt(r.net);
+      const netCls = r.net > 0 ? 'gain' : (r.net < 0 ? 'loss' : '');
+      return `<div class="party-cat-row" style="cursor:default;">
+        <span class="party-cat-name">${escapeHtml(r.name)}${r.hidden ? ' <span class="party-acct-hidden-tag">hidden</span>' : ''}</span>
+        <span class="party-cat-stats">
+          <span class="party-cat-in">+${fmt(r.inSum)}</span>
+          <span class="party-cat-out">−${fmt(r.outSum)}</span>
+          <span class="party-cat-net ${netCls}">${netStr}</span>
+        </span>
+        <span class="party-cat-count">${r.count}×</span>
+      </div>`;
+    };
+    const acctBreakdownHTML = (!showTotals || !acctRowsAll.length) ? '' : `
+      <div class="party-cat-breakdown" style="margin-bottom:1.1rem;">
+        <div class="party-cat-head">
+          <span style="font-size:0.78rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">By account</span>
+          ${_hiddenAcctRows.length ? `<button class="btn btn-sm btn-ghost" onclick="togglePartyDetailHiddenAccts()" style="font-size:0.72rem;padding:0.2rem 0.55rem;">${__partyDetailShowHiddenAccts ? 'Hide hidden accounts' : `Show hidden accounts (${_hiddenAcctRows.length})`}</button>` : ''}
+        </div>
+        <div class="party-cat-rows">
+          ${acctRowsShown.map(_acctRowHTML).join('')}
+        </div>
+      </div>`;
+
     const statsHTML = !showTotals
       ? ''
       : isMobile ? `<div class="stats">
@@ -14235,7 +14313,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · party</div>
-          <h1 class="page-title">${escapeHtml(party.name)} ${renderPartyBirthdayBadge(party)}${detailCountBadge(allEntries.length)}</h1>
+          <h1 class="page-title">${escapeHtml(party.name)} ${party.meta?.limit ? `<span class="party-limit-box ${party.meta.limit}">${party.meta.limit === 'limited' ? 'Limited' : 'Unlimited'}</span>` : ''}${renderPartyBirthdayBadge(party)}${detailCountBadge(allEntries.length)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -14249,6 +14327,7 @@
       ${statsHTML}
       ${renderPartyContactCard(party)}
       ${catBreakdownHTML}
+      ${acctBreakdownHTML}
       <div style="margin-bottom:0.85rem;font-size:0.85rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">${__partyDetailCatFilter ? `Transactions in “${escapeHtml(__partyDetailCatFilter)}”` : 'All transactions'} · ${allEntries.length} ${allEntries.length === 1 ? 'entry' : 'entries'}</div>
       <div class="entries-wrap">
         <div class="entries-head">
@@ -24952,6 +25031,13 @@
         <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
       <div class="meta-section">
+        <div class="meta-section-label">Party limit <span class="meta-optional">— optional</span></div>
+        <div class="party-limit-opts">
+          <button type="button" id="mPartyLimitLtd" class="party-limit-opt limited${m.limit === 'limited' ? ' active' : ''}" onclick="setPartyLimitOpt('limited')">Limited</button>
+          <button type="button" id="mPartyLimitUnl" class="party-limit-opt unlimited${m.limit === 'unlimited' ? ' active' : ''}" onclick="setPartyLimitOpt('unlimited')">Unlimited</button>
+        </div>
+      </div>
+      <div class="meta-section">
         <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
         <textarea id="mPartyDescription" rows="2" maxlength="500" placeholder="Anything worth remembering — preferences, history, address, etc.">${escapeHtml(desc)}</textarea>
       </div>`;
@@ -25037,6 +25123,18 @@
   // that rule VISIBLE — activating the toggle while numbers/addresses are
   // typed is refused with an explanation instead of silently losing the flag
   // on save.
+  // v89.113: Limited / Unlimited — mutually exclusive; clicking the active
+  // option again clears the classification.
+  function setPartyLimitOpt(which) {
+    const ltd = document.getElementById('mPartyLimitLtd');
+    const unl = document.getElementById('mPartyLimitUnl');
+    if (!ltd || !unl) return;
+    const target = which === 'limited' ? ltd : unl;
+    const other = which === 'limited' ? unl : ltd;
+    const wasActive = target.classList.contains('active');
+    ltd.classList.remove('active'); unl.classList.remove('active');
+    if (!wasActive) target.classList.add('active');
+  }
   function toggleNotShared(btn) {
     if (!btn) return;
     if (!btn.classList.contains('active')) {
@@ -25099,10 +25197,12 @@
         username: row.querySelector('.meta-detail-user')?.value || '',
         tag: row.querySelector('.meta-detail-tag')?.value || '',
       }));
+    const limit = document.getElementById('mPartyLimitLtd')?.classList.contains('active') ? 'limited'
+      : (document.getElementById('mPartyLimitUnl')?.classList.contains('active') ? 'unlimited' : '');
     const phoneNotShared = !!document.getElementById('mPhoneNotShared')?.classList.contains('active');
     const emailNotShared = !!document.getElementById('mEmailNotShared')?.classList.contains('active');
     const description = document.getElementById('mPartyDescription')?.value || '';
-    return buildPartyMeta({ dob, phones, emails, socials, description, details, phoneNotShared, emailNotShared });
+    return buildPartyMeta({ dob, phones, emails, socials, description, details, phoneNotShared, emailNotShared, limit });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
