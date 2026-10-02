@@ -7770,7 +7770,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.178';
+  const BUILD_TAG = '2026.07.11.181';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11160,9 +11160,9 @@
   // owned by management. This pairs with canSeePartyContact (staff can't
   // see it) so staff neither view nor edit contact details.
   function canEditPartyMeta(party) {
+    // v89.116: owner only — see canAddPartyMeta.
     if (!party) return false;
-    const role = roleFor(party.businessId);
-    return role === 'owner' || role === 'manager';
+    return roleFor(party.businessId) === 'owner';
   }
   // v89.105: normalize meta.details into SET rows {account, username, tag}.
   // Handles BOTH shapes: the current set-per-row shape, and the legacy
@@ -11212,8 +11212,10 @@
   // Same gate for a brand-new party being created (no party object yet):
   // only owner/manager get the contact-detail fields in the add form.
   function canAddPartyMeta(businessId) {
+    // v89.116: ONLY the owner can attach or edit party details (contact
+    // meta, account details, limit). Managers keep rename + full viewing.
     const role = roleFor(businessId || (session && session.activeBizId));
-    return role === 'owner' || role === 'manager';
+    return role === 'owner';
   }
   // v89.31.6: small "SMS" / "Email" text badges shown after a party name
   // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
@@ -33205,10 +33207,32 @@
     // unchanged (portrait default).
     const doc = new jsPDF(opts.landscape ? { orientation: 'landscape' } : undefined);
     doc.setFontSize(18); doc.setFont('helvetica', 'normal');
+    doc.setTextColor(26, 22, 18);
     doc.text(String(opts.title || 'Hisabs export'), 14, 20);
+    // v89.118: brand rule under the title.
+    doc.setDrawColor(26, 22, 18); doc.setLineWidth(0.6);
+    doc.line(14, 22.5, (opts.landscape ? 283 : 196), 22.5);
+    let _y = 27;
     if (opts.subtitle) {
       doc.setFontSize(9); doc.setTextColor(120);
-      doc.text(String(opts.subtitle), 14, 27);
+      doc.text(String(opts.subtitle), 14, _y);
+      _y += 6;
+    }
+    // v89.118: optional meta block — label/value lines above the table
+    // (a party's phones, accounts, limit, description, …).
+    if (Array.isArray(opts.metaLines) && opts.metaLines.length) {
+      doc.setFontSize(8.5);
+      for (const [lab, val] of opts.metaLines) {
+        const parts = String(val).split('\n');
+        for (let i = 0; i < parts.length; i++) {
+          doc.setTextColor(120); doc.setFont('helvetica', 'bold');
+          if (i === 0) doc.text(String(lab), 14, _y);
+          doc.setTextColor(40); doc.setFont('helvetica', 'normal');
+          doc.text(parts[i], 44, _y);
+          _y += 4.4;
+        }
+      }
+      _y += 2;
     }
     if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
     const columnStyles = {};
@@ -33242,7 +33266,7 @@
     doc.autoTable({
       head: [opts.columns],
       body: opts.rows,
-      startY: opts.subtitle ? 33 : 27,
+      startY: _y + 2,
       // v89.32.21: never split a single row across two pages — if it doesn't
       // fit in the remaining space, push the whole row to the next page and
       // leave the gap. Keeps every row readable on one page.
@@ -33260,7 +33284,39 @@
       },
       foot: opts.totals ? [opts.totals] : undefined,
       footStyles: opts.totals ? { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' } : undefined,
+      alternateRowStyles: { fillColor: [250, 248, 244] },
     });
+    // v89.118: optional extra summary tables (By category / By account …).
+    if (Array.isArray(opts.extraTables)) {
+      for (const t of opts.extraTables) {
+        if (!t || !Array.isArray(t.rows) || !t.rows.length) continue;
+        const after = (doc.lastAutoTable ? doc.lastAutoTable.finalY : _y) + 9;
+        doc.setFontSize(11); doc.setTextColor(26, 22, 18); doc.setFont('helvetica', 'bold');
+        doc.text(String(t.heading || ''), 14, after);
+        const cs = {};
+        if (t.columnAlign) for (const [k, v] of Object.entries(t.columnAlign)) cs[Number(k)] = { halign: v };
+        doc.autoTable({
+          head: [t.columns || []], body: t.rows, startY: after + 2.5,
+          rowPageBreak: 'avoid',
+          headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
+          styles: { fontSize: 8, cellPadding: 2 },
+          alternateRowStyles: { fillColor: [250, 248, 244] },
+          columnStyles: cs,
+        });
+      }
+    }
+    // v89.118: footer on every page — brand + page numbers.
+    try {
+      const pages = doc.getNumberOfPages();
+      const W = doc.internal.pageSize.getWidth();
+      const H = doc.internal.pageSize.getHeight();
+      for (let i = 1; i <= pages; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7.5); doc.setTextColor(150); doc.setFont('helvetica', 'normal');
+        doc.text('Hisabs · hisabs.app', 14, H - 7);
+        doc.text(`Page ${i} of ${pages}`, W - 14, H - 7, { align: 'right' });
+      }
+    } catch (_) {}
     const filename = (opts.filename || 'export').replace(/[^a-zA-Z0-9_-]+/g, '_');
     doc.save(`${filename}.pdf`);
     toast('PDF downloaded.');
@@ -33278,11 +33334,27 @@
     if (opts.title)    lines.push(csvCell(opts.title));
     if (opts.subtitle) lines.push(csvCell(opts.subtitle));
     if (opts.title || opts.subtitle) lines.push('');
+    // v89.118: optional meta block (label/value pairs) — e.g. a party's
+    // phones, accounts, limit — printed above the table.
+    if (Array.isArray(opts.metaLines) && opts.metaLines.length) {
+      for (const [lab, val] of opts.metaLines) lines.push([csvCell(lab), csvCell(String(val).replace(/\n/g, ' | '))].join(','));
+      lines.push('');
+    }
     lines.push(opts.columns.map(csvCell).join(','));
     for (const r of opts.rows) lines.push(r.map(csvCell).join(','));
     if (opts.totals) {
       lines.push('');
       lines.push(opts.totals.map(csvCell).join(','));
+    }
+    // v89.118: optional extra summary tables (e.g. By category / By account).
+    if (Array.isArray(opts.extraTables)) {
+      for (const t of opts.extraTables) {
+        if (!t || !Array.isArray(t.rows) || !t.rows.length) continue;
+        lines.push('');
+        lines.push(csvCell(t.heading || ''));
+        lines.push((t.columns || []).map(csvCell).join(','));
+        for (const r of t.rows) lines.push(r.map(csvCell).join(','));
+      }
     }
     // BOM so Excel recognises UTF-8 without prompting.
     const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
@@ -33394,18 +33466,18 @@
       const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id);
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
-      return [a.name, group?.name || '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
+      return [a.name, group?.name || '', a.hidden ? 'Hidden' : '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
     });
-    const totalIn = rows.reduce((s, r) => s + Number(r[3]), 0);
-    const totalOut = rows.reduce((s, r) => s + Number(r[4]), 0);
+    const totalIn = rows.reduce((s, r) => s + Number(r[4]), 0);
+    const totalOut = rows.reduce((s, r) => s + Number(r[5]), 0);
     const opts = {
       title: `Accounts — ${biz.name}`,
-      subtitle: `${biz.currency} · All time · Generated ${today()}`,
-      columns: ['Account', 'Group', 'Entries', 'Cash in', 'Cash out', 'Net'],
+      subtitle: `${biz.currency} · All time · All accounts incl. hidden · Generated ${today()}`,
+      columns: ['Account', 'Group', 'Hidden', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
-      totals: ['', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
+      totals: ['', '', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
       filename: `accounts_${biz.name}_all`,
-      columnAlign: { 2: 'right', 3: 'right', 4: 'right', 5: 'right' },
+      columnAlign: { 3: 'right', 4: 'right', 5: 'right', 6: 'right' },
     };
     if (kind === 'pdf') exportTablePDF(opts); else exportTableCSV(opts);
   }
@@ -34093,10 +34165,53 @@
     const ents = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    // v89.118: the export carries EVERYTHING the party page shows — the
+    // details block (contact, accounts, limit, description) above the
+    // ledger, and the By-category / By-account summaries after it.
+    const meta = p.meta || {};
+    const metaLines = [];
+    const phones = (Array.isArray(meta.phones) ? meta.phones : []).join(' | ') || (meta.phoneNotShared ? 'Not shared' : '');
+    const emails = (Array.isArray(meta.emails) ? meta.emails : []).join(' | ') || (meta.emailNotShared ? 'Not shared' : '');
+    if (phones) metaLines.push(['Phone', phones]);
+    if (emails) metaLines.push(['Email', emails]);
+    if (meta.dob) metaLines.push(['DOB', formatDobDisplay(meta.dob)]);
+    const socials = (Array.isArray(meta.socials) ? meta.socials : [])
+      .filter(s => s && (s.platform || s.handle))
+      .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
+    if (socials) metaLines.push(['Social', socials]);
+    const accSets = partyDetailSets(meta)
+      .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · '));
+    if (accSets.length) metaLines.push(['Accounts', accSets.join('\n')]);
+    if (meta.limit === 'limited' || meta.limit === 'unlimited') metaLines.push(['Limit', meta.limit === 'limited' ? 'Limited' : 'Unlimited']);
+    if (meta.description) metaLines.push(['Notes', String(meta.description)]);
+    // breakdown summaries, same math as the party page
+    const catMap = new Map(), acctMap = new Map();
+    const acctName = new Map(data.cashAccounts.filter(a => a.businessId === biz.id).map(a => [a.id, a]));
+    for (const e of ents) {
+      const amt = Number(e.amount) || 0;
+      const ck = (e.category && e.category.trim()) || '— Uncategorised';
+      const cr = catMap.get(ck) || { i: 0, o: 0, n: 0 };
+      if (e.type === 'in') cr.i += amt; else cr.o += amt; cr.n += 1; catMap.set(ck, cr);
+      const a = e.accountId && acctName.has(e.accountId) ? acctName.get(e.accountId) : null;
+      const ak = a ? (a.name + (a.hidden ? ' (hidden)' : '')) : '— No account';
+      const ar = acctMap.get(ak) || { i: 0, o: 0, n: 0 };
+      if (e.type === 'in') ar.i += amt; else ar.o += amt; ar.n += 1; acctMap.set(ak, ar);
+    }
+    const toRows = (m) => Array.from(m.entries())
+      .map(([k, r]) => ({ k, ...r, net: r.i - r.o }))
+      .sort((a, b) => Math.abs(b.net) - Math.abs(a.net))
+      .map(r => [r.k, r.n, r.i.toFixed(2), r.o.toFixed(2), r.net.toFixed(2)]);
+    const sumCols = ['', 'Entries', 'Cash in', 'Cash out', 'Net'];
+    const sumAlign = { 1: 'right', 2: 'right', 3: 'right', 4: 'right' };
+    const extraTables = [
+      { heading: 'By category', columns: ['Category', ...sumCols.slice(1)], rows: toRows(catMap), columnAlign: sumAlign },
+      { heading: 'By account', columns: ['Account', ...sumCols.slice(1)], rows: toRows(acctMap), columnAlign: sumAlign },
+    ].filter(t => t.rows.length);
     exportDetailLedger({
       kind, biz, entries: ents,
       title: `${p.name} — Party ledger`,
       filename: `party_${p.name}_all`,
+      metaLines, extraTables,
     });
   }
 
@@ -34105,7 +34220,7 @@
   //   Inv #, Date, Description, From / To, Category, Account, In, Out, Bal., By
   // with a running balance and a totals footer. PDF reuses the brand styling.
   async function exportDetailLedger(o) {
-    const { kind, biz, entries, title, filename } = o;
+    const { kind, biz, entries, title, filename, metaLines, extraTables } = o;
     const cur = biz.currency || 'NPR';
     const acctById = new Map(data.cashAccounts.map(a => [a.id, a.name]));
     let bal = 0;
@@ -34138,13 +34253,31 @@
       const { jsPDF } = window.jspdf;
       // Landscape gives the columns room to breathe — same as a wide ledger.
       const doc = new jsPDF({ orientation: 'landscape' });
-      doc.setFontSize(18); doc.setFont('helvetica', 'normal'); doc.text(String(title), 14, 18);
+      doc.setFontSize(18); doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 22, 18); doc.text(String(title), 14, 18);
+      doc.setDrawColor(26, 22, 18); doc.setLineWidth(0.6); doc.line(14, 20.5, 283, 20.5);
       doc.setFontSize(10); doc.setTextColor(120);
       doc.text(`${biz.name}  ·  ${biz.currency} (${currencyDisplay(cur)})  ·  All time  ·  Generated ${today()}`, 14, 25);
+      // v89.118: meta block (party details etc.) above the ledger.
+      let _ly = 31;
+      if (Array.isArray(metaLines) && metaLines.length) {
+        doc.setFontSize(8.5);
+        for (const [lab, val] of metaLines) {
+          const parts = String(val).split('\n');
+          for (let i = 0; i < parts.length; i++) {
+            doc.setTextColor(120); doc.setFont('helvetica', 'bold');
+            if (i === 0) doc.text(String(lab), 14, _ly);
+            doc.setTextColor(40); doc.setFont('helvetica', 'normal');
+            doc.text(parts[i], 44, _ly);
+            _ly += 4.4;
+          }
+        }
+        _ly += 2;
+      }
       if (typeof doc.autoTable !== 'function') { toast('PDF table plugin failed to load.'); return; }
       doc.autoTable({
         rowPageBreak: 'avoid',
-        head: [columns], body: rows, startY: 31,
+        head: [columns], body: rows, startY: _ly,
+        alternateRowStyles: { fillColor: [250, 248, 244] },
         headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
         styles: { fontSize: 7, cellPadding: 1.8 },
         columnStyles: {
@@ -34156,11 +34289,42 @@
         foot: [totals],
         footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
       });
+      // v89.118: summary tables + branded page footer.
+      if (Array.isArray(extraTables)) {
+        for (const t of extraTables) {
+          if (!t || !Array.isArray(t.rows) || !t.rows.length) continue;
+          const after = (doc.lastAutoTable ? doc.lastAutoTable.finalY : _ly) + 9;
+          doc.setFontSize(11); doc.setTextColor(26, 22, 18); doc.setFont('helvetica', 'bold');
+          doc.text(String(t.heading || ''), 14, after);
+          const cs = {};
+          if (t.columnAlign) for (const [k, v] of Object.entries(t.columnAlign)) cs[Number(k)] = { halign: v };
+          doc.autoTable({
+            head: [t.columns || []], body: t.rows, startY: after + 2.5,
+            rowPageBreak: 'avoid',
+            headStyles: { fillColor: [26, 22, 18], textColor: 245, fontStyle: 'bold' },
+            styles: { fontSize: 8, cellPadding: 2 },
+            alternateRowStyles: { fillColor: [250, 248, 244] },
+            columnStyles: cs,
+          });
+        }
+      }
+      try {
+        const pages = doc.getNumberOfPages();
+        const W = doc.internal.pageSize.getWidth();
+        const H = doc.internal.pageSize.getHeight();
+        for (let i = 1; i <= pages; i++) {
+          doc.setPage(i);
+          doc.setFontSize(7.5); doc.setTextColor(150); doc.setFont('helvetica', 'normal');
+          doc.text('Hisabs · hisabs.app', 14, H - 7);
+          doc.text(`Page ${i} of ${pages}`, W - 14, H - 7, { align: 'right' });
+        }
+      } catch (_) {}
       doc.save(`${String(filename).replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`);
       toast('PDF downloaded.');
     } else {
       exportTableCSV({
         title, subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
+        metaLines, extraTables,
         columns,
         rows: entries.map(e => {
           const amt = Number(e.amount) || 0;
@@ -37647,12 +37811,21 @@
           pending.has(r.id) && !cloudIds.has(r.id)
           && !(typeof _isTombstoned === 'function' && _isTombstoned(r.id))
         );
-        if (!carryOver.length) return cloud;
-        // Cloud rows take priority for IDs that exist on both sides — if a
-        // pending op exists for a record that the cloud already knows about,
-        // we use the cloud's version (it's the authoritative one). carryOver
-        // is only for records the cloud genuinely doesn't have yet.
-        return [...cloud, ...carryOver];
+        // v89.117 FIX: for ids that exist on BOTH sides with a pending upsert
+        // op, the LOCAL row wins — the user just edited it and the push is
+        // still in flight, so the cloud's copy is the STALE one. The old
+        // cloud-wins rule here caused the "change snaps back" glitch: edit a
+        // member's role → a pull races the push → the cloud's old role
+        // overwrites the local change on screen → the owner has to redo the
+        // change until a drain beats the next pull. If the pending push later
+        // fails permanently, the op purge + next pull restore cloud truth, so
+        // this never diverges for long.
+        const localById = new Map((localRows || []).map(r => [r && r.id, r]));
+        const merged = cloud.map(r =>
+          (pending.has(r.id) && localById.has(r.id)) ? localById.get(r.id) : r
+        );
+        if (!carryOver.length) return merged;
+        return [...merged, ...carryOver];
       }
       // v89.32.73: race-resilient union merge for the expense rate book.
       // Cloud rows win for ids present on both sides (authoritative). Local
