@@ -5875,15 +5875,12 @@
     display: inline-block;
   }
   .party-detail-tags { margin-top: 0.22rem; }
+  /* v89.114: the clear-× is always in the DOM (so typing never re-renders
+     the search wrap) and CSS shows it only when the input has text. */
+  .entity-search-input:placeholder-shown ~ .entity-search-clear { display: none; }
   /* v89.113: Limited/Unlimited box beside the party name, and the edit
      modal's option buttons. Limited = purple. */
-  .party-limit-box {
-    display: inline-block; vertical-align: middle; margin-left: 0.4rem;
-    padding: 0.14rem 0.55rem; border-radius: 6px; border: 1px solid;
-    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em;
-  }
-  .party-limit-box.limited { color: #7c3aed; border-color: #7c3aed; background: rgba(124, 58, 237, 0.08); }
-  .party-limit-box.unlimited { color: var(--ink-mute); border-color: var(--line); background: transparent; }
+  .party-limit-emoji { font-size: 0.95em; vertical-align: baseline; margin-left: 0.15rem; }
   .party-limit-opts { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
   .party-limit-opt {
     padding: 0.3rem 0.8rem; border-radius: 6px; border: 1px solid var(--line);
@@ -7773,7 +7770,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.176';
+  const BUILD_TAG = '2026.07.11.178';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11172,6 +11169,15 @@
   // v89.101 label/value pairs (Account/Username/Tag labels fold into set
   // slots in order; a custom label folds into a row's tag as "Label: value"
   // so nothing entered on earlier builds is ever lost).
+  // v89.115: Limited/Unlimited render as EMOJI beside the party name —
+  // 👾 limited, 🚀 unlimited — on list cards and the detail header alike.
+  function partyLimitEmoji(party) {
+    const lim = party?.meta?.limit;
+    if (lim !== 'limited' && lim !== 'unlimited') return '';
+    const e = lim === 'limited' ? '👾' : '🚀';
+    const t = lim === 'limited' ? 'Limited' : 'Unlimited';
+    return ` <span class="party-limit-emoji" title="${t}">${e}</span>`;
+  }
   function partyDetailSets(meta) {
     const raw = Array.isArray(meta?.details) ? meta.details : [];
     const sets = [];
@@ -14073,7 +14079,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}</div>
         ${partyContactBadges(p) /* v89.102: badges (SMS/Email/Not shared/green details) visible to ALL members; the full contact card on the detail page remains gated by canSeePartyContact */}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
@@ -14109,7 +14115,7 @@
       ${totalParties >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="partiesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
-        ${__partiesSearch ? `<button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
+        <button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>` : ''}
       ${totalParties >= 2 ? `<div class="parties-sort-row">
         <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
@@ -14125,7 +14131,7 @@
       </div>` : ''}
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">Customers, vendors, and anyone you've moved money to or from. ${showTotals ? 'Totals shown reflect the period selected above.' : ''}</p>
       
-      <div class="parties-grid">${cards}</div>
+      <div class="parties-grid" id="partiesResults">${cards}</div>
     `;
   }
 
@@ -14313,7 +14319,7 @@
       <div class="page-header">
         <div class="page-title-wrap">
           <div class="page-eyebrow">${escapeHtml(biz.name)} · party</div>
-          <h1 class="page-title">${escapeHtml(party.name)} ${party.meta?.limit ? `<span class="party-limit-box ${party.meta.limit}">${party.meta.limit === 'limited' ? 'Limited' : 'Unlimited'}</span>` : ''}${renderPartyBirthdayBadge(party)}${detailCountBadge(allEntries.length)}</h1>
+          <h1 class="page-title">${escapeHtml(party.name)}${partyLimitEmoji(party)}${renderPartyBirthdayBadge(party)}${detailCountBadge(allEntries.length)}</h1>
         </div>
         <div class="page-actions">
           ${printIconButton()}
@@ -14554,11 +14560,11 @@
       ${totalCats >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="categoriesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search categories…" value="${escapeHtml(__categoriesSearch)}" oninput="setCategoriesSearch(this.value)">
-        ${__categoriesSearch ? `<button class="entity-search-clear" onclick="setCategoriesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
+        <button class="entity-search-clear" onclick="setCategoriesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>` : ''}
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">How money flows by purpose. ${showTotals ? 'Totals reflect the period above.' : ''}</p>
       
-      <div class="parties-grid">${allCards}</div>
+      <div class="parties-grid" id="categoriesResults">${allCards}</div>
     `;
   }
 
@@ -15064,7 +15070,7 @@
       ${totalAccountsAndGroups >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="accountsSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search accounts…" value="${escapeHtml(__accountsSearch)}" oninput="setAccountsSearch(this.value)">
-        ${__accountsSearch ? `<button class="entity-search-clear" onclick="setAccountsSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>` : ''}
+        <button class="entity-search-clear" onclick="setAccountsSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>` : ''}
       ${role === 'owner' && allAccs.length >= 2 ? `
       <div class="acct-transfer-bar">
@@ -15117,7 +15123,7 @@
       </div>` : ''}
       <p style="color:var(--ink-mute);font-size:0.9rem;margin-bottom:1.25rem;">Money buckets grouped by kind — cash, wallets, banks, cards. ${showTotals ? 'Totals reflect the period above.' : ''}</p>
       
-      <div class="account-groups">${noResults
+      <div class="account-groups" id="accountsResults">${noResults
         ? (q
           ? `<div class="empty"><div class="empty-headline">No matches for "${escapeHtml(q)}"</div><div><a onclick="setAccountsSearch('')">Clear search</a></div></div>`
           : `<div class="empty">
@@ -24992,6 +24998,13 @@
         <option value="Threads"></option>
       </datalist>
       <div class="meta-section">
+        <div class="meta-section-label">Party limit <span class="meta-optional">— optional · 👾 limited · 🚀 unlimited</span></div>
+        <div class="party-limit-opts">
+          <button type="button" id="mPartyLimitLtd" class="party-limit-opt limited${m.limit === 'limited' ? ' active' : ''}" onclick="setPartyLimitOpt('limited')">Limited</button>
+          <button type="button" id="mPartyLimitUnl" class="party-limit-opt unlimited${m.limit === 'unlimited' ? ' active' : ''}" onclick="setPartyLimitOpt('unlimited')">Unlimited</button>
+        </div>
+      </div>
+      <div class="meta-section">
         <div class="meta-section-label">Date of birth <span class="meta-optional">— optional, year optional</span></div>
         <div class="meta-dob-row">
           <select id="mPartyDobMonth" class="meta-dob-month" aria-label="Month">
@@ -25030,13 +25043,7 @@
         <div id="mPartyDetails" class="meta-multi-list">${detailsHTML}</div>
         <button type="button" class="meta-add-btn" onclick="addPartyDetailRow()">+ Add more</button>
       </div>
-      <div class="meta-section">
-        <div class="meta-section-label">Party limit <span class="meta-optional">— optional</span></div>
-        <div class="party-limit-opts">
-          <button type="button" id="mPartyLimitLtd" class="party-limit-opt limited${m.limit === 'limited' ? ' active' : ''}" onclick="setPartyLimitOpt('limited')">Limited</button>
-          <button type="button" id="mPartyLimitUnl" class="party-limit-opt unlimited${m.limit === 'unlimited' ? ' active' : ''}" onclick="setPartyLimitOpt('unlimited')">Unlimited</button>
-        </div>
-      </div>
+
       <div class="meta-section">
         <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
         <textarea id="mPartyDescription" rows="2" maxlength="500" placeholder="Anything worth remembering — preferences, history, address, etc.">${escapeHtml(desc)}</textarea>
@@ -28225,13 +28232,28 @@
   // before renderEntriesList). The search state updates immediately so the
   // input reflects what was typed, while the filter/re-render runs ~120ms
   // after the last keystroke.
+  // v89.114: SEARCH re-renders swap ONLY the results region. Rebuilding the
+  // whole view destroyed the search input each keystroke; the subsequent
+  // refocus made mobile soft-keyboards dismiss and reopen (the flicker
+  // restoreSearchFocus could only narrow, never remove). The render fns are
+  // pure innerHTML writers, so rendering into a DETACHED node and copying
+  // the results container's markup leaves the live input untouched — focus
+  // and keyboard never move. Falls back to a full render if the container
+  // isn't on screen.
+  function _swapSearchResults(renderFn, resultsId) {
+    const root = document.getElementById('mainContent');
+    if (!root) return;
+    const live = document.getElementById(resultsId);
+    if (!live) { renderFn(root); return; }
+    const tmp = document.createElement('div');
+    renderFn(tmp);
+    const fresh = tmp.querySelector('#' + resultsId);
+    if (fresh) live.innerHTML = fresh.innerHTML;
+    else renderFn(root);
+  }
   function setPartiesSearch(v) {
     __partiesSearch = v;
-    _debouncedRender('parties', () => {
-      const root = document.getElementById('mainContent');
-      if (root) renderPartiesView(root);
-      restoreSearchFocus('partiesSearchInput');
-    });
+    _debouncedRender('parties', () => _swapSearchResults(renderPartiesView, 'partiesResults'));
   }
   // v73: persist the chosen party sort across navigations
   function setPartySortMode(v) {
@@ -28242,19 +28264,11 @@
   }
   function setCategoriesSearch(v) {
     __categoriesSearch = v;
-    _debouncedRender('categories', () => {
-      const root = document.getElementById('mainContent');
-      if (root) renderCategoriesView(root);
-      restoreSearchFocus('categoriesSearchInput');
-    });
+    _debouncedRender('categories', () => _swapSearchResults(renderCategoriesView, 'categoriesResults'));
   }
   function setAccountsSearch(v) {
     __accountsSearch = v;
-    _debouncedRender('accounts', () => {
-      const root = document.getElementById('mainContent');
-      if (root) renderAccountsView(root);
-      restoreSearchFocus('accountsSearchInput');
-    });
+    _debouncedRender('accounts', () => _swapSearchResults(renderAccountsView, 'accountsResults'));
   }
   function restoreSearchFocus(id) {
     // v89.75: faster focus restore for mobile. setTimeout(0) lets the browser
