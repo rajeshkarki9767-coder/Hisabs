@@ -5888,6 +5888,8 @@
   }
   .party-limit-opt.limited.active { color: #ffffff; background: #7c3aed; border-color: #7c3aed; }
   .party-limit-opt.unlimited.active { color: var(--ink); background: var(--paper-deep, rgba(0,0,0,0.06)); border-color: var(--ink-mute); }
+  .export-scope-opts { display: flex; gap: 0.4rem; margin: 0 0 0.8rem; flex-wrap: wrap; }
+  .export-scope-opts .party-limit-opt.active { color: #fff; background: var(--ink, #1a1612); border-color: var(--ink, #1a1612); }
   .party-acct-hidden-tag {
     font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
     color: var(--ink-mute); border: 1px solid var(--line); border-radius: 4px; padding: 0.02rem 0.3rem; margin-left: 0.3rem;
@@ -7770,7 +7772,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.181';
+  const BUILD_TAG = '2026.07.11.183';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9409,6 +9411,8 @@
   // (Audit + Expenses had it from v50; v56 puts it on every page that
   // also offers Export so users can always reach a printable version).
   function printIconButton() {
+    // v89.120: print is owner-only, same rule as exports.
+    if (roleFor(session.activeBizId) !== 'owner') return '';
     return `<button class="icon-btn-light" onclick="printPage()" title="Print or save as PDF" aria-label="Print or save as PDF">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
     </button>`;
@@ -9423,6 +9427,8 @@
   // hide chrome and keep dark cards printing dark. No JS dependencies
   // needed (vs html2canvas which would add ~200KB).
   function printPage() {
+    // v89.120: owner-only — belt for any stray caller or stale DOM.
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can print.'); return; }
     try {
       // Close any open modal first — the print dialog above an open
       // modal looks bad and the modal would print over content.
@@ -11124,8 +11130,8 @@
   // Staff is excluded — they're the front-of-house data entry role and
   // shouldn't be able to walk away with the full ledger.
   function canExport(businessId) {
-    const r = roleFor(businessId);
-    return r === 'owner' || r === 'manager' || r === 'viewer';
+    // v89.120: ONLY the owner may export or print.
+    return roleFor(businessId) === 'owner';
   }
   // Who can add a party? Owner, manager, and staff. Viewer cannot.
   function canAddParty(businessId) {
@@ -11139,8 +11145,11 @@
   function canRenameParty(party) {
     if (!party) return false;
     const role = roleFor(party.businessId);
-    if (role === 'owner' || role === 'manager') return true;
-    if (role !== 'staff') return false;
+    if (role === 'owner') return true;
+    // v89.120: on parties, MANAGER has the same edit permission as Team —
+    // rename only parties they created themselves. Details stay owner-only
+    // (v89.116).
+    if (role !== 'staff' && role !== 'manager') return false;
     if (!party.createdBy) return true; // legacy: allow
     const u = me();
     return !!(u && party.createdBy === u.id);
@@ -12961,7 +12970,7 @@
         <div class="page-actions">
           ${annButton}
           ${printIconButton()}
-          ${canSeeTotals(session.activeBizId) ? exportIconButton('entries') : ''}
+          ${canExport(session.activeBizId) ? exportIconButton('entries') : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
         </div>
       </div>`;
@@ -18520,7 +18529,7 @@
             Statement
           </button>
           ${printIconButton()}
-          ${exportIconButton('audit')}
+          ${canExport(biz.id) ? exportIconButton('audit') : ''}
         </div>
       </div>
 
@@ -18705,7 +18714,7 @@
         </div>
         <div class="page-actions">
           ${printIconButton()}
-          ${exportIconButton('distribution')}
+          ${canExport(biz.id) ? exportIconButton('distribution') : ''}
           ${roleFor(session.activeBizId) === 'owner' ? `<button class="btn btn-sm btn-danger-outline" onclick="resetAllDistributionData()" title="Clear all team salaries, profit shares, parties, and currency/rate for this business">Reset distribution</button>` : ''}
         </div>
       </div>
@@ -32934,15 +32943,46 @@
   // It's set when the chooser opens and read by `runExport()`.
   let __exportTarget = null;
 
+  // v89.119: export scope — exports can match the ON-SCREEN period filter
+  // ("This period") or cover everything ("All time"). Defaults to the
+  // screen's period so what you download is what you're looking at; when
+  // the screen filter is already All time, All time is preselected.
+  let __exportScope = 'period';
   function openExportChooser(target) {
     __exportTarget = target;
+    __exportScope = (session.period && session.period.mode === 'all') ? 'all' : 'period';
     openModal('exportChooser');
+  }
+  function setExportScope(s) {
+    __exportScope = s === 'all' ? 'all' : 'period';
+    const p = document.getElementById('expScopePeriod');
+    const a = document.getElementById('expScopeAll');
+    if (p) p.classList.toggle('active', __exportScope === 'period');
+    if (a) a.classList.toggle('active', __exportScope === 'all');
+  }
+  function exportScopePred() {
+    return (__exportScope === 'period') ? periodPredicate() : (() => true);
+  }
+  function exportScopeLabel() {
+    return (__exportScope === 'period') ? currentPeriodLabel() : 'All time';
+  }
+  // First date of the active period, or null when unbounded (used to
+  // compute a statement's OPENING BALANCE from entries before the period).
+  function periodStartDate() {
+    if (__exportScope !== 'period') return null;
+    const p = session.period || { mode: 'current' };
+    if (p.mode === 'current') return today().slice(0, 7) + '-01';
+    if (p.mode === 'month') return p.monthKey + '-01';
+    if (p.mode === 'range') return p.from;
+    return null;
   }
 
   function runExport(format) {
     const target = __exportTarget;
     closeModal();
     if (!target) return;
+    // v89.120: owner-only — central guard for every export target.
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can export.'); return; }
     // Route to the right exporter based on target.
     if (target === 'entries') {
       if (format === 'pdf') exportPDF(); else exportExcel();
@@ -32992,7 +33032,11 @@
     return `
       <div class="modal-handle"></div>
       <h2 class="modal-title">Download this view</h2>
-      <p class="modal-sub">Choose a format. The file will save to your device's downloads.</p>
+      <p class="modal-sub">Choose what to include and a format. The file will save to your device's downloads.</p>
+      <div class="export-scope-opts">
+        <button class="party-limit-opt${__exportScope === 'period' ? ' active' : ''}" id="expScopePeriod" onclick="setExportScope('period')">This period · ${escapeHtml(currentPeriodLabel())}</button>
+        <button class="party-limit-opt${__exportScope === 'all' ? ' active' : ''}" id="expScopeAll" onclick="setExportScope('all')">All time</button>
+      </div>
       <div class="form-grid">
         <button class="btn btn-ghost" onclick="runExport('pdf')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -33011,7 +33055,7 @@
   async function exportPDF() {
     if (__exportInFlight) return;
     if (!session.activeBookId) { toast('No book selected.'); return; }
-    if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
+    if (!canExport(session.activeBizId)) { toast('Only the owner can export.'); return; }
     toast('Loading PDF library…');
     const pdfReady = await loadPdfLibs();
     if (!pdfReady) { toast('PDF library failed to load. Check your connection.'); return; }
@@ -33095,7 +33139,7 @@
   function exportExcel() {
     if (__exportInFlight) return;
     if (!session.activeBookId) { toast('No book selected.'); return; }
-    if (!canSeeTotals(session.activeBizId)) { toast('Export disabled by owner.'); return; }
+    if (!canExport(session.activeBizId)) { toast('Only the owner can export.'); return; }
     __exportInFlight = true;
     toast('Generating CSV…');
     // Safety: auto-clear flag after 30s in case generation throws unexpectedly
@@ -33374,6 +33418,7 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const _expPred = exportScopePred();
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring the on-screen period filter — see exportPDF.
     const partiesList = data.parties.filter(p => p.businessId === biz.id);
@@ -33393,7 +33438,7 @@
       : n.toFixed(2);
     const raw = [];
     const rows = partiesList.map(p => {
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id);
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.partyId === p.id && _expPred(e));
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       raw.push([inSum, outSum]);
@@ -33414,7 +33459,7 @@
     const totalOut = raw.reduce((s, r) => s + r[1], 0);
     const opts = {
       title: `Parties — ${biz.name}`,
-      subtitle: `${biz.currency} · All time · All details · Generated ${today()}`,
+      subtitle: `${biz.currency} · ${exportScopeLabel()} · All details · Generated ${today()}`,
       columns: ['Name', 'Phone', 'Email', 'DOB', 'Social', 'Accounts', 'Description', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
       totals: ['', '', '', '', '', '', '', '', num(totalIn), num(totalOut), num(totalIn - totalOut)],
@@ -33431,11 +33476,12 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const _expPred = exportScopePred();
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring period filter — see exportPDF.
     const cats = data.categories.filter(c => c.businessId === biz.id);
     const rows = cats.map(c => {
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === c.name);
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.category === c.name && _expPred(e));
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       return [c.name, ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
@@ -33444,7 +33490,7 @@
     const totalOut = rows.reduce((s, r) => s + Number(r[3]), 0);
     const opts = {
       title: `Categories — ${biz.name}`,
-      subtitle: `${biz.currency} · All time · Generated ${today()}`,
+      subtitle: `${biz.currency} · ${exportScopeLabel()} · Generated ${today()}`,
       columns: ['Category', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
       totals: ['', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
@@ -33458,12 +33504,13 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     if (!canExport(biz.id)) { toast('Export not available for your role.'); return; }
+    const _expPred = exportScopePred();
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring period filter — see exportPDF.
     const accs = data.cashAccounts.filter(a => a.businessId === biz.id);
     const rows = accs.map(a => {
       const group = data.accountGroups.find(g => g.id === a.groupId);
-      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id);
+      const ents = data.entries.filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && _expPred(e));
       const inSum = ents.filter(e => e.type === 'in').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       const outSum = ents.filter(e => e.type === 'out').reduce((s, e) => s + (Number(e.amount) || 0), 0);
       return [a.name, group?.name || '', a.hidden ? 'Hidden' : '', ents.length, inSum.toFixed(2), outSum.toFixed(2), (inSum - outSum).toFixed(2)];
@@ -33472,7 +33519,7 @@
     const totalOut = rows.reduce((s, r) => s + Number(r[5]), 0);
     const opts = {
       title: `Accounts — ${biz.name}`,
-      subtitle: `${biz.currency} · All time · All accounts incl. hidden · Generated ${today()}`,
+      subtitle: `${biz.currency} · ${exportScopeLabel()} · All accounts incl. hidden · Generated ${today()}`,
       columns: ['Account', 'Group', 'Hidden', 'Entries', 'Cash in', 'Cash out', 'Net'],
       rows,
       totals: ['', '', '', '', totalIn.toFixed(2), totalOut.toFixed(2), (totalIn - totalOut).toFixed(2)],
@@ -34162,9 +34209,22 @@
     if (!p || !biz) return;
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring period filter — see exportPDF.
-    const ents = data.entries
+    // v89.119: scope — "This period" turns this export into a proper
+    // PARTY STATEMENT: period in the header, opening balance carried in
+    // from entries before the period, running balance → closing.
+    const _pred = exportScopePred();
+    const _allEnts = data.entries
       .filter(e => bookIds.includes(e.bookId) && e.partyId === p.id)
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const ents = _allEnts.filter(_pred);
+    const _isStatement = (__exportScope === 'period');
+    const _startDate = periodStartDate();
+    let _opening = 0;
+    if (_isStatement && _startDate) {
+      for (const e of _allEnts) {
+        if (e.date && e.date < _startDate) _opening += (e.type === 'in' ? 1 : -1) * (Number(e.amount) || 0);
+      }
+    }
     // v89.118: the export carries EVERYTHING the party page shows — the
     // details block (contact, accounts, limit, description) above the
     // ledger, and the By-category / By-account summaries after it.
@@ -34184,6 +34244,8 @@
     if (accSets.length) metaLines.push(['Accounts', accSets.join('\n')]);
     if (meta.limit === 'limited' || meta.limit === 'unlimited') metaLines.push(['Limit', meta.limit === 'limited' ? 'Limited' : 'Unlimited']);
     if (meta.description) metaLines.push(['Notes', String(meta.description)]);
+    metaLines.push(['Period', exportScopeLabel()]);
+    if (_isStatement && _startDate) metaLines.push(['Opening balance', _opening.toFixed(2)]);
     // breakdown summaries, same math as the party page
     const catMap = new Map(), acctMap = new Map();
     const acctName = new Map(data.cashAccounts.filter(a => a.businessId === biz.id).map(a => [a.id, a]));
@@ -34209,9 +34271,11 @@
     ].filter(t => t.rows.length);
     exportDetailLedger({
       kind, biz, entries: ents,
-      title: `${p.name} — Party ledger`,
-      filename: `party_${p.name}_all`,
+      title: _isStatement ? `Statement — ${p.name}` : `${p.name} — Party ledger`,
+      filename: _isStatement ? `statement_${p.name}_${exportScopeLabel()}` : `party_${p.name}_all`,
       metaLines, extraTables,
+      periodLabel: exportScopeLabel(),
+      openingBalance: (_isStatement && _startDate) ? _opening : 0,
     });
   }
 
@@ -34221,9 +34285,14 @@
   // with a running balance and a totals footer. PDF reuses the brand styling.
   async function exportDetailLedger(o) {
     const { kind, biz, entries, title, filename, metaLines, extraTables } = o;
+    // v89.119: period scoping — label replaces the hardcoded "All time";
+    // openingBalance (statements) seeds the running balance so the Bal
+    // column runs opening → closing across the period.
+    const periodLabel = o.periodLabel || 'All time';
+    const openingBalance = Number(o.openingBalance) || 0;
     const cur = biz.currency || 'NPR';
     const acctById = new Map(data.cashAccounts.map(a => [a.id, a.name]));
-    let bal = 0;
+    let bal = openingBalance;
     const rows = entries.map(e => {
       const amt = Number(e.amount);
       const safeAmt = Number.isFinite(amt) ? amt : 0;
@@ -34256,7 +34325,7 @@
       doc.setFontSize(18); doc.setFont('helvetica', 'normal'); doc.setTextColor(26, 22, 18); doc.text(String(title), 14, 18);
       doc.setDrawColor(26, 22, 18); doc.setLineWidth(0.6); doc.line(14, 20.5, 283, 20.5);
       doc.setFontSize(10); doc.setTextColor(120);
-      doc.text(`${biz.name}  ·  ${biz.currency} (${currencyDisplay(cur)})  ·  All time  ·  Generated ${today()}`, 14, 25);
+      doc.text(`${biz.name}  ·  ${biz.currency} (${currencyDisplay(cur)})  ·  ${periodLabel}  ·  Generated ${today()}`, 14, 25);
       // v89.118: meta block (party details etc.) above the ledger.
       let _ly = 31;
       if (Array.isArray(metaLines) && metaLines.length) {
@@ -34323,7 +34392,7 @@
       toast('PDF downloaded.');
     } else {
       exportTableCSV({
-        title, subtitle: `${biz.name} · ${biz.currency} · All time · Generated ${today()}`,
+        title, subtitle: `${biz.name} · ${biz.currency} · ${periodLabel} · Generated ${today()}`,
         metaLines, extraTables,
         columns,
         rows: entries.map(e => {
@@ -34347,12 +34416,13 @@
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.category === catName)
+      .filter(e => bookIds.includes(e.bookId) && e.category === catName && exportScopePred()(e))
       .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     exportDetailLedger({
       kind, biz, entries: ents,
       title: `${catName} — Category ledger`,
       filename: `category_${catName}_all`,
+      periodLabel: exportScopeLabel(),
     });
   }
 
@@ -34363,12 +34433,13 @@
     const bookIds = data.books.filter(b => b.businessId === biz.id).map(b => b.id);
     // ALL entries, ignoring period filter — see exportPDF.
     const ents = data.entries
-      .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id)
+      .filter(e => bookIds.includes(e.bookId) && e.accountId === a.id && exportScopePred()(e))
       .sort((a2, b2) => (a2.date || '').localeCompare(b2.date || ''));
     exportDetailLedger({
       kind, biz, entries: ents,
       title: `${a.name} — Account ledger`,
       filename: `account_${a.name}_all`,
+      periodLabel: exportScopeLabel(),
     });
   }
 
