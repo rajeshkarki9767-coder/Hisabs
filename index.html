@@ -5922,6 +5922,11 @@
   .fc-hist-row { justify-content: space-between; }
   .fc-hist-diff { border-top: 1px solid var(--line); font-weight: 700; }
   .fc-method-note { font-size: 0.76rem; color: var(--ink-mute); margin: 0.2rem 0 0.8rem; }
+  .memtot-net { font-weight: 800; margin-left: 0.2rem; }
+  .memtot-net.pos { color: var(--gain); }
+  .memtot-net.neg { color: var(--loss); }
+  .mom-subhead { font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-mute); margin: 0.55rem 0 0.15rem; }
+  .mom-subhead:first-of-type { margin-top: 0.1rem; }
   .mom-row { padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
   .mom-row:last-child { border-bottom: none; }
   .mom-head { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.84rem; }
@@ -7698,7 +7703,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.190';
+  const BUILD_TAG = '2026.07.11.194';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14281,6 +14286,14 @@
     const root = document.getElementById('mainContent');
     if (root) renderPartyDetailView(root);
   }
+  // v89.128: same filter mechanic for the "By account" rows. Both filters
+  // can be active at once — entries must match category AND account.
+  let __partyDetailAcctFilter = null; // account NAME ('— No account' for none)
+  function setPartyDetailAcctFilter(name) {
+    __partyDetailAcctFilter = (__partyDetailAcctFilter === name) ? null : name;
+    const root = document.getElementById('mainContent');
+    if (root) renderPartyDetailView(root);
+  }
 
   function renderPartyDetailView(root) {
     const party = data.parties.find(p => p.id === session.selectedPartyId);
@@ -14328,15 +14341,26 @@
       .map(([cat, r]) => ({ cat, ...r, net: r.inSum - r.outSum }))
       .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
 
+    // v89.128: account lookup needed by the account filter below (the
+    // breakdown section builds its own later-scoped copy).
+    const _acctById0 = new Map(data.cashAccounts.filter(a => a.businessId === biz.id).map(a => [a.id, a]));
     // Filtered entries for the list below. If a category is active,
     // only show entries in that category (or uncategorised when the
     // user clicked the "Uncategorised" row).
-    const entries = __partyDetailCatFilter
+    let entries = __partyDetailCatFilter
       ? allEntries.filter(e => {
           const eCat = (e.category && e.category.trim()) || '— Uncategorised';
           return eCat === __partyDetailCatFilter;
         })
       : allEntries;
+    // v89.128: account filter stacks on top of the category filter.
+    if (__partyDetailAcctFilter) {
+      entries = entries.filter(e => {
+        const a = e.accountId && _acctById0.has(e.accountId) ? _acctById0.get(e.accountId) : null;
+        const name = a ? a.name : '— No account';
+        return name === __partyDetailAcctFilter;
+      });
+    }
 
     // Per-category breakdown UI. Hidden for staff/viewer (no totals
     // role). The block is dense on purpose — small rows so the user
@@ -14393,7 +14417,12 @@
     const _acctRowHTML = (r) => {
       const netStr = (r.net >= 0 ? '+' : '') + fmt(r.net);
       const netCls = r.net > 0 ? 'gain' : (r.net < 0 ? 'loss' : '');
-      return `<div class="party-cat-row" style="cursor:default;">
+      // v89.128: clickable, filters the entry list below (toggle to clear) —
+      // same mechanic as the category rows.
+      const isActive = __partyDetailAcctFilter === r.name;
+      return `<button class="party-cat-row ${isActive ? 'active' : ''}"
+          onclick="setPartyDetailAcctFilter(${JSON.stringify(r.name).replace(/"/g, '&quot;')})"
+          title="${isActive ? 'Clear this filter' : 'Show only entries on this account'}">
         <span class="party-cat-name">${escapeHtml(r.name)}${r.hidden ? ' <span class="party-acct-hidden-tag">hidden</span>' : ''}</span>
         <span class="party-cat-stats">
           <span class="party-cat-in">+${fmt(r.inSum)}</span>
@@ -14401,12 +14430,13 @@
           <span class="party-cat-net ${netCls}">${netStr}</span>
         </span>
         <span class="party-cat-count">${r.count}×</span>
-      </div>`;
+      </button>`;
     };
     const acctBreakdownHTML = (!showTotals || !acctRowsAll.length) ? '' : `
       <div class="party-cat-breakdown" style="margin-bottom:1.1rem;">
         <div class="party-cat-head">
           <span style="font-size:0.78rem;color:var(--ink-mute);text-transform:uppercase;letter-spacing:0.12em;font-weight:600;">By account</span>
+          ${__partyDetailAcctFilter ? `<button class="btn btn-sm btn-ghost" onclick="setPartyDetailAcctFilter(null)" style="font-size:0.72rem;padding:0.2rem 0.55rem;">Clear filter</button>` : ''}
           ${_hiddenAcctRows.length ? `<button class="btn btn-sm btn-ghost" onclick="togglePartyDetailHiddenAccts()" style="font-size:0.72rem;padding:0.2rem 0.55rem;">${__partyDetailShowHiddenAccts ? 'Hide hidden accounts' : `Show hidden accounts (${_hiddenAcctRows.length})`}</button>` : ''}
         </div>
         <div class="party-cat-rows">
@@ -14426,8 +14456,12 @@
       <div class="stat"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${allEntries.length} total</div></div>
     </div>`;
 
-    const _emptyMsg = __partyDetailCatFilter
-      ? `No transactions with this party in “${escapeHtml(__partyDetailCatFilter)}” yet.`
+    const _filterBits = [
+      __partyDetailCatFilter ? `“${escapeHtml(__partyDetailCatFilter)}”` : '',
+      __partyDetailAcctFilter ? `on “${escapeHtml(__partyDetailAcctFilter)}”` : '',
+    ].filter(Boolean).join(' ');
+    const _emptyMsg = _filterBits
+      ? `No transactions with this party ${_filterBits} yet.`
       : 'No transactions with this party yet.';
     const entriesHTML = entries.length ? entries.map(e => {
       const book = data.books.find(b => b.id === e.bookId);
@@ -18340,9 +18374,10 @@
   function auditAnomalies(rangeEntries, partiesById) {
     const DAY = 86400000;
     const lateEdits = [], backdated = [], orphans = [], oddHours = [];
-    const dupeMap = new Map();
+    // v89.127: duplicate detection removed — same-day same-amount entries
+    // for the same party are normal business here, so flagging them was
+    // pure noise.
     for (const e of rangeEntries) {
-      const amt = Number(e.amount) || 0;
       if (e.editedAt && e.createdAt && (e.editedAt - e.createdAt) > 7 * DAY) lateEdits.push(e);
       if (e.createdAt && e.date) {
         const cd = new Date(e.createdAt);
@@ -18352,16 +18387,9 @@
         if (h >= 23 || h < 5) oddHours.push(e);
       }
       if (e.partyId && !partiesById.has(e.partyId)) orphans.push(e);
-      if (amt > 0) {
-        const k = `${e.date}|${e.type}|${amt}|${e.partyId || ''}`;
-        if (!dupeMap.has(k)) dupeMap.set(k, []);
-        dupeMap.get(k).push(e);
-      }
     }
-    const dupes = [];
-    for (const arr of dupeMap.values()) if (arr.length > 1) dupes.push(...arr);
-    return { lateEdits, backdated, orphans, dupes, oddHours,
-      total: lateEdits.length + backdated.length + orphans.length + dupes.length + oddHours.length };
+    return { lateEdits, backdated, orphans, oddHours,
+      total: lateEdits.length + backdated.length + orphans.length + oddHours.length };
   }
   function auditAnomaliesCardHTML(a, cur) {
     const sec = (label, arr, why) => {
@@ -18378,7 +18406,6 @@
       ? `<div class="anom-clear">✓ No anomalies in this period.</div>`
       : sec('Late edits', a.lateEdits, 'edited 7+ days after creation')
         + sec('Back-dated', a.backdated, 'dated before the day they were typed')
-        + sec('Possible duplicates', a.dupes, 'same day · type · amount · party')
         + sec('Deleted-party refs', a.orphans, 'entry points at a removed party')
         + sec('Odd hours', a.oddHours, 'created 11pm–5am');
     return `<div class="card anom-card"><h3 class="anom-title">Needs review ${a.total ? `<span class="anom-count">${a.total}</span>` : ''}</h3>${body}</div>`;
@@ -18407,6 +18434,7 @@
         <span class="memtot-stat">${r.added} added${r.edited ? ` · ${r.edited} edited` : ''}</span>
         <span class="memtot-in">+${cur} ${fmt(r.inSum)}</span>
         <span class="memtot-out">−${cur} ${fmt(r.outSum)}</span>
+        <span class="memtot-net ${r.inSum - r.outSum >= 0 ? 'pos' : 'neg'}">= ${r.inSum - r.outSum >= 0 ? '' : '−'}${cur} ${fmt(Math.abs(r.inSum - r.outSum))}</span>
       </div>`).join('');
     return `<div class="card memtot-card"><h3 class="anom-title">Member activity · this period</h3>${body}</div>`;
   }
@@ -18540,6 +18568,30 @@
       .filter(c => Math.abs(c.delta) > 0.004)
       .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5);
   }
+  function insightsMoMPartyDeltas(entries, bookIds, monthKeyStr, lastMonthKey) {
+    const par = new Map();
+    for (const e of entries) {
+      if (!bookIds.has(e.bookId) || !e.date || !e.party) continue;
+      const mo = e.date.slice(0, 7);
+      if (mo !== monthKeyStr && mo !== lastMonthKey) continue;
+      let c = par.get(e.party);
+      if (!c) { c = { k: e.party, thisN: 0, lastN: 0, cats: new Map() }; par.set(e.party, c); }
+      const net = (e.type === 'in' ? 1 : -1) * (Number(e.amount) || 0);
+      const cn = (e.category && e.category.trim()) || '—';
+      let p = c.cats.get(cn);
+      if (!p) { p = { thisN: 0, lastN: 0 }; c.cats.set(cn, p); }
+      if (mo === monthKeyStr) { c.thisN += net; p.thisN += net; }
+      else { c.lastN += net; p.lastN += net; }
+    }
+    return [...par.values()]
+      .map(c => ({ k: c.k, delta: c.thisN - c.lastN,
+        drivers: [...c.cats.entries()]
+          .map(([name, p]) => ({ name, d: p.thisN - p.lastN }))
+          .filter(d => Math.abs(d.d) > 0.004)
+          .sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 2) }))
+      .filter(c => Math.abs(c.delta) > 0.004)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5);
+  }
   function insightsDormant(entries, bookIds, todayStr) {
     const t = new Date(todayStr).getTime();
     const d30 = new Date(t - 30 * 86400000), d120 = new Date(t - 120 * 86400000);
@@ -18567,6 +18619,7 @@
     const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthKey = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
     const deltas = insightsMoMDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
+    const partyDeltas = insightsMoMPartyDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
     const dorm = insightsDormant(data.entries, bookIds, today());
     const sign = (n) => `${n >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(n))}`;
     const deltaRows = deltas.map(c => `
@@ -18575,8 +18628,17 @@
           <span class="mom-delta ${c.delta >= 0 ? 'up' : 'down'}">${sign(c.delta)} vs last month</span></div>
         ${c.drivers.length ? `<div class="mom-drivers">driven by ${c.drivers.map(d => `${escapeHtml(d.name)} ${sign(d.d)}`).join(' · ')}</div>` : ''}
       </div>`).join('');
+    const partyRows = partyDeltas.map(c => `
+      <div class="mom-row">
+        <div class="mom-head"><span class="mom-cat">${escapeHtml(c.k)}</span>
+          <span class="mom-delta ${c.delta >= 0 ? 'up' : 'down'}">${sign(c.delta)} vs last month</span></div>
+        ${c.drivers.length ? `<div class="mom-drivers">driven by ${c.drivers.map(d => `${escapeHtml(d.name)} ${sign(d.d)}`).join(' · ')}</div>` : ''}
+      </div>`).join('');
     const momCard = `<div class="card mom-card"><h3 class="anom-title">What changed · ${escapeHtml(monthKeyStr)} vs ${escapeHtml(lastMonthKey)}</h3>
-      ${deltaRows || '<div class="anom-clear">No meaningful category movement yet this month.</div>'}</div>`;
+      <div class="mom-subhead">By category</div>
+      ${deltaRows || '<div class="anom-clear">No meaningful category movement yet this month.</div>'}
+      <div class="mom-subhead">By party</div>
+      ${partyRows || '<div class="anom-clear">No meaningful party movement yet this month.</div>'}</div>`;
     const dormList = (label, arr) => arr.length
       ? `<div class="dorm-sec"><span class="dorm-label">${label}:</span> ${arr.map(escapeHtml).join(', ')}</div>` : '';
     const dormCard = (dorm.categories.length || dorm.parties.length)
@@ -22655,9 +22717,10 @@
     session.view = view;
     if (view !== 'party-detail') {
       session.selectedPartyId = null;
-      // Drop the party-detail category filter too so a fresh open
-      // of any party starts unfiltered.
+      // Drop the party-detail filters too so a fresh open of any
+      // party starts unfiltered. (v89.129: account filter included.)
       __partyDetailCatFilter = null;
+      __partyDetailAcctFilter = null;
     }
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
@@ -22683,7 +22746,7 @@
     session.view = 'party-detail';
     // If opening a DIFFERENT party than the one we were on, clear
     // any leftover category filter from the previous party.
-    if (session.selectedPartyId !== partyId) __partyDetailCatFilter = null;
+    if (session.selectedPartyId !== partyId) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; }
     session.selectedPartyId = partyId;
     saveSession();
     __renderResetScroll = true; // drilling into a detail view → top
@@ -31759,6 +31822,11 @@
         if (sb && e.note) { sb.value = e.note; if (typeof renderEntriesList === 'function') renderEntriesList(); }
       }, 100);
     } else if (action === 'party') {
+      // v89.129: this open path never cleared the detail filters — opening
+      // a different party via the chip menu kept the previous party's
+      // category filter (pre-existing) and account filter. Same hygiene
+      // as openParty().
+      if (session.selectedPartyId !== id) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; }
       session.selectedPartyId = id;
       session.view = 'party-detail';
       saveSession(); __renderResetScroll = true; renderAll();
