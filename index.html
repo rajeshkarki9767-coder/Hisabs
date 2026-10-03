@@ -5888,6 +5888,77 @@
   }
   .party-limit-opt.limited.active { color: #ffffff; background: #7c3aed; border-color: #7c3aed; }
   .party-limit-opt.unlimited.active { color: var(--ink); background: var(--paper-deep, rgba(0,0,0,0.06)); border-color: var(--ink-mute); }
+  /* v89.124: audit/forecast/insights intelligence pack */
+  .anom-card, .memtot-card, .mom-card, .dorm-card, .fc-cat-card, .fc-hist-card { margin-bottom: 0.9rem; padding: 0.8rem 0.9rem; }
+  .anom-title { font-size: 0.95rem; margin: 0 0 0.5rem; display: flex; align-items: center; gap: 0.45rem; }
+  .anom-count { background: var(--loss, #c0392b); color: #fff; border-radius: 999px; padding: 0.05rem 0.5rem; font-size: 0.75rem; }
+  .anom-why { font-weight: 400; font-size: 0.72rem; color: var(--ink-mute); margin-left: 0.4rem; }
+  .anom-sec { margin-bottom: 0.55rem; }
+  .anom-sec-head { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .anom-row { display: flex; gap: 0.6rem; font-size: 0.78rem; padding: 0.15rem 0; flex-wrap: wrap; }
+  .anom-date { color: var(--ink-mute); min-width: 5.2rem; }
+  .anom-amt { font-weight: 600; }
+  .anom-by { color: var(--ink-mute); }
+  .anom-note { color: var(--ink-mute); font-style: italic; }
+  .anom-more { font-size: 0.74rem; color: var(--ink-mute); }
+  .anom-clear { color: var(--gain); font-size: 0.85rem; font-weight: 600; }
+  .memtot-row { display: flex; gap: 0.7rem; align-items: baseline; font-size: 0.82rem; padding: 0.22rem 0; border-bottom: 1px dashed var(--line); flex-wrap: wrap; }
+  .memtot-row:last-child { border-bottom: none; }
+  .memtot-name { font-weight: 700; min-width: 6rem; }
+  .memtot-stat { color: var(--ink-mute); font-size: 0.76rem; flex: 1; }
+  .memtot-in { color: var(--gain); font-weight: 600; }
+  .memtot-out { color: var(--loss); font-weight: 600; }
+  .exp-budget-wrap { display: inline-flex; align-items: center; gap: 0.35rem; margin-left: 0.1rem; }
+  .exp-budget-track { width: 56px; height: 6px; border-radius: 4px; background: var(--line); overflow: hidden; display: inline-block; }
+  .exp-budget-fill { display: block; height: 100%; background: var(--gain); }
+  .exp-budget-wrap.over .exp-budget-fill { background: var(--loss); }
+  .exp-budget-label { font-size: 0.7rem; color: var(--ink-mute); }
+  .exp-budget-wrap.over .exp-budget-label { color: var(--loss); font-weight: 700; }
+  .exp-budget-btn { border: 1px dashed var(--ink-mute); background: none; border-radius: 6px; font-size: 0.68rem; padding: 0.05rem 0.35rem; color: var(--ink-mute); cursor: pointer; }
+  .fc-cat-row, .fc-hist-row { display: flex; gap: 0.6rem; font-size: 0.82rem; padding: 0.2rem 0; align-items: baseline; }
+  .fc-cat-name { flex: 1; font-weight: 600; }
+  .fc-cat-now { color: var(--ink-mute); font-size: 0.76rem; }
+  .fc-cat-proj { font-weight: 700; }
+  .fc-hist-row { justify-content: space-between; }
+  .fc-hist-diff { border-top: 1px solid var(--line); font-weight: 700; }
+  .fc-method-note { font-size: 0.76rem; color: var(--ink-mute); margin: 0.2rem 0 0.8rem; }
+  .mom-row { padding: 0.3rem 0; border-bottom: 1px dashed var(--line); }
+  .mom-row:last-child { border-bottom: none; }
+  .mom-head { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.84rem; }
+  .mom-cat { font-weight: 700; }
+  .mom-delta.up { color: var(--gain); font-weight: 700; }
+  .mom-delta.down { color: var(--loss); font-weight: 700; }
+  .mom-drivers { font-size: 0.75rem; color: var(--ink-mute); margin-top: 0.1rem; }
+  .dorm-sec { font-size: 0.8rem; padding: 0.15rem 0; }
+  .dorm-label { font-weight: 700; margin-right: 0.3rem; }
+  /* v89.122: bulk-edit selection mode + backup nudge */
+  .bulk-bar {
+    display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+    padding: 0.5rem 0.6rem; margin-bottom: 0.6rem;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--card, rgba(0,0,0,0.03));
+    position: sticky; top: 0; z-index: 5;
+  }
+  .bulk-bar-count { font-weight: 700; font-size: 0.85rem; }
+  .bulk-bar-spacer { flex: 1; }
+  .entry-row.bulk-mode { cursor: pointer; }
+  .entry-row.bulk-mode .entry-cat-click { pointer-events: none; }
+  .entry-row.bulk-selected { outline: 2px solid var(--gain); outline-offset: -2px; }
+  .entry-row.bulk-locked { opacity: 0.45; cursor: not-allowed; }
+  .entry-check {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 1.15rem; height: 1.15rem; margin-right: 0.5rem; flex-shrink: 0;
+    border: 1.5px solid var(--ink-mute); border-radius: 4px;
+    font-size: 0.75rem; font-weight: 800; color: #fff; vertical-align: middle;
+  }
+  .entry-check.on { background: var(--gain); border-color: var(--gain); }
+  .backup-nudge {
+    position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
+    max-width: min(92vw, 34rem); padding: 0.6rem 0.8rem; z-index: 900;
+    background: var(--paper, #fff); border: 1px solid var(--line);
+    border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+    font-size: 0.84rem;
+  }
   .export-scope-opts { display: flex; gap: 0.4rem; margin: 0 0 0.8rem; flex-wrap: wrap; }
   .export-scope-opts .party-limit-opt.active { color: #fff; background: var(--ink, #1a1612); border-color: var(--ink, #1a1612); }
   .party-acct-hidden-tag {
@@ -7164,154 +7235,9 @@
     }
   }
 
-  /* ================================================================
-     PRINT — Visual PDF export via window.print() + "Save as PDF"
-     ================================================================
-     The Print button on Audit/Expenses pages triggers window.print(),
-     which uses the browser's native print pipeline. Users get the
-     standard print dialog with a "Save as PDF" destination — no
-     extra JS dependencies, pixel-perfect rendering, and the user
-     keeps full control over paper size, margins, and orientation.
-
-     These rules:
-       1. Hide chrome the user doesn't need on paper (sidebar, topbar,
-          search, action buttons, floating "+ Entry", modals).
-       2. Expand the main content area to use the full page width.
-       3. Force dark cards / colored chips to keep their background
-          colors on paper (browsers strip backgrounds by default to
-          save ink — we override that here).
-       4. Avoid page breaks inside cards so audit numbers don't get
-          chopped mid-row.
-     ================================================================ */
-  @media print {
-    /* v89.109: LEGACY white-report print styles, scoped to
-       body:not(.printing-fullpage). printPage() always sets
-       printing-fullpage before window.print(), so PAGE prints keep
-       the APP LOOK (the printing-fullpage block above handles colour
-       fidelity and chrome hiding). These rules remain only for print
-       paths that do not opt into fullpage mode. */
-    /* Reset page geometry */
-    @page { margin: 0.5in; }
-    body:not(.printing-fullpage) { background: #fff !important; color: #000 !important; }
-    body:not(.printing-fullpage) { font-size: 11pt; line-height: 1.4; }
-
-    /* v89.31.6: the Invoice # column was re-added to PDF/CSV exports in
-       v89.31.4, so the on-screen entry-no badge should ALSO appear on the
-       printed page / screenshot (the prior v89.30 rule that hid it is
-       removed). Keep it readable in print colors. */
-    body:not(.printing-fullpage) .entry-no-badge { display: inline-block !important; color: #000 !important; background: transparent !important; border-color: #000 !important; }
-
-    /* v89.30.4 (print): hide + Add buttons on Distribution when printing.
-       Top button is in .dist-section-actions, bottom is in .dist-section-add-bottom. */
-    body:not(.printing-fullpage) .dist-section-actions, body:not(.printing-fullpage) .dist-section-add-bottom { display: none !important; }
-
-    /* Hide app chrome */
-    body:not(.printing-fullpage) .sidebar, body:not(.printing-fullpage) .sidebar-drawer-backdrop, body:not(.printing-fullpage) .topbar-search-btn, body:not(.printing-fullpage) .topbar-search, body:not(.printing-fullpage) .search-overlay, body:not(.printing-fullpage) .topbar, body:not(.printing-fullpage) .breadcrumb, body:not(.printing-fullpage) .date-strip, body:not(.printing-fullpage) .date-strip-search, body:not(.printing-fullpage) .date-strip-sync, body:not(.printing-fullpage) .modal-backdrop, body:not(.printing-fullpage) .modal-content, body:not(.printing-fullpage) .modal-handle, body:not(.printing-fullpage) .floating-btn, body:not(.printing-fullpage) .floating-action, body:not(.printing-fullpage) .fab, body:not(.printing-fullpage) .fab-container, body:not(.printing-fullpage) .page-actions, body:not(.printing-fullpage) .audit-range-bar, body:not(.printing-fullpage) .audit-range-mobile, body:not(.printing-fullpage) .period-bar, body:not(.printing-fullpage) .toolbar, body:not(.printing-fullpage) .audit-exp-add, body:not(.printing-fullpage) .audit-exp-actions, body:not(.printing-fullpage) .sync-badge, body:not(.printing-fullpage) .install-prompt, body:not(.printing-fullpage) .toast, body:not(.printing-fullpage) .sidebar-toggle, body:not(.printing-fullpage) button.icon-btn-light, body:not(.printing-fullpage) button.icon-btn, body:not(.printing-fullpage) .lb-row-clickable .lb-stat-label, body:not(.printing-fullpage) .help-card, body:not(.printing-fullpage) .nav-badge, body:not(.printing-fullpage) .invite-pill { display: none !important; }
-
-    /* v88: keep tax % visible in print. The .audit-tax-btn is an
-       interactive edit button (pencil icon + value); strip the button
-       chrome but keep the percent text visible in the printed PDF
-       so auditors and accountants reading the report know the rate. */
-    body:not(.printing-fullpage) .audit-tax-btn {
-      background: transparent !important;
-      border: none !important;
-      padding: 0 !important;
-      color: #000 !important;
-      font: inherit !important;
-      cursor: default !important;
-    }
-    body:not(.printing-fullpage) .audit-tax-btn svg { display: none !important; }
-    body:not(.printing-fullpage) .audit-tax-readonly {
-      background: transparent !important;
-      color: #000 !important;
-    }
-
-    /* v70: Split & Convert kept visible on print. Previously hidden
-       because it looked interactive; on paper the values are part
-       of the report. Hide only the input controls, keep the result
-       text so the math is preserved. */
-    body:not(.printing-fullpage) .split-calc input { border-color: #ccc !important; background: white !important; color: #000 !important; }
-    body:not(.printing-fullpage) .split-calc-result {
-      background: white !important; color: #000 !important;
-      border: 1px solid #ccc !important;
-      page-break-inside: avoid;
-    }
-    body:not(.printing-fullpage) .split-calc, body:not(.printing-fullpage) .split-calc-title, body:not(.printing-fullpage) .split-calc-sub, body:not(.printing-fullpage) .split-calc-result-label, body:not(.printing-fullpage) .split-calc-result-val {
-      color: #000 !important;
-      background: white !important;
-    }
-
-    /* Expense group cards are content (not interactive in print).
-       Strip the hover/click affordances but keep the data visible. */
-    body:not(.printing-fullpage) .audit-exp-group {
-      cursor: default !important;
-      background: #fff !important;
-      border: 1px solid #ddd !important;
-      padding: 0.35rem 0.5rem !important;
-    }
-    body:not(.printing-fullpage) .audit-exp-group:hover { background: #fff !important; border-color: #ddd !important; }
-
-    /* Lay out for full-page printing */
-    body:not(.printing-fullpage) main { padding: 0 !important; max-width: 100% !important; margin: 0 !important; }
-    body:not(.printing-fullpage) .page-header { margin-bottom: 0.4rem; }
-    body:not(.printing-fullpage) .page-title { font-size: 18pt; }
-    body:not(.printing-fullpage) .page-eyebrow { font-size: 9pt; color: #666 !important; }
-
-    /* Print-friendly colors. Cards keep their identity but render in
-       grayscale-friendly hues that look right on both color and B&W
-       printers. */
-    body:not(.printing-fullpage) .audit-summary-card, body:not(.printing-fullpage) .audit-section, body:not(.printing-fullpage) .audit-month-totals-card, body:not(.printing-fullpage) .audit-month-totals-card-wide, body:not(.printing-fullpage) .audit-operating-profit, body:not(.printing-fullpage) .audit-net, body:not(.printing-fullpage) .audit-tax-row, body:not(.printing-fullpage) .acct-grand-total, body:not(.printing-fullpage) .audit-balances-total {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      page-break-inside: avoid;
-    }
-
-    /* v72: force color rendering on every element that uses color to
-       convey meaning. Without print-color-adjust:exact, browsers strip
-       backgrounds + tinted colors for ink-saving, and the printed page
-       loses crucial cues (cash-in vs cash-out, profit vs loss, status
-       dots). This block makes the printout match the screen palette. */
-    body:not(.printing-fullpage) .entry-row, body:not(.printing-fullpage) .entry-amount, body:not(.printing-fullpage) .entry-amount.in, body:not(.printing-fullpage) .entry-amount.out, body:not(.printing-fullpage) .entry-status-dot, body:not(.printing-fullpage) .entry-row-edited, body:not(.printing-fullpage) .entry-row-pastdate, body:not(.printing-fullpage) .entry-row-futuredate, body:not(.printing-fullpage) .entry-row-pastdate-edited, body:not(.printing-fullpage) .entry-row-futuredate-edited, body:not(.printing-fullpage) .insights-chart-wrap, body:not(.printing-fullpage) .insights-dow-cell, body:not(.printing-fullpage) .insights-dow-legend-swatch, body:not(.printing-fullpage) .insights-dow-stat-dot, body:not(.printing-fullpage) .insights-dow-stat-val, body:not(.printing-fullpage) .fc-bar, body:not(.printing-fullpage) .fc-bar-in, body:not(.printing-fullpage) .fc-bar-out, body:not(.printing-fullpage) .fc-bar-pos, body:not(.printing-fullpage) .fc-bar-neg, body:not(.printing-fullpage) .fc-swatch, body:not(.printing-fullpage) .fc-swatch-in, body:not(.printing-fullpage) .fc-swatch-out, body:not(.printing-fullpage) .fc-swatch-current, body:not(.printing-fullpage) .fc-swatch-currentneg, body:not(.printing-fullpage) .chart-bar, body:not(.printing-fullpage) .chart-bar.in, body:not(.printing-fullpage) .chart-bar.out, body:not(.printing-fullpage) .chart-legend-swatch, body:not(.printing-fullpage) .chart-legend-swatch.in, body:not(.printing-fullpage) .chart-legend-swatch.out, body:not(.printing-fullpage) .kpi-tile, body:not(.printing-fullpage) .kpi-tile-value, body:not(.printing-fullpage) .insights-kpi, body:not(.printing-fullpage) .insights-kpi-card, body:not(.printing-fullpage) .insights-kpi-value, body:not(.printing-fullpage) .split-calc-result, body:not(.printing-fullpage) .split-calc-result-val, body:not(.printing-fullpage) .line-point, body:not(.printing-fullpage) .line-point-dot, body:not(.printing-fullpage) .stat, body:not(.printing-fullpage) .stat.in, body:not(.printing-fullpage) .stat.out, body:not(.printing-fullpage) rect.bar, body:not(.printing-fullpage) rect.bar-in, body:not(.printing-fullpage) rect.bar-out, body:not(.printing-fullpage) rect.fc-bar, body:not(.printing-fullpage) circle, body:not(.printing-fullpage) path[stroke] {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-    }
-    /* Ensure entry amount color survives. The class-driven gain/loss
-       text colors get reset by some browsers' print stylesheets;
-       force them via explicit color. */
-    body:not(.printing-fullpage) .entry-amount.in { color: #2e5d3a !important; }
-    body:not(.printing-fullpage) .entry-amount.out { color: #a8351f !important; }
-
-    /* Force the dark totals bars to actually print dark, not as
-       empty outlined boxes. */
-    body:not(.printing-fullpage) .audit-balances-total, body:not(.printing-fullpage) .acct-grand-total {
-      background: #1a1612 !important;
-      color: #ffffff !important;
-    }
-    body:not(.printing-fullpage) .audit-balances-total .pos, body:not(.printing-fullpage) .acct-grand-total.pos .acct-grand-value {
-      color: #8cbf95 !important;
-    }
-    body:not(.printing-fullpage) .audit-balances-total .neg, body:not(.printing-fullpage) .acct-grand-total.neg .acct-grand-value {
-      color: #ff9580 !important;
-    }
-    body:not(.printing-fullpage) .audit-net-card-after-tax {
-      background: rgba(46, 93, 58, 0.08) !important;
-      border-color: #2e5d3a !important;
-    }
-
-    /* Replace the interactive group cards with a printable table-like
-       expansion: instead of the tappable "Tea — Rs 1,500 (3 entries)"
-       card, print expanded rows showing every individual addition. */
-    body:not(.printing-fullpage) .audit-exp-print-list { display: block !important; }
-    body:not(.printing-fullpage) .audit-exp-print-row {
-      display: flex; justify-content: space-between;
-      padding: 0.3rem 0; border-bottom: 1px dotted #ccc;
-    }
-
-    /* Don't break tables/key sections across pages */
-    body:not(.printing-fullpage) .audit-summary, body:not(.printing-fullpage) .audit-section { page-break-inside: avoid; }
-    body:not(.printing-fullpage) .lb-row { page-break-inside: avoid; }
-    body:not(.printing-fullpage) .entry-row { page-break-inside: avoid; }
-  }
+  /* v89.126: legacy white-report print block REMOVED. Every print —
+     in-app button AND native Ctrl+P — now uses the printing-fullpage
+     app-look styles via the beforeprint/afterprint hooks. */
 
   /* ── VAT order segmented control ────────────────────────────── */
   .vat-order-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1.5px solid var(--line); border-radius: var(--r-sm); overflow: hidden; margin-bottom: 0.75rem; }
@@ -7772,7 +7698,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.183';
+  const BUILD_TAG = '2026.07.11.190';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8765,6 +8691,36 @@
   function _hideStorageFullBanner() {
     try { document.getElementById('storageFullBanner')?.remove(); } catch (_) {}
   }
+  // v89.122: BACKUP NUDGE — a gentle, dismissible reminder when the last
+  // "Backup everything" download is >30 days old (or never) and there's
+  // real data at stake. Shown at most once per app session; "Later"
+  // snoozes 7 days. Owner-only (backups are an owner action).
+  function maybeShowBackupNudge() {
+    try {
+      if (!data || !Array.isArray(data.entries) || data.entries.length < 50) return;
+      if (!data.businesses.some(b => roleFor(b.id) === 'owner')) return;
+      if (window.__backupNudgeShown) return;
+      const last = Number(localStorage.getItem('hisabs:lastBackupAt') || 0);
+      const snooze = Number(localStorage.getItem('hisabs:backupNudgeSnoozedAt') || 0);
+      const DAY = 86400000;
+      if (last && Date.now() - last < 30 * DAY) return;
+      if (snooze && Date.now() - snooze < 7 * DAY) return;
+      window.__backupNudgeShown = true;
+      const days = last ? Math.floor((Date.now() - last) / DAY) : null;
+      const el = document.createElement('div');
+      el.className = 'backup-nudge';
+      el.innerHTML = `
+        <span>${days === null ? 'No backup yet' : 'Last backup ' + days + ' days ago'} — your data lives on this device.</span>
+        <button class="btn btn-sm btn-accent" id="backupNudgeGo">Backup now</button>
+        <button class="btn btn-sm" id="backupNudgeLater">Later</button>`;
+      document.body.appendChild(el);
+      document.getElementById('backupNudgeGo').onclick = () => { try { exportAllData(); } catch (_) {} el.remove(); };
+      document.getElementById('backupNudgeLater').onclick = () => {
+        try { localStorage.setItem('hisabs:backupNudgeSnoozedAt', String(Date.now())); } catch (_) {}
+        el.remove();
+      };
+    } catch (_) {}
+  }
   function showStorageFullAlert() {
     const u = (typeof me === 'function') ? me() : null;
     const isCloud = !!(u && u.cloud);
@@ -8840,6 +8796,7 @@
       // blocking modal instead of a toast that vanishes in seconds.
       __storageFullKeys.add(key);
       try { showStorageFullAlert(); } catch (_) {}
+      setTimeout(() => { try { maybeShowBackupNudge(); } catch (_) {} }, 3500);
       return false;
     }
   }
@@ -8949,6 +8906,43 @@
     // wastes localStorage I/O and can surface a "Storage full" toast on every
     // load if quota is nearly full but no migration ran.
     let dirty = false;
+
+    // v89.126: one-time migration — fold any LEGACY {label,value} party
+    // detail rows into the sets shape {account, username, tag}, so the
+    // runtime normalizer below no longer needs a legacy branch. Mirrors
+    // the exact mapping partyDetailSets used since v89.101.
+    for (const p of data.parties) {
+      const raw = p && p.meta && Array.isArray(p.meta.details) ? p.meta.details : null;
+      if (!raw || !raw.some(d => d && !('account' in d) && !('username' in d) && !('tag' in d) && ('label' in d || 'value' in d))) continue;
+      const sets = [];
+      const place = (field, value) => {
+        let row = sets.find(r => !r[field]);
+        if (!row) { row = { account: '', username: '', tag: '' }; sets.push(row); }
+        row[field] = value;
+      };
+      for (const d of raw) {
+        if (!d) continue;
+        if ('account' in d || 'username' in d || 'tag' in d) {
+          const row = {
+            account: String(d.account || '').trim(),
+            username: String(d.username || '').trim(),
+            tag: String(d.tag || '').trim(),
+          };
+          if (row.account || row.username || row.tag) sets.push(row);
+          continue;
+        }
+        const label = String(d.label || '').trim();
+        const value = String(d.value || '').trim();
+        if (!label || !value) continue;
+        const l = label.toLowerCase();
+        if (l === 'account') place('account', value);
+        else if (l === 'username') place('username', value);
+        else if (l === 'tag') place('tag', value);
+        else place('tag', label + ': ' + value);
+      }
+      p.meta.details = sets;
+      dirty = true;
+    }
 
     // Backfill: businesses without category lists get defaults
     data.businesses.forEach(b => {
@@ -9426,6 +9420,15 @@
   // option. Pairs with the @media print rules in the stylesheet that
   // hide chrome and keep dark cards printing dark. No JS dependencies
   // needed (vs html2canvas which would add ~200KB).
+  // v89.126: native prints (Ctrl+P / browser menu) bypass printPage(), so
+  // these hooks apply the same fullpage styling there. printPage() still
+  // manages the class itself for the in-app button.
+  window.addEventListener('beforeprint', () => {
+    try { document.body.classList.add('printing-fullpage'); } catch (_) {}
+  });
+  window.addEventListener('afterprint', () => {
+    try { document.body.classList.remove('printing-fullpage'); } catch (_) {}
+  });
   function printPage() {
     // v89.120: owner-only — belt for any stray caller or stale DOM.
     if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can print.'); return; }
@@ -11158,9 +11161,9 @@
   // delete even their own — deletion has historical consequences
   // (entries reference partyId).
   function canDeleteParty(party) {
+    // v89.121: owner only — managers lost party delete along with edit.
     if (!party) return false;
-    const role = roleFor(party.businessId);
-    return role === 'owner' || role === 'manager';
+    return roleFor(party.businessId) === 'owner';
   }
   // v89.32.32: Who can edit a party's CONTACT meta (DOB, phones, emails,
   // socials, description)? Owner and manager ONLY. The team (staff) role
@@ -11188,33 +11191,20 @@
     return ` <span class="party-limit-emoji" title="${t}">${e}</span>`;
   }
   function partyDetailSets(meta) {
+    // v89.126: sets-only. The legacy {label,value} shape is converted by a
+    // one-time migration in loadAll(), so no runtime fold is needed. Rows
+    // from a pre-migration restore that somehow reach here are skipped —
+    // the next load migrates them.
     const raw = Array.isArray(meta?.details) ? meta.details : [];
     const sets = [];
-    const place = (field, value) => {
-      let row = sets.find(r => !r[field]);
-      if (!row) { row = { account: '', username: '', tag: '' }; sets.push(row); }
-      row[field] = value;
-    };
     for (const d of raw) {
-      if (!d) continue;
-      if ('account' in d || 'username' in d || 'tag' in d) {
-        const row = {
-          account: String(d.account || '').trim(),
-          username: String(d.username || '').trim(),
-          tag: String(d.tag || '').trim(),
-        };
-        if (row.account || row.username || row.tag) sets.push(row);
-        continue;
-      }
-      // legacy {label, value}
-      const label = String(d.label || '').trim();
-      const value = String(d.value || '').trim();
-      if (!label || !value) continue;
-      const l = label.toLowerCase();
-      if (l === 'account') place('account', value);
-      else if (l === 'username') place('username', value);
-      else if (l === 'tag') place('tag', value);
-      else place('tag', label + ': ' + value);
+      if (!d || !('account' in d || 'username' in d || 'tag' in d)) continue;
+      const row = {
+        account: String(d.account || '').trim(),
+        username: String(d.username || '').trim(),
+        tag: String(d.tag || '').trim(),
+      };
+      if (row.account || row.username || row.tag) sets.push(row);
     }
     return sets;
   }
@@ -11242,9 +11232,9 @@
       : [];
     const tags = [];
     if (hasPhone) tags.push({ label: 'SMS', title: 'Phone number saved' });
-    else if (meta.phoneNotShared) tags.push({ label: 'Not shared SMS', title: 'Party declined to share a phone number', red: true });
+    else if (meta.phoneNotShared) tags.push({ label: 'NS SMS', title: 'Not shared — party declined to share a phone number', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
-    else if (meta.emailNotShared) tags.push({ label: 'Not shared Email', title: 'Party declined to share an email', red: true });
+    else if (meta.emailNotShared) tags.push({ label: 'NS Email', title: 'Not shared — party declined to share an email', red: true });
     for (const s of socials) {
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
@@ -12971,6 +12961,7 @@
           ${annButton}
           ${printIconButton()}
           ${canExport(session.activeBizId) ? exportIconButton('entries') : ''}
+          ${roleFor(session.activeBizId) === 'owner' ? `<button class="btn btn-sm" onclick="toggleBulkMode()">${__bulkMode ? 'Done' : 'Select'}</button>` : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
         </div>
       </div>`;
@@ -13320,6 +13311,113 @@
   function setEntriesSearch() {
     _debouncedRender('entries', () => renderEntriesList());
   }
+  // ================================================================
+  // v89.122: BULK EDIT on the entries list — select many entries, then
+  // change their DATE, CATEGORY or PARTY in one action. Per-entry edit
+  // permission (canEditEntry) is enforced at apply time; rows the user
+  // can't edit are visibly locked in selection mode.
+  // ================================================================
+  let __bulkMode = false;
+  let __bulkSel = new Set();
+  let __bulkField = null;
+  let __lastShownEntryIds = [];
+  function toggleBulkMode() {
+    // v89.123: bulk edit is OWNER-ONLY.
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can bulk edit.'); return; }
+    __bulkMode = !__bulkMode;
+    if (!__bulkMode) __bulkSel.clear();
+    const root = document.getElementById('mainContent');
+    if (root) renderEntriesView(root);
+  }
+  function bulkToggleEntry(id) {
+    if (!__bulkMode) return;
+    const e = data.entries.find(x => x.id === id);
+    if (!e) return;
+    if (!canEditEntry(e)) { toast('Only the creator or owner can change this entry.'); return; }
+    if (__bulkSel.has(id)) __bulkSel.delete(id); else __bulkSel.add(id);
+    renderEntriesList();
+  }
+  function bulkSelectAllShown() {
+    for (const id of __lastShownEntryIds) {
+      const e = data.entries.find(x => x.id === id);
+      if (e && canEditEntry(e)) __bulkSel.add(id);
+    }
+    renderEntriesList();
+  }
+  function bulkClearSel() { __bulkSel.clear(); renderEntriesList(); }
+  function openBulkEdit(field) {
+    if (!__bulkSel.size) { toast('Select some entries first.'); return; }
+    __bulkField = field;
+    openModal('bulkEdit');
+  }
+  function bulkEditModal() {
+    const n = __bulkSel.size;
+    let fieldHTML = '';
+    if (__bulkField === 'date') {
+      fieldHTML = `<label class="fld"><span>New date for ${n} entries</span>
+        <input type="date" id="bulkDateInput" value="${today()}"></label>`;
+    } else if (__bulkField === 'category') {
+      const cats = (data.categories || []).filter(c => c.businessId === session.activeBizId);
+      fieldHTML = `<label class="fld"><span>New category for ${n} entries</span>
+        <input type="text" id="bulkCatInput" list="bulkCatList" placeholder="Type or pick — leave empty to clear" autocomplete="off">
+        <datalist id="bulkCatList">${cats.map(c => `<option value="${escapeHtml(c.name)}"></option>`).join('')}</datalist></label>`;
+    } else if (__bulkField === 'party') {
+      const parties = data.parties.filter(p => p.businessId === session.activeBizId)
+        .slice().sort((a, b) => a.name.localeCompare(b.name));
+      fieldHTML = `<label class="fld"><span>Party for ${n} entries</span>
+        <select id="bulkPartySelect">
+          <option value="">— No party (clear)</option>
+          ${parties.map(p => `<option value="${jsAttr(p.id)}">${escapeHtml(p.name)}</option>`).join('')}
+        </select></label>`;
+    }
+    const label = __bulkField === 'date' ? 'date' : __bulkField === 'category' ? 'category' : 'party';
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Change ${label}</h2>
+      <p class="modal-sub">Applies to the ${n} selected entr${n === 1 ? 'y' : 'ies'}. Each will be marked as edited.</p>
+      <div class="form-grid">
+        ${fieldHTML}
+        <button class="btn btn-accent" onclick="applyBulkEdit()">Apply to ${n} entr${n === 1 ? 'y' : 'ies'}</button>
+        <button class="btn" onclick="closeModal()">Cancel</button>
+      </div>`;
+  }
+  function applyBulkEdit() {
+    // v89.123: owner-only — belt for stray callers.
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can bulk edit.'); return; }
+    const field = __bulkField;
+    let value = null, partyName = '';
+    if (field === 'date') {
+      value = document.getElementById('bulkDateInput')?.value || '';
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) { toast('Pick a valid date.'); return; }
+    } else if (field === 'category') {
+      value = (document.getElementById('bulkCatInput')?.value || '').trim();
+    } else if (field === 'party') {
+      value = document.getElementById('bulkPartySelect')?.value || '';
+      if (value) {
+        const p = data.parties.find(x => x.id === value);
+        if (!p) { toast('Party not found.'); return; }
+        partyName = p.name;
+      }
+    } else { return; }
+    const u = me();
+    let changed = 0, skipped = 0;
+    for (const id of __bulkSel) {
+      const e = data.entries.find(x => x.id === id);
+      if (!e) continue;
+      if (!canEditEntry(e)) { skipped++; continue; }
+      if (field === 'date') e.date = value;
+      else if (field === 'category') e.category = value;
+      else if (field === 'party') { e.partyId = value || undefined; e.party = partyName; }
+      e.editedAt = Date.now();
+      if (u) { e.editedBy = u.id; e.editedByName = u.name; }
+      changed++;
+    }
+    saveData();
+    closeModal();
+    renderEntriesList();
+    toast(`Updated ${changed} entr${changed === 1 ? 'y' : 'ies'}${skipped ? ` · ${skipped} skipped (no permission)` : ''}.`);
+  }
+
   function renderEntriesList() {
     const list = document.getElementById('entriesList');
     if (!list) return;
@@ -13510,7 +13608,18 @@
     // each entry row did its own .find() over data.cashAccounts, which was
     // O(entries × accounts) per render.
     const accountMap = buildAccountMap();
-    list.innerHTML = shownEntries.map(e => renderEntryRow(e, isMobile, accountMap)).join('') + moreBtn;
+    __lastShownEntryIds = shownEntries.map(e => e.id);
+    const bulkBar = __bulkMode ? `
+      <div class="bulk-bar">
+        <span class="bulk-bar-count">${__bulkSel.size} selected</span>
+        <button class="btn btn-sm" onclick="bulkSelectAllShown()">Select all shown</button>
+        <button class="btn btn-sm" onclick="bulkClearSel()" ${__bulkSel.size ? '' : 'disabled'}>Clear</button>
+        <span class="bulk-bar-spacer"></span>
+        <button class="btn btn-sm btn-accent" onclick="openBulkEdit('date')" ${__bulkSel.size ? '' : 'disabled'}>Date</button>
+        <button class="btn btn-sm btn-accent" onclick="openBulkEdit('category')" ${__bulkSel.size ? '' : 'disabled'}>Category</button>
+        <button class="btn btn-sm btn-accent" onclick="openBulkEdit('party')" ${__bulkSel.size ? '' : 'disabled'}>Party</button>
+      </div>` : '';
+    list.innerHTML = bulkBar + shownEntries.map(e => renderEntryRow(e, isMobile, accountMap)).join('') + moreBtn;
     // v89.32.19: entry count shown below the All/Cash-in/Cash-out filter row
     // (in the period-label line), reflecting the active period, type filter,
     // and search. Visible on both mobile and desktop.
@@ -13852,6 +13961,11 @@
 
   function renderEntryRow(e, isMobile, accountMap) {
     const canEdit = canEditEntry(e);
+    // v89.122: bulk-selection decorations, shared by both row variants below.
+    const bulkSel = __bulkMode && __bulkSel.has(e.id);
+    const bulkCls = __bulkMode ? (canEdit ? ' bulk-mode' + (bulkSel ? ' bulk-selected' : '') : ' bulk-mode bulk-locked') : '';
+    const bulkClick = __bulkMode ? ` onclick="bulkToggleEntry('${jsAttr(e.id)}')"` : '';
+    const bulkBox = __bulkMode ? `<span class="entry-check${bulkSel ? ' on' : ''}" aria-hidden="true">${bulkSel ? '✓' : ''}</span>` : '';
     const t = canEdit ? '' : 'title="Only the creator or owner can change this"';
     const partyLabel = e.type === 'in' ? 'From' : 'To';
     // Defensive: every interpolated dynamic value passes through escapeHtml
@@ -13909,7 +14023,7 @@
           ? `<span class="entry-cat entry-acct-chip" style="opacity:0.7;" title="This account was deleted">${escapeHtml(e.account)} <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-mute);">(deleted)</span></span>`
           : '');
     if (isMobile) {
-      return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
+      return `<div class="entry-row entry-${e.type}${statusCls}${bulkCls}" data-entry-id="${jsAttr(e.id)}"${bulkClick}>${bulkBox}
         <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile}</div>
         <div class="entry-desc">
           ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -13933,7 +14047,7 @@
         </div>
       </div>`;
     }
-    return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
+    return `<div class="entry-row entry-${e.type}${statusCls}${bulkCls}" data-entry-id="${jsAttr(e.id)}"${bulkClick}>${bulkBox}
       <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
@@ -18217,6 +18331,261 @@
     try { renderMain(); } catch (_) {}
   }
 
+
+  // ================================================================
+  // v89.124: AUDIT / FORECAST / INSIGHTS intelligence pack.
+  // All computation lives in these pure builders so they can be
+  // tested headlessly; the three views only inject their output.
+  // ================================================================
+  function auditAnomalies(rangeEntries, partiesById) {
+    const DAY = 86400000;
+    const lateEdits = [], backdated = [], orphans = [], oddHours = [];
+    const dupeMap = new Map();
+    for (const e of rangeEntries) {
+      const amt = Number(e.amount) || 0;
+      if (e.editedAt && e.createdAt && (e.editedAt - e.createdAt) > 7 * DAY) lateEdits.push(e);
+      if (e.createdAt && e.date) {
+        const cd = new Date(e.createdAt);
+        const createdDate = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+        if (e.date < createdDate && (new Date(createdDate) - new Date(e.date)) > DAY) backdated.push(e);
+        const h = cd.getHours();
+        if (h >= 23 || h < 5) oddHours.push(e);
+      }
+      if (e.partyId && !partiesById.has(e.partyId)) orphans.push(e);
+      if (amt > 0) {
+        const k = `${e.date}|${e.type}|${amt}|${e.partyId || ''}`;
+        if (!dupeMap.has(k)) dupeMap.set(k, []);
+        dupeMap.get(k).push(e);
+      }
+    }
+    const dupes = [];
+    for (const arr of dupeMap.values()) if (arr.length > 1) dupes.push(...arr);
+    return { lateEdits, backdated, orphans, dupes, oddHours,
+      total: lateEdits.length + backdated.length + orphans.length + dupes.length + oddHours.length };
+  }
+  function auditAnomaliesCardHTML(a, cur) {
+    const sec = (label, arr, why) => {
+      if (!arr.length) return '';
+      const rows = arr.slice(0, 6).map(e =>
+        `<div class="anom-row"><span class="anom-date">${escapeHtml(e.date || '')}</span>
+          <span class="anom-amt">${cur} ${fmt(Number(e.amount) || 0)}</span>
+          <span class="anom-by">${escapeHtml(e.byName || e.createdByName || '')}</span>
+          <span class="anom-note">${escapeHtml((e.note || e.party || '').slice(0, 24))}</span></div>`).join('');
+      const more = arr.length > 6 ? `<div class="anom-more">+${arr.length - 6} more</div>` : '';
+      return `<div class="anom-sec"><div class="anom-sec-head">${label} · ${arr.length}<span class="anom-why">${why}</span></div>${rows}${more}</div>`;
+    };
+    const body = a.total === 0
+      ? `<div class="anom-clear">✓ No anomalies in this period.</div>`
+      : sec('Late edits', a.lateEdits, 'edited 7+ days after creation')
+        + sec('Back-dated', a.backdated, 'dated before the day they were typed')
+        + sec('Possible duplicates', a.dupes, 'same day · type · amount · party')
+        + sec('Deleted-party refs', a.orphans, 'entry points at a removed party')
+        + sec('Odd hours', a.oddHours, 'created 11pm–5am');
+    return `<div class="card anom-card"><h3 class="anom-title">Needs review ${a.total ? `<span class="anom-count">${a.total}</span>` : ''}</h3>${body}</div>`;
+  }
+  function auditMemberTotals(rangeEntries) {
+    const by = new Map();
+    const row = (name) => {
+      if (!by.has(name)) by.set(name, { name, added: 0, edited: 0, inSum: 0, outSum: 0 });
+      return by.get(name);
+    };
+    for (const e of rangeEntries) {
+      const creator = e.byName || e.createdByName || 'Unknown';
+      const r = row(creator);
+      r.added++;
+      const amt = Number(e.amount) || 0;
+      if (e.type === 'in') r.inSum += amt; else r.outSum += amt;
+      if (e.editedByName) row(e.editedByName).edited++;
+    }
+    return [...by.values()].sort((a, b) => (b.inSum + b.outSum) - (a.inSum + a.outSum));
+  }
+  function auditMemberTotalsCardHTML(rows, cur) {
+    if (!rows.length) return '';
+    const body = rows.map(r => `
+      <div class="memtot-row">
+        <span class="memtot-name">${escapeHtml(r.name)}</span>
+        <span class="memtot-stat">${r.added} added${r.edited ? ` · ${r.edited} edited` : ''}</span>
+        <span class="memtot-in">+${cur} ${fmt(r.inSum)}</span>
+        <span class="memtot-out">−${cur} ${fmt(r.outSum)}</span>
+      </div>`).join('');
+    return `<div class="card memtot-card"><h3 class="anom-title">Member activity · this period</h3>${body}</div>`;
+  }
+  function _expenseBudgetFor(name) {
+    const biz = session.activeBizId;
+    const r = (data.expenseRates || []).find(x => x.businessId === biz && x.name && name
+      && x.name.trim().toLowerCase() === String(name).trim().toLowerCase());
+    const b = r ? Number(r.budget) : NaN;
+    return Number.isFinite(b) && b > 0 ? b : null;
+  }
+  async function setExpenseBudget(name) {
+    if (!canManageExpenses(session.activeBizId)) { toast('Not allowed.'); return; }
+    const curB = _expenseBudgetFor(name);
+    const v = await uiPrompt(`Monthly budget for "${name}" (empty to clear):`, { value: curB != null ? String(curB) : '' });
+    if (v === null) return;
+    const n = Number(String(v).trim());
+    if (!data.expenseRates) data.expenseRates = [];
+    let r = data.expenseRates.find(x => x.businessId === session.activeBizId && x.name
+      && x.name.trim().toLowerCase() === String(name).trim().toLowerCase());
+    if (String(v).trim() === '' || !Number.isFinite(n) || n <= 0) {
+      if (r) delete r.budget;
+      toast('Budget cleared.');
+    } else {
+      if (!r) {
+        r = { id: (crypto.randomUUID ? crypto.randomUUID() : 'b' + Date.now() + Math.random()), businessId: session.activeBizId, name: String(name) };
+        data.expenseRates.push(r);
+      }
+      r.budget = n;
+      toast(`Budget set: ${fmt(n)}/month.`);
+    }
+    saveData();
+    renderAll();
+  }
+  function expenseBudgetLineHTML(name, monthTotal, canEdit, cur) {
+    const budget = _expenseBudgetFor(name);
+    const editBtn = canEdit
+      ? `<button class="exp-budget-btn" onclick="event.stopPropagation();setExpenseBudget('${jsAttr(name)}')" title="Set monthly budget">${budget != null ? '✎' : '+ budget'}</button>`
+      : '';
+    if (budget == null) return editBtn ? `<span class="audit-exp-qty">${editBtn}</span>` : '';
+    const pct = Math.min(999, Math.round((monthTotal / budget) * 100));
+    const over = monthTotal > budget;
+    return `<span class="exp-budget-wrap${over ? ' over' : ''}">
+      <span class="exp-budget-track"><span class="exp-budget-fill" style="width:${Math.min(100, pct)}%"></span></span>
+      <span class="exp-budget-label">${pct}% of ${cur} ${fmt(budget)}${over ? ' · OVER' : ''}</span>${editBtn}</span>`;
+  }
+  function weekdayProjection(entries, bookIdsSet, monthKeyStr, todayStr, daysInMonth, mtdIn, mtdOut, daysElapsed) {
+    const start = new Date(new Date(todayStr) - 56 * 86400000);
+    const startStr = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')}`;
+    const perDay = new Map();
+    for (const e of entries) {
+      if (!bookIdsSet.has(e.bookId)) continue;
+      if (!e.date || e.date < startStr || e.date > todayStr) continue;
+      let b = perDay.get(e.date);
+      if (!b) { b = { in: 0, out: 0 }; perDay.set(e.date, b); }
+      const amt = Number(e.amount) || 0;
+      if (e.type === 'in') b.in += amt; else b.out += amt;
+    }
+    if (perDay.size < 14) {
+      const safe = Math.max(1, daysElapsed);
+      return { projIn: (mtdIn / safe) * daysInMonth, projOut: (mtdOut / safe) * daysInMonth, method: 'linear' };
+    }
+    const wdIn = [0,0,0,0,0,0,0], wdOut = [0,0,0,0,0,0,0], wdN = [0,0,0,0,0,0,0];
+    for (let d = new Date(startStr); ; d = new Date(d.getTime() + 86400000)) {
+      const ds = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (ds > todayStr) break;
+      const w = d.getDay();
+      wdN[w]++;
+      const b = perDay.get(ds);
+      if (b) { wdIn[w] += b.in; wdOut[w] += b.out; }
+    }
+    let projIn = mtdIn, projOut = mtdOut;
+    const todayDay = Number(todayStr.slice(8, 10));
+    const y = Number(monthKeyStr.slice(0, 4)), m = Number(monthKeyStr.slice(5, 7));
+    for (let dd = todayDay + 1; dd <= daysInMonth; dd++) {
+      const w = new Date(y, m - 1, dd).getDay();
+      projIn += wdN[w] ? wdIn[w] / wdN[w] : 0;
+      projOut += wdN[w] ? wdOut[w] / wdN[w] : 0;
+    }
+    return { projIn, projOut, method: 'weekday' };
+  }
+  function forecastCategoryRows(entries, bookIdsSet, monthKeyStr, todayStr, daysInMonth, daysElapsed) {
+    const byCat = new Map();
+    for (const e of entries) {
+      if (!bookIdsSet.has(e.bookId)) continue;
+      if (!e.date || e.date.slice(0, 7) !== monthKeyStr || e.date > todayStr) continue;
+      const k = (e.category && e.category.trim()) || '— Uncategorised';
+      let b = byCat.get(k);
+      if (!b) { b = { k, in: 0, out: 0 }; byCat.set(k, b); }
+      const amt = Number(e.amount) || 0;
+      if (e.type === 'in') b.in += amt; else b.out += amt;
+    }
+    const safe = Math.max(1, daysElapsed);
+    return [...byCat.values()]
+      .sort((a, b) => (b.in + b.out) - (a.in + a.out)).slice(0, 5)
+      .map(c => ({ k: c.k, net: c.in - c.out, projNet: ((c.in - c.out) / safe) * daysInMonth }));
+  }
+  function forecastHistoryStoreAndRead(bizId, monthKeyStr, lastMonthKey, projIn, projOut, projExpenses, lastIn, lastOut, lastExpenses) {
+    const KEY = `hisabs:fcHist:${bizId}`;
+    let hist = {};
+    try { hist = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (_) {}
+    hist[monthKeyStr] = { projIn, projOut, projExpenses, at: Date.now() };
+    try { localStorage.setItem(KEY, JSON.stringify(hist)); } catch (_) {}
+    const prev = hist[lastMonthKey];
+    if (!prev) return null;
+    const projProfit = prev.projIn - prev.projOut - (prev.projExpenses || 0);
+    const actualProfit = lastIn - lastOut - (lastExpenses || 0);
+    return { projProfit, actualProfit, diff: actualProfit - projProfit };
+  }
+  function insightsMoMDeltas(entries, bookIds, monthKeyStr, lastMonthKey) {
+    const cat = new Map();
+    for (const e of entries) {
+      if (!bookIds.has(e.bookId) || !e.date) continue;
+      const mo = e.date.slice(0, 7);
+      if (mo !== monthKeyStr && mo !== lastMonthKey) continue;
+      const k = (e.category && e.category.trim()) || '— Uncategorised';
+      let c = cat.get(k);
+      if (!c) { c = { k, thisN: 0, lastN: 0, parties: new Map() }; cat.set(k, c); }
+      const net = (e.type === 'in' ? 1 : -1) * (Number(e.amount) || 0);
+      const pn = e.party || '—';
+      let p = c.parties.get(pn);
+      if (!p) { p = { thisN: 0, lastN: 0 }; c.parties.set(pn, p); }
+      if (mo === monthKeyStr) { c.thisN += net; p.thisN += net; }
+      else { c.lastN += net; p.lastN += net; }
+    }
+    return [...cat.values()]
+      .map(c => ({ k: c.k, thisN: c.thisN, lastN: c.lastN, delta: c.thisN - c.lastN,
+        drivers: [...c.parties.entries()]
+          .map(([name, p]) => ({ name, d: p.thisN - p.lastN }))
+          .filter(d => Math.abs(d.d) > 0.004)
+          .sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 2) }))
+      .filter(c => Math.abs(c.delta) > 0.004)
+      .sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta)).slice(0, 5);
+  }
+  function insightsDormant(entries, bookIds, todayStr) {
+    const t = new Date(todayStr).getTime();
+    const d30 = new Date(t - 30 * 86400000), d120 = new Date(t - 120 * 86400000);
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const s30 = iso(d30), s120 = iso(d120);
+    const seen = (map, k, when) => {
+      let b = map.get(k);
+      if (!b) { b = { old: false, recent: false }; map.set(k, b); }
+      if (when >= s120 && when < s30) b.old = true;
+      if (when >= s30) b.recent = true;
+    };
+    const cats = new Map(), parties = new Map();
+    for (const e of entries) {
+      if (!bookIds.has(e.bookId) || !e.date || e.date < s120 || e.date > todayStr) continue;
+      if (e.category && e.category.trim()) seen(cats, e.category.trim(), e.date);
+      if (e.party) seen(parties, e.party, e.date);
+    }
+    const dormantOf = (m) => [...m.entries()].filter(([, v]) => v.old && !v.recent).map(([k]) => k).slice(0, 10);
+    return { categories: dormantOf(cats), parties: dormantOf(parties) };
+  }
+  function insightsExtrasHTML(biz, cur) {
+    const bookIds = new Set(data.books.filter(b => b.businessId === biz.id).map(b => b.id));
+    const now = new Date();
+    const monthKeyStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthKey = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
+    const deltas = insightsMoMDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
+    const dorm = insightsDormant(data.entries, bookIds, today());
+    const sign = (n) => `${n >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(n))}`;
+    const deltaRows = deltas.map(c => `
+      <div class="mom-row">
+        <div class="mom-head"><span class="mom-cat">${escapeHtml(c.k)}</span>
+          <span class="mom-delta ${c.delta >= 0 ? 'up' : 'down'}">${sign(c.delta)} vs last month</span></div>
+        ${c.drivers.length ? `<div class="mom-drivers">driven by ${c.drivers.map(d => `${escapeHtml(d.name)} ${sign(d.d)}`).join(' · ')}</div>` : ''}
+      </div>`).join('');
+    const momCard = `<div class="card mom-card"><h3 class="anom-title">What changed · ${escapeHtml(monthKeyStr)} vs ${escapeHtml(lastMonthKey)}</h3>
+      ${deltaRows || '<div class="anom-clear">No meaningful category movement yet this month.</div>'}</div>`;
+    const dormList = (label, arr) => arr.length
+      ? `<div class="dorm-sec"><span class="dorm-label">${label}:</span> ${arr.map(escapeHtml).join(', ')}</div>` : '';
+    const dormCard = (dorm.categories.length || dorm.parties.length)
+      ? `<div class="card dorm-card"><h3 class="anom-title">Gone quiet <span class="anom-why">active 30–120 days ago · silent last 30</span></h3>
+          ${dormList('Categories', dorm.categories)}${dormList('Parties', dorm.parties)}</div>`
+      : '';
+    return momCard + dormCard;
+  }
+
   function renderAuditView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) {
@@ -18517,6 +18886,11 @@
     // Net profit summary stays here on Audit; the split scratchpad
     // now lives on Distribution alongside the salary + share rows.
 
+    // v89.124: anomaly + member-activity intelligence cards.
+    const __partiesById = new Map(data.parties.filter(p => p.businessId === biz.id).map(p => [p.id, p]));
+    const __anomCard = auditAnomaliesCardHTML(auditAnomalies(rangeEntries, __partiesById), cur);
+    const __memCard = auditMemberTotalsCardHTML(auditMemberTotals(rangeEntries), cur);
+
     root.innerHTML = `
       <div class="page-header">
         <div class="page-title-wrap">
@@ -18532,6 +18906,8 @@
           ${canExport(biz.id) ? exportIconButton('audit') : ''}
         </div>
       </div>
+      ${__anomCard}
+      ${__memCard}
 
       ${renderAuditRangeBar()}
 
@@ -18984,12 +19360,28 @@
     const avgInPerDay = mtdIn / safeDays;
     const avgOutPerDay = mtdOut / safeDays;
     const avgExpPerDay = mtdExpenses / safeDays;
-    const projIn = avgInPerDay * daysInMonth;
-    const projOut = avgOutPerDay * daysInMonth;
+    // v89.124: weekday-aware projection — Saturdays don't sell like
+    // Tuesdays. MTD actual + per-weekday averages (last 56 days) for the
+    // remaining days. Falls back to linear with <14 days of history.
+    const __wp = weekdayProjection(data.entries, bookIdsSet, monthKeyStr, todayStr, daysInMonth, mtdIn, mtdOut, daysElapsed);
+    const projIn = __wp.projIn;
+    const projOut = __wp.projOut;
     const projExpenses = avgExpPerDay * daysInMonth;
     const projCashProfit = projIn - projOut;
     // Respect biz.vatOrder so Forecast matches Audit numbers (v89.96 fix).
     const taxRate = Math.max(0, Math.min(100, Number(biz.taxRate) || 0));
+    // v89.124: per-category projections + projection-vs-actual history.
+    const __fcCats = forecastCategoryRows(data.entries, bookIdsSet, monthKeyStr, todayStr, daysInMonth, daysElapsed);
+    const __fcHist = forecastHistoryStoreAndRead(biz.id, monthKeyStr, lastMonthKey, projIn, projOut, projExpenses, lastIn, lastOut, lastExpenses);
+    const __fcCatCard = __fcCats.length ? `<div class="card fc-cat-card"><h3 class="anom-title">Where it's heading · top categories</h3>
+      ${__fcCats.map(c => `<div class="fc-cat-row"><span class="fc-cat-name">${escapeHtml(c.k)}</span>
+        <span class="fc-cat-now">${cur} ${fmt(c.net)} so far</span>
+        <span class="fc-cat-proj">→ ~${cur} ${fmt(c.projNet)}</span></div>`).join('')}</div>` : '';
+    const __fcHistCard = __fcHist ? `<div class="card fc-hist-card"><h3 class="anom-title">Last month: forecast vs actual</h3>
+      <div class="fc-hist-row"><span>Projected profit</span><span>${cur} ${fmt(__fcHist.projProfit)}</span></div>
+      <div class="fc-hist-row"><span>Actual</span><span>${cur} ${fmt(__fcHist.actualProfit)}</span></div>
+      <div class="fc-hist-row fc-hist-diff"><span>Off by</span><span>${__fcHist.diff >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(__fcHist.diff))}</span></div></div>` : '';
+    const __fcMethodNote = __wp.method === 'weekday' ? 'Weekday-aware: remaining days use per-weekday averages from the last 8 weeks.' : 'Linear pace (needs 14+ days of history for weekday mode).';
     const vatOrder = biz.vatOrder || 'before_expenses';
     // projOperatingProfit and projTax are always defined for the breakdown table.
     const projOperatingProfit = projCashProfit - projExpenses;
@@ -19315,7 +19707,7 @@
     // === Method note ===
     const methodNote = `
       <div class="forecast-method">
-        <h3 class="forecast-method-title">How this forecast works</h3>
+        ${__fcCatCard}${__fcHistCard}<h3 class="forecast-method-title">How this forecast works</h3><p class="fc-method-note">${__fcMethodNote}</p>
         <p>We take what's happened so far this month, compute a per-day average, then project that average across the remaining days of ${escapeHtml(monthName)}. This is a <strong>linear extrapolation</strong> — it assumes the rest of the month behaves like the days you've already had. It's most accurate after the first week or so; early-month projections can swing based on a single big day.</p>
         <p>The "vs last month" tag compares this projection against ${escapeHtml(lastMonthKey)}'s actual total. If you didn't have entries in ${escapeHtml(lastMonthKey)}, no comparison is shown.</p>
       </div>
@@ -21070,6 +21462,7 @@
           }).join('')}
         </div>
       </div>`;
+    const __insCards = insightsExtrasHTML(biz, cur);
     root.innerHTML = `
       <div class="page-header">
         <div class="page-title-wrap">
@@ -21097,7 +21490,7 @@
       ${heatmapHTML}
       ${wowHTML}
       ${allRankingHTML}
-    `;
+    ${__insCards}`;
   }
 
   // ================================================================
@@ -21818,6 +22211,8 @@
         if (_r != null) rateLine = `<span class="audit-exp-qty">rate ${fmt(_r)}%</span>`;
       } catch (_) {}
       const latestDateLabel = g.latestDate ? `<span class="audit-exp-date">latest ${escapeHtml(g.latestDate)}</span>` : '';
+      // v89.124: optional monthly budget with progress bar.
+      const budgetLine = expenseBudgetLineHTML(g.name, g.total, canEditExpenses, cur);
       const safeKey = jsAttr(g.key);
       const safeName = jsAttr(g.name);
       return `<div class="audit-exp-group" role="button" tabindex="0" onclick="openExpenseHistory('${safeKey}','${safeName}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openExpenseHistory('${safeKey}','${safeName}');}" title="View all additions for ${escapeHtml(g.name)}">
@@ -21828,6 +22223,7 @@
             ${qtyLine}
             ${rateLine}
             ${latestDateLabel}
+            ${budgetLine}
           </div>
         </div>
         <div class="audit-exp-group-total">${cur} ${fmt(g.total)}</div>
@@ -22960,6 +23356,7 @@
     else if (kind === 'expenseRateView') { modal.innerHTML = expenseRateViewModal(); }
     else if (kind === 'distHistory') { modal.innerHTML = distHistoryModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
+    else if (kind === 'bulkEdit') { modal.innerHTML = bulkEditModal(); }
     else if (kind === 'settings') {
       modal.innerHTML = settingsModal();
       // Wire biz drag reorder for the profile tab (default tab).
@@ -30906,6 +31303,7 @@
     }
   }
   function exportAllData() {
+    try { localStorage.setItem('hisabs:lastBackupAt', String(Date.now())); } catch (_) {}
     const payload = { kind: 'hisabs.full', version: 1, exportedAt: new Date().toISOString(), user: safeUser(), data };
     downloadJson(payload, `hisabs_backup_all_${today()}.json`);
     // Track this so we can stop nagging — and start nagging again after
@@ -31630,6 +32028,7 @@
     };
   }
   function exportBusinessFull(bizId) {
+    try { localStorage.setItem('hisabs:lastBackupAt', String(Date.now())); } catch (_) {}
     const snap = buildBusinessSnapshot(bizId, true);
     if (!snap) { toast('Business not found.'); return; }
     const slug = (snap.business.name || 'business').replace(/[^a-zA-Z0-9]+/g, '_');
@@ -32948,10 +33347,50 @@
   // screen's period so what you download is what you're looking at; when
   // the screen filter is already All time, All time is preselected.
   let __exportScope = 'period';
+  // v89.125: delivery mode — 'download' (classic) or 'share' (Web Share
+  // Level 2 with files, i.e. straight to WhatsApp/Gmail on Android).
+  let __exportDelivery = 'download';
+  function canShareFiles() {
+    try {
+      if (!navigator.share || !navigator.canShare) return false;
+      const probe = new File([''], 'probe.pdf', { type: 'application/pdf' });
+      return navigator.canShare({ files: [probe] });
+    } catch (_) { return false; }
+  }
+  // Single delivery point for every export: share sheet when chosen and
+  // supported, classic anchor download otherwise. Share cancel (AbortError)
+  // is respected — no surprise download after the user dismisses the sheet.
+  async function deliverExportFile(blob, filename, mime) {
+    if (__exportDelivery === 'share' && canShareFiles()) {
+      try {
+        const f = new File([blob], filename, { type: mime });
+        if (navigator.canShare({ files: [f] })) {
+          await navigator.share({ files: [f], title: filename });
+          toast('Shared.');
+          return 'shared';
+        }
+      } catch (err) {
+        if (err && err.name === 'AbortError') { return 'cancelled'; }
+        // fall through to download on any real failure
+      }
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
+    toast(filename.endsWith('.csv') ? 'CSV downloaded.' : 'PDF downloaded.');
+    return 'downloaded';
+  }
   function openExportChooser(target) {
     __exportTarget = target;
     __exportScope = (session.period && session.period.mode === 'all') ? 'all' : 'period';
+    __exportDelivery = 'download';
     openModal('exportChooser');
+  }
+  function runExportShared(format) {
+    __exportDelivery = 'share';
+    runExport(format);
   }
   function setExportScope(s) {
     __exportScope = s === 'all' ? 'all' : 'period';
@@ -33046,6 +33485,15 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>
           Download as Excel / CSV
         </button>
+        ${canShareFiles() ? `
+        <button class="btn btn-ghost" onclick="runExportShared('pdf')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share as PDF
+        </button>
+        <button class="btn btn-ghost" onclick="runExportShared('csv')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:0.4rem;vertical-align:-3px;"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          Share as Excel / CSV
+        </button>` : ''}
         <button class="btn" onclick="closeModal()">Cancel</button>
       </div>`;
   }
@@ -33132,7 +33580,7 @@
       footStyles: { fillColor: [237, 231, 216], textColor: 26, fontStyle: 'bold' },
     });
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
-    doc.save(`${bookPart}_all.pdf`);
+    await deliverExportFile(doc.output('blob'), `${bookPart}_all.pdf`, 'application/pdf');
     __exportInFlight = false;
     toast('PDF downloaded.');
   }
@@ -33205,18 +33653,9 @@
     const csv = [...headerLines, ...bodyLines].join('\n');
     // BOM so Excel opens UTF-8 correctly (currency symbols, names with diacritics).
     const blob = new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const bookPart = book.name.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') || 'book';
-    a.download = `${bookPart}_all.csv`;
-    document.body.appendChild(a);
-    a.click();
-    // Q2: revoke after the click has had time to register the download. Revoking
-    // synchronously raced the download in some browsers and produced a broken file.
-    setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
+    deliverExportFile(blob, `${bookPart}_all.csv`, 'text/csv;charset=utf-8');
     __exportInFlight = false;
-    toast('CSV downloaded.');
   }
 
   // ================================================================
@@ -33362,8 +33801,7 @@
       }
     } catch (_) {}
     const filename = (opts.filename || 'export').replace(/[^a-zA-Z0-9_-]+/g, '_');
-    doc.save(`${filename}.pdf`);
-    toast('PDF downloaded.');
+    await deliverExportFile(doc.output('blob'), `${filename}.pdf`, 'application/pdf');
   }
 
   function exportTableCSV(opts) {
@@ -33402,14 +33840,8 @@
     }
     // BOM so Excel recognises UTF-8 without prompting.
     const blob = new Blob(['\ufeff' + lines.join('\n')], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
     const filename = (opts.filename || 'export').replace(/[^a-zA-Z0-9_-]+/g, '_');
-    a.download = `${filename}.csv`;
-    document.body.appendChild(a); a.click();
-    setTimeout(() => { try { document.body.removeChild(a); } catch (_) {} URL.revokeObjectURL(url); }, 1000);
-    toast('CSV downloaded.');
+    deliverExportFile(blob, `${filename}.csv`, 'text/csv;charset=utf-8');
   }
 
   // Helpers that build & call exports for each dashboard view.
@@ -33762,7 +34194,7 @@
         doc.text('No entries in this period.', 14, afterSummaryY + 8);
       }
       const fnameLabel = String(periodLabel).replace(/[^a-zA-Z0-9_-]+/g, '_');
-      doc.save(`statement_${String(biz.name).replace(/[^a-zA-Z0-9_-]+/g, '_')}_${fnameLabel}.pdf`);
+      await deliverExportFile(doc.output('blob'), `statement_${String(biz.name).replace(/[^a-zA-Z0-9_-]+/g, '_')}_${fnameLabel}.pdf`, 'application/pdf');
       toast('Statement downloaded.');
     } else {
       // CSV: summary block then entries — order follows vatOrder.
@@ -34198,8 +34630,7 @@
     }
 
     const filename = (`snapshot_${biz.name}`).replace(/[^a-zA-Z0-9_-]+/g, '_');
-    doc.save(`${filename}.pdf`);
-    toast('PDF downloaded.');
+    await deliverExportFile(doc.output('blob'), `${filename}.pdf`, 'application/pdf');
   }
 
   // Individual party / category / account exports
@@ -34388,8 +34819,7 @@
           doc.text(`Page ${i} of ${pages}`, W - 14, H - 7, { align: 'right' });
         }
       } catch (_) {}
-      doc.save(`${String(filename).replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`);
-      toast('PDF downloaded.');
+      await deliverExportFile(doc.output('blob'), `${String(filename).replace(/[^a-zA-Z0-9_-]+/g, '_')}.pdf`, 'application/pdf');
     } else {
       exportTableCSV({
         title, subtitle: `${biz.name} · ${biz.currency} · ${periodLabel} · Generated ${today()}`,
@@ -37837,6 +38267,18 @@
       // over the local entry → user thinks their data was saved but it's
       // silently gone on the next refresh.
       //
+      // v89.121 FIX: the diff that turns local edits into queue ops is
+      // DEBOUNCED — so a record added moments ago may have NO op yet when
+      // this merge runs. The pending maps below would then miss it, the
+      // merge would wipe it from screen ("it shows, disappears, appears
+      // again"), and in the worst interleaving (snapshot reset before the
+      // debounce fires) the op would never be queued at all — silent data
+      // loss. Flush the diff SYNCHRONOUSLY first so every local change is
+      // in the queue before we decide what the cloud may overwrite.
+      try {
+        if (__diffTimer) { clearTimeout(__diffTimer); __diffTimer = null; }
+        runSyncDiff();
+      } catch (_) {}
       // For each table, collect the IDs of records that have an unfinished
       // upsert in the queue (they haven't been confirmed in the cloud yet).
       // After pulling cloud rows, merge in the local version of any such

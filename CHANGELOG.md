@@ -2465,3 +2465,13 @@ To verify the bundle hash matches what was deployed:
 md5sum index.html
 ```
 Compare to the hash in this changelog.
+
+## 1.12 builds .166–.189 (catch-up)
+- .166–.178: party details sets (account/username/tag), NS/SMS/Email badges for all roles, limit emoji 👾/🚀, keyboard-flicker fix on search, exports carry party details.
+- .179–.180: party details owner-only; role-change snap-back race fixed (pending local writes survive pulls).
+- .181–.182: PDF beautification (zebra, brand rule, page footers), exports carry full section details + summaries; period-scoped exports; party statement with opening balance.
+- .183–.184: print/export owner-only; manager party permissions = Team level; party delete owner-only; NS badge labels.
+- .185: create-flicker fixed — pull now flushes the sync diff before merging (closed a silent data-loss race).
+- .186–.187: bulk edit on entries (date/category/party, owner-only) + backup nudge.
+- .188: Audit anomaly detection + member totals + expense budgets; weekday-aware forecast + category projections + forecast-vs-actual; Insights MoM attribution + dormant signals.
+- .189: share sheet for all exports (Web Share) — send statements straight to WhatsApp/Gmail on Android.
