@@ -2475,3 +2475,13 @@ Compare to the hash in this changelog.
 - .186–.187: bulk edit on entries (date/category/party, owner-only) + backup nudge.
 - .188: Audit anomaly detection + member totals + expense budgets; weekday-aware forecast + category projections + forecast-vs-actual; Insights MoM attribution + dormant signals.
 - .189: share sheet for all exports (Web Share) — send statements straight to WhatsApp/Gmail on Android.
+
+## 1.12 builds .190–.197
+- .190: removal pass — legacy white-report print CSS deleted (~12k chars); beforeprint/afterprint hooks give native Ctrl+P the app-look fullpage styling; one-time migration folds legacy {label,value} party details into the sets shape; normalizer simplified.
+- .191: "Possible duplicates" detector removed from Audit's Needs-review (legitimate repeats are normal business).
+- .192: Member activity card shows per-member profit (= net, green/red); Insights "What changed" gains a By-party section with category drivers.
+- .193: Party detail "By account" rows are clickable filters (toggle to clear, Clear-filter button); stacks with the category filter.
+- .194: fixed stale party-detail filters leaking across parties — account filter now resets on leave/open-different-party, and the chip-menu open path (which never reset even the category filter) gets the same hygiene.
+- .195: party contact details owner-only to VIEW — managers, staff and viewers see no phones/emails/DOB/socials/usernames/notes anywhere (full card, quick-look, tooltips); compact list badges stay for all.
+- .196: team period filter restricted to This Month / Today / Yesterday — All Time and Custom are owner-only (tabs hidden, central setPeriod guard, stale-session coercion).
+- .197: changelog + final verification build.

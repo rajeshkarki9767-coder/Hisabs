@@ -7703,7 +7703,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.194';
+  const BUILD_TAG = '2026.07.11.197';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11088,8 +11088,12 @@
   // private to owner/manager/viewer. The team (data-entry) role can record
   // entries against parties but must not see their personal contact info.
   function canSeePartyContact(businessId) {
-    const r = roleFor(businessId || (session && session.activeBizId));
-    return r === 'owner' || r === 'manager' || r === 'viewer';
+    // v89.130: OWNER ONLY. No team member — manager, staff or viewer —
+    // can view party contact details (phones, emails, DOB, socials,
+    // account usernames/tags, notes). The compact badges on list cards
+    // (SMS/Email/NS/account-name boxes) stay visible to all by explicit
+    // owner decision; this gates the full contact card and rich tooltips.
+    return roleFor(businessId || (session && session.activeBizId)) === 'owner';
   }
   // OWNER or MANAGER: operational management (books, categories, accounts, party crud)
   function canManageOps(businessId) {
@@ -12654,6 +12658,13 @@
   // Inner renderer used by renderAll (which already wraps in
   // _preserveScrollAround for the whole batch).
   function _renderMainInner() {
+    // v89.131: a saved session or a role change can leave a non-owner on a
+    // period they're no longer allowed (All Time / Custom). Coerce to This
+    // Month before painting so the restriction can't be dodged by persistence.
+    if (session.activeBizId && !periodAllowedForRole(session.period)) {
+      session.period = { mode: 'current' };
+      saveSession();
+    }
     // Reset the per-render card-menu registry so it can't grow without bound.
     // Each card on the just-rendered view will register fresh ids.
     __cardMenuRegistry = new Map();
@@ -13084,8 +13095,9 @@
       <button class="period-tab ${isCurrent ? 'active' : ''}" onclick="setPeriod({mode:'current'})">This Month</button>
       <button class="period-tab ${isToday ? 'active' : ''}" onclick="setPeriodToday()">Today</button>
       <button class="period-tab ${isYesterday ? 'active' : ''}" onclick="setPeriodYesterday()">Yesterday</button>
+      ${roleFor(session.activeBizId) === 'owner' ? `
       <button class="period-tab ${isAll ? 'active' : ''}" onclick="setPeriod({mode:'all'})">All Time</button>
-      <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom ${isCustom ? '·' : '…'}</button>
+      <button class="period-tab ${isCustom ? 'active' : ''}" onclick="openModal('period')">Custom ${isCustom ? '·' : '…'}</button>` : ''}
       <span class="period-current">${escapeHtml(currentPeriodLabel())}</span>
     </div>`;
   }
@@ -22759,7 +22771,16 @@
     __renderResetScroll = true;
     renderAll();
   }
+  // v89.131: non-owners may only use This Month, Today and Yesterday.
+  // All Time, Custom ranges and arbitrary months are owner-only.
+  function periodAllowedForRole(p) {
+    if (roleFor(session.activeBizId) === 'owner') return true;
+    if (!p || p.mode === 'current') return true;
+    if (p.mode === 'range' && p.from === p.to && (p.from === today() || p.from === yesterday())) return true;
+    return false;
+  }
   function setPeriod(p) {
+    if (!periodAllowedForRole(p)) { toast('Only the owner can use that period filter.'); return; }
     session.period = p; saveSession();
     renderMain();
   }
