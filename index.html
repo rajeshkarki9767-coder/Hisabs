@@ -6640,6 +6640,7 @@
   .role-badge.viewer { background: var(--ink-mute); color: #ffffff; }
   .role-badge.staff { background: var(--accent); color: #ffffff; }
   .role-badge.manager { background: var(--gain); color: #ffffff; }
+  .role-badge.supermanager { background: #7c3aed; color: #ffffff; }
   .role-badge.pending { background: var(--paper-deep); color: var(--ink-mute); border: 1px dashed var(--line); }
   .role-badge.declined { background: var(--loss); color: #ffffff; }
   /* v89.31.5: per-member controls in Team & Access — role editor +
@@ -7703,7 +7704,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.197';
+  const BUILD_TAG = '2026.07.11.200';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9653,6 +9654,10 @@
     if (input?.limit === 'limited' || input?.limit === 'unlimited') meta.limit = input.limit;
     const desc = String(input?.description || '').trim().slice(0, LIMITS.description);
     if (desc) meta.description = desc;
+    // v89.132: referrals — free text listing who referred this party and
+    // who this party has referred (person names).
+    const refs = String(input?.referrals || '').trim().slice(0, LIMITS.description);
+    if (refs) meta.referrals = refs;
     return Object.keys(meta).length ? meta : null;
   }
   // Return the diff between two meta objects as a list of human-readable
@@ -9685,6 +9690,9 @@
     if (!!o.phoneNotShared !== !!n.phoneNotShared) changed.push('phone not-shared');
     if (!!o.emailNotShared !== !!n.emailNotShared) changed.push('email not-shared');
     if ((o.description || '') !== (n.description || '')) changed.push('description');
+    // v89.132: referrals — same class as the v89.32.1/v89.101 fixes: a
+    // field missing here makes an edit touching only it bail as "no change".
+    if ((o.referrals || '') !== (n.referrals || '')) changed.push('referrals');
     return changed;
   }
   // Parse a DOB string and return { month, day, year (or null) }.
@@ -9913,7 +9921,7 @@
       const boxes = partyContactBadges(party);
       return boxes ? `<div class="party-contact-card party-contact-card-badges">${boxes}</div>` : '';
     }
-    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description
+    const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description || meta.referrals
       || partyDetailSets(meta).length || meta.phoneNotShared || meta.emailNotShared;
     if (!hasAny) return '';
     const rows = [];
@@ -10019,6 +10027,12 @@
       rows.push(`<div class="contact-row contact-row-desc">
         <div class="contact-row-label">Notes</div>
         <div class="contact-row-value">${escapeHtml(meta.description)}</div>
+      </div>`);
+    }
+    if (meta.referrals) {
+      rows.push(`<div class="contact-row contact-row-desc">
+        <div class="contact-row-label">Referrals</div>
+        <div class="contact-row-value">${escapeHtml(meta.referrals)}</div>
       </div>`);
     }
     return `<div class="party-contact-card">
@@ -11071,7 +11085,7 @@
     const book = data.books.find(b => b.id === entry.bookId);
     if (!book) return false;
     const role = roleFor(book.businessId);
-    if (role === 'owner' || role === 'manager') return true;
+    if (role === 'owner' || role === 'supermanager' || role === 'manager') return true;
     if (role === 'staff') return entry.createdBy === u.id;
     return false;
   }
@@ -11080,7 +11094,7 @@
     const book = data.books.find(b => b.id === session.activeBookId);
     if (!book) return false;
     const role = roleFor(book.businessId);
-    return role === 'owner' || role === 'manager' || role === 'staff';
+    return role === 'owner' || role === 'supermanager' || role === 'manager' || role === 'staff';
   }
   // OWNER-ONLY: business identity + people management
   function canManageBusiness(businessId) { return roleFor(businessId) === 'owner'; }
@@ -11088,24 +11102,23 @@
   // private to owner/manager/viewer. The team (data-entry) role can record
   // entries against parties but must not see their personal contact info.
   function canSeePartyContact(businessId) {
-    // v89.130: OWNER ONLY. No team member — manager, staff or viewer —
-    // can view party contact details (phones, emails, DOB, socials,
-    // account usernames/tags, notes). The compact badges on list cards
-    // (SMS/Email/NS/account-name boxes) stay visible to all by explicit
-    // owner decision; this gates the full contact card and rich tooltips.
-    return roleFor(businessId || (session && session.activeBizId)) === 'owner';
+    // v89.130: owner-only for regular team. v89.133: SUPER MANAGER also
+    // sees full party contact details — that's the point of the role.
+    // Manager, staff and viewer still see only the compact badges.
+    const r = roleFor(businessId || (session && session.activeBizId));
+    return r === 'owner' || r === 'supermanager';
   }
   // OWNER or MANAGER: operational management (books, categories, accounts, party crud)
   function canManageOps(businessId) {
     const r = roleFor(businessId);
-    return r === 'owner' || r === 'manager';
+    return r === 'owner' || r === 'supermanager' || r === 'manager';
   }
   function canSeeTotals(businessId) {
     const role = roleFor(businessId);
     if (!role) return false;
     // Owner, manager, viewer always see totals — viewer is a trusted read-only role
     // (accountant, business partner). Staff is the only role gated by the owner toggle.
-    if (role === 'owner' || role === 'manager' || role === 'viewer') return true;
+    if (role === 'owner' || role === 'supermanager' || role === 'manager' || role === 'viewer') return true;
     // For staff, totals visibility is a PER-MEMBER flag (`member.seesTotals`),
     // set by the owner on the Team & Access page, defaulting to OFF.
     // We find the current viewer's own accepted member row for this
@@ -11148,7 +11161,7 @@
   // Who can add a party? Owner, manager, and staff. Viewer cannot.
   function canAddParty(businessId) {
     const role = roleFor(businessId);
-    return role === 'owner' || role === 'manager' || role === 'staff';
+    return role === 'owner' || role === 'supermanager' || role === 'manager' || role === 'staff';
   }
   // Who can rename a party? Owner and manager always. Staff can rename
   // ONLY parties they created themselves. Legacy parties without a
@@ -11157,7 +11170,8 @@
   function canRenameParty(party) {
     if (!party) return false;
     const role = roleFor(party.businessId);
-    if (role === 'owner') return true;
+    // v89.133: Super Manager renames any party (full managerial access).
+    if (role === 'owner' || role === 'supermanager') return true;
     // v89.120: on parties, MANAGER has the same edit permission as Team —
     // rename only parties they created themselves. Details stay owner-only
     // (v89.116).
@@ -11181,9 +11195,10 @@
   // owned by management. This pairs with canSeePartyContact (staff can't
   // see it) so staff neither view nor edit contact details.
   function canEditPartyMeta(party) {
-    // v89.116: owner only — see canAddPartyMeta.
+    // v89.116: owner only; v89.133: + Super Manager — see canAddPartyMeta.
     if (!party) return false;
-    return roleFor(party.businessId) === 'owner';
+    const r = roleFor(party.businessId);
+    return r === 'owner' || r === 'supermanager';
   }
   // v89.105: normalize meta.details into SET rows {account, username, tag}.
   // Handles BOTH shapes: the current set-per-row shape, and the legacy
@@ -11220,10 +11235,9 @@
   // Same gate for a brand-new party being created (no party object yet):
   // only owner/manager get the contact-detail fields in the add form.
   function canAddPartyMeta(businessId) {
-    // v89.116: ONLY the owner can attach or edit party details (contact
-    // meta, account details, limit). Managers keep rename + full viewing.
+    // v89.116: owner-only. v89.133: Super Manager can too.
     const role = roleFor(businessId || (session && session.activeBizId));
-    return role === 'owner';
+    return role === 'owner' || role === 'supermanager';
   }
   // v89.31.6: small "SMS" / "Email" text badges shown after a party name
   // in place of the old green dot. "SMS" if a phone is saved, "Email" if an
@@ -11330,7 +11344,7 @@
   // everything the owner sees. Staff (data-entry role) doesn't.
   function canSeeAudit(businessId) {
     const r = roleFor(businessId);
-    return r === 'owner' || r === 'manager' || r === 'viewer';
+    return r === 'owner' || r === 'supermanager' || r === 'manager' || r === 'viewer';
   }
   // v89.33: who can see the DISTRIBUTION tab? Same base roles as Audit
   // (owner/manager/viewer), but the owner can HIDE it per-member for
@@ -12403,7 +12417,7 @@
           // v89.32.26: show the friendly role label on the invite card —
           // the internal "staff" role must read "Team" (consistent with the
           // rest of the app), never the raw word "staff".
-          const inviteRoleLabel = m.role === 'staff' ? 'Team' : (m.role ? (m.role.charAt(0).toUpperCase() + m.role.slice(1)) : '');
+          const inviteRoleLabel = m.role === 'staff' ? 'Team' : (m.role === 'supermanager' ? 'Super Manager' : (m.role ? (m.role.charAt(0).toUpperCase() + m.role.slice(1)) : ''));
           const metaLine = inviterName ? `${escapeHtml(inviterName)} · ${escapeHtml(inviteRoleLabel)}` : `role: ${escapeHtml(inviteRoleLabel)}`;
           return `<div class="invite-card">
             <div class="invite-card-name">${escapeHtml(bizName)}</div>
@@ -12427,7 +12441,7 @@
     const roleLabel = role ? (roleLabels[role] || (role[0].toUpperCase() + role.slice(1))) : '—';
     document.getElementById('userRole').textContent = roleLabel;
     const addBookBtn = document.getElementById('addBookBtn');
-    if (addBookBtn) addBookBtn.disabled = !(role === 'owner' || role === 'manager');
+    if (addBookBtn) addBookBtn.disabled = !(role === 'owner' || role === 'supermanager' || role === 'manager');
     // The dual fabIn/fabOut buttons were replaced by a single fabEntry
     // in the mobile layout refactor (#3). Update its disabled state.
     const fabEntry = document.getElementById('fabEntry');
@@ -12440,7 +12454,7 @@
     if (!visible.length) { list.innerHTML = '<div style="font-size:.8rem;color:rgba(245,241,232,.4);padding:.5rem .75rem;">No businesses yet.</div>'; return; }
     list.innerHTML = visible.map(b => {
       const role = roleFor(b.id);
-      const canOpenSettings = role === 'owner' || role === 'manager';
+      const canOpenSettings = role === 'owner' || role === 'supermanager' || role === 'manager';
       const gear = canOpenSettings
         ? `<button class="biz-gear" onclick="event.stopPropagation();openBizSettings('${b.id}')" title="Business settings" aria-label="Business settings for ${escapeHtml(b.name)}">
              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -12841,7 +12855,7 @@
       const dateK = _todayInKathmanduYYYYMMDD();
       const targetBizs = data.businesses.filter(b => {
         const role = roleFor(b.id);
-        return role === 'owner' || role === 'manager';
+        return role === 'owner' || role === 'supermanager' || role === 'manager';
       });
       for (const biz of targetBizs) {
         if (_hasSeenDigest(biz.id, dateK)) continue;
@@ -14175,9 +14189,9 @@
     });
 
     const role = roleFor(biz.id);
-    const canAdd = role === 'owner' || role === 'manager' || role === 'staff';
-    const canManage = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager');
+    const canAdd = role === 'owner' || role === 'supermanager' || role === 'manager' || role === 'staff';
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager');
 
     const totalParties = data.parties.filter(p => p.businessId === biz.id).length;
     const cards = parties.length ? parties.map(p => {
@@ -14332,8 +14346,8 @@
     const isMobile = window.innerWidth <= 880;
     const role = roleFor(biz.id);
     const isOwner = role === 'owner';
-    const canEditParty = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager'); // staff/viewer never see totals on these views
+    const canEditParty = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager'); // staff/viewer never see totals on these views
 
     // Per-category breakdown: how much money came IN from this party,
     // and how much went OUT to this party, sliced by category. Lets
@@ -14624,8 +14638,8 @@
 
     const role = roleFor(biz.id);
     const isOwner = role === 'owner';
-    const canManage = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager');
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager');
 
     // Sort: defined names FIRST, in their sortOrder (from `definedNames` which
     // came from bySortOrder above). Orphan names (used in entries but not in
@@ -14763,8 +14777,8 @@
     const isMobile = window.innerWidth <= 880;
     const role = roleFor(biz.id);
     const isOwner = role === 'owner';
-    const canEditCat = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager'); // staff/viewer never see totals on these views
+    const canEditCat = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager'); // staff/viewer never see totals on these views
     const isDefined = !isUncat && data.categories.some(c => c.businessId === biz.id && c.name === catName);
     const displayName = isUncat ? '(Uncategorized)' : catName;
 
@@ -15065,8 +15079,8 @@
     });
 
     const role = roleFor(biz.id);
-    const canManage = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager');
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager');
 
     // Search: filter accounts. Groups stay if any matching account or if the
     // group name itself matches.
@@ -22462,8 +22476,8 @@
     const net = inSum - outSum;
     const isMobile = window.innerWidth <= 880;
     const role = roleFor(biz.id);
-    const canManage = role === 'owner' || role === 'manager';
-    const showTotals = (role === 'owner' || role === 'manager'); // staff/viewer never see totals on these views
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
+    const showTotals = (role === 'owner' || role === 'supermanager' || role === 'manager'); // staff/viewer never see totals on these views
     // Don't allow deleting the last remaining account for a business
     const accountCount = data.cashAccounts.filter(a => a.businessId === biz.id).length;
 
@@ -25539,6 +25553,11 @@
       <div class="meta-section">
         <div class="meta-section-label">Description <span class="meta-optional">— optional</span></div>
         <textarea id="mPartyDescription" rows="2" maxlength="500" placeholder="Anything worth remembering — preferences, history, address, etc.">${escapeHtml(desc)}</textarea>
+      </div>
+
+      <div class="meta-section">
+        <div class="meta-section-label">Referrals &amp; Referred by <span class="meta-optional">— optional</span></div>
+        <textarea id="mPartyReferrals" rows="2" maxlength="500" placeholder="Referred by: Hari Shrestha · Referred: Sita Magar, Anil KC">${escapeHtml(String(meta?.referrals || ''))}</textarea>
       </div>`;
   }
   function partyPhoneRowHTML(value, idx, placeholder) {
@@ -25701,7 +25720,8 @@
     const phoneNotShared = !!document.getElementById('mPhoneNotShared')?.classList.contains('active');
     const emailNotShared = !!document.getElementById('mEmailNotShared')?.classList.contains('active');
     const description = document.getElementById('mPartyDescription')?.value || '';
-    return buildPartyMeta({ dob, phones, emails, socials, description, details, phoneNotShared, emailNotShared, limit });
+    const referrals = document.getElementById('mPartyReferrals')?.value || '';
+    return buildPartyMeta({ dob, phones, emails, socials, description, referrals, details, phoneNotShared, emailNotShared, limit });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
@@ -26442,6 +26462,7 @@
         <div class="input-wrap"><label for="mStaffLogin">Phone or email</label><input type="text" id="mStaffLogin" autocomplete="email" placeholder="98xxxxxxxx or them@example.com"></div>
         <div class="input-wrap"><label for="mStaffRole">Role</label>
           <select id="mStaffRole">
+            <option value="supermanager">Super Manager — manager powers + totals + party details</option>
             <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
@@ -26600,8 +26621,9 @@
     if (!member) return;
     if (!canManageBusiness(member.businessId)) { toast('Only the owner can change roles.'); refreshStaffSurface(); return; }
     const label = (member.displayName || member.userLogin || 'this member').trim();
-    const roleNice = (r) => r === 'staff' ? 'Team' : (r.charAt(0).toUpperCase() + r.slice(1));
+    const roleNice = (r) => r === 'staff' ? 'Team' : (r === 'supermanager' ? 'Super Manager' : (r.charAt(0).toUpperCase() + r.slice(1)));
     const roleDesc = {
+      supermanager: 'Full managerial access PLUS totals and party details — can view and edit contact details, accounts, limits and referrals.',
       manager: 'Full access except ownership — can manage entries, parties, audit, and team.',
       staff:   'Data-entry role — adds entries; limited access; cannot see party contacts.',
       viewer:  'Read-only — can view entries and reports but cannot edit anything.',
@@ -26643,7 +26665,7 @@
       const modal = document.getElementById('modalContent');
       if (!modal) { resolve(null); return; }
       modal.classList.remove('modal-full');
-      const roles = ['manager', 'staff', 'viewer'];
+      const roles = ['supermanager', 'manager', 'staff', 'viewer'];
       const cards = roles.map(r => {
         const isCurrent = r === currentRole;
         return `<button class="role-pick-card${isCurrent ? ' role-pick-current' : ''}" ${isCurrent ? 'disabled' : `onclick="__resolveRolePick('${r}')"`}>
@@ -26727,7 +26749,7 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) return;
     const role = roleFor(biz.id);
-    const canManage = role === 'owner' || role === 'manager';
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
     const all = (data.quickLook || []).filter(r => r.businessId === biz.id);
     const filtered = __quickLookSearch
       ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
@@ -26756,7 +26778,7 @@
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) { root.innerHTML = '<p style="color:var(--ink-mute);padding:1rem;">Select a business first.</p>'; return; }
     const role = roleFor(biz.id);
-    const canManage = role === 'owner' || role === 'manager';
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
     const all = (data.quickLook || []).filter(r => r.businessId === biz.id);
     const filtered = __quickLookSearch
       ? all.filter(r => qlMatchesSearch(r, __quickLookSearch))
@@ -27939,7 +27961,7 @@
           // cancel — the janky flicker) with a static role pill plus a
           // "Change" button that opens a clean role-picker flow. No more
           // change-then-revert glitch.
-          const roleNice = (r) => r === 'staff' ? 'Team' : (r.charAt(0).toUpperCase() + r.slice(1));
+          const roleNice = (r) => r === 'staff' ? 'Team' : (r === 'supermanager' ? 'Super Manager' : (r.charAt(0).toUpperCase() + r.slice(1)));
           const roleControl = isAccepted
             ? `<span class="role-badge ${m.role}" style="text-transform:none;">${escapeHtml(roleNice(m.role))}</span>
                <button class="btn btn-sm btn-ghost staff-role-change-btn" onclick="changeStaffRole('${jsAttr(m.id)}')">Change role</button>`
@@ -27988,6 +28010,7 @@
         <div class="input-wrap"><label for="pgStaffLogin">Phone or email</label><input type="text" id="pgStaffLogin" autocomplete="email" placeholder="98xxxxxxxx or them@example.com"></div>
         <div class="input-wrap"><label for="pgStaffRole">Role</label>
           <select id="pgStaffRole">
+            <option value="supermanager">Super Manager — manager powers + totals + party details</option>
             <option value="manager">Manager — edit everything, no team control</option>
             <option value="staff" selected>Team — add &amp; edit own entries</option>
             <option value="viewer">Viewer — read only</option>
@@ -29611,7 +29634,7 @@
     const u = me();
     const isOwner = biz.ownerId === u.id;
     const role = roleFor(biz.id);
-    const canManage = role === 'owner' || role === 'manager';
+    const canManage = role === 'owner' || role === 'supermanager' || role === 'manager';
     // Non-owners only ever see the Business tab; force it.
     if (!isOwner) __bizSettingsTab = 'business';
     const tabsBar = `
@@ -34764,6 +34787,7 @@
     if (accSets.length) metaLines.push(['Accounts', accSets.join('\n')]);
     if (meta.limit === 'limited' || meta.limit === 'unlimited') metaLines.push(['Limit', meta.limit === 'limited' ? 'Limited' : 'Unlimited']);
     if (meta.description) metaLines.push(['Notes', String(meta.description)]);
+    if (meta.referrals) metaLines.push(['Referrals', String(meta.referrals)]);
     metaLines.push(['Period', exportScopeLabel()]);
     if (_isStatement && _startDate) metaLines.push(['Opening balance', _opening.toFixed(2)]);
     // breakdown summaries, same math as the party page
