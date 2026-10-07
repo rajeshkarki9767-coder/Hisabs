@@ -5947,6 +5947,9 @@
   .bulk-bar-spacer { flex: 1; }
   .entry-row.bulk-mode { cursor: pointer; }
   .entry-row.bulk-mode .entry-cat-click { pointer-events: none; }
+  /* v89.135: in selection mode a tap SELECTS — action buttons (edit,
+     receipt) go inert so they can't fire and bubble into the toggle. */
+  .entry-row.bulk-mode .entry-act-btn { pointer-events: none; opacity: 0.35; }
   .entry-row.bulk-selected { outline: 2px solid var(--gain); outline-offset: -2px; }
   .entry-row.bulk-locked { opacity: 0.45; cursor: not-allowed; }
   .entry-check {
@@ -5956,6 +5959,25 @@
     font-size: 0.75rem; font-weight: 800; color: #fff; vertical-align: middle;
   }
   .entry-check.on { background: var(--gain); border-color: var(--gain); }
+  #appLockScreen {
+    position: fixed; inset: 0; z-index: 3000; background: var(--paper, #faf7f2);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .lock-box { display: flex; flex-direction: column; gap: 0.7rem; width: min(84vw, 20rem); text-align: center; }
+  .lock-title { font-size: 1.1rem; font-weight: 800; color: var(--ink); }
+  .lock-input { font-size: 1.4rem; text-align: center; letter-spacing: 0.4em; padding: 0.5rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card, #fff); color: var(--ink); }
+  .lock-signout { font-size: 0.78rem; }
+  .lock-confirm { flex-direction: column; gap: 0.45rem; padding-top: 0.4rem; border-top: 1px dashed var(--line); }
+  .lock-confirm-text { font-size: 0.8rem; color: var(--ink-mute); }
+  .trash-list { display: flex; flex-direction: column; gap: 0.55rem; max-height: 55vh; overflow-y: auto; }
+  .trash-row { border: 1px solid var(--line); border-radius: 10px; padding: 0.55rem 0.7rem; display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.6rem; align-items: center; }
+  .trash-main { display: flex; gap: 0.55rem; align-items: baseline; }
+  .trash-amt { font-weight: 800; }
+  .trash-amt.gain { color: var(--gain); } .trash-amt.loss { color: var(--loss); }
+  .trash-what { font-size: 0.85rem; }
+  .trash-meta { grid-column: 1; font-size: 0.72rem; color: var(--ink-mute); }
+  .trash-row .btn { grid-row: 1 / span 2; }
+  .empty-mini { color: var(--ink-mute); font-size: 0.85rem; padding: 0.6rem 0; }
   .backup-nudge {
     position: fixed; left: 50%; bottom: 1rem; transform: translateX(-50%);
     display: flex; align-items: center; gap: 0.55rem; flex-wrap: wrap;
@@ -7704,7 +7726,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.200';
+  const BUILD_TAG = '2026.07.11.202';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8801,6 +8823,7 @@
       // v89.98: escalate honestly — persistent banner + one-per-session
       // blocking modal instead of a toast that vanishes in seconds.
       __storageFullKeys.add(key);
+      try { showLockScreen(); } catch (_) {}
       try { showStorageFullAlert(); } catch (_) {}
       setTimeout(() => { try { maybeShowBackupNudge(); } catch (_) {} }, 3500);
       return false;
@@ -12991,7 +13014,7 @@
           ${annButton}
           ${printIconButton()}
           ${canExport(session.activeBizId) ? exportIconButton('entries') : ''}
-          ${roleFor(session.activeBizId) === 'owner' ? `<button class="btn btn-sm" onclick="toggleBulkMode()">${__bulkMode ? 'Done' : 'Select'}</button>` : ''}
+          ${roleFor(session.activeBizId) === 'owner' ? `<button class="btn btn-sm" onclick="openTrash()" title="Recently deleted">Trash</button><button class="btn btn-sm" onclick="toggleBulkMode()">${__bulkMode ? 'Done' : 'Select'}</button>` : ''}
           <button class="btn btn-sm btn-accent" onclick="openModal('entry')" ${canAddEntry() ? '' : 'disabled'}>+ Entry</button>
         </div>
       </div>`;
@@ -14068,6 +14091,7 @@
         <div class="entry-card-footer">
           <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
+            ${roleFor(session.activeBizId) === 'owner' ? `<button class="entry-act-btn" onclick="entryReceipt('${safeId}')" aria-label="Receipt" title="Share receipt"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>` : ''}
             <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
               <svg width="16" height="16"><use href="#ico-edit"/></svg>
             </button>
@@ -14094,6 +14118,7 @@
       <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
       <div class="entry-balance">${canSeeTotals(session.activeBizId) ? (e._runBal == null ? '—' : fmt(e._runBal)) : '—'}</div>
       <div class="entry-actions">
+        ${roleFor(session.activeBizId) === 'owner' ? `<button class="entry-act-btn" onclick="entryReceipt('${safeId}')" aria-label="Receipt" title="Share receipt"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>` : ''}
         <button class="entry-act-btn" onclick="editEntry('${safeId}')" ${canEdit ? '' : 'disabled ' + t} aria-label="Edit entry">
           <svg width="15" height="15"><use href="#ico-edit"/></svg>
         </button>
@@ -14121,6 +14146,7 @@
     // is "NIC Asia", matching what the green boxes display on the card.
     if (q) parties = parties.filter(p =>
       p.name.toLowerCase().includes(q)
+      || (p.meta?.referrals || '').toLowerCase().includes(q) /* v89.134 */
       || partyDetailSets(p.meta).some(s =>
            s.account.toLowerCase().includes(q)
         || s.username.toLowerCase().includes(q)
@@ -22826,6 +22852,229 @@
     return parts.join(' · ');
   }
 
+
+  // ================================================================
+  // v89.134: ENTRY RECEIPT — a small branded PDF for one entry,
+  // delivered share-first (WhatsApp/Gmail on Android, download
+  // elsewhere). Owner-only, same policy as all exports.
+  // ================================================================
+  async function entryReceipt(id) {
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can make receipts.'); return; }
+    const e = data.entries.find(x => x.id === id);
+    if (!e) return;
+    const book = data.books.find(b => b.id === e.bookId);
+    const biz = book ? data.businesses.find(b => b.id === book.businessId) : null;
+    if (!biz) return;
+    const pdfReady = await loadPdfLibs();
+    if (!pdfReady || !window.jspdf) { toast('PDF library failed to load.'); return; }
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const cur = currencyDisplay(biz.currency || 'NPR');
+    doc.setFontSize(20); doc.setTextColor(26, 22, 18); doc.setFont('helvetica', 'bold');
+    doc.text(String(biz.name), 14, 22);
+    doc.setDrawColor(26, 22, 18); doc.setLineWidth(0.6); doc.line(14, 25, 196, 25);
+    doc.setFontSize(12); doc.setFont('helvetica', 'normal'); doc.setTextColor(120);
+    doc.text('RECEIPT', 14, 33);
+    doc.setFontSize(9); doc.setTextColor(120);
+    doc.text(`No. ${e.entryNo != null ? e.entryNo : '—'}   ·   Date ${e.date || ''}`, 14, 40);
+    let y = 52;
+    const line = (lab, val) => {
+      if (!val) return;
+      doc.setFontSize(9); doc.setTextColor(120); doc.setFont('helvetica', 'bold');
+      doc.text(lab, 14, y);
+      doc.setTextColor(40); doc.setFont('helvetica', 'normal');
+      doc.text(String(val), 55, y);
+      y += 7;
+    };
+    line(e.type === 'in' ? 'Received from' : 'Paid to', e.party || '—');
+    line('Category', e.category || '');
+    const acct = e.accountId ? (data.cashAccounts.find(a => a.id === e.accountId)?.name || e.account) : e.account;
+    line('Account', acct || '');
+    line('Note', (e.note || '').slice(0, 90));
+    y += 4;
+    doc.setFontSize(10); doc.setTextColor(120); doc.setFont('helvetica', 'bold');
+    doc.text(e.type === 'in' ? 'AMOUNT RECEIVED' : 'AMOUNT PAID', 14, y);
+    doc.setFontSize(22); doc.setTextColor(26, 22, 18);
+    doc.text(`${cur} ${fmt(Number(e.amount) || 0)}`, 14, y + 10);
+    doc.setLineWidth(0.3); doc.setDrawColor(180); doc.line(14, y + 16, 110, y + 16);
+    doc.setFontSize(7.5); doc.setTextColor(150); doc.setFont('helvetica', 'normal');
+    doc.text(`Generated ${today()} · Hisabs · hisabs.app`, 14, 285);
+    const fname = `receipt_${e.entryNo != null ? e.entryNo : (e.date || 'entry')}.pdf`.replace(/[^a-zA-Z0-9_.-]+/g, '_');
+    const prev = __exportDelivery;
+    __exportDelivery = 'share';
+    try { await deliverExportFile(doc.output('blob'), fname, 'application/pdf'); }
+    finally { __exportDelivery = prev; }
+  }
+
+  // ================================================================
+  // v89.134: RECENTLY DELETED (Trash) — deleted entries are kept on
+  // THIS DEVICE for 30 days and can be restored by the owner. The
+  // snapshot is the same one the audit log keeps (v89.85).
+  // ================================================================
+  const TRASH_DAYS = 30;
+  function _trashKey(bizId) { return `hisabs:trash:${bizId}`; }
+  function _trashRead(bizId) {
+    let rows = [];
+    try { rows = JSON.parse(localStorage.getItem(_trashKey(bizId)) || '[]') || []; } catch (_) {}
+    const cutoff = Date.now() - TRASH_DAYS * 86400000;
+    const kept = rows.filter(r => r && r.deletedAt > cutoff && r.snap && r.snap.id);
+    if (kept.length !== rows.length) {
+      try { localStorage.setItem(_trashKey(bizId), JSON.stringify(kept)); } catch (_) {}
+    }
+    return kept;
+  }
+  function _trashPush(bizId, snap, deletedByName) {
+    try {
+      const rows = _trashRead(bizId);
+      rows.unshift({ snap, deletedAt: Date.now(), by: deletedByName || '' });
+      localStorage.setItem(_trashKey(bizId), JSON.stringify(rows.slice(0, 200)));
+    } catch (_) {}
+  }
+  function _trashRemove(bizId, entryId) {
+    try {
+      const rows = _trashRead(bizId).filter(r => r.snap.id !== entryId);
+      localStorage.setItem(_trashKey(bizId), JSON.stringify(rows));
+    } catch (_) {}
+  }
+  function openTrash() {
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can open Trash.'); return; }
+    openModal('trash');
+  }
+  function trashModal() {
+    const bizId = session.activeBizId;
+    const biz = data.businesses.find(b => b.id === bizId);
+    const cur = biz ? currencyDisplay(biz.currency || 'NPR') : '';
+    const rows = _trashRead(bizId);
+    const ago = (t) => {
+      const d = Math.floor((Date.now() - t) / 86400000);
+      return d === 0 ? 'today' : d === 1 ? 'yesterday' : `${d} days ago`;
+    };
+    const list = rows.map(r => `
+      <div class="trash-row">
+        <div class="trash-main">
+          <span class="trash-amt ${r.snap.type === 'in' ? 'gain' : 'loss'}">${r.snap.type === 'in' ? '+' : '−'}${cur} ${fmt(Number(r.snap.amount) || 0)}</span>
+          <span class="trash-what">${escapeHtml(r.snap.party || r.snap.category || r.snap.note || '(no label)')}</span>
+        </div>
+        <div class="trash-meta">${escapeHtml(r.snap.date || '')} · deleted ${ago(r.deletedAt)}${r.by ? ` by ${escapeHtml(r.by)}` : ''}</div>
+        <button class="btn btn-sm" onclick="restoreTrashedEntry('${jsAttr(r.snap.id)}')">Restore</button>
+      </div>`).join('');
+    return `
+      <div class="modal-handle"></div>
+      <h2 class="modal-title">Recently deleted</h2>
+      <p class="modal-sub">Entries deleted on this device · kept ${TRASH_DAYS} days · owner can restore.</p>
+      <div class="trash-list">${list || '<div class="empty-mini">Nothing in the trash.</div>'}</div>
+      <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Close</button></div>`;
+  }
+  async function restoreTrashedEntry(entryId) {
+    if (roleFor(session.activeBizId) !== 'owner') { toast('Only the owner can restore.'); return; }
+    const bizId = session.activeBizId;
+    const row = _trashRead(bizId).find(r => r.snap.id === entryId);
+    if (!row) { toast('Not found in trash.'); return; }
+    const d = row.snap;
+    if (data.entries.some(x => x.id === d.id)) { _trashRemove(bizId, d.id); closeModal(); toast('That entry already exists.'); return; }
+    const book = data.books.find(b => b.id === d.bookId);
+    if (!book) { toast('Original book no longer exists — cannot restore.'); return; }
+    data.entries.push({ ...d });
+    _trashRemove(bizId, d.id);
+    logAuditEvent('entry_edited', 'Restored from Trash', { entry_id: d.id, book_id: d.bookId }, bizId).catch(() => {});
+    saveData();
+    closeModal();
+    renderAll();
+    toast('Entry restored.');
+  }
+
+  // ================================================================
+  // v89.134: APP LOCK — optional PIN on this device. Protects the
+  // open app from anyone holding the phone; it is NOT account
+  // security (cloud data still needs the login). Per-device.
+  // ================================================================
+  const LOCK_KEY = 'hisabs:lockPinHash';
+  let __lockHiddenAt = 0;
+  async function _pinHash(pin) {
+    const buf = new TextEncoder().encode('hisabs-lock:' + String(pin));
+    const h = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(h)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  function appLockEnabled() { try { return !!localStorage.getItem(LOCK_KEY); } catch (_) { return false; } }
+  async function setupAppLock() {
+    const p1 = await uiPrompt('Choose a PIN (4–8 digits):');
+    if (p1 === null) return;
+    const pin = String(p1).trim();
+    if (!/^\d{4,8}$/.test(pin)) { toast('PIN must be 4–8 digits.'); return; }
+    const p2 = await uiPrompt('Enter the same PIN again:');
+    if (p2 === null) return;
+    if (String(p2).trim() !== pin) { toast('PINs did not match.'); return; }
+    try { localStorage.setItem(LOCK_KEY, await _pinHash(pin)); } catch (_) {}
+    toast('App lock is ON for this device.');
+    renderSettingsBody();
+  }
+  async function removeAppLock() {
+    const p = await uiPrompt('Enter your current PIN to turn the lock off:');
+    if (p === null) return;
+    if (await _pinHash(String(p).trim()) !== localStorage.getItem(LOCK_KEY)) { toast('Wrong PIN.'); return; }
+    try { localStorage.removeItem(LOCK_KEY); } catch (_) {}
+    toast('App lock removed.');
+    renderSettingsBody();
+  }
+  function renderSettingsBody() {
+    const modal = document.getElementById('modalContent');
+    if (modal && __asyncModalKind !== 'rolepick') { try { modal.innerHTML = settingsModal(); } catch (_) {} }
+  }
+  function showLockScreen() {
+    if (!appLockEnabled()) return;
+    if (document.getElementById('appLockScreen')) return;
+    const el = document.createElement('div');
+    el.id = 'appLockScreen';
+    el.innerHTML = `
+      <div class="lock-box">
+        <div class="lock-title">Hisabs is locked</div>
+        <input type="password" inputmode="numeric" autocomplete="off" id="appLockInput" class="lock-input" placeholder="PIN" maxlength="8">
+        <button class="btn btn-accent" onclick="tryUnlock()">Unlock</button>
+        <button class="btn btn-ghost lock-signout" onclick="lockSignOut()">Sign out instead</button>
+        <div id="lockSignOutConfirm" class="lock-confirm" style="display:none;">
+          <div class="lock-confirm-text">Sign out of this device? You'll need your login to get back in.</div>
+          <button class="btn btn-sm btn-danger" onclick="lockSignOutYes()">Yes, sign out</button>
+          <button class="btn btn-sm" onclick="lockSignOutNo()">Cancel</button>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    setTimeout(() => { try { document.getElementById('appLockInput').focus(); } catch (_) {} }, 150);
+    const inp = document.getElementById('appLockInput');
+    if (inp) inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') tryUnlock(); });
+  }
+  async function tryUnlock() {
+    const inp = document.getElementById('appLockInput');
+    const pin = String(inp?.value || '').trim();
+    if (await _pinHash(pin) === localStorage.getItem(LOCK_KEY)) {
+      const el = document.getElementById('appLockScreen');
+      if (el) el.remove();
+    } else {
+      toast('Wrong PIN.');
+      if (inp) { inp.value = ''; inp.focus(); }
+    }
+  }
+  // v89.135: the confirm must live INSIDE the lock overlay — uiConfirm
+  // renders in the modal layer (z-index 250), invisible under the lock
+  // screen (z-index 3000). Inline two-step confirm instead.
+  function lockSignOut() {
+    const c = document.getElementById('lockSignOutConfirm');
+    if (c) c.style.display = 'flex';
+  }
+  function lockSignOutNo() {
+    const c = document.getElementById('lockSignOutConfirm');
+    if (c) c.style.display = 'none';
+  }
+  function lockSignOutYes() {
+    try { localStorage.removeItem(LOCK_KEY); } catch (_) {}
+    const el = document.getElementById('appLockScreen');
+    if (el) el.remove();
+    try { signOut(); } catch (_) { location.reload(); }
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { __lockHiddenAt = Date.now(); return; }
+    if (appLockEnabled() && __lockHiddenAt && Date.now() - __lockHiddenAt > 2 * 60 * 1000) showLockScreen();
+  });
+
   async function deleteEntry(id) {
     const entry = data.entries.find(e => e.id === id);
     if (!entry) return;
@@ -22851,6 +23100,8 @@
         createdAt: entry.createdAt, createdBy: entry.createdBy, createdByName: entry.createdByName,
       };
       logAuditEvent('entry_deleted', desc, { entry_id: entry.id, book_id: entry.bookId, deleted: _deletedSnapshot }, bizId);
+      // v89.134: keep a device-local trash copy for 30 days (restorable).
+      _trashPush(bizId, _deletedSnapshot, (me() || {}).name || '');
     }
     data.entries = data.entries.filter(e => e.id !== id);
     saveData(); renderAll();
@@ -23455,6 +23706,7 @@
     else if (kind === 'distHistory') { modal.innerHTML = distHistoryModal(); }
     else if (kind === 'exportChooser') { modal.innerHTML = exportChooserModal(); }
     else if (kind === 'bulkEdit') { modal.innerHTML = bulkEditModal(); }
+    else if (kind === 'trash') { modal.innerHTML = trashModal(); }
     else if (kind === 'settings') {
       modal.innerHTML = settingsModal();
       // Wire biz drag reorder for the profile tab (default tab).
@@ -28826,11 +29078,13 @@
         <button class="settings-tab ${tab === 'profile' ? 'active' : ''}" onclick="pickSettingsTab('profile')">Profile</button>
         <button class="settings-tab ${tab === 'appearance' ? 'active' : ''}" onclick="pickSettingsTab('appearance')">Appearance</button>
         <button class="settings-tab ${tab === 'data' ? 'active' : ''}" onclick="pickSettingsTab('data')">Data</button>
+        <button class="settings-tab ${tab === 'security' ? 'active' : ''}" onclick="pickSettingsTab('security')">Security</button>
       </div>`;
     let body = '';
     if (tab === 'profile') body = profileTabHTML(u);
     else if (tab === 'appearance') body = appearanceTabHTML();
     else if (tab === 'data') body = dataTabHTML();
+    else if (tab === 'security') body = securityTabHTML();
     else { __settingsTab = 'profile'; body = profileTabHTML(u); }
     return `
       <div class="modal-handle"></div>
@@ -30294,6 +30548,21 @@
       </div>`;
   }
 
+  function securityTabHTML() {
+    const on = appLockEnabled();
+    return `
+      <div class="settings-section">
+        <div class="settings-section-title">App lock (this device)</div>
+        <p class="settings-hint">A PIN asked when the app opens, or returns after 2+ minutes in the background. Device-only — it protects the open app from anyone holding the phone, not your cloud account.</p>
+        <div class="settings-row">
+          <span>Status: <strong>${on ? 'ON' : 'OFF'}</strong></span>
+          ${on
+            ? `<button class="btn btn-sm" onclick="setupAppLock()">Change PIN</button>
+               <button class="btn btn-sm btn-ghost" onclick="removeAppLock()">Turn off</button>`
+            : `<button class="btn btn-sm btn-accent" onclick="setupAppLock()">Set PIN</button>`}
+        </div>
+      </div>`;
+  }
   function dataTabHTML() {
     const ownedCount = data.businesses.filter(b => b.ownerId === me()?.id).length;
     const u = me();
