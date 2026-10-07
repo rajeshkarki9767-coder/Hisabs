@@ -2650,7 +2650,7 @@
   .period-bar-label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.13em; color: var(--ink-mute); font-weight: 600; margin-right: 0.3rem; }
   .period-tab { padding: 0.32rem 0.7rem; border: 1px solid var(--line); background: transparent; cursor: pointer; font-size: 0.78rem; color: var(--ink-soft); transition: all 0.12s; border-radius: var(--r-sm); }
   .period-tab:hover { border-color: var(--ink-soft); }
-  .period-tab.active { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 500; }
+  .period-tab.active { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 800; }
   .period-current { margin-left: auto; font-family: var(--font-sans); font-size: 0.85rem; color: var(--ink); font-weight: 500; }
 
   .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.65rem; margin-bottom: 1.1rem; }
@@ -5895,6 +5895,13 @@
   .anom-why { font-weight: 400; font-size: 0.72rem; color: var(--ink-mute); margin-left: 0.4rem; }
   .anom-sec { margin-bottom: 0.55rem; }
   .anom-sec-head { font-size: 0.8rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .anom-ack { border: 1px solid var(--line); background: var(--card, #fff); color: var(--gain); border-radius: 6px; width: 1.5rem; height: 1.5rem; font-size: 0.85rem; line-height: 1; cursor: pointer; flex: none; font-weight: 800; }
+  .anom-ack:hover { background: var(--gain); color: #fff; border-color: var(--gain); }
+  .anom-unack { color: var(--ink-mute); }
+  .anom-unack:hover { background: var(--ink); border-color: var(--ink); }
+  .anom-row-rev { opacity: 0.6; }
+  .anom-rev-foot { margin-top: 0.4rem; padding-top: 0.35rem; border-top: 1px dashed var(--line); }
+  .anom-rev-toggle { border: none; background: none; color: var(--ink-mute); font-size: 0.75rem; font-weight: 700; cursor: pointer; padding: 0.1rem 0; }
   .anom-row { display: flex; gap: 0.6rem; font-size: 0.78rem; padding: 0.15rem 0; flex-wrap: wrap; }
   .anom-date { color: var(--ink-mute); min-width: 5.2rem; }
   .anom-amt { font-weight: 600; }
@@ -5969,10 +5976,11 @@
   .lock-signout { font-size: 0.78rem; }
   .lock-confirm { flex-direction: column; gap: 0.45rem; padding-top: 0.4rem; border-top: 1px dashed var(--line); }
   .lock-confirm-text { font-size: 0.8rem; color: var(--ink-mute); }
-  .detail-search-row { display: flex; align-items: center; gap: 0.45rem; margin: 0.3rem 0 0.55rem; }
+  .detail-search-row { display: flex; align-items: center; gap: 0.55rem; margin: 0.35rem 0 0.6rem; padding-right: 0.15rem; }
+  mark.ds-hl { background: rgba(245, 158, 11, 0.5); color: inherit; font-weight: 800; border-radius: 3px; padding: 0 0.12em; }
   .detail-search { flex: 1; min-width: 0; padding: 0.45rem 0.7rem; font-size: 0.88rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card, #fff); color: var(--ink); }
   .ds-clear { border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink-mute); border-radius: 50%; width: 1.6rem; height: 1.6rem; font-size: 1rem; line-height: 1; cursor: pointer; flex: none; }
-  .ds-count { font-size: 0.72rem; color: var(--ink-mute); white-space: nowrap; }
+  .ds-count { font-size: 0.74rem; white-space: nowrap; background: var(--ink); color: var(--paper); font-weight: 700; padding: 0.24rem 0.68rem; border-radius: 999px; flex: none; }
   .trash-list { display: flex; flex-direction: column; gap: 0.55rem; max-height: 55vh; overflow-y: auto; }
   .trash-row { border: 1px solid var(--line); border-radius: 10px; padding: 0.55rem 0.7rem; display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.6rem; align-items: center; }
   .trash-main { display: flex; gap: 0.55rem; align-items: baseline; }
@@ -7730,7 +7738,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.203';
+  const BUILD_TAG = '2026.07.11.206';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14368,13 +14376,25 @@
     const am = new Map((data.cashAccounts || []).map(a => [a.id, a.name]));
     return (e) => (`${e.note || ''} ${e.category || ''} ${e.party || ''} ${e.accountId ? (am.get(e.accountId) || '') : (e.account || '')} ${e.amount ?? ''} ${e.date || ''} ${e.entryNo ?? ''}`).toLowerCase().includes(q);
   }
+  // v89.137: wrap each match of the active detail search in a bold
+  // <mark>. Escapes FIRST, then marks — a query like <b> can never
+  // inject. Used only by the three detail-view row renderers.
+  function _hlDetail(s) {
+    const esc = escapeHtml(s);
+    const q = __detailSearch.trim();
+    if (!q) return esc;
+    const eq = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    try { return esc.replace(new RegExp(`(${eq})`, 'gi'), '<mark class="ds-hl">$1</mark>'); }
+    catch (_) { return esc; }
+  }
+  function _hlPlain(s) { return _hlDetail(String(s ?? '')); }
   function _detailSearchRowHTML(count) {
     return `<div class="detail-search-row">
       <input id="detailSearchInput" class="detail-search" type="text" inputmode="search" autocomplete="off"
         placeholder="Search these entries…" value="${escapeHtml(__detailSearch)}"
         oninput="setDetailSearch(this.value)">
-      ${__detailSearch ? `<button class="ds-clear" onclick="setDetailSearch('')" aria-label="Clear search">×</button>
-        <span class="ds-count">${count} match${count === 1 ? '' : 'es'}</span>` : ''}
+      ${__detailSearch ? `<span class="ds-count">${count} match${count === 1 ? '' : 'es'}</span>
+        <button class="ds-clear" onclick="setDetailSearch('')" aria-label="Clear search">×</button>` : ''}
     </div>`;
   }
   function renderPartyDetailView(root) {
@@ -14606,22 +14626,22 @@
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
     const statusDot = entryStatusDotsHTML(_status);
-    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${_hlPlain(formatEntryNo(e.entryNo))}</span>` : '';
     // v68: account chip on every drill-down row — users couldn't tell
     // which account each transaction moved through before.
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
-    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
+    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${_hlDetail(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${_hlDetail(e._bookName)}</div>
         <div class="entry-desc">
-          ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
+          ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
           <div class="entry-chip-row">
-            ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+            ${e.category ? `<span class="entry-cat">${_hlDetail(e.category)}</span>` : ''}
             ${acctChip}
           </div>
         </div>
-        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
         <div class="entry-card-footer">
           <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
@@ -14638,14 +14658,14 @@
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
       <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
-        ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
+        ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
         <div class="entry-chip-row">
-          ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+          ${e.category ? `<span class="entry-cat">${_hlDetail(e.category)}</span>` : ''}
           ${acctChip}
         </div>
       </div>
-      <div style="font-size:0.82rem;color:var(--ink-soft);">${escapeHtml(e._bookName)}</div>
-      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+      <div style="font-size:0.82rem;color:var(--ink-soft);">${_hlDetail(e._bookName)}</div>
+      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
       <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
@@ -14907,19 +14927,19 @@
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
     const statusDot = entryStatusDotsHTML(_status);
-    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${_hlPlain(formatEntryNo(e.entryNo))}</span>` : '';
     // v68: account chip on category drill-down rows
     const acct = e.accountId ? data.cashAccounts.find(a => a.id === e.accountId) : null;
-    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${escapeHtml(acct.name)}</span>` : '';
+    const acctChip = acct ? `<span class="entry-cat entry-acct-chip">${_hlDetail(acct.name)}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${_hlDetail(e._bookName)}</div>
         <div class="entry-desc">
-          ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
-          ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
+          ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
+          ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${_hlDetail(e.party)}</span></div>` : ''}
           ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
         </div>
-        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
         <div class="entry-card-footer">
           <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
@@ -14936,14 +14956,14 @@
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
       <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
-        ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
+        ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
         ${acctChip ? `<div class="entry-chip-row">${acctChip}</div>` : ''}
       </div>
       <div style="font-size:0.82rem;color:var(--ink-soft);">
-        ${e.party ? `<div>${escapeHtml(e.party)}</div>` : ''}
-        <div style="font-size:0.72rem;color:var(--ink-mute);">${escapeHtml(e._bookName)}</div>
+        ${e.party ? `<div>${_hlDetail(e.party)}</div>` : ''}
+        <div style="font-size:0.72rem;color:var(--ink-mute);">${_hlDetail(e._bookName)}</div>
       </div>
-      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
       <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
@@ -18458,24 +18478,59 @@
   // All computation lives in these pure builders so they can be
   // tested headlessly; the three views only inject their output.
   // ================================================================
-  function auditAnomalies(rangeEntries, partiesById) {
+  // v89.138: anomalies can be TICKED as reviewed — they disappear from
+  // the card (kept per-device). Keys are VERSIONED so the same entry
+  // resurfaces if it trips again: a late edit re-flags on a NEW edit
+  // (editedAt in the key), back-dating re-flags if the date changes.
+  function _anomAckKey(bizId) { return `hisabs:anomAck:${bizId}`; }
+  function _anomAckRead(bizId) {
+    try { return new Set(JSON.parse(localStorage.getItem(_anomAckKey(bizId)) || '[]')); }
+    catch (_) { return new Set(); }
+  }
+  function _anomAckWrite(bizId, set) {
+    try { localStorage.setItem(_anomAckKey(bizId), JSON.stringify([...set])); } catch (_) {}
+  }
+  function ackAnomaly(key) {
+    const bizId = session.activeBizId;
+    const s = _anomAckRead(bizId);
+    s.add(key);
+    _anomAckWrite(bizId, s);
+    renderMain();
+  }
+  function unackAnomaly(key) {
+    const bizId = session.activeBizId;
+    const s = _anomAckRead(bizId);
+    s.delete(key);
+    _anomAckWrite(bizId, s);
+    renderMain();
+  }
+  let __anomShowReviewed = false;
+  function toggleAnomReviewed() { __anomShowReviewed = !__anomShowReviewed; renderMain(); }
+  function auditAnomalies(rangeEntries, partiesById, ackSet) {
     const DAY = 86400000;
-    const lateEdits = [], backdated = [], orphans = [], oddHours = [];
+    const ack = ackSet || new Set();
+    const lateEdits = [], backdated = [], orphans = [], oddHours = [], reviewed = [];
+    const liveKeys = new Set();
+    const put = (arr, e, k, label) => {
+      liveKeys.add(k);
+      if (ack.has(k)) reviewed.push({ e, k, label });
+      else arr.push(Object.assign(Object.create(Object.getPrototypeOf(e)), e, { _anomKey: k }));
+    };
     // v89.127: duplicate detection removed — same-day same-amount entries
     // for the same party are normal business here, so flagging them was
     // pure noise.
     for (const e of rangeEntries) {
-      if (e.editedAt && e.createdAt && (e.editedAt - e.createdAt) > 7 * DAY) lateEdits.push(e);
+      if (e.editedAt && e.createdAt && (e.editedAt - e.createdAt) > 7 * DAY) put(lateEdits, e, `late:${e.id}:${e.editedAt}`, 'Late edit');
       if (e.createdAt && e.date) {
         const cd = new Date(e.createdAt);
         const createdDate = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
-        if (e.date < createdDate && (new Date(createdDate) - new Date(e.date)) > DAY) backdated.push(e);
+        if (e.date < createdDate && (new Date(createdDate) - new Date(e.date)) > DAY) put(backdated, e, `back:${e.id}:${e.date}`, 'Back-dated');
         const h = cd.getHours();
-        if (h >= 23 || h < 5) oddHours.push(e);
+        if (h >= 23 || h < 5) put(oddHours, e, `odd:${e.id}`, 'Odd hours');
       }
-      if (e.partyId && !partiesById.has(e.partyId)) orphans.push(e);
+      if (e.partyId && !partiesById.has(e.partyId)) put(orphans, e, `orph:${e.id}:${e.partyId}`, 'Deleted-party ref');
     }
-    return { lateEdits, backdated, orphans, oddHours,
+    return { lateEdits, backdated, orphans, oddHours, reviewed, liveKeys,
       total: lateEdits.length + backdated.length + orphans.length + oddHours.length };
   }
   function auditAnomaliesCardHTML(a, cur) {
@@ -18485,7 +18540,8 @@
         `<div class="anom-row"><span class="anom-date">${escapeHtml(e.date || '')}</span>
           <span class="anom-amt">${cur} ${fmt(Number(e.amount) || 0)}</span>
           <span class="anom-by">${escapeHtml(e.byName || e.createdByName || '')}</span>
-          <span class="anom-note">${escapeHtml((e.note || e.party || '').slice(0, 24))}</span></div>`).join('');
+          <span class="anom-note">${escapeHtml((e.note || e.party || '').slice(0, 24))}</span>
+          <button class="anom-ack" onclick="ackAnomaly('${jsAttr(e._anomKey)}')" title="Mark reviewed — it's okay, hide this">✓</button></div>`).join('');
       const more = arr.length > 6 ? `<div class="anom-more">+${arr.length - 6} more</div>` : '';
       return `<div class="anom-sec"><div class="anom-sec-head">${label} · ${arr.length}<span class="anom-why">${why}</span></div>${rows}${more}</div>`;
     };
@@ -18495,7 +18551,17 @@
         + sec('Back-dated', a.backdated, 'dated before the day they were typed')
         + sec('Deleted-party refs', a.orphans, 'entry points at a removed party')
         + sec('Odd hours', a.oddHours, 'created 11pm–5am');
-    return `<div class="card anom-card"><h3 class="anom-title">Needs review ${a.total ? `<span class="anom-count">${a.total}</span>` : ''}</h3>${body}</div>`;
+    const rev = a.reviewed || [];
+    const revRows = __anomShowReviewed ? rev.map(r =>
+      `<div class="anom-row anom-row-rev"><span class="anom-date">${escapeHtml(r.e.date || '')}</span>
+        <span class="anom-amt">${cur} ${fmt(Number(r.e.amount) || 0)}</span>
+        <span class="anom-by">${escapeHtml(r.label)}</span>
+        <span class="anom-note">${escapeHtml((r.e.note || r.e.party || '').slice(0, 24))}</span>
+        <button class="anom-ack anom-unack" onclick="unackAnomaly('${jsAttr(r.k)}')" title="Un-review — bring it back">↩</button></div>`).join('') : '';
+    const revBlock = rev.length
+      ? `<div class="anom-rev-foot"><button class="anom-rev-toggle" onclick="toggleAnomReviewed()">${rev.length} reviewed · ${__anomShowReviewed ? 'hide' : 'show'}</button>${revRows}</div>`
+      : '';
+    return `<div class="card anom-card"><h3 class="anom-title">Needs review ${a.total ? `<span class="anom-count">${a.total}</span>` : ''}</h3>${body}${revBlock}</div>`;
   }
   function auditMemberTotals(rangeEntries) {
     const by = new Map();
@@ -19037,7 +19103,13 @@
 
     // v89.124: anomaly + member-activity intelligence cards.
     const __partiesById = new Map(data.parties.filter(p => p.businessId === biz.id).map(p => [p.id, p]));
-    const __anomCard = auditAnomaliesCardHTML(auditAnomalies(rangeEntries, __partiesById), cur);
+    const __anomAcks = _anomAckRead(session.activeBizId);
+    const __anoms = auditAnomalies(rangeEntries, __partiesById, __anomAcks);
+    // v89.139: NO pruning of acks against this range's live keys — the
+    // audit range is user-selectable, so a narrow range would wrongly
+    // wipe acks belonging to out-of-range anomalies and resurface them
+    // later. Keys are versioned, the store is tiny; stale keys are inert.
+    const __anomCard = auditAnomaliesCardHTML(__anoms, cur);
     const __memCard = auditMemberTotalsCardHTML(auditMemberTotals(rangeEntries), cur);
 
     root.innerHTML = `
@@ -22610,16 +22682,16 @@
     const _status = entryStatusInfo(e);
     const statusCls = _status.cls ? ' ' + _status.cls : '';
     const statusDot = entryStatusDotsHTML(_status);
-    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${formatEntryNo(e.entryNo)}</span>` : '';
+    const entryNoBadge = e.entryNo ? `<span class="entry-no-badge" title="Invoice no. ${e.entryNo}">${_hlPlain(formatEntryNo(e.entryNo))}</span>` : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
-        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${escapeHtml(e._bookName)}</div>
+        <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile} · ${_hlDetail(e._bookName)}</div>
         <div class="entry-desc">
-          ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
-          ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
-          ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+          ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
+          ${e.party ? `<div class="entry-party"><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${_hlDetail(e.party)}</span></div>` : ''}
+          ${e.category ? `<span class="entry-cat">${_hlDetail(e.category)}</span>` : ''}
         </div>
-        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+        <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
         <div class="entry-card-footer">
           <span class="entry-by-name">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</span>
           <div class="entry-actions">
@@ -22636,14 +22708,14 @@
     return `<div class="entry-row entry-${e.type}${statusCls}" data-entry-id="${jsAttr(e.id)}">
       <div class="entry-date">${statusDot}${entryNoBadge}${dateLine}</div>
       <div class="entry-desc">
-        ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
-        ${e.category ? `<span class="entry-cat">${escapeHtml(e.category)}</span>` : ''}
+        ${e.note ? `<div class="entry-note">${_hlDetail(e.note)}</div>` : ''}
+        ${e.category ? `<span class="entry-cat">${_hlDetail(e.category)}</span>` : ''}
       </div>
       <div style="font-size:0.82rem;color:var(--ink-soft);">
-        ${e.party ? `<div>${escapeHtml(e.party)}</div>` : ''}
-        <div style="font-size:0.72rem;color:var(--ink-mute);">${escapeHtml(e._bookName)}</div>
+        ${e.party ? `<div>${_hlDetail(e.party)}</div>` : ''}
+        <div style="font-size:0.72rem;color:var(--ink-mute);">${_hlDetail(e._bookName)}</div>
       </div>
-      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
+      <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${_hlPlain(fmt(e.amount))}</div>
       <div style="font-size:0.75rem;color:var(--ink-mute);">by ${escapeHtml(e.createdByName || '—')}${editedBadge ? ' · ' + editedBadge : ''}</div>
       <div class="entry-actions">
         <button class="entry-act-btn" onclick="editEntry('${e.id}')" ${canEdit ? '' : 'disabled'} aria-label="Edit">
