@@ -5969,6 +5969,10 @@
   .lock-signout { font-size: 0.78rem; }
   .lock-confirm { flex-direction: column; gap: 0.45rem; padding-top: 0.4rem; border-top: 1px dashed var(--line); }
   .lock-confirm-text { font-size: 0.8rem; color: var(--ink-mute); }
+  .detail-search-row { display: flex; align-items: center; gap: 0.45rem; margin: 0.3rem 0 0.55rem; }
+  .detail-search { flex: 1; min-width: 0; padding: 0.45rem 0.7rem; font-size: 0.88rem; border: 1px solid var(--line); border-radius: 10px; background: var(--card, #fff); color: var(--ink); }
+  .ds-clear { border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink-mute); border-radius: 50%; width: 1.6rem; height: 1.6rem; font-size: 1rem; line-height: 1; cursor: pointer; flex: none; }
+  .ds-count { font-size: 0.72rem; color: var(--ink-mute); white-space: nowrap; }
   .trash-list { display: flex; flex-direction: column; gap: 0.55rem; max-height: 55vh; overflow-y: auto; }
   .trash-row { border: 1px solid var(--line); border-radius: 10px; padding: 0.55rem 0.7rem; display: grid; grid-template-columns: 1fr auto; gap: 0.15rem 0.6rem; align-items: center; }
   .trash-main { display: flex; gap: 0.55rem; align-items: baseline; }
@@ -7726,7 +7730,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.202';
+  const BUILD_TAG = '2026.07.11.203';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -12929,8 +12933,8 @@
     // focus immediately so the OS sees focus as continuous and
     // doesn't close the keyboard.
     try {
-      if (preserved && preserved.id === 'auditTaxInput') {
-        const newInp = document.getElementById('auditTaxInput');
+      if (preserved && (preserved.id === 'auditTaxInput' || preserved.id === 'detailSearchInput')) {
+        const newInp = document.getElementById(preserved.id);
         if (newInp && document.activeElement !== newInp) {
           newInp.focus({ preventScroll: true });
           if (typeof preserved.start === 'number') {
@@ -14347,6 +14351,32 @@
     if (root) renderPartyDetailView(root);
   }
 
+  // ================================================================
+  // v89.136: SEARCH INSIDE A DETAIL PAGE — one search box on the
+  // party / category / account detail views that filters THAT
+  // entity's entry list (totals and breakdown cards stay complete).
+  // Shared state + shared input id so focus survives re-renders.
+  // ================================================================
+  let __detailSearch = '';
+  function setDetailSearch(v) {
+    __detailSearch = String(v || '');
+    renderMain();
+  }
+  function _detailSearchPred() {
+    const q = __detailSearch.trim().toLowerCase();
+    if (!q) return () => true;
+    const am = new Map((data.cashAccounts || []).map(a => [a.id, a.name]));
+    return (e) => (`${e.note || ''} ${e.category || ''} ${e.party || ''} ${e.accountId ? (am.get(e.accountId) || '') : (e.account || '')} ${e.amount ?? ''} ${e.date || ''} ${e.entryNo ?? ''}`).toLowerCase().includes(q);
+  }
+  function _detailSearchRowHTML(count) {
+    return `<div class="detail-search-row">
+      <input id="detailSearchInput" class="detail-search" type="text" inputmode="search" autocomplete="off"
+        placeholder="Search these entries…" value="${escapeHtml(__detailSearch)}"
+        oninput="setDetailSearch(this.value)">
+      ${__detailSearch ? `<button class="ds-clear" onclick="setDetailSearch('')" aria-label="Clear search">×</button>
+        <span class="ds-count">${count} match${count === 1 ? '' : 'es'}</span>` : ''}
+    </div>`;
+  }
   function renderPartyDetailView(root) {
     const party = data.parties.find(p => p.id === session.selectedPartyId);
     const biz = data.businesses.find(b => b.id === session.activeBizId);
@@ -14515,7 +14545,9 @@
     const _emptyMsg = _filterBits
       ? `No transactions with this party ${_filterBits} yet.`
       : 'No transactions with this party yet.';
-    const entriesHTML = entries.length ? entries.map(e => {
+    const _ds = entries.filter(_detailSearchPred());
+    const _dsInput = _detailSearchRowHTML(_ds.length);
+    const entriesHTML = _ds.length ? _ds.map(e => {
       const book = data.books.find(b => b.id === e.bookId);
       const enriched = { ...e, _runBal: 0, _bookName: book?.name || '' };
       // override row to show book name in place of balance for party-detail view (only matters desktop)
@@ -14551,7 +14583,7 @@
           <div>Date</div><div>Description</div><div>Book</div>
           <div class="col-amount">Amount</div><div></div><div></div>
         </div>
-        ${entriesHTML}
+        ${_dsInput}${entriesHTML}
       </div>
     `;
   }
@@ -14820,7 +14852,9 @@
       <div class="stat"><div class="stat-label">Net</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${entries.length} total</div></div>
     </div>`;
 
-    const entriesHTML = entries.length ? entries.map(e => {
+    const _ds = entries.filter(_detailSearchPred());
+    const _dsInput = _detailSearchRowHTML(_ds.length);
+    const entriesHTML = _ds.length ? _ds.map(e => {
       const book = data.books.find(b => b.id === e.bookId);
       return renderCategoryEntryRow({ ...e, _bookName: book?.name || '' }, isMobile);
     }).join('') : '<div class="empty"><div class="empty-headline">No entries in this category yet.</div></div>';
@@ -14851,7 +14885,7 @@
           <div>Date</div><div>Description</div><div>Party / Book</div>
           <div class="col-amount">Amount</div><div></div><div></div>
         </div>
-        ${entriesHTML}
+        ${_dsInput}${entriesHTML}
       </div>
     `;
   }
@@ -14924,6 +14958,7 @@
 
   function openCategory(name) {
     session.view = 'category-detail';
+    __detailSearch = '';
     session.selectedCategory = name;
     saveSession();
     __renderResetScroll = true;
@@ -22519,7 +22554,9 @@
       <div class="stat"><div class="stat-label">Balance</div><div class="stat-value">${cur} ${net >= 0 ? '+' : ''}${fmt(net)}</div><div class="stat-meta">${entries.length} total</div></div>
     </div>`;
 
-    const entriesHTML = entries.length ? entries.map(e => {
+    const _ds = entries.filter(_detailSearchPred());
+    const _dsInput = _detailSearchRowHTML(_ds.length);
+    const entriesHTML = _ds.length ? _ds.map(e => {
       const book = data.books.find(b => b.id === e.bookId);
       return renderAccountEntryRow({ ...e, _bookName: book?.name || '' }, isMobile);
     }).join('') : '<div class="empty"><div class="empty-headline">No entries on this account yet.</div></div>';
@@ -22551,7 +22588,7 @@
           <div>Date</div><div>Description</div><div>Party / Book</div>
           <div class="col-amount">Amount</div><div></div><div></div>
         </div>
-        ${entriesHTML}
+        ${_dsInput}${entriesHTML}
       </div>
     `;
   }
@@ -22737,6 +22774,7 @@
     session.selectedPartyId = null;
     session.selectedCategory = null;
     session.selectedAccountId = null;
+    __detailSearch = '';
     // v89.68: searches are per-view scratch state and must NOT carry across
     // businesses (a search typed in Business A's Parties tab was showing up
     // when switching to Business B). Clear them all on every business switch.
@@ -22754,6 +22792,7 @@
     session.selectedPartyId = null;
     session.selectedCategory = null;
     session.selectedAccountId = null;
+    __detailSearch = '';
     saveSession(); closeDrawer();
     __renderResetScroll = true;
     renderAll();
@@ -22773,6 +22812,7 @@
       // party starts unfiltered. (v89.129: account filter included.)
       __partyDetailCatFilter = null;
       __partyDetailAcctFilter = null;
+      __detailSearch = '';
     }
     if (view !== 'category-detail') session.selectedCategory = null;
     if (view !== 'account-detail') session.selectedAccountId = null;
@@ -22798,7 +22838,7 @@
     session.view = 'party-detail';
     // If opening a DIFFERENT party than the one we were on, clear
     // any leftover category filter from the previous party.
-    if (session.selectedPartyId !== partyId) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; }
+    if (session.selectedPartyId !== partyId) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; __detailSearch = ''; }
     session.selectedPartyId = partyId;
     saveSession();
     __renderResetScroll = true; // drilling into a detail view → top
@@ -22806,6 +22846,7 @@
   }
   function openAccount(accountId) {
     session.view = 'account-detail';
+    __detailSearch = '';
     session.selectedAccountId = accountId;
     saveSession();
     __renderResetScroll = true;
@@ -32139,7 +32180,7 @@
       // a different party via the chip menu kept the previous party's
       // category filter (pre-existing) and account filter. Same hygiene
       // as openParty().
-      if (session.selectedPartyId !== id) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; }
+      if (session.selectedPartyId !== id) { __partyDetailCatFilter = null; __partyDetailAcctFilter = null; __detailSearch = ''; }
       session.selectedPartyId = id;
       session.view = 'party-detail';
       saveSession(); __renderResetScroll = true; renderAll();
@@ -32148,6 +32189,7 @@
       session.view = 'category-detail';
       saveSession(); __renderResetScroll = true; renderAll();
     } else if (action === 'account') {
+      __detailSearch = '';
       session.selectedAccountId = id;
       session.view = 'account-detail';
       saveSession(); __renderResetScroll = true; renderAll();
