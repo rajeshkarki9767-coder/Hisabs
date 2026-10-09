@@ -6056,11 +6056,11 @@
     letter-spacing: 0.02em;
   }
   .meta-detail-row .meta-multi-input { min-width: 0; width: 100%; }
-  .meta-detail-row .meta-multi-remove { align-self: end; }
+  .meta-detail-row .meta-row-actions { align-self: end; }
   @media (max-width: 640px) {
     .meta-multi-list .meta-detail-row { grid-template-columns: 1fr 1fr; }
     .meta-detail-row .meta-detail-cell:first-child { grid-column: 1 / -1; }
-    .meta-detail-row .meta-multi-remove { grid-column: 2; justify-self: end; }
+    .meta-detail-row .meta-row-actions { grid-column: 2; justify-self: end; }
   }
   .account-card-head { display: flex; align-items: flex-start; gap: 0.55rem; margin-bottom: 0.65rem; }
   .account-card-head > div { flex: 1; min-width: 0; }
@@ -6193,7 +6193,8 @@
     background: transparent; font-weight: 800; white-space: nowrap;
   }
   .meta-row-ns.active { background: var(--loss); color: #ffffff; border-color: var(--loss); }
-  .meta-detail-row .meta-row-ns { align-self: end; margin-bottom: 0.15rem; }
+  .meta-row-actions { display: flex; gap: 0.3rem; align-items: stretch; align-self: end; }
+  .meta-row-actions .meta-row-ns { margin: 0; }
   .meta-notshared-btn {
     float: right; font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.5rem;
     border-radius: 5px; border: 1px solid var(--line); background: transparent;
@@ -6244,13 +6245,14 @@
     color: var(--ink);
     min-width: 0;
   }
-  .meta-multi-remove svg { display: block; }
+  .meta-multi-remove svg { display: block; margin: 0 auto; }
   .meta-multi-remove {
     background: transparent;
-    border: 1px solid var(--line);
+    border: 1px solid var(--ink-soft, #8a8176);
     border-radius: var(--r-sm);
     width: 38px;
-    color: var(--ink-mute);
+    min-height: 34px;
+    color: var(--ink);
     cursor: pointer;
     font-size: 1.05rem;
     line-height: 1;
@@ -7778,7 +7780,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.219';
+  const BUILD_TAG = '2026.07.11.220';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -26075,8 +26077,10 @@
     return `<div class="meta-multi-row meta-social-row">
       <input type="text" class="meta-multi-input meta-social-platform" list="socialPlatformList" maxlength="30" placeholder="Platform" value="${escapeHtml(platform || '')}" autocomplete="off">
       <input type="text" class="meta-multi-input meta-social-handle" maxlength="200" placeholder="username or link" value="${escapeHtml(handle || '')}" autocomplete="off">
-      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">✕</button>
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      <span class="meta-row-actions">
+        <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">✕</button>
+        <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </span>
     </div>`;
   }
   function addPartySocialRow() {
@@ -26099,8 +26103,10 @@
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Acc. Name</span><input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC Asia Bank" value="${escapeHtml(account || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Username</span><input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Tag</span><input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off"></label>
-      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">✕</button>
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      <span class="meta-row-actions">
+        <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">✕</button>
+        <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+      </span>
     </div>`;
   }
   function addPartyDetailRow() {

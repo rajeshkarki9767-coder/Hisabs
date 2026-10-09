@@ -2507,3 +2507,4 @@ Compare to the hash in this changelog.
 - .217: NS toggle label is just the red ✕ (text removed).
 - .218: parties-list badges use the red ✕ instead of NS text — ✕ SMS, ✕ Email, ✕ Facebook, ✕ NIC Asia (tooltips keep the full Not-shared wording).
 - .219: row-remove buttons on the party edit form are now a trash icon — no more two crosses next to each other (red ✕ = Not shared, trash = remove row).
+- .220: FIX — the .219 trash button wrapped onto its own clipped line on social/account rows (the row grids had one action slot); ✕ + trash now share one actions cell, inline and aligned, and the trash is darker (ink on a stronger border).
