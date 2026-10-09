@@ -6187,7 +6187,12 @@
   .pmeta-chip-red {
     color: var(--loss); border-color: rgba(168,53,31,0.4); background: rgba(168,53,31,0.1);
   }
-  .meta-row-ns { padding: 0.2rem 0.45rem; font-size: 0.66rem; flex: none; }
+  .meta-row-ns {
+    padding: 0.2rem 0.45rem; font-size: 0.66rem; flex: none;
+    color: var(--loss); border-color: var(--loss);
+    background: transparent; font-weight: 800; white-space: nowrap;
+  }
+  .meta-row-ns.active { background: var(--loss); color: #ffffff; border-color: var(--loss); }
   .meta-detail-row .meta-row-ns { align-self: end; margin-bottom: 0.15rem; }
   .meta-notshared-btn {
     float: right; font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.5rem;
@@ -7772,7 +7777,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.215';
+  const BUILD_TAG = '2026.07.11.216';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -26069,7 +26074,7 @@
     return `<div class="meta-multi-row meta-social-row">
       <input type="text" class="meta-multi-input meta-social-platform" list="socialPlatformList" maxlength="30" placeholder="Platform" value="${escapeHtml(platform || '')}" autocomplete="off">
       <input type="text" class="meta-multi-input meta-social-handle" maxlength="200" placeholder="username or link" value="${escapeHtml(handle || '')}" autocomplete="off">
-      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">NS</button>
+      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">✕ NS</button>
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
@@ -26093,7 +26098,7 @@
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Acc. Name</span><input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC Asia Bank" value="${escapeHtml(account || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Username</span><input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Tag</span><input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off"></label>
-      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">NS</button>
+      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">✕ NS</button>
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }

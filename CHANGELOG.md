@@ -2503,3 +2503,4 @@ Compare to the hash in this changelog.
 - .213: REVERTED .209/.211 — birthday strip, cake chips and inline date removed from the parties list; only the purple DOB badge (.208) remains.
 - .214: upcoming-birthdays strip + cake chips RESTORED on the parties list, now date-free — only today / in-Nd proximity ever shows, tooltips included; the full date never appears on the list (owner/Super Manager; team keeps the purple badge).
 - .215: per-row NOT SHARED for socials and account sets — name the platform/account, tick NS, and the list badge shows red "NS Facebook" / "NS NIC Asia"; contact card shows a red Not-shared chip; exports say Not shared.
+- .216: the per-row NS toggle is now a red cross — ✕ NS, outlined red, solid red when active (distinct from the grey × remove).
