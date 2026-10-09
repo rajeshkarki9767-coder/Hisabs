@@ -2498,3 +2498,5 @@ Compare to the hash in this changelog.
 - .208: DOB badge (purple) on party cards when a date of birth is saved — visible to all roles; tooltip shows the date for owner/Super Manager only.
 - .209: upcoming-birthdays strip at the top of Parties (next 20 days, soonest first, today highlighted, tap to open) + 🎂 chip beside the name on each such card — owner/Super Manager only.
 - .210: changelog + final verification build.
+- .211: DOB shown inline on parties-list cards — the date itself right after the Limited/Unlimited symbol (owner/Super Manager; team keeps the badge-only view).
+- .212: changelog + final verification build (35/35).
