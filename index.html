@@ -5856,6 +5856,12 @@
   }
   /* v89.102: red variant — the party declined to share this contact
      channel (SMS = no phone given, Email = no email given). */
+  .party-contact-tag-dob {
+    color: #6b21a8;
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.45);
+    font-weight: 700;
+  }
   .party-contact-tag-red {
     color: var(--loss);
     border-color: var(--loss);
@@ -7738,7 +7744,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.207';
+  const BUILD_TAG = '2026.07.11.208';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11283,6 +11289,9 @@
   function partyContactBadges(party) {
     const meta = party && party.meta;
     if (!meta) return '';
+    // v89.141: rich tooltips (full DOB date, account usernames/tags) only
+    // for roles allowed to see contact details — owner / supermanager.
+    const _fullTip = typeof canSeePartyContact === 'function' ? !!canSeePartyContact(party?.businessId) : false;
     const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
     const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
     const socials = Array.isArray(meta.socials)
@@ -11293,6 +11302,14 @@
     else if (meta.phoneNotShared) tags.push({ label: 'NS SMS', title: 'Not shared — party declined to share a phone number', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
     else if (meta.emailNotShared) tags.push({ label: 'NS Email', title: 'Not shared — party declined to share an email', red: true });
+    // v89.141: DOB entered → purple badge on the card (visible to all,
+    // like SMS/Email/account boxes). The tooltip carries the actual date
+    // only for owner/supermanager; the team just sees that one is saved.
+    if (meta.dob) tags.push({
+      label: 'DOB',
+      title: _fullTip ? ('Date of birth: ' + formatDobDisplay(meta.dob)) : 'Date of birth saved',
+      cls: 'party-contact-tag-dob',
+    });
     for (const s of socials) {
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
@@ -11310,7 +11327,7 @@
       moreHTML = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(moreTitle)}">+${moreCount} more</span>`;
     }
     const out = shown
-      .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
+      .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}${t.cls ? ' ' + t.cls : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
       .join('') + moreHTML;
     // v89.106: on the parties LIST, each set shows ONLY its ACCOUNT NAME as
     // a green box ("NIC Asia Bank") — username and tag are attributes of
@@ -11319,8 +11336,7 @@
     // manager / viewer); for the team role the tooltip is just the account
     // name, so hover/long-press can't leak username or tag. Sets without
     // an account name don't badge the list.
-    const _fullTip = typeof canSeePartyContact === 'function' ? !!canSeePartyContact(party?.businessId) : false;
-    const _sets = partyDetailSets(meta);
+    const _sets = partyDetailSets(meta); // (_fullTip hoisted to fn top, v89.141)
     const _flat = [];
     for (const s of _sets) {
       if (!s.account) continue;
