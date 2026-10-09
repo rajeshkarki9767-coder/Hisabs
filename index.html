@@ -5856,6 +5856,38 @@
   }
   /* v89.102: red variant — the party declined to share this contact
      channel (SMS = no phone given, Email = no email given). */
+  .party-contact-tag-bday {
+    color: #9a3412;
+    background: rgba(249, 115, 22, 0.14);
+    border-color: rgba(249, 115, 22, 0.5);
+    font-weight: 800;
+    margin-left: 0.3rem;
+    vertical-align: middle;
+  }
+  .bday-strip {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+    border: 1px solid rgba(249, 115, 22, 0.45);
+    background: rgba(249, 115, 22, 0.07);
+    border-radius: 12px; padding: 0.5rem 0.7rem; margin: 0.55rem 0;
+  }
+  .bday-strip-head {
+    font-size: 0.72rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 0.06em; color: #9a3412; margin-right: 0.2rem;
+  }
+  .bday-strip-item {
+    border: 1px solid var(--line); background: var(--card, #fff);
+    color: var(--ink); border-radius: 999px; padding: 0.18rem 0.6rem;
+    font-size: 0.8rem; font-weight: 600; cursor: pointer;
+  }
+  .bday-strip-item .bday-strip-when { color: var(--ink-mute); font-weight: 700; margin-left: 0.15rem; }
+  .bday-strip-today { border-color: rgba(249, 115, 22, 0.7); background: rgba(249, 115, 22, 0.14); }
+  .bday-strip-today .bday-strip-when { color: #9a3412; }
+  .party-contact-tag-dob {
+    color: #6b21a8;
+    background: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.45);
+    font-weight: 700;
+  }
   .party-contact-tag-red {
     color: var(--loss);
     border-color: var(--loss);
@@ -7738,7 +7770,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.207';
+  const BUILD_TAG = '2026.07.11.210';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11283,6 +11315,9 @@
   function partyContactBadges(party) {
     const meta = party && party.meta;
     if (!meta) return '';
+    // v89.141: rich tooltips (full DOB date, account usernames/tags) only
+    // for roles allowed to see contact details — owner / supermanager.
+    const _fullTip = typeof canSeePartyContact === 'function' ? !!canSeePartyContact(party?.businessId) : false;
     const hasPhone = Array.isArray(meta.phones) && meta.phones.some(p => p && String(p).trim());
     const hasEmail = Array.isArray(meta.emails) && meta.emails.some(e => e && String(e).trim());
     const socials = Array.isArray(meta.socials)
@@ -11293,6 +11328,14 @@
     else if (meta.phoneNotShared) tags.push({ label: 'NS SMS', title: 'Not shared — party declined to share a phone number', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
     else if (meta.emailNotShared) tags.push({ label: 'NS Email', title: 'Not shared — party declined to share an email', red: true });
+    // v89.141: DOB entered → purple badge on the card (visible to all,
+    // like SMS/Email/account boxes). The tooltip carries the actual date
+    // only for owner/supermanager; the team just sees that one is saved.
+    if (meta.dob) tags.push({
+      label: 'DOB',
+      title: _fullTip ? ('Date of birth: ' + formatDobDisplay(meta.dob)) : 'Date of birth saved',
+      cls: 'party-contact-tag-dob',
+    });
     for (const s of socials) {
       const name = String(s.platform).trim();
       tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
@@ -11310,7 +11353,7 @@
       moreHTML = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(moreTitle)}">+${moreCount} more</span>`;
     }
     const out = shown
-      .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
+      .map(t => `<span class="party-contact-tag${t.red ? ' party-contact-tag-red' : ''}${t.cls ? ' ' + t.cls : ''}" title="${escapeHtml(t.title)}">${escapeHtml(t.label)}</span>`)
       .join('') + moreHTML;
     // v89.106: on the parties LIST, each set shows ONLY its ACCOUNT NAME as
     // a green box ("NIC Asia Bank") — username and tag are attributes of
@@ -11319,8 +11362,7 @@
     // manager / viewer); for the team role the tooltip is just the account
     // name, so hover/long-press can't leak username or tag. Sets without
     // an account name don't badge the list.
-    const _fullTip = typeof canSeePartyContact === 'function' ? !!canSeePartyContact(party?.businessId) : false;
-    const _sets = partyDetailSets(meta);
+    const _sets = partyDetailSets(meta); // (_fullTip hoisted to fn top, v89.141)
     const _flat = [];
     for (const s of _sets) {
       if (!s.account) continue;
@@ -14144,6 +14186,47 @@
   // ================================================================
   // PARTIES VIEW
   // ================================================================
+  // ================================================================
+  // v89.142: UPCOMING BIRTHDAYS on the PARTIES LIST — a strip at the
+  // top ("who's next, in how many days") plus a cake chip on each
+  // card, for birthdays within the next 20 days. Owner/Super Manager
+  // only: proximity effectively reveals the date, which the v89.130
+  // privacy model keeps from manager/staff/viewer (they still see the
+  // purple DOB badge saying one exists).
+  // ================================================================
+  const BDAY_SOON_DAYS = 20;
+  function upcomingBirthdayParties(bizId) {
+    if (!canSeePartyContact(bizId)) return [];
+    const out = [];
+    for (const p of data.parties) {
+      if (p.businessId !== bizId || !p.meta || !p.meta.dob) continue;
+      const d = daysUntilBirthday(p.meta.dob);
+      if (d === null || d > BDAY_SOON_DAYS) continue;
+      out.push({ p, days: d });
+    }
+    out.sort((a, b) => a.days - b.days || String(a.p.name).localeCompare(String(b.p.name)));
+    return out;
+  }
+  function _bdayWhen(days) {
+    return days === 0 ? 'today 🎉' : days === 1 ? 'tomorrow' : `in ${days}d`;
+  }
+  function upcomingBirthdaysStripHTML(bizId) {
+    const up = upcomingBirthdayParties(bizId);
+    if (!up.length) return '';
+    const items = up.map(({ p, days }) =>
+      `<button class="bday-strip-item${days === 0 ? ' bday-strip-today' : ''}" onclick="event.stopPropagation(); openParty('${jsAttr(p.id)}')">
+         ${escapeHtml(p.name)} <span class="bday-strip-when">${escapeHtml(_bdayWhen(days))}</span>
+       </button>`).join('');
+    return `<div class="bday-strip" role="note" aria-label="Upcoming birthdays">
+      <span class="bday-strip-head">🎂 Birthdays · next ${BDAY_SOON_DAYS} days</span>${items}
+    </div>`;
+  }
+  function partyBdayChip(p) {
+    if (!p.meta || !p.meta.dob || !canSeePartyContact(p.businessId)) return '';
+    const d = daysUntilBirthday(p.meta.dob);
+    if (d === null || d > BDAY_SOON_DAYS) return '';
+    return `<span class="party-contact-tag party-contact-tag-bday" title="Birthday ${escapeHtml(_bdayWhen(d))}${d === 0 ? '' : ' — ' + escapeHtml(formatDobDisplay(p.meta.dob))}">🎂 ${escapeHtml(d === 0 ? 'Today!' : d + 'd')}</span>`;
+  }
   function renderPartiesView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) { root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>'; return; }
@@ -14273,7 +14356,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}${partyBdayChip(p)}</div>
         ${partyContactBadges(p) /* v89.102: badges (SMS/Email/Not shared/green details) visible to ALL members; the full contact card on the detail page remains gated by canSeePartyContact */}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
@@ -14306,6 +14389,7 @@
         </div>
       </div>
       ${renderPeriodBar()}
+      ${upcomingBirthdaysStripHTML(biz.id)}
       ${totalParties >= 3 ? `<div class="entity-search-wrap">
         <svg class="entity-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
         <input type="text" id="partiesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
