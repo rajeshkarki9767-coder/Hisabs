@@ -6187,6 +6187,8 @@
   .pmeta-chip-red {
     color: var(--loss); border-color: rgba(168,53,31,0.4); background: rgba(168,53,31,0.1);
   }
+  .meta-row-ns { padding: 0.2rem 0.45rem; font-size: 0.66rem; flex: none; }
+  .meta-detail-row .meta-row-ns { align-self: end; margin-bottom: 0.15rem; }
   .meta-notshared-btn {
     float: right; font-size: 0.7rem; font-weight: 600; padding: 0.12rem 0.5rem;
     border-radius: 5px; border: 1px solid var(--line); background: transparent;
@@ -7770,7 +7772,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.214';
+  const BUILD_TAG = '2026.07.11.215';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9690,10 +9692,14 @@
     // platform name (the handle may be blank but a nameless row is junk).
     const socials = Array.isArray(input?.socials)
       ? input.socials
-          .map(s => ({
-            platform: String(s?.platform || '').trim().slice(0, 30),
-            handle: String(s?.handle || '').trim().slice(0, 200),
-          }))
+          .map(s => {
+            const row = {
+              platform: String(s?.platform || '').trim().slice(0, 30),
+              handle: String(s?.handle || '').trim().slice(0, 200),
+            };
+            if (s?.ns) row.ns = true; // v89.148: handle refused for this platform
+            return row;
+          })
           .filter(s => s.platform)
       : [];
     if (socials.length) meta.socials = socials.slice(0, 12);
@@ -9703,11 +9709,15 @@
     // filled. Each field ≤200 chars; max 10 rows.
     const details = Array.isArray(input?.details)
       ? input.details
-          .map(d => ({
-            account: String(d?.account || '').trim().slice(0, 200),
-            username: String(d?.username || '').trim().slice(0, 200),
-            tag: String(d?.tag || '').trim().slice(0, 200),
-          }))
+          .map(d => {
+            const row = {
+              account: String(d?.account || '').trim().slice(0, 200),
+              username: String(d?.username || '').trim().slice(0, 200),
+              tag: String(d?.tag || '').trim().slice(0, 200),
+            };
+            if (d?.ns) row.ns = true; // v89.148: details refused for this account
+            return row;
+          })
           .filter(d => d.account || d.username || d.tag)
       : [];
     if (details.length) meta.details = details.slice(0, 10);
@@ -10060,6 +10070,11 @@
           if (handleRaw) {
             links.push(`<button type="button" class="contact-link contact-link-copy" onclick="copyTextValue('${jsAttr(handleRaw)}', this)" title="Copy ${plat}" aria-label="Copy ${plat} handle">Copy</button>`);
           }
+          if (s.ns) {
+            return `<div class="contact-multi-item">
+              <span class="contact-multi-value"><strong>${plat}</strong> <span class="pmeta-chip pmeta-chip-red">Not shared</span></span>
+            </div>`;
+          }
           return `<div class="contact-multi-item">
             <span class="contact-multi-value"><strong>${plat}</strong>${handleRaw ? ' · ' + safeHandle : ''}</span>
             <span class="contact-multi-links">${links.join('')}</span>
@@ -10082,8 +10097,8 @@
         chips.push(`<span class="pmeta-chip pmeta-chip-green" role="button" tabindex="0" onclick="copyTextValue('${jsAttr(valRaw)}', this)" title="Tap to copy ${lab}"><strong>${lab}:</strong> ${val}</span>`);
       };
       if (s.account) mk('Account', s.account);
-      if (s.username) mk('Username', s.username);
-      if (s.tag) mk('Tag', s.tag);
+      if (s.ns) chips.push(`<span class="pmeta-chip pmeta-chip-red">Not shared</span>`);
+      else { if (s.username) mk('Username', s.username); if (s.tag) mk('Tag', s.tag); }
       if (!chips.length) return;
       rows.push(`<div class="contact-row contact-row-multi">
         <div class="contact-row-label">${_sets.length > 1 ? 'Account ' + (i + 1) : 'Account'}</div>
@@ -11294,6 +11309,7 @@
         account: String(d.account || '').trim(),
         username: String(d.username || '').trim(),
         tag: String(d.tag || '').trim(),
+        ns: d.ns === true,
       };
       if (row.account || row.username || row.tag) sets.push(row);
     }
@@ -11338,7 +11354,8 @@
     });
     for (const s of socials) {
       const name = String(s.platform).trim();
-      tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
+      if (s.ns) tags.push({ label: 'NS ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
+      else tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
@@ -11366,6 +11383,7 @@
     const _flat = [];
     for (const s of _sets) {
       if (!s.account) continue;
+      if (s.ns) { _flat.push({ text: 'NS ' + s.account, tip: 'Not shared — party declined to share details for ' + s.account, ns: true }); continue; }
       const tipParts = ['Account: ' + s.account];
       if (_fullTip && s.username) tipParts.push('Username: ' + s.username);
       if (_fullTip && s.tag) tipParts.push('Tag: ' + s.tag);
@@ -11382,7 +11400,7 @@
         dMore = `<span class="party-contact-tag party-contact-tag-more" title="${escapeHtml(t)}">+${n} more</span>`;
       }
       detailRowHTML = '<div class="party-contact-tags party-detail-tags">' + dShown
-        .map(d => `<span class="party-contact-tag party-contact-tag-green" title="${escapeHtml(d.tip)}">${escapeHtml(d.text)}</span>`)
+        .map(d => `<span class="party-contact-tag ${d.ns ? 'party-contact-tag-red' : 'party-contact-tag-green'}" title="${escapeHtml(d.tip)}">${escapeHtml(d.text)}</span>`)
         .join('') + dMore + '</div>';
     }
     // v89.31.7: render the badges on their own row directly BELOW the name
@@ -25929,13 +25947,13 @@
     // v89.32: social rows — platform on the left, handle/link on the right.
     // At least one empty starter row in the create flow; existing rows on edit.
     const socials = Array.isArray(m.socials) && m.socials.length ? m.socials : [{ platform: '', handle: '' }];
-    const socialsHTML = socials.map((s, i) => partySocialRowHTML(s && s.platform, s && s.handle, i)).join('');
+    const socialsHTML = socials.map((s, i) => partySocialRowHTML(s && s.platform, s && s.handle, i, s && s.ns)).join('');
     // v89.105: DETAIL SET rows — each row = Acc. Name + Username + Tag
     // (one record). Existing sets prefill (legacy pairs normalized); a
     // fresh form starts with one empty row. "+ Add more" appends a row.
     const detailSets = partyDetailSets(m);
     const detailRows = detailSets.length ? detailSets : [{ account: '', username: '', tag: '' }];
-    const detailsHTML = detailRows.map(r => partyDetailRowHTML(r.account, r.username, r.tag)).join('');
+    const detailsHTML = detailRows.map(r => partyDetailRowHTML(r.account, r.username, r.tag, r.ns)).join('');
     return `
       <datalist id="socialPlatformList">
         <option value="Facebook"></option>
@@ -26046,10 +26064,12 @@
   // side by side, with a remove button. The left field has a datalist of
   // common platforms for quick entry but stays free-text so any platform
   // can be typed.
-  function partySocialRowHTML(platform, handle, idx) {
+  function partySocialRowHTML(platform, handle, idx, ns) {
+    // v89.148: per-row NS toggle — platform named, handle refused.
     return `<div class="meta-multi-row meta-social-row">
       <input type="text" class="meta-multi-input meta-social-platform" list="socialPlatformList" maxlength="30" placeholder="Platform" value="${escapeHtml(platform || '')}" autocomplete="off">
       <input type="text" class="meta-multi-input meta-social-handle" maxlength="200" placeholder="username or link" value="${escapeHtml(handle || '')}" autocomplete="off">
+      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">NS</button>
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
@@ -26067,11 +26087,13 @@
   // detach from their field when the layout wraps on narrow screens), and
   // the whole row is a bordered group so "one row = one account" is
   // visually obvious.
-  function partyDetailRowHTML(account, username, tag) {
+  function partyDetailRowHTML(account, username, tag, ns) {
+    // v89.148: per-set NS toggle — account named, other fields refused.
     return `<div class="meta-multi-row meta-detail-row">
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Acc. Name</span><input type="text" class="meta-multi-input meta-detail-acc" maxlength="200" placeholder="NIC Asia Bank" value="${escapeHtml(account || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Username</span><input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Tag</span><input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off"></label>
+      <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">NS</button>
       <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
     </div>`;
   }
@@ -26101,6 +26123,8 @@
     ltd.classList.remove('active'); unl.classList.remove('active');
     if (!wasActive) target.classList.add('active');
   }
+  // v89.148: per-row NS toggle for social / account-set rows.
+  function toggleRowNS(btn) { btn.classList.toggle('active'); }
   function toggleNotShared(btn) {
     if (!btn) return;
     if (!btn.classList.contains('active')) {
@@ -26155,6 +26179,7 @@
       .map(row => ({
         platform: row.querySelector('.meta-social-platform')?.value || '',
         handle: row.querySelector('.meta-social-handle')?.value || '',
+        ns: !!row.querySelector('.meta-row-ns')?.classList.contains('active'),
       }));
     // v89.105: detail SET rows + not-shared flags.
     const details = Array.from(document.querySelectorAll('#mPartyDetails .meta-detail-row'))
@@ -26162,6 +26187,7 @@
         account: row.querySelector('.meta-detail-acc')?.value || '',
         username: row.querySelector('.meta-detail-user')?.value || '',
         tag: row.querySelector('.meta-detail-tag')?.value || '',
+        ns: !!row.querySelector('.meta-row-ns')?.classList.contains('active'),
       }));
     const limit = document.getElementById('mPartyLimitLtd')?.classList.contains('active') ? 'limited'
       : (document.getElementById('mPartyLimitUnl')?.classList.contains('active') ? 'unlimited' : '');
@@ -34458,9 +34484,9 @@
       const dob = meta.dob ? formatDobDisplay(meta.dob) : '';
       const socials = (Array.isArray(meta.socials) ? meta.socials : [])
         .filter(s => s && (s.platform || s.handle))
-        .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(J);
+        .map(s => s.ns ? (s.platform + ': Not shared') : [s.platform, s.handle].filter(Boolean).join(': ')).join(J);
       const accounts = partyDetailSets(meta)
-        .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · ')).join(J);
+        .map(s => s.ns ? (s.account + ' · Not shared') : [s.account, s.username, s.tag].filter(Boolean).join(' · ')).join(J);
       const desc = String(meta.description || '');
       return [p.name, phones, emails, dob, socials, accounts, desc,
               ents.length, num(inSum), num(outSum), num(inSum - outSum)];
@@ -35246,10 +35272,10 @@
     if (meta.dob) metaLines.push(['DOB', formatDobDisplay(meta.dob)]);
     const socials = (Array.isArray(meta.socials) ? meta.socials : [])
       .filter(s => s && (s.platform || s.handle))
-      .map(s => [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
+      .map(s => s.ns ? (s.platform + ': Not shared') : [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
     if (socials) metaLines.push(['Social', socials]);
     const accSets = partyDetailSets(meta)
-      .map(s => [s.account, s.username, s.tag].filter(Boolean).join(' · '));
+      .map(s => s.ns ? (s.account + ' · Not shared') : [s.account, s.username, s.tag].filter(Boolean).join(' · '));
     if (accSets.length) metaLines.push(['Accounts', accSets.join('\n')]);
     if (meta.limit === 'limited' || meta.limit === 'unlimited') metaLines.push(['Limit', meta.limit === 'limited' ? 'Limited' : 'Unlimited']);
     if (meta.description) metaLines.push(['Notes', String(meta.description)]);
