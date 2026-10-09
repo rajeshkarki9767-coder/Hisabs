@@ -2501,3 +2501,4 @@ Compare to the hash in this changelog.
 - .211: DOB shown inline on parties-list cards — the date itself right after the Limited/Unlimited symbol (owner/Super Manager; team keeps the badge-only view).
 - .212: changelog + final verification build (35/35).
 - .213: REVERTED .209/.211 — birthday strip, cake chips and inline date removed from the parties list; only the purple DOB badge (.208) remains.
+- .214: upcoming-birthdays strip + cake chips RESTORED on the parties list, now date-free — only today / in-Nd proximity ever shows, tooltips included; the full date never appears on the list (owner/Super Manager; team keeps the purple badge).
