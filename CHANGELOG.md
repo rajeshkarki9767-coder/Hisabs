@@ -2500,3 +2500,4 @@ Compare to the hash in this changelog.
 - .210: changelog + final verification build.
 - .211: DOB shown inline on parties-list cards — the date itself right after the Limited/Unlimited symbol (owner/Super Manager; team keeps the badge-only view).
 - .212: changelog + final verification build (35/35).
+- .213: REVERTED .209/.211 — birthday strip, cake chips and inline date removed from the parties list; only the purple DOB badge (.208) remains.
