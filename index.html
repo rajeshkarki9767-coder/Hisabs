@@ -5856,6 +5856,10 @@
   }
   /* v89.102: red variant — the party declined to share this contact
      channel (SMS = no phone given, Email = no email given). */
+  .party-dob-inline {
+    font-size: 0.74rem; font-weight: 600; color: var(--ink-mute);
+    margin-left: 0.35rem; vertical-align: middle; white-space: nowrap;
+  }
   .party-contact-tag-bday {
     color: #9a3412;
     background: rgba(249, 115, 22, 0.14);
@@ -7770,7 +7774,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.210';
+  const BUILD_TAG = '2026.07.11.212';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14221,6 +14225,16 @@
       <span class="bday-strip-head">🎂 Birthdays · next ${BDAY_SOON_DAYS} days</span>${items}
     </div>`;
   }
+  // v89.143: the DOB itself, inline on the parties-list card right after
+  // the Limited/Unlimited symbol — for EVERY party that has one, not just
+  // upcoming birthdays. Owner/Super Manager only (the date is contact
+  // detail under the v89.130 model); team keeps the purple DOB badge.
+  function partyDobInline(p) {
+    if (!p.meta || !p.meta.dob || !canSeePartyContact(p.businessId)) return '';
+    const txt = formatDobDisplay(p.meta.dob);
+    if (!txt) return '';
+    return `<span class="party-dob-inline" title="Date of birth">· ${escapeHtml(txt)}</span>`;
+  }
   function partyBdayChip(p) {
     if (!p.meta || !p.meta.dob || !canSeePartyContact(p.businessId)) return '';
     const d = daysUntilBirthday(p.meta.dob);
@@ -14356,7 +14370,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}${partyBdayChip(p)}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}${partyDobInline(p)}${partyBdayChip(p)}</div>
         ${partyContactBadges(p) /* v89.102: badges (SMS/Email/Not shared/green details) visible to ALL members; the full contact card on the detail page remains gated by canSeePartyContact */}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
