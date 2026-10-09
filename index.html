@@ -7777,7 +7777,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.217';
+  const BUILD_TAG = '2026.07.11.218';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11346,9 +11346,9 @@
       : [];
     const tags = [];
     if (hasPhone) tags.push({ label: 'SMS', title: 'Phone number saved' });
-    else if (meta.phoneNotShared) tags.push({ label: 'NS SMS', title: 'Not shared — party declined to share a phone number', red: true });
+    else if (meta.phoneNotShared) tags.push({ label: '✕ SMS', title: 'Not shared — party declined to share a phone number', red: true });
     if (hasEmail) tags.push({ label: 'Email', title: 'Email address saved' });
-    else if (meta.emailNotShared) tags.push({ label: 'NS Email', title: 'Not shared — party declined to share an email', red: true });
+    else if (meta.emailNotShared) tags.push({ label: '✕ Email', title: 'Not shared — party declined to share an email', red: true });
     // v89.141: DOB entered → purple badge on the card (visible to all,
     // like SMS/Email/account boxes). The tooltip carries the actual date
     // only for owner/supermanager; the team just sees that one is saved.
@@ -11359,7 +11359,7 @@
     });
     for (const s of socials) {
       const name = String(s.platform).trim();
-      if (s.ns) tags.push({ label: 'NS ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
+      if (s.ns) tags.push({ label: '✕ ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
       else tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
@@ -11388,7 +11388,7 @@
     const _flat = [];
     for (const s of _sets) {
       if (!s.account) continue;
-      if (s.ns) { _flat.push({ text: 'NS ' + s.account, tip: 'Not shared — party declined to share details for ' + s.account, ns: true }); continue; }
+      if (s.ns) { _flat.push({ text: '✕ ' + s.account, tip: 'Not shared — party declined to share details for ' + s.account, ns: true }); continue; }
       const tipParts = ['Account: ' + s.account];
       if (_fullTip && s.username) tipParts.push('Username: ' + s.username);
       if (_fullTip && s.tag) tipParts.push('Tag: ' + s.tag);
