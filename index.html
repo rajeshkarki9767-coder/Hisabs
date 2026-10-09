@@ -7780,7 +7780,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.220';
+  const BUILD_TAG = '2026.07.11.221';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9733,6 +9733,8 @@
     // provide them. A real value always wins: the flag only sticks when
     // the corresponding list is empty, so entering a phone/email later
     // clears the flag automatically on save.
+    // v89.154: DOB refused — flag only sticks while no real date is set.
+    if (input?.dobNotShared && !meta.dob) meta.dobNotShared = true;
     if (input?.phoneNotShared && !(meta.phones && meta.phones.length)) meta.phoneNotShared = true;
     if (input?.emailNotShared && !(meta.emails && meta.emails.length)) meta.emailNotShared = true;
     // v89.113: optional LIMITED / UNLIMITED classification for the party.
@@ -9772,6 +9774,7 @@
     const nD = JSON.stringify(n.details || []);
     if (oD !== nD) changed.push('details');
     if ((o.limit || '') !== (n.limit || '')) changed.push('limit');
+    if (!!o.dobNotShared !== !!n.dobNotShared) changed.push('DOB not-shared');
     if (!!o.phoneNotShared !== !!n.phoneNotShared) changed.push('phone not-shared');
     if (!!o.emailNotShared !== !!n.emailNotShared) changed.push('email not-shared');
     if ((o.description || '') !== (n.description || '')) changed.push('description');
@@ -10007,13 +10010,18 @@
       return boxes ? `<div class="party-contact-card party-contact-card-badges">${boxes}</div>` : '';
     }
     const hasAny = meta.dob || (meta.phones?.length) || (meta.emails?.length) || (meta.socials?.length) || meta.description || meta.referrals
-      || partyDetailSets(meta).length || meta.phoneNotShared || meta.emailNotShared;
+      || partyDetailSets(meta).length || meta.phoneNotShared || meta.emailNotShared || meta.dobNotShared;
     if (!hasAny) return '';
     const rows = [];
     if (meta.dob) {
       rows.push(`<div class="contact-row">
         <div class="contact-row-label">DOB</div>
         <div class="contact-row-value">${escapeHtml(formatDobDisplay(meta.dob))}</div>
+      </div>`);
+    } else if (meta.dobNotShared) {
+      rows.push(`<div class="contact-row">
+        <div class="contact-row-label">DOB</div>
+        <div class="contact-row-value"><span class="pmeta-chip pmeta-chip-red">Not shared</span></div>
       </div>`);
     }
     if (Array.isArray(meta.phones) && meta.phones.length) {
@@ -11355,6 +11363,7 @@
     // v89.141: DOB entered → purple badge on the card (visible to all,
     // like SMS/Email/account boxes). The tooltip carries the actual date
     // only for owner/supermanager; the team just sees that one is saved.
+    if (!meta.dob && meta.dobNotShared) tags.push({ label: '✕ DOB', title: 'Not shared — party declined to share their date of birth', red: true });
     if (meta.dob) tags.push({
       label: 'DOB',
       title: _fullTip ? ('Date of birth: ' + formatDobDisplay(meta.dob)) : 'Date of birth saved',
@@ -25985,7 +25994,9 @@
         </div>
       </div>
       <div class="meta-section">
-        <div class="meta-section-label">Date of birth <span class="meta-optional">— optional, year optional</span></div>
+        <div class="meta-section-label">Date of birth <span class="meta-optional">— optional, year optional</span>
+          <button type="button" id="mDobNotShared" class="meta-notshared-btn meta-row-ns${m.dobNotShared ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share their date of birth. Entering a real date clears this.">✕</button>
+        </div>
         <div class="meta-dob-row">
           <select id="mPartyDobMonth" class="meta-dob-month" aria-label="Month">
             <option value="">Month</option>
@@ -26203,11 +26214,12 @@
       }));
     const limit = document.getElementById('mPartyLimitLtd')?.classList.contains('active') ? 'limited'
       : (document.getElementById('mPartyLimitUnl')?.classList.contains('active') ? 'unlimited' : '');
+    const dobNotShared = !!document.getElementById('mDobNotShared')?.classList.contains('active');
     const phoneNotShared = !!document.getElementById('mPhoneNotShared')?.classList.contains('active');
     const emailNotShared = !!document.getElementById('mEmailNotShared')?.classList.contains('active');
     const description = document.getElementById('mPartyDescription')?.value || '';
     const referrals = document.getElementById('mPartyReferrals')?.value || '';
-    return buildPartyMeta({ dob, phones, emails, socials, description, referrals, details, phoneNotShared, emailNotShared, limit });
+    return buildPartyMeta({ dob, phones, emails, socials, description, referrals, details, phoneNotShared, emailNotShared, dobNotShared, limit });
   }
   function categoryModal() {
     // v89.22: owner sees unassigned toggle
@@ -34493,7 +34505,7 @@
       const meta = p.meta || {};
       const phones = (Array.isArray(meta.phones) ? meta.phones : []).join(J) || (meta.phoneNotShared ? 'Not shared' : '');
       const emails = (Array.isArray(meta.emails) ? meta.emails : []).join(J) || (meta.emailNotShared ? 'Not shared' : '');
-      const dob = meta.dob ? formatDobDisplay(meta.dob) : '';
+      const dob = meta.dob ? formatDobDisplay(meta.dob) : (meta.dobNotShared ? 'Not shared' : '');
       const socials = (Array.isArray(meta.socials) ? meta.socials : [])
         .filter(s => s && (s.platform || s.handle))
         .map(s => s.ns ? (s.platform + ': Not shared') : [s.platform, s.handle].filter(Boolean).join(': ')).join(J);
@@ -35282,6 +35294,7 @@
     if (phones) metaLines.push(['Phone', phones]);
     if (emails) metaLines.push(['Email', emails]);
     if (meta.dob) metaLines.push(['DOB', formatDobDisplay(meta.dob)]);
+    else if (meta.dobNotShared) metaLines.push(['DOB', 'Not shared']);
     const socials = (Array.isArray(meta.socials) ? meta.socials : [])
       .filter(s => s && (s.platform || s.handle))
       .map(s => s.ns ? (s.platform + ': Not shared') : [s.platform, s.handle].filter(Boolean).join(': ')).join(' | ');
