@@ -2485,3 +2485,16 @@ Compare to the hash in this changelog.
 - .195: party contact details owner-only to VIEW — managers, staff and viewers see no phones/emails/DOB/socials/usernames/notes anywhere (full card, quick-look, tooltips); compact list badges stay for all.
 - .196: team period filter restricted to This Month / Today / Yesterday — All Time and Custom are owner-only (tabs hidden, central setPeriod guard, stale-session coercion).
 - .197: changelog + final verification build.
+
+## 1.12 builds .198–.210
+- .198: party "Referrals & Referred by" free-text field (form, contact card, export, diff-gated so referral-only edits save).
+- .199–.200: SUPER MANAGER role — full managerial access plus totals and party-details view/edit/rename-any; owner keeps delete/export/print/bulk/all-time; purple badge; both invite selects offer it.
+- .201: referral search on parties list; one-tap branded entry RECEIPT PDF to the share sheet (owner); 30-day device-local TRASH with restore (owner); APP LOCK PIN (Settings → Security, SHA-256, 2-min background relock).
+- .202: lock sign-out confirm moved inline (was invisible under the z-3000 overlay); bulk-mode action buttons inert so taps only select.
+- .203: search box inside party/category/account detail pages — filters that entity's entries (note/party/category/account/amount/date/No.), stacks with party filters, keyboard survives re-renders, resets on every open/leave.
+- .204: search matches highlighted in bold amber across all row fields; match count as bold pill; period picker active tab weight 800.
+- .205–.206: Audit "Needs review" items tick-able as reviewed (versioned keys — a re-edit resurfaces; per-device; reviewed list with undo); removed a prune that could wipe acks on narrow ranges.
+- .207: INCREMENTAL SYNC — background pulls fetch only rows changed since the last pull for the 7 big tables (updated_at cursors via sql/v89_142), full reconcile on sign-in/manual/6-hourly, cursors advance only after a committed pull, missing-column self-heal. DB: v89_140 five-role RLS (restrictive policies: party delete owner-only, edits owner/SM/creator, entries mirror canEditEntry, member self-promotion blocked), v89_141 supermanager parity for role-enumerating policies.
+- .208: DOB badge (purple) on party cards when a date of birth is saved — visible to all roles; tooltip shows the date for owner/Super Manager only.
+- .209: upcoming-birthdays strip at the top of Parties (next 20 days, soonest first, today highlighted, tap to open) + 🎂 chip beside the name on each such card — owner/Super Manager only.
+- .210: changelog + final verification build.
