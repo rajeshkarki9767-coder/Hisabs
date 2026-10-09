@@ -6244,6 +6244,7 @@
     color: var(--ink);
     min-width: 0;
   }
+  .meta-multi-remove svg { display: block; }
   .meta-multi-remove {
     background: transparent;
     border: 1px solid var(--line);
@@ -7777,7 +7778,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.218';
+  const BUILD_TAG = '2026.07.11.219';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -26035,13 +26036,13 @@
     const ph = placeholder || '+977 98 1234 5678';
     return `<div class="meta-multi-row">
       <input type="tel" class="meta-multi-input meta-phone-input" maxlength="32" placeholder="${escapeHtml(ph)}" value="${escapeHtml(value || '')}" inputmode="tel" autocomplete="tel">
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>`;
   }
   function partyEmailRowHTML(value, idx) {
     return `<div class="meta-multi-row">
       <input type="email" class="meta-multi-input meta-email-input" maxlength="254" placeholder="person@example.com" value="${escapeHtml(value || '')}" inputmode="email" autocomplete="email">
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>`;
   }
   function addPartyPhoneRow() {
@@ -26075,7 +26076,7 @@
       <input type="text" class="meta-multi-input meta-social-platform" list="socialPlatformList" maxlength="30" placeholder="Platform" value="${escapeHtml(platform || '')}" autocomplete="off">
       <input type="text" class="meta-multi-input meta-social-handle" maxlength="200" placeholder="username or link" value="${escapeHtml(handle || '')}" autocomplete="off">
       <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this social's handle/link. The platform name stays; the badge shows NS.">✕</button>
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>`;
   }
   function addPartySocialRow() {
@@ -26099,7 +26100,7 @@
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Username</span><input type="text" class="meta-multi-input meta-detail-user" maxlength="200" placeholder="Ram Bahadur" value="${escapeHtml(username || '')}" autocomplete="off"></label>
       <label class="meta-detail-cell"><span class="meta-detail-cell-label">Tag</span><input type="text" class="meta-multi-input meta-detail-tag" maxlength="200" placeholder="Rameshwor" value="${escapeHtml(tag || '')}" autocomplete="off"></label>
       <button type="button" class="meta-notshared-btn meta-row-ns${ns ? ' active' : ''}" onclick="toggleRowNS(this)" title="Party refused to share this account's details. The account name stays; the badge shows NS.">✕</button>
-      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove">×</button>
+      <button type="button" class="meta-multi-remove" onclick="removeMetaRow(this)" aria-label="Remove" title="Remove this row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
     </div>`;
   }
   function addPartyDetailRow() {
