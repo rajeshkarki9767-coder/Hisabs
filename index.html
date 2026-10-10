@@ -611,14 +611,16 @@
     color: var(--ink-mute); background: var(--surface-2);
     border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0;
   }
-  .adj-toggle-row {
-    display: flex; gap: 0.6rem; align-items: flex-start;
-    padding: 0.6rem 0.75rem; border: 1px solid var(--line-soft);
-    border-radius: 10px; background: var(--surface-2); cursor: pointer;
+  .adj-toggle-btn {
+    display: inline-flex; align-items: center; gap: 0.45rem;
+    padding: 0.45rem 0.9rem; border: 1.5px solid var(--line-soft);
+    border-radius: 999px; background: var(--paper); color: var(--ink);
+    font-size: 0.82rem; font-weight: 600; cursor: pointer; width: auto;
+    transition: background 0.12s, border-color 0.12s;
   }
-  .adj-toggle-row input { margin-top: 0.2rem; accent-color: #f59e0b; flex-shrink: 0; }
-  .adj-toggle-title { display: block; font-weight: 700; font-size: 0.85rem; }
-  .adj-toggle-sub { display: block; font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.15rem; }
+  .adj-toggle-btn .adj-badge { margin-left: 0; }
+  .adj-toggle-btn.active { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+  .adj-toggle-sub { display: block; font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.3rem; }
   /* v89.22: unassigned visual treatment. Parties / categories /
      accounts marked as unassigned get a dimmed card with a dashed
      border and a small 'Unassigned' badge below the name. Signals:
@@ -7812,7 +7814,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.234';
+  const BUILD_TAG = '2026.07.11.235';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8206,14 +8208,15 @@
     return '<span class="adj-badge" title="Adjustment — corrections, not real trade">ADJ</span>';
   }
   function adjToggleHTML(checked, entityLabel) {
+    // v89.168: button-pill toggle (class 'active'), NOT a checkbox — the
+    // app's global input styles (width:100%) blow raw checkboxes apart
+    // inside .form-grid, and every other toggle here is a pill anyway.
     return `
-        <label class="adj-toggle-row">
-          <input type="checkbox" id="mEntityAdj"${checked ? ' checked' : ''}>
-          <span>
-            <span class="adj-toggle-title">Adjustment ${entityLabel}</span>
-            <span class="adj-toggle-sub">Entries on this ${entityLabel} are corrections made to match account amounts. They get an ADJ badge in the cash book. Totals are not affected.</span>
-          </span>
-        </label>`;
+        <div class="input-wrap">
+          <label>Adjustment — <span style="text-transform:none;letter-spacing:0;">mark corrections, not real trade</span></label>
+          <button type="button" id="mEntityAdj" class="adj-toggle-btn${checked ? ' active' : ''}" onclick="this.classList.toggle('active')"><span class="adj-badge">ADJ</span> Adjustment ${entityLabel}</button>
+          <div class="adj-toggle-sub">Entries on this ${entityLabel} get an ADJ badge in the cash book and are left out of Insights and Forecast. Account totals are not affected.</div>
+        </div>`;
   }
   // True when an entry points at an adjustment party or an adjustment
   // category (category matched by name within the entry's business, the
@@ -23929,7 +23932,7 @@
     const newUnassigned = isOwnerHere && toggle ? !!toggle.checked : !!p.unassigned;
     // v89.164: adjustment flag — owner-only, like unassigned.
     const adjToggle = document.getElementById('mEntityAdj');
-    const newAdj = isOwnerHere && adjToggle ? !!adjToggle.checked : !!p.adj;
+    const newAdj = isOwnerHere && adjToggle ? adjToggle.classList.contains('active') : !!p.adj;
     const adjChanged = newAdj !== !!p.adj;
 
     // v89.32.32: meta capture + diff — but only owner/manager may write
@@ -24053,7 +24056,7 @@
     c.unassigned = newUnassigned || undefined;
     // v89.164: adjustment flag — owner-only; non-owners keep the current value.
     const adjToggle = document.getElementById('mEntityAdj');
-    const newAdj = isOwnerHere && adjToggle ? !!adjToggle.checked : !!c.adj;
+    const newAdj = isOwnerHere && adjToggle ? adjToggle.classList.contains('active') : !!c.adj;
     if (newAdj) c.adj = true; else delete c.adj;
     saveData(); closeModal(); renderAll();
     toast('Saved.');
