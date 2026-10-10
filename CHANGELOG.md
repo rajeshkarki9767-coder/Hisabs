@@ -2510,3 +2510,4 @@ Compare to the hash in this changelog.
 - .220: FIX — the .219 trash button wrapped onto its own clipped line on social/account rows (the row grids had one action slot); ✕ + trash now share one actions cell, inline and aligned, and the trash is darker (ink on a stronger border).
 - .221: Date of birth gets the red ✕ Not-shared option too — ✕ DOB badge on the list, Not-shared chip on the card, exports say Not shared; entering a real date clears the flag automatically.
 - .222: FIELD-FILTER chips on the parties list — Has: SMS / Email / DOB / Social / each used platform (Facebook, ...) / Accounts; toggle to clear, stacks with the text search, resets on sign-in and business switch like the searches.
+- .223: Has-filter upgrades — MULTI-SELECT chips (a party must have ALL selected fields) and ACCOUNT-NAME chips (NIC Asia, Chime, ...) beside the platform chips; account names also match by typing in the search box.
