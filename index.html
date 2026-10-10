@@ -7812,7 +7812,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.233';
+  const BUILD_TAG = '2026.07.11.234';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11512,7 +11512,7 @@
     for (const s of socials) {
       const name = String(s.platform).trim();
       if (s.ns) tags.push({ label: '✕ ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
-      else tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
+      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name) }); // v89.167: handle in tooltip gated like DOB/account tips
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
