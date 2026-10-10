@@ -7790,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.229';
+  const BUILD_TAG = '2026.07.11.230';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11372,6 +11372,14 @@
   // Attach protected meta onto party objects (owner/SM pulled rows;
   // other roles have none and keep badge-summary rendering). Idempotent;
   // runs before every main paint.
+  // v89.163: resolve a party's contact meta at POINT OF USE — the
+  // protected store wins over whatever the party object carries right
+  // now (a realtime parties echo can momentarily hold meta=null).
+  function partyMetaResolved(p) {
+    if (!p) return null;
+    const pm = (Array.isArray(data.partyMetas) ? data.partyMetas : []).find(x => x && x.id === p.id);
+    return (pm && pm.meta) || p.meta || null;
+  }
   function applyPartyMetaOverlay() {
     if (!Array.isArray(data.partyMetas) || !data.partyMetas.length) return;
     const byId = new Map(data.partyMetas.map(r => [r && r.id, r]));
@@ -23800,7 +23808,7 @@
           <input type="text" id="mPartyName" maxlength="120" value="${escapeHtml(p.name)}"${canRename ? '' : ' readonly'}>
           ${nameReadonlyHint}
         </div>
-        ${canEditPartyMeta(p) ? partyMetaFormHTML(p.meta || null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) }) : ''}
+        ${canEditPartyMeta(p) ? partyMetaFormHTML(partyMetaResolved(p), { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) }) : ''}
         ${toggleHTML}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -23841,7 +23849,7 @@
     // contact meta. For staff, force newMeta to the existing value so a
     // crafted/leftover DOM can never inject contact details.
     const newMeta = canEditPartyMeta(p) ? readPartyMetaFromForm() : (p.meta || null);
-    const oldMeta = p.meta || null;
+    const oldMeta = partyMetaResolved(p); // v89.163: store wins over a realtime-wiped object
     const metaFieldsChanged = partyMetaDiffFields(oldMeta, newMeta);
 
     const nameChanged = canRename && newName !== p.name;
@@ -38276,7 +38284,17 @@
             && (!restored.createdTs || list[idx].createdTs > restored.createdTs)) {
           restored.createdTs = list[idx].createdTs;
         }
+        // v89.163: post-Phase-2 the cloud parties row always has meta=null —
+        // never let that echo wipe the overlaid contact meta on this device.
+        if (localKey === 'parties' && list[idx] && list[idx].meta && restored.meta == null) {
+          restored.meta = list[idx].meta;
+        }
         list[idx] = restored;
+      }
+      // v89.163: a meta row arriving (or a party row replaced) re-attaches
+      // the protected meta immediately, not just on the next main paint.
+      if (localKey === 'partyMetas' || localKey === 'parties') {
+        try { applyPartyMetaOverlay(); } catch (_) {}
       }
       // If a member row about US just changed to an explicit
       // non-member status (revoked / declined / removed), clear
