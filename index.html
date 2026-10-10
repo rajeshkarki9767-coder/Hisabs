@@ -7815,7 +7815,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.239';
+  const BUILD_TAG = '2026.07.11.240';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -26249,6 +26249,7 @@
         <div class="input-wrap"><label>Name</label><input type="text" id="mPartyName" maxlength="120" placeholder="Ram Bahadur / Acme Wholesale"></div>
         ${canAddPartyMeta(session.activeBizId) ? partyMetaFormHTML(null, { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === session.activeBizId)) }) : ''}
         ${toggleHTML}
+        ${isOwnerHere ? adjToggleHTML(false, 'party') : ''}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="savePartyManual()">Create</button>
@@ -26565,6 +26566,7 @@
           <div style="font-size:0.72rem;color:var(--ink-mute);margin-top:0.2rem;">Used to search and auto-pick this category when entering an entry.</div>
         </div>
         ${toggleHTML}
+        ${isOwnerHere ? adjToggleHTML(false, 'category') : ''}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="saveCategoryManual()">Create</button>
@@ -26593,6 +26595,10 @@
     // v89.22: read unassigned toggle (owner-only)
     const _catUnassignedToggle = document.getElementById('mEntityUnassigned');
     const _catUnassigned = !!(_catUnassignedToggle && _catUnassignedToggle.checked);
+    // v89.173: adjustment flag on create (owner-only pill).
+    const _catAdjToggle = document.getElementById('mEntityAdj');
+    const _catAdj = roleFor(biz.id) === 'owner' && _catAdjToggle
+      ? _catAdjToggle.classList.contains('active') : false;
     const _cat = {
       id: uid(),
       businessId: biz.id,
@@ -26600,6 +26606,7 @@
       shortcut: shortcut || undefined,
       sortOrder: nextSortOrder(data.categories, 'businessId', biz.id),
       unassigned: _catUnassigned || undefined,
+      adj: _catAdj || undefined, // v89.173
     };
     data.categories.push(_cat);
     // v89.82: honour the save result (see savePartyManual). Roll back + keep
@@ -26636,6 +26643,11 @@
     // v89.22: read unassigned toggle (owner-only)
     const _unassignedToggle = document.getElementById('mEntityUnassigned');
     const _isUnassigned = !!(_unassignedToggle && _unassignedToggle.checked);
+    // v89.173: adjustment flag on create (owner-only pill; non-owners never
+    // see the pill and are force-ignored here regardless of DOM state).
+    const _adjToggle = document.getElementById('mEntityAdj');
+    const _isAdj = roleFor(biz.id) === 'owner' && _adjToggle
+      ? _adjToggle.classList.contains('active') : false;
     const p = {
       id: uid(),
       businessId: biz.id,
@@ -26649,6 +26661,7 @@
       createdByName: u?.name || '',
       sortOrder: nextSortOrder(data.parties, 'businessId', biz.id),
       unassigned: _isUnassigned || undefined,
+      adj: _isAdj || undefined, // v89.173
       meta: meta || undefined,
       metaBadges: partyMetaBadgesSummary(meta) || undefined, // v89.160
     };
