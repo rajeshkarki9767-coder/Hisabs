@@ -606,6 +606,11 @@
     letter-spacing: 0.05em; color: #92400e; background: #fef3c7;
     border: 1px solid #f59e0b; vertical-align: middle; line-height: 1.4;
   }
+  .insights-adj-line {
+    margin: 0.4rem 0 0.9rem; padding: 0.45rem 0.7rem; font-size: 0.76rem;
+    color: var(--ink-mute); background: var(--surface-2);
+    border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0;
+  }
   .adj-toggle-row {
     display: flex; gap: 0.6rem; align-items: flex-start;
     padding: 0.6rem 0.75rem; border: 1px solid var(--line-soft);
@@ -7807,7 +7812,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.231';
+  const BUILD_TAG = '2026.07.11.232';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -19119,9 +19124,12 @@
     const monthKeyStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthKey = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
-    const deltas = insightsMoMDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
-    const partyDeltas = insightsMoMPartyDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
-    const dorm = insightsDormant(data.entries, bookIds, today());
+    // v89.165: What changed / dormant scans skip adjustment entries —
+    // corrections are not category or party movement.
+    const _wcEntries = data.entries.filter(e => !entryIsAdjustment(e));
+    const deltas = insightsMoMDeltas(_wcEntries, bookIds, monthKeyStr, lastMonthKey);
+    const partyDeltas = insightsMoMPartyDeltas(_wcEntries, bookIds, monthKeyStr, lastMonthKey);
+    const dorm = insightsDormant(_wcEntries, bookIds, today());
     const sign = (n) => `${n >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(n))}`;
     const deltaRows = deltas.map(c => `
       <div class="mom-row">
@@ -19896,6 +19904,7 @@
     for (const e of data.entries) {
       if (!bookIdsSet.has(e.bookId)) continue;
       if (!e.date) continue;
+      if (entryIsAdjustment(e)) continue; // v89.165: corrections don't drive the forecast
       const monthOfEntry = e.date.slice(0, 7);
       const amt = Number(e.amount) || 0;
       if (monthOfEntry === monthKeyStr && e.date <= todayStr) {
@@ -20828,13 +20837,27 @@
     // (party/category/account). Owner flags these as not relevant for
     // analytics. Entries still appear on the Entries page.
     const _unassignedFilter = (e) => !entryHasUnassignedLink(e, biz.id);
-    // Working entry set (filtered by insights period, excluding hidden accounts AND unassigned-linked)
+    // v89.165: adjustment entries (ADJ party/category) are corrections made
+    // so account totals match reality — not trade. They are excluded from
+    // every Insights number and chart; their period total is shown as its
+    // own line under the KPIs so the excluded amount stays visible.
+    const _adjFilter = (e) => !entryIsAdjustment(e);
+    // Working entry set (filtered by insights period, excluding hidden accounts, unassigned-linked AND adjustments)
     const periodEntries = data.entries.filter(e =>
-      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e) && _unassignedFilter(e)
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e) && _unassignedFilter(e) && _adjFilter(e)
     );
     const allEntries = data.entries.filter(e =>
-      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && _unassignedFilter(e)
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && _unassignedFilter(e) && _adjFilter(e)
     );
+    // v89.165: period adjustments total — the entries excluded above.
+    let adjIn = 0, adjOut = 0, adjCount = 0;
+    for (const e of data.entries) {
+      if (!bookIds.has(e.bookId) || hiddenAcctIds.has(e.accountId) || !pred(e)) continue;
+      if (!entryIsAdjustment(e)) continue;
+      const amt = entryAmount(e);
+      if (e.type === 'in') adjIn += amt; else adjOut += amt;
+      adjCount++;
+    }
     // ===== Summary KPIs (current period) =====
     let cashIn = 0, cashOut = 0;
     for (const e of periodEntries) {
@@ -20929,7 +20952,8 @@
           <div class="insights-kpi-value">${entriesCount}</div>
           <div class="insights-kpi-sub">Avg ${cur} ${fmt(avgEntry)}</div>
         </div>
-      </div>`;
+      </div>
+      ${adjCount ? `<div class="insights-adj-line"><span class="adj-badge">ADJ</span> ${adjCount} adjustment ${adjCount === 1 ? 'entry' : 'entries'} excluded from these numbers · in ${cur} ${fmt(adjIn)} · out ${cur} ${fmt(adjOut)}</div>` : ''}`;
     // ===== Top biggest cards =====
     // Top category — most profitable (net in − out, descending). A
     // pure-expense category like "Rent" naturally falls to the bottom
@@ -37316,10 +37340,31 @@
             }
             // do NOT break — continue with other tables.
           } else {
-            // v89.11: track these IDs so we can suppress the realtime echo.
-            const deletedOps = slot.ops.filter(o => o.kind === 'delete');
+            // v89.165: RLS-SILENT-DELETE GUARD. A delete blocked by row-level
+            // security does NOT error — it deletes 0 rows and reports
+            // success. Treating that as synced let the cloud row survive and
+            // the next pull resurrect it locally (parties-reappear bug).
+            // Verify: any id still visible to THIS user after the delete was
+            // refused by the database. Keep those ops queued and surfaced
+            // like any other failed op instead of calling them synced.
+            let _survivors = new Set();
+            try {
+              const chk = await sb().from(table).select('id').in('id', slot.deletes);
+              if (!chk.error && Array.isArray(chk.data)) _survivors = new Set(chk.data.map(r => r.id));
+            } catch (_) { /* verify is best-effort; a failed check must not fail the delete */ }
+            const allDeleteOps = slot.ops.filter(o => o.kind === 'delete');
+            const deletedOps = allDeleteOps.filter(o => !_survivors.has(o.recordId));
+            for (const op of allDeleteOps) {
+              if (_survivors.has(op.recordId)) {
+                op.attempts = (op.attempts || 0) + 1;
+                op.lastError = 'delete blocked by row-level security (0 rows deleted)';
+                if (op.attempts >= 3) stuckOps.push(op);
+              }
+            }
+            // v89.165 FIX: suppress the realtime echo by recordId — delete
+            // ops carry row:null, so the old op.row.id check never fired.
             for (const op of deletedOps) {
-              if (op.row && op.row.id) _markSelfWrite(op.row.id);
+              if (op.recordId) _markSelfWrite(op.recordId);
             }
             successfulOps.push(...deletedOps);
           }
