@@ -7790,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.228';
+  const BUILD_TAG = '2026.07.11.229';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -36526,6 +36526,16 @@
   try {
     const raw = localStorage.getItem(SYNC_QUEUE_KEY);
     if (raw) __syncQueue = JSON.parse(raw) || [];
+    // v89.162: one-time heal — queued app_party_meta ops written by .227/.228
+    // carry {party_id: ...} payloads that can never push after the column
+    // rename. Rewrite them to the {id: ...} shape.
+    try {
+      for (const op of (__syncQueue || [])) {
+        if (op && op.table === 'app_party_meta' && op.row && op.row.party_id && !op.row.id) {
+          op.row = { id: op.row.party_id, business_id: op.row.business_id, meta: op.row.meta ?? null };
+        }
+      }
+    } catch (_) {}
     if (!Array.isArray(__syncQueue)) __syncQueue = [];
   } catch (_) { __syncQueue = []; }
 
@@ -38620,8 +38630,10 @@
     // other roles pull zero rows and render badges from meta_badges).
     partyMetas: {
       table: 'app_party_meta',
-      toDb: (r) => ({ party_id: r.id, business_id: r.businessId, meta: r.meta || null }),
-      fromDb: (r) => ({ id: r.party_id, businessId: r.business_id, meta: r.meta || null }),
+      // v89.162: key column is `id` like every synced table — the drain's
+      // onConflict:'id', deletes by 'id' and order-by-'id' pulls all assume it.
+      toDb: (r) => ({ id: r.id, business_id: r.businessId, meta: r.meta || null }),
+      fromDb: (r) => ({ id: r.id, businessId: r.business_id, meta: r.meta || null }),
     },
     categories: {
       table: 'app_categories',
@@ -39099,7 +39111,10 @@
               if (useCursor && (error.code === '42703' || /updated_at/.test(error.message || ''))) return null;
               // v89.160 self-heal: app_party_meta table not created yet
               // (v89_160 SQL not run) → keep local rows, don't fail the pull.
-              if (map.table === 'app_party_meta' && (error.code === '42P01' || /app_party_meta/.test(error.message || ''))) {
+              // v89.162: 42P01 (missing TABLE) only — the earlier message
+              // regex also swallowed 42703 column errors and masked a real
+              // schema bug instead of surfacing it.
+              if (map.table === 'app_party_meta' && error.code === '42P01') {
                 return (data.partyMetas || []).slice();
               }
               const msg = 'Pull failed at ' + key + ': ' + (error.message || error.code);
