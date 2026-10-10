@@ -7790,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.227';
+  const BUILD_TAG = '2026.07.11.228';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -39097,6 +39097,11 @@
               // v89.143 self-heal: updated_at column missing (SQL migration
               // not run yet) → fall back to a FULL pull for this table.
               if (useCursor && (error.code === '42703' || /updated_at/.test(error.message || ''))) return null;
+              // v89.160 self-heal: app_party_meta table not created yet
+              // (v89_160 SQL not run) → keep local rows, don't fail the pull.
+              if (map.table === 'app_party_meta' && (error.code === '42P01' || /app_party_meta/.test(error.message || ''))) {
+                return (data.partyMetas || []).slice();
+              }
               const msg = 'Pull failed at ' + key + ': ' + (error.message || error.code);
               console.error(msg, error);
               throw new Error(msg);
