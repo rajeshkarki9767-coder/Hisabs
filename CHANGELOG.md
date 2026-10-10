@@ -2512,3 +2512,4 @@ Compare to the hash in this changelog.
 - .222: FIELD-FILTER chips on the parties list — Has: SMS / Email / DOB / Social / each used platform (Facebook, ...) / Accounts; toggle to clear, stacks with the text search, resets on sign-in and business switch like the searches.
 - .223: Has-filter upgrades — MULTI-SELECT chips (a party must have ALL selected fields) and ACCOUNT-NAME chips (NIC Asia, Chime, ...) beside the platform chips; account names also match by typing in the search box.
 - .224: multiple account chips (and multiple platform chips) are OR within their group — NIC Asia OR Chime — while staying AND with the other chips.
+- .225: TRI-STATE filter chips — tap: has the field; tap again: does NOT have it (red ✕ state, e.g. find parties without SMS); third tap: off. Generic Social/Accounts chips replaced by the actual platform and account names.
