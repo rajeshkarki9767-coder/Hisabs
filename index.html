@@ -7790,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.225';
+  const BUILD_TAG = '2026.07.11.226';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14311,23 +14311,14 @@
     }
     return true;
   }
-  // v89.157: faceted semantics — several ACCOUNT chips (or several
-  // PLATFORM chips) are OR within their group ("NIC Asia or Chime"),
-  // while different kinds of chips stay AND ("has SMS and one of
-  // those accounts"). Two accounts rarely live on one party, so pure
-  // AND made a second account chip always return nothing.
+  // v89.159: ALL selected chips must match (owner's call, replacing the
+  // v89.157 OR-within-group experiment): Facebook + Snapchat + Telegram
+  // shows only parties having all three; same for account chips and
+  // every other kind. A ✕ (not:) chip means the party must NOT have it.
   function _partyMatchesFieldFilters(p, filters) {
-    const base = [], socialsSel = [], acctsSel = [], nots = [];
-    for (const f of filters) {
-      if (f.startsWith('not:')) nots.push(f.slice(4));
-      else if (f.startsWith('social:')) socialsSel.push(f);
-      else if (f.startsWith('acct:')) acctsSel.push(f);
-      else base.push(f);
-    }
-    return base.every(f => _partyHasField(p, f))
-      && (!socialsSel.length || socialsSel.some(f => _partyHasField(p, f)))
-      && (!acctsSel.length || acctsSel.some(f => _partyHasField(p, f)))
-      && nots.every(f => !_partyHasField(p, f)); // v89.158: "doesn't have" — always AND
+    return filters.every(f => f.startsWith('not:')
+      ? !_partyHasField(p, f.slice(4))
+      : _partyHasField(p, f));
   }
   function partiesFieldFilterRowHTML(bizParties) {
     // Distinct social platforms AND account names actually used in this
