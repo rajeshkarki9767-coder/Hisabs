@@ -597,6 +597,28 @@
     cursor: pointer;
   }
 
+  /* v89.164: Adjustment flag. Amber ADJ badge on flagged parties /
+     categories and on entries that point at them; toggle row in the
+     party / category edit modals. */
+  .adj-badge {
+    display: inline-block; margin-left: 0.35rem; padding: 0.05rem 0.4rem;
+    border-radius: 6px; font-size: 0.62rem; font-weight: 800;
+    letter-spacing: 0.05em; color: #92400e; background: #fef3c7;
+    border: 1px solid #f59e0b; vertical-align: middle; line-height: 1.4;
+  }
+  .insights-adj-line {
+    margin: 0.4rem 0 0.9rem; padding: 0.45rem 0.7rem; font-size: 0.76rem;
+    color: var(--ink-mute); background: var(--surface-2);
+    border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0;
+  }
+  .adj-toggle-row {
+    display: flex; gap: 0.6rem; align-items: flex-start;
+    padding: 0.6rem 0.75rem; border: 1px solid var(--line-soft);
+    border-radius: 10px; background: var(--surface-2); cursor: pointer;
+  }
+  .adj-toggle-row input { margin-top: 0.2rem; accent-color: #f59e0b; flex-shrink: 0; }
+  .adj-toggle-title { display: block; font-weight: 700; font-size: 0.85rem; }
+  .adj-toggle-sub { display: block; font-size: 0.72rem; color: var(--ink-mute); margin-top: 0.15rem; }
   /* v89.22: unassigned visual treatment. Parties / categories /
      accounts marked as unassigned get a dimmed card with a dashed
      border and a small 'Unassigned' badge below the name. Signals:
@@ -7790,7 +7812,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.230';
+  const BUILD_TAG = '2026.07.11.234';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8173,6 +8195,45 @@
   function entryHasUnassignedLink(_e, _bizId) { return false; }
   function unassignedBadgeHTML() { return ''; }
   function unassignedToggleHTML(_checked, _entityLabel) { return ''; }
+
+  // v89.164: ADJUSTMENT flag. An owner can mark a party and/or category as
+  // "Adjustment": entries against them are corrections that make account
+  // totals match reality (e.g. Discord-first-entry mismatches), not real
+  // trade. The flag syncs via the `adj` boolean column (v89_163 SQL) and
+  // only badges things — no totals change anywhere, by design: the whole
+  // point of an adjustment entry is that the account math stays honest.
+  function adjBadgeHTML() {
+    return '<span class="adj-badge" title="Adjustment — corrections, not real trade">ADJ</span>';
+  }
+  function adjToggleHTML(checked, entityLabel) {
+    return `
+        <label class="adj-toggle-row">
+          <input type="checkbox" id="mEntityAdj"${checked ? ' checked' : ''}>
+          <span>
+            <span class="adj-toggle-title">Adjustment ${entityLabel}</span>
+            <span class="adj-toggle-sub">Entries on this ${entityLabel} are corrections made to match account amounts. They get an ADJ badge in the cash book. Totals are not affected.</span>
+          </span>
+        </label>`;
+  }
+  // True when an entry points at an adjustment party or an adjustment
+  // category (category matched by name within the entry's business, the
+  // same way entries store categories everywhere else).
+  function entryIsAdjustment(e) {
+    try {
+      if (!e) return false;
+      if (e.partyId) {
+        const p = data.parties.find(x => x.id === e.partyId);
+        if (p && p.adj === true) return true;
+      }
+      if (e.category) {
+        const book = data.books.find(b => b.id === e.bookId);
+        const bizId = book ? book.businessId : session.activeBizId;
+        const c = data.categories.find(x => x.businessId === bizId && x.name === e.category);
+        if (c && c.adj === true) return true;
+      }
+    } catch (_) {}
+    return false;
+  }
 
   // v89.23: OTP modal infrastructure. The same 6-digit modal is used
   // by signup, forgot-password, and change-email flows. Different
@@ -11451,7 +11512,7 @@
     for (const s of socials) {
       const name = String(s.platform).trim();
       if (s.ns) tags.push({ label: '✕ ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
-      else tags.push({ label: name, title: (s.handle ? name + ': ' + String(s.handle).trim() : name) });
+      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name) }); // v89.167: handle in tooltip gated like DOB/account tips
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
@@ -14247,6 +14308,8 @@
       : (e.account
           ? `<span class="entry-cat entry-acct-chip" style="opacity:0.7;" title="This account was deleted">${escapeHtml(e.account)} <span style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-mute);">(deleted)</span></span>`
           : '');
+    // v89.164: amber ADJ chip when the entry hits an adjustment party/category.
+    const adjChip = entryIsAdjustment(e) ? adjBadgeHTML() : '';
     if (isMobile) {
       return `<div class="entry-row entry-${e.type}${statusCls}${bulkCls}" data-entry-id="${jsAttr(e.id)}"${bulkClick}>${bulkBox}
         <div class="entry-date">${statusDot}${entryNoBadge}${dateLineMobile}</div>
@@ -14255,7 +14318,7 @@
           ${e.party ? `<div class="entry-party" ${partyClick}><span class="entry-party-tag">${partyLabel}</span> <span class="entry-party-name">${escapeHtml(e.party)}</span></div>` : ''}
           <div class="entry-chip-row">
             ${e.category ? `<span class="entry-cat entry-cat-click" onclick="event.stopPropagation();entryChipMenu(event,'category','${jsAttr(e.category)}','${jsAttr(e.category)}')">${escapeHtml(e.category)}</span>` : ''}
-            ${acctChip}
+            ${acctChip}${adjChip}
           </div>
         </div>
         <div class="entry-amount ${e.type}">${e.type === 'in' ? '+' : '−'} ${fmt(e.amount)}</div>
@@ -14279,7 +14342,7 @@
         ${e.note ? `<div class="entry-note">${escapeHtml(e.note)}</div>` : ''}
         <div class="entry-chip-row">
           ${e.category ? `<span class="entry-cat entry-cat-click" onclick="event.stopPropagation();entryChipMenu(event,'category','${jsAttr(e.category)}','${jsAttr(e.category)}')">${escapeHtml(e.category)}</span>` : ''}
-          ${acctChip}
+          ${acctChip}${adjChip}
         </div>
       </div>
       <div>
@@ -14561,7 +14624,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openParty('${jsAttr(p.id)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}${partyBdayChip(p)}</div>
+        <div class="party-card-name">${escapeHtml(p.name)}${partyLimitEmoji(p)}${partyBdayChip(p)}${p.adj === true ? adjBadgeHTML() : ''}</div>
         ${partyContactBadges(p) /* v89.102: badges (SMS/Email/Not shared/green details) visible to ALL members; the full contact card on the detail page remains gated by canSeePartyContact */}
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : ''}</div>
@@ -15061,7 +15124,7 @@
       return `<div class="party-card${_unassignedCls}" onclick="openCategory('${jsAttr(name)}')">
         ${actions}
         ${cardCountChip(t.count)}
-        <div class="party-card-name">${escapeHtml(name)}${isOrphan ? ' <span class="cat-orphan-tag">unlisted</span>' : ''}</div>
+        <div class="party-card-name">${escapeHtml(name)}${isOrphan ? ' <span class="cat-orphan-tag">unlisted</span>' : ''}${(catRec && catRec.adj === true) ? adjBadgeHTML() : ''}</div>
         ${_unassignedBadge}
         <div class="party-card-meta">${t.count} entries this period${t.lastDate ? ' · last ' + t.lastDate : (t.count ? '' : ' · never used')}</div>
         ${statsBlock}
@@ -19061,9 +19124,12 @@
     const monthKeyStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const lm = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const lastMonthKey = `${lm.getFullYear()}-${String(lm.getMonth() + 1).padStart(2, '0')}`;
-    const deltas = insightsMoMDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
-    const partyDeltas = insightsMoMPartyDeltas(data.entries, bookIds, monthKeyStr, lastMonthKey);
-    const dorm = insightsDormant(data.entries, bookIds, today());
+    // v89.165: What changed / dormant scans skip adjustment entries —
+    // corrections are not category or party movement.
+    const _wcEntries = data.entries.filter(e => !entryIsAdjustment(e));
+    const deltas = insightsMoMDeltas(_wcEntries, bookIds, monthKeyStr, lastMonthKey);
+    const partyDeltas = insightsMoMPartyDeltas(_wcEntries, bookIds, monthKeyStr, lastMonthKey);
+    const dorm = insightsDormant(_wcEntries, bookIds, today());
     const sign = (n) => `${n >= 0 ? '+' : '−'}${cur} ${fmt(Math.abs(n))}`;
     const deltaRows = deltas.map(c => `
       <div class="mom-row">
@@ -19838,6 +19904,7 @@
     for (const e of data.entries) {
       if (!bookIdsSet.has(e.bookId)) continue;
       if (!e.date) continue;
+      if (entryIsAdjustment(e)) continue; // v89.165: corrections don't drive the forecast
       const monthOfEntry = e.date.slice(0, 7);
       const amt = Number(e.amount) || 0;
       if (monthOfEntry === monthKeyStr && e.date <= todayStr) {
@@ -20770,13 +20837,27 @@
     // (party/category/account). Owner flags these as not relevant for
     // analytics. Entries still appear on the Entries page.
     const _unassignedFilter = (e) => !entryHasUnassignedLink(e, biz.id);
-    // Working entry set (filtered by insights period, excluding hidden accounts AND unassigned-linked)
+    // v89.165: adjustment entries (ADJ party/category) are corrections made
+    // so account totals match reality — not trade. They are excluded from
+    // every Insights number and chart; their period total is shown as its
+    // own line under the KPIs so the excluded amount stays visible.
+    const _adjFilter = (e) => !entryIsAdjustment(e);
+    // Working entry set (filtered by insights period, excluding hidden accounts, unassigned-linked AND adjustments)
     const periodEntries = data.entries.filter(e =>
-      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e) && _unassignedFilter(e)
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && pred(e) && _unassignedFilter(e) && _adjFilter(e)
     );
     const allEntries = data.entries.filter(e =>
-      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && _unassignedFilter(e)
+      bookIds.has(e.bookId) && !hiddenAcctIds.has(e.accountId) && _unassignedFilter(e) && _adjFilter(e)
     );
+    // v89.165: period adjustments total — the entries excluded above.
+    let adjIn = 0, adjOut = 0, adjCount = 0;
+    for (const e of data.entries) {
+      if (!bookIds.has(e.bookId) || hiddenAcctIds.has(e.accountId) || !pred(e)) continue;
+      if (!entryIsAdjustment(e)) continue;
+      const amt = entryAmount(e);
+      if (e.type === 'in') adjIn += amt; else adjOut += amt;
+      adjCount++;
+    }
     // ===== Summary KPIs (current period) =====
     let cashIn = 0, cashOut = 0;
     for (const e of periodEntries) {
@@ -20871,7 +20952,8 @@
           <div class="insights-kpi-value">${entriesCount}</div>
           <div class="insights-kpi-sub">Avg ${cur} ${fmt(avgEntry)}</div>
         </div>
-      </div>`;
+      </div>
+      ${adjCount ? `<div class="insights-adj-line"><span class="adj-badge">ADJ</span> ${adjCount} adjustment ${adjCount === 1 ? 'entry' : 'entries'} excluded from these numbers · in ${cur} ${fmt(adjIn)} · out ${cur} ${fmt(adjOut)}</div>` : ''}`;
     // ===== Top biggest cards =====
     // Top category — most profitable (net in − out, descending). A
     // pure-expense category like "Rent" naturally falls to the bottom
@@ -23810,6 +23892,7 @@
         </div>
         ${canEditPartyMeta(p) ? partyMetaFormHTML(partyMetaResolved(p), { phoneSuggestion: bizPhoneCodeSuggestion(data.businesses.find(b => b.id === p.businessId)) }) : ''}
         ${toggleHTML}
+        ${isOwnerHere ? adjToggleHTML(!!p.adj, 'party') : ''}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="savePartyEdit('${jsAttr(p.id)}')">Save</button>
@@ -23844,6 +23927,10 @@
     const isOwnerHere = roleFor(p.businessId) === 'owner';
     const toggle = document.getElementById('mEntityUnassigned');
     const newUnassigned = isOwnerHere && toggle ? !!toggle.checked : !!p.unassigned;
+    // v89.164: adjustment flag — owner-only, like unassigned.
+    const adjToggle = document.getElementById('mEntityAdj');
+    const newAdj = isOwnerHere && adjToggle ? !!adjToggle.checked : !!p.adj;
+    const adjChanged = newAdj !== !!p.adj;
 
     // v89.32.32: meta capture + diff — but only owner/manager may write
     // contact meta. For staff, force newMeta to the existing value so a
@@ -23855,7 +23942,7 @@
     const nameChanged = canRename && newName !== p.name;
     const unassignedChanged = newUnassigned !== !!p.unassigned;
     const metaChanged = metaFieldsChanged.length > 0;
-    if (!nameChanged && !unassignedChanged && !metaChanged) { closeModal(); return; }
+    if (!nameChanged && !unassignedChanged && !metaChanged && !adjChanged) { closeModal(); return; }
 
     if (nameChanged) {
       p.name = newName;
@@ -23863,6 +23950,7 @@
       data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) e.party = newName; });
     }
     if (unassignedChanged) p.unassigned = newUnassigned || undefined;
+    if (adjChanged) { if (newAdj) p.adj = true; else delete p.adj; }
     if (metaChanged) {
       // Store as plain object (or remove the key entirely when empty)
       if (newMeta) p.meta = newMeta;
@@ -23883,6 +23971,7 @@
       const eventDesc = [];
       if (nameChanged) eventDesc.push(`renamed to ${newName}`);
       if (metaChanged) eventDesc.push(`updated ${metaFieldsChanged.join(', ')}`);
+      if (adjChanged) eventDesc.push(newAdj ? 'marked as Adjustment party' : 'removed Adjustment mark');
       if (eventDesc.length) {
         logAuditEvent('party_edited',
           `Party ${p.name}: ${eventDesc.join('; ')}`,
@@ -23926,6 +24015,7 @@
           <input type="text" id="mCategoryShortcut" maxlength="20" value="${escapeHtml(c.shortcut || '')}">
         </div>
         ${toggleHTML}
+        ${isOwnerHere ? adjToggleHTML(!!c.adj, 'category') : ''}
         <div class="modal-actions">
           <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
           <button class="btn btn-accent" onclick="saveCategoryEdit('${jsAttr(c.id)}')">Save</button>
@@ -23961,6 +24051,10 @@
     }
     c.shortcut = newShortcut || undefined;
     c.unassigned = newUnassigned || undefined;
+    // v89.164: adjustment flag — owner-only; non-owners keep the current value.
+    const adjToggle = document.getElementById('mEntityAdj');
+    const newAdj = isOwnerHere && adjToggle ? !!adjToggle.checked : !!c.adj;
+    if (newAdj) c.adj = true; else delete c.adj;
     saveData(); closeModal(); renderAll();
     toast('Saved.');
   }
@@ -36608,7 +36702,8 @@
         books: data.books.map(snapEntry),
         accountGroups: data.accountGroups.map(snapEntry),
         cashAccounts: data.cashAccounts.map(snapEntry),
-        parties: data.parties.map(snapEntry),
+        parties: data.parties.map(p => snapEntry(p, 'meta')), // v89.166: 'meta' is overlay-derived (see recordFingerprint note)
+        partyMetas: (data.partyMetas || []).map(snapEntry),    // v89.166: was MISSING — every diff saw all metas as new (pending/synced flicker loop)
         categories: data.categories.map(snapEntry),
         members: data.members.map(snapEntry),
         entries: data.entries.map(snapEntry),
@@ -36649,11 +36744,21 @@
   // equal ("no value"), and deep-compares object/array values via JSON. So we
   // build a canonical, key-sorted representation that drops null/undefined keys
   // and JSON-encodes the rest, then hash it.
-  function recordFingerprint(rec) {
+  // v89.166: optional `omit` key excluded from the fingerprint. Used for
+  // parties' `meta`: after Phase 2 (v89.160) the real meta syncs via the
+  // partyMetas table, and applyPartyMetaOverlay ATTACHES meta onto party
+  // objects between paints while pulls strip it again. Fingerprinting that
+  // churn made every overlay/pull cycle look like a real edit — parties
+  // re-pushed, updated_at bumped, other devices re-pulled, forever (the
+  // pending/synced/pending flicker). Meta-value changes still sync: the
+  // partyMetas row carries them, and metaBadges (fingerprinted) carries
+  // any badge-visible change on the parties row.
+  function recordFingerprint(rec, omit) {
     if (!rec || typeof rec !== 'object') return String(rec);
     const keys = Object.keys(rec).sort();
     const parts = [];
     for (const k of keys) {
+      if (omit && k === omit) continue; // v89.166
       const v = rec[k];
       if (v === undefined || v === null) continue; // matches shallowEqual "no value"
       if (typeof v === 'object') parts.push(k + ':o:' + JSON.stringify(v));
@@ -36670,7 +36775,7 @@
     return (h >>> 0).toString(36) + ':' + s.length.toString(36);
   }
   // Build a compact snapshot entry { id, _fp } for one record.
-  function snapEntry(rec) { return { id: rec.id, _fp: recordFingerprint(rec) }; }
+  function snapEntry(rec, omit) { return { id: rec.id, _fp: recordFingerprint(rec, omit) }; }
 
   // Reset the snapshot to the current data state — called after a successful
   // pull (so we don't diff against stale state) and after sign-out cleanup.
@@ -36687,8 +36792,11 @@
     if (!__syncSnapshot) return;
     let dirty = false;
     for (const op of ops) {
-      const list = __syncSnapshot[op.localKey];
-      if (!Array.isArray(list)) continue;
+      // v89.166: auto-create a missing per-key list (a snapshot persisted by
+      // an older build lacks partyMetas) so confirmed pushes register instead
+      // of being re-diffed as "new" forever.
+      let list = __syncSnapshot[op.localKey];
+      if (!Array.isArray(list)) { list = __syncSnapshot[op.localKey] = []; }
       if (op.kind === 'upsert') {
         // Find the local record we're confirming as pushed. Use the current
         // local data (NOT op.row, which is the DB-shape — the snapshot is in
@@ -36698,8 +36806,9 @@
         if (!localRec) continue;
         const idx = list.findIndex(r => r.id === op.recordId);
         // v89.77: store compact fingerprint entry, not the full record.
-        if (idx === -1) list.push(snapEntry(localRec));
-        else list[idx] = snapEntry(localRec);
+        const _omit = op.localKey === 'parties' ? 'meta' : null; // v89.166
+        if (idx === -1) list.push(snapEntry(localRec, _omit));
+        else list[idx] = snapEntry(localRec, _omit);
         dirty = true;
       } else if (op.kind === 'delete') {
         const idx = list.findIndex(r => r.id === op.recordId);
@@ -36821,7 +36930,7 @@
       const prev = snapById.get(rec.id);
       // v89.77: snapshot stores { id, _fp } fingerprints, not full records.
       // A record is "changed" if it's new (no prev) or its fingerprint differs.
-      if (!prev || prev._fp !== recordFingerprint(rec)) {
+      if (!prev || prev._fp !== recordFingerprint(rec, localKey === 'parties' ? 'meta' : null)) {
         // Validate parent references — orphan entries (book deleted but
         // entry not) and orphan members (business deleted) cause inserts
         // to fail with NOT NULL violations. Skip them silently here; a
@@ -37246,10 +37355,31 @@
             }
             // do NOT break — continue with other tables.
           } else {
-            // v89.11: track these IDs so we can suppress the realtime echo.
-            const deletedOps = slot.ops.filter(o => o.kind === 'delete');
+            // v89.165: RLS-SILENT-DELETE GUARD. A delete blocked by row-level
+            // security does NOT error — it deletes 0 rows and reports
+            // success. Treating that as synced let the cloud row survive and
+            // the next pull resurrect it locally (parties-reappear bug).
+            // Verify: any id still visible to THIS user after the delete was
+            // refused by the database. Keep those ops queued and surfaced
+            // like any other failed op instead of calling them synced.
+            let _survivors = new Set();
+            try {
+              const chk = await sb().from(table).select('id').in('id', slot.deletes);
+              if (!chk.error && Array.isArray(chk.data)) _survivors = new Set(chk.data.map(r => r.id));
+            } catch (_) { /* verify is best-effort; a failed check must not fail the delete */ }
+            const allDeleteOps = slot.ops.filter(o => o.kind === 'delete');
+            const deletedOps = allDeleteOps.filter(o => !_survivors.has(o.recordId));
+            for (const op of allDeleteOps) {
+              if (_survivors.has(op.recordId)) {
+                op.attempts = (op.attempts || 0) + 1;
+                op.lastError = 'delete blocked by row-level security (0 rows deleted)';
+                if (op.attempts >= 3) stuckOps.push(op);
+              }
+            }
+            // v89.165 FIX: suppress the realtime echo by recordId — delete
+            // ops carry row:null, so the old op.row.id check never fired.
             for (const op of deletedOps) {
-              if (op.row && op.row.id) _markSelfWrite(op.row.id);
+              if (op.recordId) _markSelfWrite(op.recordId);
             }
             successfulOps.push(...deletedOps);
           }
@@ -38628,6 +38758,7 @@
         // app_party_meta (owner/SM only). The row carries only the
         // value-free badge summary every role may see.
         meta_badges: r.meta ? partyMetaBadgesSummary(r.meta) : (r.metaBadges || null),
+        adj: r.adj === true, // v89.164: adjustment flag (v89_163 column)
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -38642,6 +38773,7 @@
         createdByName: r.created_by_name || '',
         meta: r.meta || null, // legacy pulls only; null after v89_160 migration
         metaBadges: r.meta_badges || null,
+        adj: r.adj === true ? true : undefined, // v89.164
       }),
     },
     // v89.160: protected contact-meta table (RLS: owner/Super Manager only;
@@ -38663,11 +38795,13 @@
         // cloud table (also used as a stable column name in case
         // 'shortcut' becomes a Postgres reserved word in future).
         short_name: r.shortcut || null,
+        adj: r.adj === true, // v89.164: adjustment flag (v89_163 column)
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
         name: r.name, sortOrder: r.sort_order,
         shortcut: r.short_name || undefined,
+        adj: r.adj === true ? true : undefined, // v89.164
       }),
     },
     entries: {
