@@ -7789,7 +7789,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.223';
+  const BUILD_TAG = '2026.07.11.224';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -14306,6 +14306,22 @@
     }
     return true;
   }
+  // v89.157: faceted semantics — several ACCOUNT chips (or several
+  // PLATFORM chips) are OR within their group ("NIC Asia or Chime"),
+  // while different kinds of chips stay AND ("has SMS and one of
+  // those accounts"). Two accounts rarely live on one party, so pure
+  // AND made a second account chip always return nothing.
+  function _partyMatchesFieldFilters(p, filters) {
+    const base = [], socialsSel = [], acctsSel = [];
+    for (const f of filters) {
+      if (f.startsWith('social:')) socialsSel.push(f);
+      else if (f.startsWith('acct:')) acctsSel.push(f);
+      else base.push(f);
+    }
+    return base.every(f => _partyHasField(p, f))
+      && (!socialsSel.length || socialsSel.some(f => _partyHasField(p, f)))
+      && (!acctsSel.length || acctsSel.some(f => _partyHasField(p, f)));
+  }
   function partiesFieldFilterRowHTML(bizParties) {
     // Distinct social platforms AND account names actually used in this
     // business (top 6 each by use). Account chips pair with the text
@@ -14362,7 +14378,7 @@
     );
     // v89.155: field-filter chips stack with the text search.
     const _fieldRowHTML = partiesFieldFilterRowHTML(data.parties.filter(p => p.businessId === biz.id));
-    if (__partiesFieldFilters.size) parties = parties.filter(p => [...__partiesFieldFilters].every(f => _partyHasField(p, f)));
+    if (__partiesFieldFilters.size) parties = parties.filter(p => _partyMatchesFieldFilters(p, [...__partiesFieldFilters]));
 
     // compute totals per party, filtered by the active period.
     // Exclude entries pointing at hidden accounts so party stats match
