@@ -1473,6 +1473,7 @@
     transition: background 0.12s, color 0.12s, border-color 0.12s;
   }
   .pfilter-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 800; }
+  .pfilter-chip.neg { background: var(--loss); color: #ffffff; border-color: var(--loss); font-weight: 800; }
   .pfilter-clear { color: var(--loss); border-color: rgba(168,53,31,0.4); }
   .parties-sort-row {
     display: flex; justify-content: flex-end;
@@ -7789,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.222';
+  const BUILD_TAG = '2026.07.11.225';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11799,7 +11800,7 @@
     __settingsTab = 'profile';
     __entryFilter = { partyId: null, category: null, accountId: null };
     __partiesSearch = '';
-    __partiesFieldFilter = null;
+    __partiesFieldFilters.clear();
     __categoriesSearch = '';
     __accountsSearch = '';
     __showHiddenAccounts = false;
@@ -14280,9 +14281,17 @@
   // filter is available to everyone. NS-flagged rows count: the party
   // HAS that field known, just refused the value.
   // ================================================================
-  let __partiesFieldFilter = null; // null | 'sms'|'email'|'dob'|'social'|'accounts'|'social:<platform lower>'
+  // v89.156: MULTI-SELECT — several chips can be active at once; a party
+  // must have ALL selected fields (AND). null clears everything.
+  const __partiesFieldFilters = new Set(); // 'sms'|'email'|'dob'|'social'|'accounts'|'social:<platform>'|'acct:<account>'
+  // v89.158: TRI-STATE chips — tap: HAS the field; tap again: does NOT
+  // have it (red ✕ state); third tap: off. 'not:' prefixes the negated
+  // value in the Set.
   function setPartiesFieldFilter(v) {
-    __partiesFieldFilter = (__partiesFieldFilter === v) ? null : v;
+    if (v === null) { __partiesFieldFilters.clear(); renderMain(); return; }
+    if (__partiesFieldFilters.has(v)) { __partiesFieldFilters.delete(v); __partiesFieldFilters.add('not:' + v); }
+    else if (__partiesFieldFilters.has('not:' + v)) { __partiesFieldFilters.delete('not:' + v); }
+    else { __partiesFieldFilters.add(v); }
     renderMain();
   }
   function _partyHasField(p, f) {
@@ -14296,11 +14305,36 @@
       const want = f.slice(7);
       return Array.isArray(m.socials) && m.socials.some(s => s && String(s.platform || '').trim().toLowerCase() === want);
     }
+    if (f && f.startsWith('acct:')) {
+      const want = f.slice(5);
+      return partyDetailSets(m).some(s => s.account.toLowerCase() === want);
+    }
     return true;
   }
+  // v89.157: faceted semantics — several ACCOUNT chips (or several
+  // PLATFORM chips) are OR within their group ("NIC Asia or Chime"),
+  // while different kinds of chips stay AND ("has SMS and one of
+  // those accounts"). Two accounts rarely live on one party, so pure
+  // AND made a second account chip always return nothing.
+  function _partyMatchesFieldFilters(p, filters) {
+    const base = [], socialsSel = [], acctsSel = [], nots = [];
+    for (const f of filters) {
+      if (f.startsWith('not:')) nots.push(f.slice(4));
+      else if (f.startsWith('social:')) socialsSel.push(f);
+      else if (f.startsWith('acct:')) acctsSel.push(f);
+      else base.push(f);
+    }
+    return base.every(f => _partyHasField(p, f))
+      && (!socialsSel.length || socialsSel.some(f => _partyHasField(p, f)))
+      && (!acctsSel.length || acctsSel.some(f => _partyHasField(p, f)))
+      && nots.every(f => !_partyHasField(p, f)); // v89.158: "doesn't have" — always AND
+  }
   function partiesFieldFilterRowHTML(bizParties) {
-    // Distinct social platforms actually used in this business (top 6 by use).
+    // Distinct social platforms AND account names actually used in this
+    // business (top 6 each by use). Account chips pair with the text
+    // search, which also matches account names by typing (v89.103).
     const freq = new Map();
+    const acctFreq = new Map();
     for (const p of bizParties) {
       const socials = Array.isArray(p.meta?.socials) ? p.meta.socials : [];
       for (const s of socials) {
@@ -14310,16 +14344,26 @@
         const e = freq.get(k) || { name, n: 0 };
         e.n++; freq.set(k, e);
       }
+      for (const d of partyDetailSets(p.meta)) {
+        if (!d.account) continue;
+        const k = d.account.toLowerCase();
+        const e = acctFreq.get(k) || { name: d.account, n: 0 };
+        e.n++; acctFreq.set(k, e);
+      }
     }
     const plats = [...freq.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 6);
+    const accts = [...acctFreq.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 6);
     const chip = (val, label) => {
-      const on = __partiesFieldFilter === val;
-      return `<button class="pfilter-chip${on ? ' active' : ''}" onclick="setPartiesFieldFilter('${jsAttr(val)}')">${escapeHtml(label)}</button>`;
+      const on = __partiesFieldFilters.has(val);
+      const neg = __partiesFieldFilters.has('not:' + val);
+      return `<button class="pfilter-chip${on ? ' active' : ''}${neg ? ' neg' : ''}" onclick="setPartiesFieldFilter('${jsAttr(val)}')" title="${neg ? 'Showing parties WITHOUT this — tap to turn off' : on ? 'Showing parties WITH this — tap again for WITHOUT' : 'Tap: has this · tap twice: doesn\'t have this'}">${neg ? '✕ ' : ''}${escapeHtml(label)}</button>`;
     };
+    // v89.158: named chips only — the actual platforms and account names
+    // replace the generic Social / Accounts chips.
     return `<div class="pfilter-row">
-      <span class="pfilter-label">Has</span>
-      ${chip('sms', 'SMS')}${chip('email', 'Email')}${chip('dob', 'DOB')}${chip('social', 'Social')}${plats.map(([k, e]) => chip('social:' + k, e.name)).join('')}${chip('accounts', 'Accounts')}
-      ${__partiesFieldFilter ? `<button class="pfilter-chip pfilter-clear" onclick="setPartiesFieldFilter(null)">Clear ✕</button>` : ''}
+      <span class="pfilter-label">Filter</span>
+      ${chip('sms', 'SMS')}${chip('email', 'Email')}${chip('dob', 'DOB')}${plats.map(([k, e]) => chip('social:' + k, e.name)).join('')}${accts.map(([k, e]) => chip('acct:' + k, e.name)).join('')}
+      ${__partiesFieldFilters.size ? `<button class="pfilter-chip pfilter-clear" onclick="setPartiesFieldFilter(null)">Clear ${__partiesFieldFilters.size > 1 ? 'all ' : ''}✕</button>` : ''}
     </div>`;
   }
   function renderPartiesView(root) {
@@ -14344,7 +14388,7 @@
     );
     // v89.155: field-filter chips stack with the text search.
     const _fieldRowHTML = partiesFieldFilterRowHTML(data.parties.filter(p => p.businessId === biz.id));
-    if (__partiesFieldFilter) parties = parties.filter(p => _partyHasField(p, __partiesFieldFilter));
+    if (__partiesFieldFilters.size) parties = parties.filter(p => _partyMatchesFieldFilters(p, [...__partiesFieldFilters]));
 
     // compute totals per party, filtered by the active period.
     // Exclude entries pointing at hidden accounts so party stats match
@@ -23033,7 +23077,7 @@
     // v89.68: searches are per-view scratch state and must NOT carry across
     // businesses (a search typed in Business A's Parties tab was showing up
     // when switching to Business B). Clear them all on every business switch.
-    __partiesSearch = ''; __partiesFieldFilter = null; __categoriesSearch = ''; __accountsSearch = '';
+    __partiesSearch = ''; __partiesFieldFilters.clear(); __categoriesSearch = ''; __accountsSearch = '';
     __entryFilter = { partyId: null, category: null, accountId: null };
     try { const _s = document.getElementById('searchInput'); if (_s) _s.value = ''; } catch (_) {}
     saveSession(); closeDrawer();
