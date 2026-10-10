@@ -5930,6 +5930,13 @@
   }
   /* v89.102: green variant — a stored detail VALUE (account name,
      username, tag, …) shown as its own box. Long values truncate. */
+  /* v89.175: teal variant for SOCIAL platform badges, so each badge kind
+     has its own color: blue SMS/Email, green accounts, purple DOB,
+     teal socials, red not-shared, amber ADJ. */
+  .party-contact-tag-social {
+    color: #0d9488;
+    border-color: #0d9488;
+  }
   .party-contact-tag-green {
     color: var(--gain);
     border-color: var(--gain);
@@ -7815,7 +7822,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.10.10.241';
+  const BUILD_TAG = '2026.10.10.242';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11564,7 +11571,7 @@
     for (const s of socials) {
       const name = String(s.platform).trim();
       if (s.ns) tags.push({ label: '✕ ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
-      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name) }); // v89.167: handle in tooltip gated like DOB/account tips
+      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name), cls: 'party-contact-tag-social' }); // v89.167 tooltip gate; v89.175 teal
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
