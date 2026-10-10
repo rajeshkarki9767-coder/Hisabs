@@ -1465,6 +1465,15 @@
   /* v83: row that holds the Sort dropdown under the search box. Right-
      aligned so the dropdown sits flush with the right edge of the
      search input (small gap below the search box). */
+  .pfilter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0.45rem 0 0.55rem; }
+  .pfilter-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--ink-mute); font-weight: 700; margin-right: 0.15rem; }
+  .pfilter-chip {
+    border: 1px solid var(--line); background: var(--card, #fff); color: var(--ink);
+    border-radius: 999px; padding: 0.22rem 0.7rem; font-size: 0.76rem; font-weight: 600; cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .pfilter-chip.active { background: var(--ink); color: var(--paper); border-color: var(--ink); font-weight: 800; }
+  .pfilter-clear { color: var(--loss); border-color: rgba(168,53,31,0.4); }
   .parties-sort-row {
     display: flex; justify-content: flex-end;
     margin: 0.5rem 0 0.75rem;
@@ -7780,7 +7789,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.221';
+  const BUILD_TAG = '2026.07.11.222';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11790,6 +11799,7 @@
     __settingsTab = 'profile';
     __entryFilter = { partyId: null, category: null, accountId: null };
     __partiesSearch = '';
+    __partiesFieldFilter = null;
     __categoriesSearch = '';
     __accountsSearch = '';
     __showHiddenAccounts = false;
@@ -14261,6 +14271,57 @@
     if (d === null || d > BDAY_SOON_DAYS) return '';
     return `<span class="party-contact-tag party-contact-tag-bday" title="Birthday ${escapeHtml(_bdayWhen(d))}">🎂 ${escapeHtml(d === 0 ? 'Today!' : d + 'd')}</span>`;
   }
+  // ================================================================
+  // v89.155: FIELD FILTER on the parties list — chips that narrow the
+  // list to parties having a given contact field: SMS, Email, DOB,
+  // Social (any), a specific platform (Facebook, TikTok, ...), or
+  // Accounts. Toggle to clear; stacks with the text search. Existence
+  // of these fields is badge-visible to ALL roles (v89.102), so the
+  // filter is available to everyone. NS-flagged rows count: the party
+  // HAS that field known, just refused the value.
+  // ================================================================
+  let __partiesFieldFilter = null; // null | 'sms'|'email'|'dob'|'social'|'accounts'|'social:<platform lower>'
+  function setPartiesFieldFilter(v) {
+    __partiesFieldFilter = (__partiesFieldFilter === v) ? null : v;
+    renderMain();
+  }
+  function _partyHasField(p, f) {
+    const m = p.meta || {};
+    if (f === 'sms') return !!(m.phones && m.phones.length) || !!m.phoneNotShared;
+    if (f === 'email') return !!(m.emails && m.emails.length) || !!m.emailNotShared;
+    if (f === 'dob') return !!m.dob || !!m.dobNotShared;
+    if (f === 'social') return Array.isArray(m.socials) && m.socials.some(s => s && String(s.platform || '').trim());
+    if (f === 'accounts') return partyDetailSets(m).length > 0;
+    if (f && f.startsWith('social:')) {
+      const want = f.slice(7);
+      return Array.isArray(m.socials) && m.socials.some(s => s && String(s.platform || '').trim().toLowerCase() === want);
+    }
+    return true;
+  }
+  function partiesFieldFilterRowHTML(bizParties) {
+    // Distinct social platforms actually used in this business (top 6 by use).
+    const freq = new Map();
+    for (const p of bizParties) {
+      const socials = Array.isArray(p.meta?.socials) ? p.meta.socials : [];
+      for (const s of socials) {
+        const name = String(s?.platform || '').trim();
+        if (!name) continue;
+        const k = name.toLowerCase();
+        const e = freq.get(k) || { name, n: 0 };
+        e.n++; freq.set(k, e);
+      }
+    }
+    const plats = [...freq.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 6);
+    const chip = (val, label) => {
+      const on = __partiesFieldFilter === val;
+      return `<button class="pfilter-chip${on ? ' active' : ''}" onclick="setPartiesFieldFilter('${jsAttr(val)}')">${escapeHtml(label)}</button>`;
+    };
+    return `<div class="pfilter-row">
+      <span class="pfilter-label">Has</span>
+      ${chip('sms', 'SMS')}${chip('email', 'Email')}${chip('dob', 'DOB')}${chip('social', 'Social')}${plats.map(([k, e]) => chip('social:' + k, e.name)).join('')}${chip('accounts', 'Accounts')}
+      ${__partiesFieldFilter ? `<button class="pfilter-chip pfilter-clear" onclick="setPartiesFieldFilter(null)">Clear ✕</button>` : ''}
+    </div>`;
+  }
   function renderPartiesView(root) {
     const biz = data.businesses.find(b => b.id === session.activeBizId);
     if (!biz) { root.innerHTML = '<div class="empty"><div class="empty-headline">Select a business.</div></div>'; return; }
@@ -14281,6 +14342,9 @@
         || s.username.toLowerCase().includes(q)
         || s.tag.toLowerCase().includes(q))
     );
+    // v89.155: field-filter chips stack with the text search.
+    const _fieldRowHTML = partiesFieldFilterRowHTML(data.parties.filter(p => p.businessId === biz.id));
+    if (__partiesFieldFilter) parties = parties.filter(p => _partyHasField(p, __partiesFieldFilter));
 
     // compute totals per party, filtered by the active period.
     // Exclude entries pointing at hidden accounts so party stats match
@@ -14429,6 +14493,7 @@
         <input type="text" id="partiesSearchInput" class="entity-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" name="hisabs-search-nostore" placeholder="Search ${totalParties} parties…" value="${escapeHtml(__partiesSearch)}" oninput="setPartiesSearch(this.value)">
         <button class="entity-search-clear" onclick="setPartiesSearch('')" aria-label="Clear search"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>` : ''}
+      ${totalParties >= 2 ? _fieldRowHTML : ''}
       ${totalParties >= 2 ? `<div class="parties-sort-row">
         <select class="btn btn-sm btn-ghost party-sort-select" onchange="setPartySortMode(this.value)" aria-label="Sort parties by" title="Sort parties by">
           <option value="name"        ${sortMode === 'name'        ? 'selected' : ''}>Sort: A → Z</option>
@@ -22968,7 +23033,7 @@
     // v89.68: searches are per-view scratch state and must NOT carry across
     // businesses (a search typed in Business A's Parties tab was showing up
     // when switching to Business B). Clear them all on every business switch.
-    __partiesSearch = ''; __categoriesSearch = ''; __accountsSearch = '';
+    __partiesSearch = ''; __partiesFieldFilter = null; __categoriesSearch = ''; __accountsSearch = '';
     __entryFilter = { partyId: null, category: null, accountId: null };
     try { const _s = document.getElementById('searchInput'); if (_s) _s.value = ''; } catch (_) {}
     saveSession(); closeDrawer();
