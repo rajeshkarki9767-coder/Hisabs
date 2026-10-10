@@ -7815,7 +7815,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.236';
+  const BUILD_TAG = '2026.07.11.237';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -9062,6 +9062,14 @@
           distSalaries: Array.isArray(d.distSalaries) ? d.distSalaries : [],
           distShares: Array.isArray(d.distShares) ? d.distShares : [],
           splitParties: Array.isArray(d.splitParties) ? d.splitParties : [],
+          // v89.170: CRITICAL FIX — same bug class as v89.32.36: partyMetas
+          // (protected contact details, v89.160) was saved to localStorage by
+          // saveData() but MISSING from this reconstruction, so every reload
+          // dropped it from memory. Details then looked empty until the next
+          // 6-hour full pull — and worse, a .233+ snapshot that still listed
+          // them made the diff read the loss as 137 local deletions and
+          // delete the CLOUD rows. Now preserved across reloads.
+          partyMetas: Array.isArray(d.partyMetas) ? d.partyMetas : [],
         };
       }
     } catch(e) {}
@@ -24148,6 +24156,10 @@
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) delete e.partyId; });
     data.parties = data.parties.filter(x => x.id !== partyId);
     if (Array.isArray(data.partyMetas)) data.partyMetas = data.partyMetas.filter(x => x && x.id !== partyId); // v89.160
+    // v89.170: diff-based deletes are disabled for app_party_meta (wipe
+    // guard), so remove the protected row explicitly. Best-effort: offline
+    // leaves a harmless RLS-protected orphan row.
+    try { sb().from('app_party_meta').delete().eq('id', partyId).then(() => {}, () => {}); } catch (_) {}
     saveData();
     switchView('parties');
     toast('Party deleted.');
@@ -36980,7 +36992,12 @@
     // data.expenseRates without a rate that the snapshot still held. Skipping
     // diff-deletes for this table removes that whole class of accidental wipe;
     // the union mergeExpenseRates already preserves rates across pulls.
-    if (localKey !== 'expenseRates') {
+    // v89.170: partyMetas joins expenseRates in the NEVER-diff-delete set.
+    // Its local list being empty usually means "this device hasn't pulled /
+    // kept them", not "the owner deleted 137 contact records". Real deletion
+    // happens only in deletePartyAction, which now removes the cloud row
+    // explicitly.
+    if (localKey !== 'expenseRates' && localKey !== 'partyMetas') {
       for (const prev of snap) {
         if (!curById.has(prev.id)) {
           // v89.50: same role gate for deletes — a viewer/non-writer must not
@@ -37078,6 +37095,7 @@
   // v84: 60s periodic delta-pull as a backstop in case realtime fails.
   let __backstopPullTimer = null;
   let __syncDraining = false;
+  let __pmForceRepush = false; // v89.170: see partyMetas wipe-guard in the pull
   let __online = navigator.onLine;
 
   function startSyncWorker() {
@@ -39259,7 +39277,13 @@
         // v89.143: cursor branch — fetch only rows changed since the last
         // pull for the big tables. Everything else (and every full-mode
         // pull) uses the original full paging below.
-        const __since = __incMode && SYNC_CURSORED_KEYS.has(key)
+        // v89.170: a device holding ZERO metas locally (fresh install, or a
+        // pre-.237 build dropped them on reload) pulls app_party_meta in
+        // FULL even in incremental mode — its cursor is past rows it never
+        // kept, so the incremental window would stay empty forever.
+        const __forceFullPM = key === 'partyMetas'
+          && !(Array.isArray(data.partyMetas) && data.partyMetas.length);
+        const __since = __incMode && !__forceFullPM && SYNC_CURSORED_KEYS.has(key)
           && __curStore.tables[key] ? __curStore.tables[key] : null;
         let __maxU = '';
         const fetchPages = async (useCursor) => {
@@ -39443,7 +39467,17 @@
       data.accountGroups = mergeWithPending('accountGroups', fetched.accountGroups, data.accountGroups);
       data.cashAccounts  = mergeWithPending('cashAccounts',  fetched.cashAccounts,  data.cashAccounts);
       data.parties       = mergeWithPending('parties',       fetched.parties,       data.parties);
-      data.partyMetas    = mergeWithPending('partyMetas',    fetched.partyMetas,    data.partyMetas);
+      // v89.170: WIPE-GUARD — never accept an EMPTY cloud set over a
+      // non-empty local one for the protected meta table. The cloud copy is
+      // the only durable one, so an accidental wipe must heal FROM devices,
+      // not propagate TO them: local rows are kept, and after the snapshot
+      // reset below they are re-pushed in full (__pmForceRepush).
+      if ((!Array.isArray(fetched.partyMetas) || !fetched.partyMetas.length)
+          && Array.isArray(data.partyMetas) && data.partyMetas.length) {
+        __pmForceRepush = true;
+      } else {
+        data.partyMetas  = mergeWithPending('partyMetas',    fetched.partyMetas,    data.partyMetas);
+      }
       data.categories    = mergeWithPending('categories',    fetched.categories,    data.categories);
       data.members       = mergeWithPending('members',       fetched.members,       data.members);
       // v89.32.4 FIX (invite accept loop): a pull that races ahead of our
@@ -39562,6 +39596,19 @@
       // After a full pull, reset the sync snapshot so we don't immediately
       // diff and emit ops for everything we just pulled in.
       try { resetSyncSnapshot(); } catch (_) {}
+      // v89.170: wipe-guard follow-through — drop partyMetas from the fresh
+      // snapshot so the next diff re-upserts every locally-kept meta row
+      // back to the (empty) cloud table.
+      if (__pmForceRepush) {
+        __pmForceRepush = false;
+        try {
+          if (__syncSnapshot) {
+            __syncSnapshot.partyMetas = [];
+            try { localStorage.setItem(SYNC_SNAPSHOT_KEY, JSON.stringify(__syncSnapshot)); } catch (_) {}
+          }
+        } catch (_) {}
+        try { scheduleSyncDiff(); } catch (_) {}
+      }
       // Re-pick active business/book in case the pull changed what the
       // user has access to (e.g. their membership was revoked, or a
       // brand-new account just learned about new businesses).
