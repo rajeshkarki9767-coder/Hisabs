@@ -7815,7 +7815,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.237';
+  const BUILD_TAG = '2026.07.11.239';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11451,6 +11451,36 @@
     if (!Array.isArray(data.partyMetas)) data.partyMetas = [];
     data.partyMetas = data.partyMetas.filter(x => x && x.id !== partyId);
     if (meta) data.partyMetas.push({ id: partyId, businessId, meta });
+  }
+  // v89.172: SELF-HEAL — fold overlay-era contact meta still attached to
+  // party records (localStorage survivors of the .233 wipe) into the
+  // protected store for any party whose store row is MISSING. Runs at the
+  // top of every cloud pull: roles are resolved by then, the pull's diff
+  // flush marks the new rows as pending upserts, the merge protects
+  // pending rows from being overwritten, and the drain pushes them — so a
+  // device that still holds wiped contact details (e.g. the owner's
+  // phone) restores the cloud automatically, no console needed.
+  // Owner/SM businesses only: a stale pre-v89.160 staff blob must not
+  // push rows RLS will reject. Idempotent — existing store rows (even
+  // meta:null ones from an intentional clear) are never touched.
+  function reconcileAttachedPartyMeta() {
+    try {
+      if (!Array.isArray(data.parties) || !data.parties.length) return 0;
+      const have = new Set((Array.isArray(data.partyMetas) ? data.partyMetas : []).map(r => r && r.id));
+      let added = 0;
+      for (const p of data.parties) {
+        if (!p || !p.meta || have.has(p.id)) continue;
+        const r = roleFor(p.businessId);
+        if (r !== 'owner' && r !== 'supermanager') continue;
+        upsertLocalPartyMeta(p.id, p.businessId, p.meta);
+        added++;
+      }
+      if (added) {
+        console.warn('[recovery] folded ' + added + ' attached contact record(s) into the protected store');
+        try { saveData(); } catch (_) {}
+      }
+      return added;
+    } catch (_) { return 0; }
   }
   // Attach protected meta onto party objects (owner/SM pulled rows;
   // other roles have none and keep badge-summary rendering). Idempotent;
@@ -36684,6 +36714,24 @@
     }
   } catch (_) {}
 
+  // v89.171: same bug class as v89.32.82, for app_party_meta. The .233
+  // reload-wipe emitted bulk DELETE ops for the protected contact table;
+  // .237 stopped CREATING them (never-diff-delete + explicit delete in
+  // deletePartyAction), but ops already persisted in the queue would still
+  // (a) exclude the restored rows from every pull merge (pending-delete
+  // filter) and (b) RE-DELETE them from the cloud on the next drain —
+  // undoing the recovery. No legitimate app_party_meta delete op can exist
+  // in the queue on .237+, so stripping them all is safe and final.
+  try {
+    const _beforePM = __syncQueue.length;
+    __syncQueue = __syncQueue.filter(op =>
+      !(op && op.kind === 'delete' && op.table === 'app_party_meta'));
+    if (__syncQueue.length !== _beforePM) {
+      console.warn('[sync] purged ' + (_beforePM - __syncQueue.length) + ' stale app_party_meta delete op(s)');
+      try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
+    }
+  } catch (_) {}
+
   function persistQueue() {
     try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(__syncQueue)); } catch (_) {}
   }
@@ -39247,6 +39295,9 @@
       if (!(await uiConfirm('Replace local data with what is in the cloud? Any local changes that have not been pushed will be lost.', { destructive: true, confirmLabel: 'Replace local' }))) return false;
     }
     if (!silent) toast('Pulling from cloud…');
+    // v89.172: self-heal BEFORE the pull decides what the cloud may
+    // overwrite — see reconcileAttachedPartyMeta.
+    try { reconcileAttachedPartyMeta(); } catch (_) {}
     // v89.143: decide pull mode. Incremental ONLY for silent background
     // pulls with a cursor store and a recent-enough full pull; the manual
     // Force-pull and the first pull after sign-in stay FULL (full pulls are
