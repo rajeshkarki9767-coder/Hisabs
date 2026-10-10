@@ -612,6 +612,7 @@
     border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0;
   }
   .adj-toggle-btn {
+    align-self: flex-start; margin-top: 0.15rem;
     display: inline-flex; align-items: center; gap: 0.45rem;
     padding: 0.45rem 0.9rem; border: 1.5px solid var(--line-soft);
     border-radius: 999px; background: var(--paper); color: var(--ink);
@@ -7814,7 +7815,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.235';
+  const BUILD_TAG = '2026.07.11.236';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8211,12 +8212,22 @@
     // v89.168: button-pill toggle (class 'active'), NOT a checkbox — the
     // app's global input styles (width:100%) blow raw checkboxes apart
     // inside .form-grid, and every other toggle here is a pill anyway.
+    // v89.169: uses the meta-section header pattern (the input-wrap floating
+    // label overlapped the pill), and the helper text now reflects the
+    // state — one message when marked, another when not.
+    const onMsg = `Marked as adjustment: entries on this ${entityLabel} get an ADJ badge in the cash book and are left out of Insights and Forecast. Account totals are not affected.`;
+    const offMsg = `Not an adjustment ${entityLabel}. Tap ADJ to mark it — for correction entries made to match account amounts.`;
     return `
-        <div class="input-wrap">
-          <label>Adjustment — <span style="text-transform:none;letter-spacing:0;">mark corrections, not real trade</span></label>
-          <button type="button" id="mEntityAdj" class="adj-toggle-btn${checked ? ' active' : ''}" onclick="this.classList.toggle('active')"><span class="adj-badge">ADJ</span> Adjustment ${entityLabel}</button>
-          <div class="adj-toggle-sub">Entries on this ${entityLabel} get an ADJ badge in the cash book and are left out of Insights and Forecast. Account totals are not affected.</div>
+        <div class="meta-section">
+          <div class="meta-section-label">Adjustment <span class="meta-optional">— mark corrections, not real trade</span></div>
+          <button type="button" id="mEntityAdj" class="adj-toggle-btn${checked ? ' active' : ''}" onclick="toggleAdjPill(this)" data-msg-on="${escapeHtml(onMsg)}" data-msg-off="${escapeHtml(offMsg)}"><span class="adj-badge">ADJ</span> Adjustment ${entityLabel}</button>
+          <div class="adj-toggle-sub" id="mEntityAdjMsg">${checked ? onMsg : offMsg}</div>
         </div>`;
+  }
+  function toggleAdjPill(btn) {
+    btn.classList.toggle('active');
+    const msg = document.getElementById('mEntityAdjMsg');
+    if (msg) msg.textContent = btn.classList.contains('active') ? btn.dataset.msgOn : btn.dataset.msgOff;
   }
   // True when an entry points at an adjustment party or an adjustment
   // category (category matched by name within the entry's business, the
