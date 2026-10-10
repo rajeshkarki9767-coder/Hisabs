@@ -7812,7 +7812,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.232';
+  const BUILD_TAG = '2026.07.11.233';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -36702,7 +36702,8 @@
         books: data.books.map(snapEntry),
         accountGroups: data.accountGroups.map(snapEntry),
         cashAccounts: data.cashAccounts.map(snapEntry),
-        parties: data.parties.map(snapEntry),
+        parties: data.parties.map(p => snapEntry(p, 'meta')), // v89.166: 'meta' is overlay-derived (see recordFingerprint note)
+        partyMetas: (data.partyMetas || []).map(snapEntry),    // v89.166: was MISSING — every diff saw all metas as new (pending/synced flicker loop)
         categories: data.categories.map(snapEntry),
         members: data.members.map(snapEntry),
         entries: data.entries.map(snapEntry),
@@ -36743,11 +36744,21 @@
   // equal ("no value"), and deep-compares object/array values via JSON. So we
   // build a canonical, key-sorted representation that drops null/undefined keys
   // and JSON-encodes the rest, then hash it.
-  function recordFingerprint(rec) {
+  // v89.166: optional `omit` key excluded from the fingerprint. Used for
+  // parties' `meta`: after Phase 2 (v89.160) the real meta syncs via the
+  // partyMetas table, and applyPartyMetaOverlay ATTACHES meta onto party
+  // objects between paints while pulls strip it again. Fingerprinting that
+  // churn made every overlay/pull cycle look like a real edit — parties
+  // re-pushed, updated_at bumped, other devices re-pulled, forever (the
+  // pending/synced/pending flicker). Meta-value changes still sync: the
+  // partyMetas row carries them, and metaBadges (fingerprinted) carries
+  // any badge-visible change on the parties row.
+  function recordFingerprint(rec, omit) {
     if (!rec || typeof rec !== 'object') return String(rec);
     const keys = Object.keys(rec).sort();
     const parts = [];
     for (const k of keys) {
+      if (omit && k === omit) continue; // v89.166
       const v = rec[k];
       if (v === undefined || v === null) continue; // matches shallowEqual "no value"
       if (typeof v === 'object') parts.push(k + ':o:' + JSON.stringify(v));
@@ -36764,7 +36775,7 @@
     return (h >>> 0).toString(36) + ':' + s.length.toString(36);
   }
   // Build a compact snapshot entry { id, _fp } for one record.
-  function snapEntry(rec) { return { id: rec.id, _fp: recordFingerprint(rec) }; }
+  function snapEntry(rec, omit) { return { id: rec.id, _fp: recordFingerprint(rec, omit) }; }
 
   // Reset the snapshot to the current data state — called after a successful
   // pull (so we don't diff against stale state) and after sign-out cleanup.
@@ -36781,8 +36792,11 @@
     if (!__syncSnapshot) return;
     let dirty = false;
     for (const op of ops) {
-      const list = __syncSnapshot[op.localKey];
-      if (!Array.isArray(list)) continue;
+      // v89.166: auto-create a missing per-key list (a snapshot persisted by
+      // an older build lacks partyMetas) so confirmed pushes register instead
+      // of being re-diffed as "new" forever.
+      let list = __syncSnapshot[op.localKey];
+      if (!Array.isArray(list)) { list = __syncSnapshot[op.localKey] = []; }
       if (op.kind === 'upsert') {
         // Find the local record we're confirming as pushed. Use the current
         // local data (NOT op.row, which is the DB-shape — the snapshot is in
@@ -36792,8 +36806,9 @@
         if (!localRec) continue;
         const idx = list.findIndex(r => r.id === op.recordId);
         // v89.77: store compact fingerprint entry, not the full record.
-        if (idx === -1) list.push(snapEntry(localRec));
-        else list[idx] = snapEntry(localRec);
+        const _omit = op.localKey === 'parties' ? 'meta' : null; // v89.166
+        if (idx === -1) list.push(snapEntry(localRec, _omit));
+        else list[idx] = snapEntry(localRec, _omit);
         dirty = true;
       } else if (op.kind === 'delete') {
         const idx = list.findIndex(r => r.id === op.recordId);
@@ -36915,7 +36930,7 @@
       const prev = snapById.get(rec.id);
       // v89.77: snapshot stores { id, _fp } fingerprints, not full records.
       // A record is "changed" if it's new (no prev) or its fingerprint differs.
-      if (!prev || prev._fp !== recordFingerprint(rec)) {
+      if (!prev || prev._fp !== recordFingerprint(rec, localKey === 'parties' ? 'meta' : null)) {
         // Validate parent references — orphan entries (book deleted but
         // entry not) and orphan members (business deleted) cause inserts
         // to fail with NOT NULL violations. Skip them silently here; a
