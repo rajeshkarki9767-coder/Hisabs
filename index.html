@@ -7790,7 +7790,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.226';
+  const BUILD_TAG = '2026.07.11.227';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -8680,7 +8680,10 @@
   let accounts = [];
   let data = { businesses: [], books: [], entries: [], members: [], parties: [], categories: [], cashAccounts: [], accountGroups: [], auditExpenses: [], expenseRates: [], quickLook: [], announcements: [], transfers: [],
     // v89.6: distribution data now syncs to Supabase (was localStorage only)
-    distSalaries: [], distShares: [], splitParties: [] };
+    distSalaries: [], distShares: [], splitParties: [],
+    // v89.160: party contact meta lives in its own protected table
+    // (owner/Super Manager readable only). partyMetas: [{id: partyId, businessId, meta}]
+    partyMetas: [] };
   // parties: [{ id, businessId, name, kind: 'customer'|'vendor'|'both', createdAt }]
   // categories: [{ id, businessId, name }]
   // accountGroups: [{ id, businessId, name, kind: 'cash'|'wallet'|'bank'|'card'|'other', sortOrder }]
@@ -11322,6 +11325,61 @@
     const t = lim === 'limited' ? 'Limited' : 'Unlimited';
     return ` <span class="party-limit-emoji" title="${t}">${e}</span>`;
   }
+  // ================================================================
+  // v89.160: PHASE 2 CONTACT PRIVACY helpers.
+  // partyMetaBadgesSummary: value-free {p,pn,e,en,d,dn,s:[{n,x}],a:[{n,x}]}
+  // (field exists / refused + platform/account NAMES only) — stored on the
+  // parties row so every role keeps the v89.102 badges.
+  // _synthMetaFromBadges: pseudo-meta from that summary, so the existing
+  // badge/filter code renders for roles that cannot read real meta.
+  // ================================================================
+  function partyMetaBadgesSummary(meta) {
+    if (!meta) return null;
+    const b = {};
+    if (Array.isArray(meta.phones) && meta.phones.length) b.p = true;
+    if (meta.phoneNotShared) b.pn = true;
+    if (Array.isArray(meta.emails) && meta.emails.length) b.e = true;
+    if (meta.emailNotShared) b.en = true;
+    if (meta.dob) b.d = true;
+    if (meta.dobNotShared) b.dn = true;
+    const s = (Array.isArray(meta.socials) ? meta.socials : [])
+      .filter(x => x && String(x.platform || '').trim())
+      .map(x => { const o = { n: String(x.platform).trim() }; if (x.ns) o.x = true; return o; });
+    if (s.length) b.s = s;
+    const a = partyDetailSets(meta).filter(d => d.account)
+      .map(d => { const o = { n: d.account }; if (d.ns) o.x = true; return o; });
+    if (a.length) b.a = a;
+    return Object.keys(b).length ? b : null;
+  }
+  function _synthMetaFromBadges(b) {
+    if (!b) return null;
+    const m = {};
+    if (b.p) m.phones = ['•'];
+    if (b.pn) m.phoneNotShared = true;
+    if (b.e) m.emails = ['•'];
+    if (b.en) m.emailNotShared = true;
+    if (b.d) m.dob = '--01-01'; // existence only; badge text is role-gated anyway
+    if (b.dn) m.dobNotShared = true;
+    if (Array.isArray(b.s)) m.socials = b.s.map(x => ({ platform: x.n, handle: '', ns: x.x === true }));
+    if (Array.isArray(b.a)) m.details = b.a.map(x => ({ account: x.n, username: '', tag: '', ns: x.x === true }));
+    return Object.keys(m).length ? m : null;
+  }
+  function upsertLocalPartyMeta(partyId, businessId, meta) {
+    if (!Array.isArray(data.partyMetas)) data.partyMetas = [];
+    data.partyMetas = data.partyMetas.filter(x => x && x.id !== partyId);
+    if (meta) data.partyMetas.push({ id: partyId, businessId, meta });
+  }
+  // Attach protected meta onto party objects (owner/SM pulled rows;
+  // other roles have none and keep badge-summary rendering). Idempotent;
+  // runs before every main paint.
+  function applyPartyMetaOverlay() {
+    if (!Array.isArray(data.partyMetas) || !data.partyMetas.length) return;
+    const byId = new Map(data.partyMetas.map(r => [r && r.id, r]));
+    for (const p of (data.parties || [])) {
+      const pm = byId.get(p.id);
+      if (pm) p.meta = pm.meta;
+    }
+  }
   function partyDetailSets(meta) {
     // v89.126: sets-only. The legacy {label,value} shape is converted by a
     // one-time migration in loadAll(), so no runtime fold is needed. Rows
@@ -11355,7 +11413,10 @@
   // show the first few and a "+N more" badge so the row never runs away.
   // Returns '' when nothing is present.
   function partyContactBadges(party) {
-    const meta = party && party.meta;
+    // v89.160: roles that cannot read real meta render from the value-free
+    // badge summary carried on the parties row.
+    let meta = party && party.meta;
+    if (!meta && party && party.metaBadges) meta = _synthMetaFromBadges(party.metaBadges);
     if (!meta) return '';
     // v89.141: rich tooltips (full DOB date, account usernames/tags) only
     // for roles allowed to see contact details — owner / supermanager.
@@ -12802,6 +12863,8 @@
       session.period = { mode: 'current' };
       saveSession();
     }
+    // v89.160: attach protected contact meta before painting.
+    try { applyPartyMetaOverlay(); } catch (_) {}
     // Reset the per-render card-menu registry so it can't grow without bound.
     // Each card on the just-rendered view will register fresh ids.
     __cardMenuRegistry = new Map();
@@ -14295,7 +14358,7 @@
     renderMain();
   }
   function _partyHasField(p, f) {
-    const m = p.meta || {};
+    const m = p.meta || _synthMetaFromBadges(p.metaBadges) || {};
     if (f === 'sms') return !!(m.phones && m.phones.length) || !!m.phoneNotShared;
     if (f === 'email') return !!(m.emails && m.emails.length) || !!m.emailNotShared;
     if (f === 'dob') return !!m.dob || !!m.dobNotShared;
@@ -14327,7 +14390,8 @@
     const freq = new Map();
     const acctFreq = new Map();
     for (const p of bizParties) {
-      const socials = Array.isArray(p.meta?.socials) ? p.meta.socials : [];
+      const _m = p.meta || _synthMetaFromBadges(p.metaBadges) || {};
+      const socials = Array.isArray(_m.socials) ? _m.socials : [];
       for (const s of socials) {
         const name = String(s?.platform || '').trim();
         if (!name) continue;
@@ -14335,7 +14399,7 @@
         const e = freq.get(k) || { name, n: 0 };
         e.n++; freq.set(k, e);
       }
-      for (const d of partyDetailSets(p.meta)) {
+      for (const d of partyDetailSets(_m)) {
         if (!d.account) continue;
         const k = d.account.toLowerCase();
         const e = acctFreq.get(k) || { name: d.account, n: 0 };
@@ -23795,6 +23859,10 @@
       // Store as plain object (or remove the key entirely when empty)
       if (newMeta) p.meta = newMeta;
       else delete p.meta;
+      // v89.160: meta syncs via the protected table; the parties row
+      // carries only the value-free badge summary.
+      p.metaBadges = partyMetaBadgesSummary(newMeta) || undefined;
+      upsertLocalPartyMeta(p.id, p.businessId, newMeta);
     }
     saveData(); closeModal(); renderAll();
     toast(unassignedChanged && newUnassigned ? 'Marked as unassigned.' : 'Saved.');
@@ -23963,6 +24031,7 @@
     const _deletedId = p.id;
     data.entries.forEach(e => { if (bookIds.includes(e.bookId) && e.partyId === p.id) delete e.partyId; });
     data.parties = data.parties.filter(x => x.id !== partyId);
+    if (Array.isArray(data.partyMetas)) data.partyMetas = data.partyMetas.filter(x => x && x.id !== partyId); // v89.160
     saveData();
     switchView('parties');
     toast('Party deleted.');
@@ -26423,8 +26492,10 @@
       sortOrder: nextSortOrder(data.parties, 'businessId', biz.id),
       unassigned: _isUnassigned || undefined,
       meta: meta || undefined,
+      metaBadges: partyMetaBadgesSummary(meta) || undefined, // v89.160
     };
     data.parties.push(p);
+    if (meta) upsertLocalPartyMeta(p.id, biz.id, meta); // v89.160
     // v89.82: persist FIRST and honour the result. Previously this called
     // `saveData(); closeModal(); renderAll(); toast('Party created.')`
     // unconditionally — so when storageWrite() failed (quota exhausted on a
@@ -36343,7 +36414,7 @@
   // FULL so that logic keeps seeing the cloud's true row set.
   const SYNC_CURSOR_KEY_PREFIX = 'hisabs:syncCursors:v1:';
   const SYNC_FULL_EVERY_MS = 6 * 60 * 60 * 1000; // full reconcile at least every 6h (sweeps deletes missed offline)
-  const SYNC_CURSORED_KEYS = new Set(['entries', 'parties', 'categories', 'books', 'cashAccounts', 'quickLook', 'transfers']);
+  const SYNC_CURSORED_KEYS = new Set(['entries', 'parties', 'partyMetas', 'categories', 'books', 'cashAccounts', 'quickLook', 'transfers']);
   function _syncCursorsRead(uid) {
     try { return JSON.parse(localStorage.getItem(SYNC_CURSOR_KEY_PREFIX + uid) || 'null'); }
     catch (_) { return null; }
@@ -37260,6 +37331,9 @@
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_parties' },
           (payload) => onRealtimeEvent('parties', payload))
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'app_party_meta' },
+          (payload) => onRealtimeEvent('partyMetas', payload))
         .on('postgres_changes',
           { event: '*', schema: 'public', table: 'app_categories' },
           (payload) => onRealtimeEvent('categories', payload))
@@ -38522,7 +38596,10 @@
         created_at_local: r.createdAt || null,
         created_by: r.createdBy || null,
         created_by_name: r.createdByName || null,
-        meta: r.meta || null,
+        // v89.160: meta is NEVER sent here anymore — it syncs via
+        // app_party_meta (owner/SM only). The row carries only the
+        // value-free badge summary every role may see.
+        meta_badges: r.meta ? partyMetaBadgesSummary(r.meta) : (r.metaBadges || null),
       }),
       fromDb: (r) => ({
         id: r.id, businessId: r.business_id,
@@ -38535,8 +38612,16 @@
         createdTs: r.created_at_local ? (Date.parse(r.created_at_local) || 0) : 0,
         createdBy: r.created_by || null,
         createdByName: r.created_by_name || '',
-        meta: r.meta || null,
+        meta: r.meta || null, // legacy pulls only; null after v89_160 migration
+        metaBadges: r.meta_badges || null,
       }),
+    },
+    // v89.160: protected contact-meta table (RLS: owner/Super Manager only;
+    // other roles pull zero rows and render badges from meta_badges).
+    partyMetas: {
+      table: 'app_party_meta',
+      toDb: (r) => ({ party_id: r.id, business_id: r.businessId, meta: r.meta || null }),
+      fromDb: (r) => ({ id: r.party_id, businessId: r.business_id, meta: r.meta || null }),
     },
     categories: {
       table: 'app_categories',
@@ -38882,7 +38967,7 @@
   // Push order matters because of foreign keys: parents before children.
   const cloudPushOrder = [
     'businesses', 'books', 'accountGroups', 'cashAccounts',
-    'parties', 'categories', 'members', 'entries', 'auditExpenses', 'expenseRates', 'quickLook', 'announcements', 'transfers',
+    'parties', 'partyMetas', 'categories', 'members', 'entries', 'auditExpenses', 'expenseRates', 'quickLook', 'announcements', 'transfers',
     // v89.6: distribution sync — businesses must come first because of FK
     'distSalaries', 'distShares', 'splitParties',
   ];
@@ -39172,6 +39257,7 @@
       data.accountGroups = mergeWithPending('accountGroups', fetched.accountGroups, data.accountGroups);
       data.cashAccounts  = mergeWithPending('cashAccounts',  fetched.cashAccounts,  data.cashAccounts);
       data.parties       = mergeWithPending('parties',       fetched.parties,       data.parties);
+      data.partyMetas    = mergeWithPending('partyMetas',    fetched.partyMetas,    data.partyMetas);
       data.categories    = mergeWithPending('categories',    fetched.categories,    data.categories);
       data.members       = mergeWithPending('members',       fetched.members,       data.members);
       // v89.32.4 FIX (invite accept loop): a pull that races ahead of our
