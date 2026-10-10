@@ -5930,6 +5930,13 @@
   }
   /* v89.102: green variant — a stored detail VALUE (account name,
      username, tag, …) shown as its own box. Long values truncate. */
+  /* v89.175: teal variant for SOCIAL platform badges, so each badge kind
+     has its own color: blue SMS/Email, green accounts, purple DOB,
+     teal socials, red not-shared, amber ADJ. */
+  .party-contact-tag-social {
+    color: #0d9488;
+    border-color: #0d9488;
+  }
   .party-contact-tag-green {
     color: var(--gain);
     border-color: var(--gain);
@@ -7815,7 +7822,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.07.11.240';
+  const BUILD_TAG = '2026.10.10.242';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -11564,7 +11571,7 @@
     for (const s of socials) {
       const name = String(s.platform).trim();
       if (s.ns) tags.push({ label: '✕ ' + name, title: 'Not shared — party declined to share their ' + name, red: true });
-      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name) }); // v89.167: handle in tooltip gated like DOB/account tips
+      else tags.push({ label: name, title: (_fullTip && s.handle ? name + ': ' + String(s.handle).trim() : name), cls: 'party-contact-tag-social' }); // v89.167 tooltip gate; v89.175 teal
     }
     if (!tags.length && !partyDetailSets(meta).length) return '';
     // Cap how many badges show on a card so a party with 8-9 socials
@@ -23302,6 +23309,13 @@
       view = 'entries';
     }
     session.view = view;
+    // v89.174: entity searches are per-visit scratch — navigating to (or
+    // re-tapping) a list tab starts it with a fresh, empty search box, the
+    // same as the ✕ clear. Previously a typed search survived leaving and
+    // re-entering the tab (only a business switch cleared it, v89.68).
+    if (view === 'parties') { __partiesSearch = ''; __partiesFieldFilters.clear(); }
+    if (view === 'categories') __categoriesSearch = '';
+    if (view === 'accounts') __accountsSearch = '';
     if (view !== 'party-detail') {
       session.selectedPartyId = null;
       // Drop the party-detail filters too so a fresh open of any
@@ -29606,8 +29620,19 @@
     if (fresh) live.innerHTML = fresh.innerHTML;
     else renderFn(root);
   }
+  // v89.174: the entity-search setters are called from two places — typing in
+  // the input (input already shows v) and the ✕ clear button (input still
+  // shows the old text, because _swapSearchResults only swaps the results
+  // container and deliberately leaves the input alone to preserve focus while
+  // typing). Sync the input whenever it differs from the new value, so the ✕
+  // actually empties the box (and the CSS :placeholder-shown rule re-hides ✕).
+  function _syncSearchInput(id, v) {
+    const el = document.getElementById(id);
+    if (el && el.value !== v) el.value = v;
+  }
   function setPartiesSearch(v) {
     __partiesSearch = v;
+    _syncSearchInput('partiesSearchInput', v);
     _debouncedRender('parties', () => _swapSearchResults(renderPartiesView, 'partiesResults'));
   }
   // v73: persist the chosen party sort across navigations
@@ -29619,10 +29644,12 @@
   }
   function setCategoriesSearch(v) {
     __categoriesSearch = v;
+    _syncSearchInput('categoriesSearchInput', v);
     _debouncedRender('categories', () => _swapSearchResults(renderCategoriesView, 'categoriesResults'));
   }
   function setAccountsSearch(v) {
     __accountsSearch = v;
+    _syncSearchInput('accountsSearchInput', v);
     _debouncedRender('accounts', () => _swapSearchResults(renderAccountsView, 'accountsResults'));
   }
   function restoreSearchFocus(id) {
