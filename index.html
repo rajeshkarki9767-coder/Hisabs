@@ -7822,7 +7822,7 @@
   // Internal build tag — bumps on every deploy to force the PWA service
   // worker to refresh its cache, independent of the public version. Keep the
   // service worker's CACHE_VERSION in sync with this on each release.
-  const BUILD_TAG = '2026.10.10.242';
+  const BUILD_TAG = '2026.10.27.243';
 
   // ================================================================
   // LAZY PDF LIBRARY LOADER
@@ -32192,7 +32192,21 @@
     if (roleFor(bizId) !== 'owner' && roleFor(bizId) !== 'manager') {
       toast('Only an owner or manager can export.'); return;
     }
-    const list = (Array.isArray(data[kind]) ? data[kind] : []).filter(x => x.businessId === bizId);
+    let list = (Array.isArray(data[kind]) ? data[kind] : []).filter(x => x.businessId === bizId);
+    // v89.176: parties export carries CONTACT DETAILS explicitly. Post-v89.160
+    // the real meta lives in the protected store (data.partyMetas), and the
+    // copy attached to party objects is an overlay side-effect — resolve from
+    // the store so the file always has the details. Only a role that can read
+    // them holds store rows (owner/Super Manager); a manager's export simply
+    // has none, so nothing leaks.
+    if (kind === 'parties') {
+      list = list.map(p => {
+        const row = { ...p };
+        const m = typeof partyMetaResolved === 'function' ? partyMetaResolved(p) : (p.meta || null);
+        if (m) row.meta = m; else delete row.meta;
+        return row;
+      });
+    }
     const labelMap = { categories: 'categories', parties: 'parties', cashAccounts: 'accounts' };
     if (!list.length) { toast(`No ${labelMap[kind] || kind} to export in this business.`); return; }
     const payload = {
@@ -33200,9 +33214,22 @@
       if (src.shortcut !== undefined) target.shortcut = src.shortcut || undefined;
       if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
     } else if (kind === 'parties') {
-      if (src.meta !== undefined) target.meta = src.meta || undefined;   // phones/emails/socials/dob/notes
+      // v89.176: post-v89.160, writing p.meta alone is a dead end — it no
+      // longer syncs via the parties row. Route imported contact details
+      // through the protected store + value-free badge summary, exactly like
+      // savePartyEdit. Gated to roles that may write contact meta.
+      if (src.meta !== undefined && canAddPartyMeta(target.businessId)) {
+        const _m = (src.meta && typeof src.meta === 'object') ? src.meta : null;
+        if (_m) target.meta = _m; else delete target.meta;
+        target.metaBadges = partyMetaBadgesSummary(_m) || undefined;
+        upsertLocalPartyMeta(target.id, target.businessId, _m);
+      }
       if (src.kind !== undefined) target.kind = src.kind;
       if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
+      // v89.176: adjustment flag survives export/import (owner-only, like the pill).
+      if (src.adj !== undefined && roleFor(target.businessId) === 'owner') {
+        if (src.adj === true) target.adj = true; else delete target.adj;
+      }
     } else if (kind === 'cashAccounts') {
       if (src.groupId !== undefined && src.groupId) target.groupId = src.groupId;
       if (src.unassigned !== undefined) target.unassigned = src.unassigned || undefined;
@@ -33224,7 +33251,7 @@
         unassigned: src.unassigned || undefined,
       };
     } else if (kind === 'parties') {
-      return {
+      const _pclone = {
         id: uid(), businessId: targetBizId, name,
         kind: src.kind || 'both',
         createdAt: today(),
@@ -33233,8 +33260,17 @@
         createdByName: me()?.name || '',
         sortOrder: nextSortOrder(data.parties, 'businessId', targetBizId),
         unassigned: src.unassigned || undefined,
-        meta: (src.meta && typeof src.meta === 'object') ? src.meta : undefined,
+        adj: (src.adj === true && roleFor(targetBizId) === 'owner') || undefined, // v89.176
       };
+      // v89.176: contact details go through the protected store + badge
+      // summary (see mergeImportFields); p.meta alone no longer syncs.
+      const _m = (src.meta && typeof src.meta === 'object' && canAddPartyMeta(targetBizId)) ? src.meta : null;
+      if (_m) {
+        _pclone.meta = _m;
+        _pclone.metaBadges = partyMetaBadgesSummary(_m) || undefined;
+        upsertLocalPartyMeta(_pclone.id, targetBizId, _m);
+      }
+      return _pclone;
     } else if (kind === 'cashAccounts') {
       // New imported accounts go to the target biz's first group so they
       // appear under a valid group (the importer doesn't recreate groups).
